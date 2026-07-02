@@ -65,7 +65,12 @@
     if(_pcache[key]){ cb(_pcache[key]); return; }
     fetch('https://api.weather.gov/points/'+lat.toFixed(4)+','+lng.toFixed(4),{headers:{Accept:'application/geo+json'}})
       .then(function(r){if(!r.ok)throw 0;return r.json();})
-      .then(function(d){return fetch(d.properties.forecast,{headers:{Accept:'application/geo+json'}});})
+      .then(function(d){
+        // weather.gov returns forecast:null for some points (territories, marine
+        // areas, outages) — fetching null produced a bogus GET /null 404.
+        if(!d||!d.properties||!d.properties.forecast)throw 0;
+        return fetch(d.properties.forecast,{headers:{Accept:'application/geo+json'}});
+      })
       .then(function(r){if(!r.ok)throw 0;return r.json();})
       .then(function(d){ _pcache[key]=d.properties.periods; cb(_pcache[key]); })
       .catch(function(){ cb(null); });

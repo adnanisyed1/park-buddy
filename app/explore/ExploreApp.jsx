@@ -270,7 +270,7 @@ export default function ExploreApp() {
     const s = document.createElement("script");
     s.id = "pb-ex-gm-js";
     s.async = true;
-    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly&callback=__pbExInit";
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly&loading=async&callback=__pbExInit";
     s.onerror = () => patch({ keyOverlay: true, keyMsg: "Could not load Google Maps. Check your connection or the key." });
     document.head.appendChild(s);
   }

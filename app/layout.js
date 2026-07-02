@@ -53,8 +53,11 @@ const JSON_LD = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${spectral.variable} ${hanken.variable}`}>
-      <body>
+    // suppressHydrationWarning: browser extensions (Grammarly et al.) inject
+    // attributes into <html>/<body> before React hydrates, throwing minified
+    // errors #418/#423/#425 in production. React recovers, but noisily.
+    <html lang="en" className={`${spectral.variable} ${hanken.variable}`} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         {/* Google Maps key, injected from the environment (Netlify env var).
             Runs before any embed-pipeline script (config.js no longer carries a
             literal key — the leaked one was rotated). NEXT_PUBLIC_* values are

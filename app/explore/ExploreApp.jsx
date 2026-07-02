@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
+import { fetchLakes, fetchTrails } from "./overpass-client";
 
 /* ---------------- design constants (verbatim from Explore.dc.html) ---------------- */
 
@@ -359,18 +360,19 @@ export default function ExploreApp() {
       });
     } catch {}
 
-    // Lakes come from Overpass (heavier) — only when zoomed in, radius capped.
+    // Lakes come from Overpass — fetched CLIENT-SIDE (browser IP), since Overpass
+    // blocks datacenter/serverless IPs. Only when zoomed in, radius capped.
     if (map.getZoom() >= 7) {
       const radiusKm = Math.min(70, Math.max(15, Math.round(milesBetween({ lat: c.lat(), lng: c.lng() }, { lat: ne.lat(), lng: ne.lng() }) * 1.609)));
       try {
-        const w = await fetch("/api/water?lat=" + c.lat().toFixed(4) + "&lng=" + c.lng().toFixed(4) + "&radius=" + radiusKm).then((r) => (r.ok ? r.json() : null));
-        (w && w.lakes ? w.lakes : []).forEach((x) => {
+        const lakes = await fetchLakes(+c.lat().toFixed(4), +c.lng().toFixed(4), radiusKm);
+        (lakes || []).forEach((x) => {
           if (typeof x.lat !== "number" || typeof x.lng !== "number" || !x.name) return;
           const key = "w:" + x.name + x.lat.toFixed(3);
           if (seen.has(key)) return;
           seen.add(key);
           if (parksRef.current.some((p) => p.name === x.name)) return;
-          additions.push({ name: x.name, state: x.state || "", lat: x.lat, lng: x.lng, type: "lake" });
+          additions.push({ name: x.name, state: "", lat: x.lat, lng: x.lng, type: "lake" });
         });
       } catch {}
     }
@@ -520,11 +522,12 @@ export default function ExploreApp() {
   }
 
   // Hiking / off-road / ski polylines from OSM (legacy colors + weights).
+  // Fetched CLIENT-SIDE (browser IP) — Overpass blocks serverless IPs.
   async function loadTrailsFor(p) {
     const g = window.google, map = mapObjRef.current;
     if (!g || !map) return;
     try {
-      const d = await fetch("/api/trails?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=30").then((r) => (r.ok ? r.json() : null));
+      const d = await fetchTrails(+p.lat.toFixed(4), +p.lng.toFixed(4), 30);
       if (!d || layersForRef.current !== p.name) return;
       ["hiking", "offroad", "ski"].forEach((cat) => {
         (d[cat] || []).forEach((t) => {

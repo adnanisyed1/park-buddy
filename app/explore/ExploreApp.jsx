@@ -31,15 +31,9 @@ const TYPE_META = {
   campground:      { label: "Campground",     icon: "🏕️", color: "#b9823f" },
 };
 
-// Cross-type sample destinations from the design, so "what's nearby" spans types.
-const EXTRA_DESTS = [
-  { name: "Kodachrome Basin", state: "UT", lat: 37.501, lng: -111.986, type: "state_park" },
-  { name: "Dixie National Forest", state: "UT", lat: 37.75, lng: -112.45, type: "national_forest" },
-  { name: "Bear Lake", state: "UT", lat: 41.9481, lng: -111.3163, type: "lake" },
-  { name: "Custer State Park", state: "SD", lat: 43.7566, lng: -103.391, type: "state_park" },
-  { name: "Black Hills National Forest", state: "SD", lat: 44.0, lng: -103.65, type: "national_forest" },
-  { name: "Lake Tahoe", state: "CA", lat: 39.0968, lng: -120.0324, type: "lake" },
-];
+// State parks, national forests and lakes are NOT hardcoded — they load live from
+// the real APIs as you pan the map (/api/destinations by bbox, /api/water by area),
+// exactly like the pre-migration /explore. See loadViewportDestinations() below.
 
 const CAMPGROUNDS = [
   { name: "Watchman Campground", lat: 37.193, lng: -112.988 },
@@ -108,7 +102,7 @@ function photoTitleFor(p) {
   return p.name + suffix;
 }
 
-/* ---------------- photo pipeline (design behavior: Wikipedia → NPS-key fallback) ---------------- */
+/* ---------------- photo pipeline (server-side; no browser-stored key) ---------------- */
 
 let photoCache = null;
 function getPhotoCache() {
@@ -119,37 +113,20 @@ function getPhotoCache() {
 function savePhotoCache() {
   try { localStorage.setItem("pb_photo_cache", JSON.stringify(photoCache)); } catch {}
 }
-function getNpsKey() {
-  try { return localStorage.getItem("pb_nps_key") || ""; } catch { return ""; }
-}
 
+// Photos resolve SERVER-SIDE via /api/photo (Wikipedia/Wikimedia + the NPS lookup
+// handled on the server with NPS_API_KEY). No key is ever asked of the user or
+// stored in the browser. Resolved URLs are cached to localStorage.
 function fetchPhoto(p) {
   const cache = getPhotoCache();
   const cached = cache[p.name];
   if (cached) return Promise.resolve(cached);
   if (cached === false) return Promise.resolve(null);
-
   const apply = (url) => { cache[p.name] = url || false; savePhotoCache(); return url || null; };
-  const npsFallback = () => {
-    const npsKey = p.type === "national_park" ? getNpsKey() : "";
-    if (!npsKey) return apply(null);
-    return fetch("https://developer.nps.gov/api/v1/parks?q=" + encodeURIComponent(p.name) + "&limit=1&api_key=" + encodeURIComponent(npsKey))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        const hit = data && data.data && data.data[0];
-        const img = hit && hit.images && hit.images[0] && hit.images[0].url;
-        return apply(img || null);
-      })
-      .catch(() => apply(null));
-  };
-
-  return fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(photoTitleFor(p)))
+  return fetch("/api/photo?name=" + encodeURIComponent(photoTitleFor(p)) + "&state=" + encodeURIComponent(p.state || ""))
     .then((r) => (r.ok ? r.json() : null))
-    .then((data) => {
-      const url = data && data.thumbnail && data.thumbnail.source;
-      return url ? apply(url) : npsFallback();
-    })
-    .catch(() => npsFallback());
+    .then((d) => apply(d && d.found ? (d.thumb || d.image) : null))
+    .catch(() => apply(null));
 }
 
 function CoverPhoto({ park }) {
@@ -172,7 +149,6 @@ export default function ExploreApp() {
     panelOpen: false, filtersOpen: true, radius: 150,
     destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true,
     anchor: null, // { lat, lng, label, isUser }
-    npsKeyInput: "", npsKeySaved: false,
     view: "browse", // browse | detail | trip
     listMode: false, selectedName: null, detailTab: "live",
     searchQuery: "", trip: [],
@@ -190,6 +166,7 @@ export default function ExploreApp() {
   const nearMarkerRef = useRef(null);
   const gatewayMarkerRef = useRef(null);
   const infoWindowRef = useRef(null);
+  const seenDestRef = useRef(new Set()); // dedupe live destinations across pans
   const uiRef = useRef(ui);
   uiRef.current = ui;
   const parksRef = useRef(parks);
@@ -231,12 +208,11 @@ export default function ExploreApp() {
       await Promise.all([loadScript("/pb-verdict.js"), loadScript("/gateway-towns.js")]);
       if (disposed) return;
 
-      const real = (window.TRIP_PARKS || []).map((p) => ({
+      const all = (window.TRIP_PARKS || []).map((p) => ({
         name: p.name,
         state: STATE_ABBR[p.state] || p.state,
         lat: p.lat, lng: p.lng, type: "national_park",
       }));
-      const all = real.concat(EXTRA_DESTS);
       setParks(all);
       parksRef.current = all;
 
@@ -254,8 +230,6 @@ export default function ExploreApp() {
         .then(() => loadScript("/supabase-config.js"))
         .then(() => loadScript("/auth.js"));
       loadScript("/ask-parkbuddy.js");
-
-      patch({ npsKeyInput: getNpsKey() });
     })();
     return () => { disposed = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -275,6 +249,34 @@ export default function ExploreApp() {
     document.head.appendChild(s);
   }
 
+  // Create a marker for any destination in state that doesn't have one yet
+  // (national parks at boot + state parks / forests / lakes as they stream in).
+  function ensureMarkers() {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map) return;
+    parksRef.current.forEach((p) => {
+      if (markersRef.current.has(p.name)) return;
+      const meta = TYPE_META[p.type] || TYPE_META.national_park;
+      const color = meta.color || V[p.type === "national_park" ? "loading" : "go"].dot;
+      const marker = new g.maps.Marker({
+        position: { lat: p.lat, lng: p.lng }, map: null, title: p.name + " — " + meta.label,
+        icon: { url: markerIconUrl(p.type, color), scaledSize: new g.maps.Size(18, 18), anchor: new g.maps.Point(9, 9) },
+      });
+      marker.addListener("click", () => showPinPreview(p, marker));
+      markersRef.current.set(p.name, marker);
+    });
+  }
+
+  // Show/hide markers per the type toggles + anchor radius. Uses refs so it can
+  // be called from map callbacks as well as the render effect.
+  function applyVisibility() {
+    const map = mapObjRef.current;
+    if (!map) return;
+    const visibleSet = new Set(visibleParks(uiRef.current, parksRef.current).map((p) => p.name));
+    markersRef.current.forEach((m, name) => m.setMap(visibleSet.has(name) ? map : null));
+    campMarkersRef.current.forEach((m) => m.setMap(uiRef.current.campgrounds ? map : null));
+  }
+
   function draw(all) {
     const el = mapDivRef.current;
     if (!el || !window.google) return;
@@ -286,37 +288,79 @@ export default function ExploreApp() {
     });
     mapObjRef.current = map;
     markersRef.current = new Map();
-    const bounds = new g.maps.LatLngBounds();
 
-    all.forEach((p) => {
-      const meta = TYPE_META[p.type];
-      const color = meta.color || V[p.type === "national_park" ? "loading" : "go"].dot;
-      const pos = { lat: p.lat, lng: p.lng };
-      bounds.extend(pos);
-      const marker = new g.maps.Marker({
-        position: pos, map, title: p.name + " — " + meta.label,
-        icon: { url: markerIconUrl(p.type, color), scaledSize: new g.maps.Size(18, 18), anchor: new g.maps.Point(9, 9) },
-      });
-      marker.addListener("click", () => showPinPreview(p, marker));
-      markersRef.current.set(p.name, marker);
-    });
+    const bounds = new g.maps.LatLngBounds();
+    all.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+    ensureMarkers();
 
     campMarkersRef.current = [];
     CAMPGROUNDS.forEach((c) => {
-      const marker = new g.maps.Marker({
-        position: { lat: c.lat, lng: c.lng }, map, title: c.name + " — Campground",
+      campMarkersRef.current.push(new g.maps.Marker({
+        position: { lat: c.lat, lng: c.lng }, map: null, title: c.name + " — Campground",
         icon: {
           url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><rect x="2" y="2" width="10" height="10" fill="#b9823f" stroke="#fffdf7" stroke-width="1.5"/></svg>'),
           scaledSize: new g.maps.Size(14, 14), anchor: new g.maps.Point(7, 7),
         },
-      });
-      campMarkersRef.current.push(marker);
+      }));
     });
 
     map.fitBounds(bounds, 40);
     g.maps.event.addListenerOnce(map, "idle", () => { if (map.getZoom() > 5) map.setZoom(5); });
+    map.addListener("idle", () => loadViewportDestinations());
+    applyVisibility();
     patch({ keyOverlay: false });
     startVerdictSweep(all);
+    loadViewportDestinations();
+  }
+
+  // Live state parks + national forests (/api/destinations by bbox) and lakes
+  // (/api/water by area) for the current viewport, deduped across pans and merged
+  // into the unified destination model. Restores the pre-migration behavior where
+  // these types populated the map and list as you moved around.
+  async function loadViewportDestinations() {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map) return;
+    const b = map.getBounds();
+    if (!b) return;
+    const sw = b.getSouthWest(), ne = b.getNorthEast(), c = b.getCenter();
+    const bbox = sw.lng().toFixed(3) + "," + sw.lat().toFixed(3) + "," + ne.lng().toFixed(3) + "," + ne.lat().toFixed(3);
+    const seen = seenDestRef.current;
+    const additions = [];
+
+    try {
+      const d = await fetch("/api/destinations?bbox=" + bbox + "&limit=400").then((r) => (r.ok ? r.json() : null));
+      (d && d.destinations ? d.destinations : []).forEach((x) => {
+        if (x.source === "nps" || typeof x.lat !== "number" || typeof x.lng !== "number") return;
+        if (x.type !== "state_park" && x.type !== "national_forest") return;
+        const key = "d:" + (x.id != null ? x.id : x.name + x.lat.toFixed(3));
+        if (seen.has(key)) return;
+        seen.add(key);
+        if (parksRef.current.some((p) => p.name === x.name)) return;
+        additions.push({ name: x.name, state: x.state || "", lat: x.lat, lng: x.lng, type: x.type });
+      });
+    } catch {}
+
+    // Lakes come from Overpass (heavier) — only when zoomed in, radius capped.
+    if (map.getZoom() >= 7) {
+      const radiusKm = Math.min(70, Math.max(15, Math.round(milesBetween({ lat: c.lat(), lng: c.lng() }, { lat: ne.lat(), lng: ne.lng() }) * 1.609)));
+      try {
+        const w = await fetch("/api/water?lat=" + c.lat().toFixed(4) + "&lng=" + c.lng().toFixed(4) + "&radius=" + radiusKm).then((r) => (r.ok ? r.json() : null));
+        (w && w.lakes ? w.lakes : []).forEach((x) => {
+          if (typeof x.lat !== "number" || typeof x.lng !== "number" || !x.name) return;
+          const key = "w:" + x.name + x.lat.toFixed(3);
+          if (seen.has(key)) return;
+          seen.add(key);
+          if (parksRef.current.some((p) => p.name === x.name)) return;
+          additions.push({ name: x.name, state: x.state || "", lat: x.lat, lng: x.lng, type: "lake" });
+        });
+      } catch {}
+    }
+
+    if (additions.length) {
+      const merged = parksRef.current.concat(additions);
+      parksRef.current = merged;
+      setParks(merged);
+    }
   }
 
   // Live verdict sweep — same pattern as the embed's s3.js: throttled queue,
@@ -463,12 +507,12 @@ export default function ExploreApp() {
     if (nearCircleRef.current) nearCircleRef.current.setRadius(v * 1609.34);
   }
 
-  // marker visibility follows the type filters + anchor radius
+  // marker visibility follows the type filters + anchor radius; also creates
+  // markers for any destinations that streamed in since the last render
   useEffect(() => {
     if (!mapObjRef.current) return;
-    const visibleSet = new Set(visibleParks(ui, parks).map((p) => p.name));
-    markersRef.current.forEach((marker, name) => marker.setMap(visibleSet.has(name) ? mapObjRef.current : null));
-    campMarkersRef.current.forEach((m) => m.setMap(ui.campgrounds ? mapObjRef.current : null));
+    ensureMarkers();
+    applyVisibility();
   }, [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.anchor, ui.radius, parks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------- misc actions ---------------- */
@@ -478,14 +522,6 @@ export default function ExploreApp() {
     if (!v) return;
     try { localStorage.setItem("pb_gmaps_key", v); } catch {}
     window.location.reload();
-  }
-
-  function saveNpsKey() {
-    try { localStorage.setItem("pb_nps_key", ui.npsKeyInput.trim()); } catch {}
-    patch({ npsKeySaved: true });
-    const cache = getPhotoCache();
-    parksRef.current.filter((p) => p.type === "national_park").forEach((p) => { delete cache[p.name]; });
-    savePhotoCache();
   }
 
   function toggleTripFor(name) {
@@ -685,17 +721,6 @@ export default function ExploreApp() {
                   <Switch on={ui.campgrounds} onClick={toggle("campgrounds")} />
                 </div>
 
-                <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#b07d3a", marginBottom: 8 }}>Photos</div>
-                <div style={{ background: "rgba(255,255,255,.6)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: "11px 13px" }}>
-                  <div style={{ fontSize: ".78rem", color: "#4c5443", marginBottom: 8, lineHeight: 1.4 }}>Optional NPS.gov key for official national-park photos. Stored only in your browser.</div>
-                  <div style={{ display: "flex", gap: 7 }}>
-                    <input value={ui.npsKeyInput} onChange={(e) => patch({ npsKeyInput: e.target.value, npsKeySaved: false })} placeholder="NPS API key…" style={{ flex: 1, minWidth: 0, boxSizing: "border-box", padding: "8px 10px", border: "1px solid rgba(140,132,115,.35)", borderRadius: 9, fontSize: ".78rem", fontFamily: "ui-monospace,monospace", outline: "none" }} />
-                    <button onClick={saveNpsKey} style={{ border: "none", borderRadius: 9, padding: "8px 13px", background: "#1d4a37", color: "#fff", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "inherit" }}>Save</button>
-                  </div>
-                  <div style={{ fontSize: ".68rem", color: ui.npsKeySaved ? "#2f7d4f" : "#8c8473", marginTop: 7 }}>
-                    {ui.npsKeySaved ? "Saved — retrying national-park photos with this key." : getNpsKey() ? "Key stored — used as a fallback when Wikipedia has no photo." : "No key yet — national parks use Wikipedia only."}
-                  </div>
-                </div>
               </div>
 
               <div style={{ display: "flex", gap: 6, margin: "16px 0 12px", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 4 }}>

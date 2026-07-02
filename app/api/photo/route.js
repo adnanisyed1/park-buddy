@@ -1,10 +1,11 @@
-// Park Buddy — a representative PHOTO (and short extract) for any destination, from
-// Wikipedia / Wikimedia Commons. GET /api/photo?name=White River National Forest
+// Park Buddy — a representative PHOTO (and short extract) for any destination.
+// GET /api/photo?name=Zion National Park&state=UT
 //   → { found, image, thumb, extract, pageUrl, credit }
 //
-// NPS parks get their photos from the NPS API; this covers everything else (national
-// forests, state parks) so the hero isn't a blank placeholder. FREE, no key.
-// Wikipedia REST content is CC BY-SA / public domain — always shown with credit.
+// Primary source: Wikipedia / Wikimedia Commons (FREE, no key, CC BY-SA — credited).
+// For national parks, if Wikipedia has no image we fall back to the official NPS
+// photo via the NPS API using the SERVER-SIDE NPS_API_KEY (never exposed to the
+// browser). This replaces the old client-side "paste your NPS key" flow.
 
 export const runtime = "nodejs";
 export const revalidate = 604800; // a week — lead images rarely change
@@ -17,6 +18,27 @@ async function summary(title) {
     const d = await r.json();
     if (d.type === "disambiguation") return null;
     return d;
+  } catch {
+    return null;
+  }
+}
+
+// Official NPS photo — national parks only, server-side key.
+async function npsPhoto(name) {
+  const key = process.env.NPS_API_KEY;
+  if (!key) return null;
+  try {
+    const q = name.replace(/\s+national park.*/i, "").trim() || name;
+    const r = await fetch("https://developer.nps.gov/api/v1/parks?q=" + encodeURIComponent(q) + "&limit=1&api_key=" + encodeURIComponent(key), {
+      headers: { "User-Agent": "ParkBuddy/1.0" }, next: { revalidate: 604800 },
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const hit = data && data.data && data.data[0];
+    const img = hit && hit.images && hit.images[0] && hit.images[0].url;
+    return img
+      ? { found: true, image: img, thumb: img, extract: (hit.description || "").slice(0, 600), pageUrl: hit.url || "", title: hit.fullName || name, credit: "Photo: National Park Service (NPS.gov)." }
+      : null;
   } catch {
     return null;
   }
@@ -40,10 +62,16 @@ export async function GET(request) {
     if (d && (d.originalimage || d.thumbnail)) break;
     d = null;
   }
-  if (!d) return Response.json({ found: false });
 
-  const image = (d.originalimage && d.originalimage.source) || (d.thumbnail && d.thumbnail.source) || "";
-  if (!image) return Response.json({ found: false });
+  const image = d ? (d.originalimage && d.originalimage.source) || (d.thumbnail && d.thumbnail.source) || "" : "";
+  if (!image) {
+    // Wikipedia had nothing — for national parks, fall back to the official NPS photo.
+    if (/national park/i.test(name)) {
+      const nps = await npsPhoto(name);
+      if (nps) return Response.json(nps);
+    }
+    return Response.json({ found: false });
+  }
 
   return Response.json({
     found: true,

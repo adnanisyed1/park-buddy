@@ -2,30 +2,12 @@
 // GET /api/water?lat=..&lng=..&radius=..(km)  → named lakes & reservoirs near a point.
 // FREE, no key. Data credit: \u00a9 OpenStreetMap contributors (ODbL).
 
+import { overpass } from "../_overpass";
+
 export const runtime = "nodejs";
 export const revalidate = 86400;
 
-const ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-];
-
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
-
-async function overpass(query) {
-  for (const url of ENDPOINTS) {
-    try {
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "ParkBuddy" },
-        body: "data=" + encodeURIComponent(query),
-        next: { revalidate: 86400 },
-      });
-      if (r.ok) return await r.json();
-    } catch { /* next mirror */ }
-  }
-  return null;
-}
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -46,7 +28,9 @@ export async function GET(request) {
 
   const data = await overpass(query);
   if (!data || !Array.isArray(data.elements)) {
-    return Response.json({ lakes: [], credit: "\u00a9 OpenStreetMap contributors" });
+    const body = { lakes: [], credit: "\u00a9 OpenStreetMap contributors" };
+    if (searchParams.get("debug")) body.debug = overpass.lastErr || "no data";
+    return Response.json(body);
   }
 
   const seen = {}, lakes = [];

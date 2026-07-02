@@ -157,6 +157,7 @@ export default function ExploreApp() {
   const [npsData, setNpsData] = useState({}); // name -> /api/nps payload (description, activities, thingsToDo)
   const [condData, setCondData] = useState({}); // name -> /api/conditions payload (alerts, wildfires, AQI)
   const [placesData, setPlacesData] = useState({}); // name -> /api/places payload (facilities, recAreas)
+  const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
   const [ui, setUi] = useState({
     panelOpen: false, filtersOpen: true, radius: 150,
     destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true,
@@ -370,22 +371,27 @@ export default function ExploreApp() {
     // blocks datacenter/serverless IPs. Only when zoomed in, radius capped.
     if (map.getZoom() >= 7) {
       // one Overpass query per ~half-degree cell per session — panning back and
-      // forth over the same area doesn't re-hit the (rate-limited) service
+      // forth over the same area doesn't re-hit the (rate-limited) service. A
+      // cell is only marked done on SUCCESS, so a busy server retries next pan,
+      // and successful cells persist in localStorage for 30 days.
       const cell = "L" + Math.round(c.lat() * 2) / 2 + "," + Math.round(c.lng() * 2) / 2;
-      if (lakeCellsRef.current.has(cell)) return void (additions.length && mergeAdditions(additions));
-      lakeCellsRef.current.add(cell);
-      const radiusKm = Math.min(70, Math.max(15, Math.round(milesBetween({ lat: c.lat(), lng: c.lng() }, { lat: ne.lat(), lng: ne.lng() }) * 1.609)));
-      try {
-        const lakes = await fetchLakes(+c.lat().toFixed(4), +c.lng().toFixed(4), radiusKm);
-        (lakes || []).forEach((x) => {
-          if (typeof x.lat !== "number" || typeof x.lng !== "number" || !x.name) return;
-          const key = "w:" + x.name + x.lat.toFixed(3);
-          if (seen.has(key)) return;
-          seen.add(key);
-          if (parksRef.current.some((p) => p.name === x.name)) return;
-          additions.push({ name: x.name, state: "", lat: x.lat, lng: x.lng, type: "lake" });
-        });
-      } catch {}
+      if (!lakeCellsRef.current.has(cell)) {
+        const radiusKm = Math.min(70, Math.max(15, Math.round(milesBetween({ lat: c.lat(), lng: c.lng() }, { lat: ne.lat(), lng: ne.lng() }) * 1.609)));
+        try {
+          const lakes = await fetchLakes(+c.lat().toFixed(4), +c.lng().toFixed(4), radiusKm, "pb_lakes_v1_" + cell);
+          if (lakes) {
+            lakeCellsRef.current.add(cell);
+            lakes.forEach((x) => {
+              if (typeof x.lat !== "number" || typeof x.lng !== "number" || !x.name) return;
+              const key = "w:" + x.name + x.lat.toFixed(3);
+              if (seen.has(key)) return;
+              seen.add(key);
+              if (parksRef.current.some((p) => p.name === x.name)) return;
+              additions.push({ name: x.name, state: "", lat: x.lat, lng: x.lng, type: "lake" });
+            });
+          }
+        } catch {}
+      }
     }
 
     mergeAdditions(additions);
@@ -536,13 +542,18 @@ export default function ExploreApp() {
   }
 
   // Hiking / off-road / ski polylines from OSM (legacy colors + weights).
-  // Fetched CLIENT-SIDE (browser IP) — Overpass blocks serverless IPs.
+  // Fetched CLIENT-SIDE (browser IP) — Overpass blocks serverless IPs. Results
+  // are localStorage-cached per park (trail geometry is static), and the panel
+  // shows loading / busy states instead of failing silently.
   async function loadTrailsFor(p) {
     const g = window.google, map = mapObjRef.current;
     if (!g || !map) return;
+    setTrailStatus({ park: p.name, state: "loading" });
     try {
-      const d = await fetchTrails(+p.lat.toFixed(4), +p.lng.toFixed(4), 30);
-      if (!d || layersForRef.current !== p.name) return;
+      const d = await fetchTrails(+p.lat.toFixed(4), +p.lng.toFixed(4), 25, "pb_trails_v1_" + p.name);
+      if (layersForRef.current !== p.name) return;
+      if (!d) { setTrailStatus({ park: p.name, state: "error" }); return; }
+      let n = 0;
       ["hiking", "offroad", "ski"].forEach((cat) => {
         (d[cat] || []).forEach((t) => {
           if (!t.path || t.path.length < 2) return;
@@ -558,10 +569,14 @@ export default function ExploreApp() {
             infoWindowRef.current.open(map);
           });
           trailLinesRef.current[cat].push(line);
+          n++;
         });
       });
+      setTrailStatus({ park: p.name, state: n ? "done" : "empty", n });
       applyVisibility();
-    } catch {}
+    } catch {
+      setTrailStatus({ park: p.name, state: "error" });
+    }
   }
 
   // Campgrounds, rec areas & water facilities from Recreation.gov/RIDB + OSM.
@@ -1049,6 +1064,19 @@ export default function ExploreApp() {
                 <button onClick={() => patch({ detailTab: "live" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "live" ? "#1d4a37" : "transparent", color: ui.detailTab === "live" ? "#fff" : "#5b6258" }}>📡 Live</button>
                 <button onClick={() => patch({ detailTab: "about" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "about" ? "#1d4a37" : "transparent", color: ui.detailTab === "about" ? "#fff" : "#5b6258" }}>ℹ️ About</button>
               </div>
+
+              {trailStatus && trailStatus.park === sel.name && trailStatus.state !== "done" && (
+                <div style={{ fontSize: ".7rem", color: "#8c8473", margin: "-6px 0 12px", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
+                  {trailStatus.state === "loading" && <span>⏳ Loading trails around {sel.name}… (can take ~20s the first time)</span>}
+                  {trailStatus.state === "empty" && <span>No mapped trails within 15 mi of the park center.</span>}
+                  {trailStatus.state === "error" && (
+                    <>
+                      <span>Trail server is busy right now.</span>
+                      <button onClick={() => loadTrailsFor(sel)} style={{ border: "none", background: "none", color: "#2c5562", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", padding: 0, textDecoration: "underline" }}>Retry</button>
+                    </>
+                  )}
+                </div>
+              )}
 
               {ui.detailTab === "live" && (
                 <>

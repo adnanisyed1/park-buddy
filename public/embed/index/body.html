@@ -1,0 +1,85 @@
+
+<div id="ex-preload" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;text-align:center;background:linear-gradient(172deg,#0e2417 0%,#163a2b 26%,#1d4a37 48%,#2c6258 70%,#6f9a78 100%);color:#fbf6ea">
+  <div style="padding:24px">
+    <div style="width:46px;height:46px;border-radius:13px;background:linear-gradient(145deg,#e4be78,#c79a4b);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;box-shadow:0 8px 22px rgba(0,0,0,.35)"><svg width="24" height="24" viewBox="0 0 24 24" fill="#15241c"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path><rect x="11" y="18" width="2" height="4"></rect></svg></div>
+    <div style="font-family:'Spectral',Georgia,serif;font-weight:800;font-size:clamp(1.8rem,5vw,3rem);line-height:1;letter-spacing:-.02em;text-shadow:0 4px 30px rgba(0,0,0,.4)">See if today&rsquo;s a <span style="font-style:italic;color:#e4be78">good day</span> to go.</div>
+  </div>
+</div>
+
+<header>
+  <div class="hrow">
+    <a href="/" class="brand" style="text-decoration:none;color:inherit">
+      <span class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"/><rect x="11" y="18" width="2" height="4"/></svg></span>
+      <div><b>ParkBuddy</b><small>live status · every U.S. national park</small></div>
+    </a>
+    <nav>
+      <a href="/explore" class="on">Map</a>
+      <a href="/plan">Plan a Trip</a>
+      <a href="/build-trip">Build a Trip</a>
+      <a href="/shop.html">Gear &amp; Stays</a>
+      <a href="/pro.html">Pro</a>
+    </nav>
+  </div>
+</header>
+<div class="body">
+  <div class="mid">
+    <aside class="info" id="info">
+      <button class="panel-hide" id="panelHide" title="Hide panel">&lsaquo;</button>
+      <div class="pbsearch">
+        <span class="pbsearch-ic">⌕</span>
+        <input id="pbq" type="text" autocomplete="off" placeholder="Search parks, forests, states…">
+        <button id="pbqx" title="Clear" style="display:none">&times;</button>
+        <div id="pbqres"></div>
+      </div>
+      <div class="pbfilters" id="ip-filters"></div>
+      <div class="ibody">
+        <div class="ipane on" id="ip-live"></div>
+        <div class="ipane" id="ip-about"></div>
+        <div class="ipane" id="ip-trip">
+          <div class="cart-h">
+            <div><div class="cart-t">My Trip</div><div class="cart-sub" id="cart-sub">No parks yet</div></div>
+            <button class="cart-clear" id="cart-clear" style="display:none">Clear</button>
+          </div>
+          <div class="cart-stats" id="cart-stats"></div>
+          <div class="dbody" id="cart-body"></div>
+          <div class="cart-foot" id="cart-foot"></div>
+        </div>
+      </div>
+      <div class="itabs itabs-bottom">
+        <button class="itab on" data-itab="live"><span class="ti">📡</span>Live</button>
+        <button class="itab" data-itab="about"><span class="ti">ℹ️</span>About</button>
+        <button class="itab" data-itab="trip"><span class="ti">🧳</span>Trip<span class="itab-badge" id="tripBadge" style="display:none">0</span></button>
+      </div>
+    </aside>
+    <button class="panel-show" id="panelShow" title="Show panel" style="display:none">☰ Filters &amp; search</button>
+    <main class="map">
+      <div id="lmap"></div>
+      <div class="topbar" id="topbar"></div>
+      <div class="vlegend" id="vlegend">
+        <span class="vl-t">Today's call</span>
+        <span class="vl"><i style="background:#2f7d4f"></i>Go</span>
+        <span class="vl"><i style="background:#b9802a"></i>Prepare</span>
+        <span class="vl"><i style="background:#bf463a"></i>Hold off</span>
+        <span class="vl"><i style="background:#b3ab97"></i>Loading</span>
+      </div>
+    </main>
+  </div>
+  <div class="strip" id="strip"></div>
+</div>
+<div class="vtoggle" id="vtoggle"><button data-v="live" class="on">📍 Explore</button></div>
+
+<!-- ParkPulse Planner Bubble (self-contained, drop on any page) -->
+
+<button id="ppb-fab" aria-label="Plan a trip">🧭</button>
+<div id="ppb-panel" role="dialog" aria-label="Trip planner">
+  <div class="ppb-head">
+    <span class="av">🌲</span>
+    <div class="t"><b>Plan a Trip</b><span>ParkBuddy assistant</span></div>
+    <button id="ppb-pin" title="Pin to side">⇥</button>
+    <button id="ppb-close" title="Close">✕</button>
+  </div>
+  <div class="ppb-body" id="ppb-body"></div>
+</div>
+
+<!-- /ParkPulse Planner Bubble -->
+

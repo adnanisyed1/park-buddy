@@ -1,0 +1,14 @@
+{
+  "_README": "ParkBuddy product catalog. Paste your real affiliate / dropship links into 'url' and set 'partner'/'sku'. The shop, Park Status gear rail, and trip-stop lodging all read from this file. Until 'url' is filled, clicks fire the tracking event and toast (demo). No code changes needed to go live.",
+  "gear": [
+    { "ph": "insulated jacket", "br": "REI Co-op", "nm": "650-Down Hooded Jacket", "why": "\u2744 For the cold dawn start", "price": "$189", "partner": "REI", "sku": "down-jacket", "url": "", "via": "via REI" },
+    { "ph": "trail boots", "br": "Merrell", "nm": "Moab 3 Waterproof Boot", "why": "\uD83D\uDCA6 Trails muddy after rain", "price": "$145", "partner": "REI", "sku": "wp-boots", "url": "", "via": "via REI" },
+    { "ph": "sun hoodie", "br": "Outdoor Research", "nm": "Echo Sun Hoodie \u00b7 UPF 50", "why": "\u2600 High UV midday in the open", "price": "$65", "partner": "Amazon", "sku": "sun-hoodie", "url": "", "via": "via Amazon" },
+    { "ph": "water reservoir", "br": "CamelBak", "nm": "Crux 3L Reservoir", "why": "\uD83C\uDFDC Dry air \u2014 carry extra water", "price": "$38", "partner": "REI", "sku": "reservoir", "url": "", "via": "via REI" }
+  ],
+  "stays": [
+    { "ph": "lodge \u00b7 canyon view", "tag": "In-park \u00b7 0.0 mi", "inpark": 1, "nm": "Park Lodge", "meta": "Historic in-park lodge \u00b7 shuttle stop", "why": "\uD83D\uDCCD Wake up inside the park", "price": "$239", "partner": "Booking.com", "sku": "park-lodge", "url": "", "via": "via Booking.com", "cta": "Book" },
+    { "ph": "hotel \u00b7 riverside", "tag": "1.1 mi", "nm": "Riverside Inn", "meta": "Walk to the entrance \u00b7 pool", "why": "\uD83D\uDEB6 Skip the parking scramble", "price": "$312", "partner": "Stay22", "sku": "riverside", "url": "", "via": "via Stay22", "cta": "Book" },
+    { "ph": "campground", "tag": "In-park \u00b7 0.5 mi", "inpark": 1, "nm": "Watchman Campground", "meta": "Reservable \u00b7 electric & tent sites", "why": "\u2744 Pack warm \u2014 cold overnight lows", "price": "$35", "partner": "Recreation.gov", "sku": "campground", "url": "", "via": "via Recreation.gov", "cta": "Reserve" }
+  ]
+}

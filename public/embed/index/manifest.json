@@ -1,0 +1,28 @@
+{
+  "bodyClass": "",
+  "cssLinks": [
+    "https://fonts.googleapis.com",
+    "https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap"
+  ],
+  "scripts": [
+    "/explore-intro.js",
+    "https://cdn.jsdelivr.net/npm/topojson-client@3",
+    "/config.js",
+    "/weather-fx.js",
+    "/season-fx.js",
+    "/pb-verdict.js",
+    "/embed/index/s0.js",
+    "/embed/index/s1.js",
+    "/embed/index/s2.js",
+    "/embed/index/s3.js",
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "/supabase-config.js",
+    "/auth.js",
+    "/parks-data.js",
+    "/passport.js",
+    "/map-style.js",
+    "/transition.js",
+    "/gateway-towns.js",
+    "/ask-parkbuddy.js"
+  ]
+}

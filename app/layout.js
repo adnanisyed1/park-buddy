@@ -1,0 +1,75 @@
+import "./globals.css";
+import { Spectral, Hanken_Grotesk } from "next/font/google";
+
+const spectral = Spectral({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--font-spectral" });
+const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-hanken" });
+
+// Set NEXT_PUBLIC_SITE_URL to your production domain (Netlify env var) so canonical
+// URLs, Open Graph images and the sitemap resolve to absolute URLs. Falls back to
+// the default Netlify subdomain for local/dev builds.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://parkbuddy.netlify.app";
+
+export const metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "ParkBuddy — Discover, plan & collect the outdoors",
+    template: "%s · ParkBuddy",
+  },
+  description:
+    "Discover the best national parks and lakes near you, build real-road trips with live weather and conditions, and collect a digital Trip Passport.",
+  applicationName: "ParkBuddy",
+  keywords: [
+    "national parks", "trip planner", "road trip", "hiking", "camping",
+    "park weather", "park conditions", "outdoors", "trail finder",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "ParkBuddy",
+    title: "ParkBuddy — Discover, plan & collect the outdoors",
+    description:
+      "Discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ParkBuddy — Discover, plan & collect the outdoors",
+    description:
+      "Discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
+  },
+  robots: { index: true, follow: true },
+};
+
+// Site-wide structured data so search engines understand the brand + search action.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "ParkBuddy",
+  url: SITE_URL,
+  description:
+    "Discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
+  publisher: { "@type": "Organization", name: "ParkBuddy", url: SITE_URL },
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" className={`${spectral.variable} ${hanken.variable}`}>
+      <body>
+        {/* Google Maps key, injected from the environment (Netlify env var).
+            Runs before any embed-pipeline script (config.js no longer carries a
+            literal key — the leaked one was rotated). NEXT_PUBLIC_* values are
+            inlined at build time, so this is a static string in the HTML. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.GMAPS_KEY=${JSON.stringify(process.env.NEXT_PUBLIC_GMAPS_KEY || "")};`,
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
+        {children}
+      </body>
+    </html>
+  );
+}

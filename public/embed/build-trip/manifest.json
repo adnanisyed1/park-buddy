@@ -1,0 +1,25 @@
+{
+  "bodyClass": "",
+  "cssLinks": [
+    "https://fonts.googleapis.com",
+    "https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap"
+  ],
+  "scripts": [
+    "/config.js",
+    "/trip-data.js",
+    "/season-fx.js",
+    "/pb-verdict.js",
+    "/embed/build-trip/s0.js",
+    "/itinerary-pdf.js",
+    "/commerce.js",
+    "/checklist.js",
+    "/ask-parkbuddy.js",
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+    "/supabase-config.js",
+    "/auth.js",
+    "/parks-data.js",
+    "/passport.js",
+    "/map-style.js",
+    "/transition.js"
+  ]
+}

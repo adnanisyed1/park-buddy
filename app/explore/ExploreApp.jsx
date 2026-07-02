@@ -100,19 +100,25 @@ function markerIconUrl(type, color) {
 
 function photoTitleFor(p) {
   const suffix = { national_park: " National Park", state_park: " State Park", national_forest: " National Forest", lake: "" }[p.type] || "";
+  // Live-loaded destinations usually already carry the suffix in their name
+  // ("Custer State Park", "Dixie National Forest") — appending it again broke
+  // the Wikipedia lookup, which is why only national parks had photos.
+  if (!suffix || new RegExp(suffix.trim().replace(/ /g, "\\s+") + "s?$", "i").test(p.name.trim())) return p.name;
   return p.name + suffix;
 }
 
 /* ---------------- photo pipeline (server-side; no browser-stored key) ---------------- */
 
+// v2 key: v1 cached permanent `false` failures caused by the double-suffix bug
+// above, so returning visitors would never retry those photos.
 let photoCache = null;
 function getPhotoCache() {
   if (photoCache) return photoCache;
-  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache") || "{}"); } catch { photoCache = {}; }
+  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v2") || "{}"); } catch { photoCache = {}; }
   return photoCache;
 }
 function savePhotoCache() {
-  try { localStorage.setItem("pb_photo_cache", JSON.stringify(photoCache)); } catch {}
+  try { localStorage.setItem("pb_photo_cache_v2", JSON.stringify(photoCache)); } catch {}
 }
 
 // Photos resolve SERVER-SIDE via /api/photo (Wikipedia/Wikimedia + the NPS lookup
@@ -227,6 +233,7 @@ export default function ExploreApp() {
         name: p.name,
         state: STATE_ABBR[p.state] || p.state,
         lat: p.lat, lng: p.lng, type: "national_park",
+        id: p.id, // for /park-status?park= live-status links
         npsCode: (window.NPS_CODE || {})[p.id] || "", // for the boundary topojson
       }));
       setParks(all);
@@ -348,7 +355,7 @@ export default function ExploreApp() {
         if (seen.has(key)) return;
         seen.add(key);
         if (parksRef.current.some((p) => p.name === x.name)) return;
-        additions.push({ name: x.name, state: x.state || "", lat: x.lat, lng: x.lng, type: x.type });
+        additions.push({ name: x.name, state: x.state || "", lat: x.lat, lng: x.lng, type: x.type, destId: x.id }); // destId → /park-status?dest=
       });
     } catch {}
 
@@ -750,6 +757,50 @@ export default function ExploreApp() {
   const selCond = sel ? condData[sel.name] : null; // alerts / wildfire / AQI
   const selNps = sel ? npsData[sel.name] : null; // description / activities / things to do
 
+  // Deep link to the full live-status page (same targets the legacy map used).
+  const statusHrefFor = (p) =>
+    p ? (p.type === "national_park" && p.id ? "/park-status?park=" + p.id : p.destId ? "/park-status?dest=" + encodeURIComponent(p.destId) : null) : null;
+
+  // The pinned destination, shown as a card in Map mode (pin tap → card in the panel).
+  const anchoredPark = ui.anchor && !ui.anchor.isUser ? parks.find((p) => p.name === ui.anchor.label) || null : null;
+
+  // One card renderer for List view AND the pinned-location card in Map view —
+  // identical markup so the look stays exactly the same everywhere.
+  const renderParkCard = (p) => {
+    const v = vOf(p);
+    const meta = TYPE_META[p.type];
+    const inTrip = ui.trip.indexOf(p.name) > -1;
+    const near = parks.filter((o) => o.name !== p.name && milesBetween(p, o) <= 50).length;
+    const href = statusHrefFor(p);
+    return (
+      <div key={p.name} onClick={() => selectPark(p.name)} style={{ background: "#fffdf7", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, overflow: "hidden", cursor: "pointer", boxShadow: "0 10px 26px -16px rgba(20,36,28,.45)" }}>
+        <div style={{ position: "relative", height: 78, background: `linear-gradient(135deg,${v.dot}cc,${v.dot}88)`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          <span style={{ fontSize: "1.9rem", opacity: 0.5, filter: "drop-shadow(0 2px 3px rgba(0,0,0,.2))" }}>{meta.icon}</span>
+          <CoverPhoto park={p} />
+          <span style={{ position: "absolute", top: 8, left: 8, background: "rgba(255,255,255,.95)", color: v.dot, fontSize: ".66rem", fontWeight: 800, letterSpacing: ".03em", padding: "4px 9px", borderRadius: 999, boxShadow: "0 3px 8px rgba(0,0,0,.18)" }}>{v.label}</span>
+          <button
+            title={inTrip ? "In your trip" : "Add to trip"}
+            onClick={(e) => { e.stopPropagation(); toggleTripFor(p.name); }}
+            style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: "50%", border: "none", cursor: "pointer", background: "rgba(255,255,255,.9)", color: inTrip ? "#1d4a37" : "#8c8473", fontSize: ".85rem", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 8px rgba(0,0,0,.18)" }}
+          >{inTrip ? "✓" : "+"}</button>
+        </div>
+        <div style={{ padding: "9px 11px 11px" }}>
+          <b style={{ fontFamily: serif, fontSize: ".94rem", color: "#163a2b", display: "block", lineHeight: 1.2 }}>{p.name}</b>
+          <div style={{ fontSize: ".71rem", color: "#8c8473", margin: "2px 0 7px" }}>{TYPE_META[p.type].label} · {p.state}</div>
+          <div style={{ display: "flex", gap: 10, fontSize: ".68rem", color: "#5b6258", fontWeight: 600, alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ display: "flex", gap: 10 }}>
+              <span>📍 {near} nearby</span>
+              {ui.anchor && <span>{Math.round(milesBetween(ui.anchor, p))} mi from pin</span>}
+            </span>
+            {href && (
+              <a href={href} onClick={(e) => e.stopPropagation()} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>Live status →</a>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const tripItems = ui.trip.map((n) => parks.find((p) => p.name === n)).filter(Boolean);
 
   const toggle = (key) => () => patch((s) => ({ [key]: !s[key] }));
@@ -940,43 +991,19 @@ export default function ExploreApp() {
               <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473", marginBottom: 10 }}>{visible.length} of {parks.length} destinations match your filters</div>
 
               {!ui.listMode && (
-                <div style={{ textAlign: "center", color: "#8c8473", fontSize: ".85rem", lineHeight: 1.6, padding: "18px 10px", background: "rgba(255,255,255,.45)", border: "1px dashed rgba(140,132,115,.4)", borderRadius: 14 }}>
-                  Tap any pin on the map to explore that place — conditions, details, and what&apos;s nearby.
-                </div>
+                <>
+                  {anchoredPark && <div style={{ marginBottom: 11 }}>{renderParkCard(anchoredPark)}</div>}
+                  <div style={{ textAlign: "center", color: "#8c8473", fontSize: ".85rem", lineHeight: 1.6, padding: "18px 10px", background: "rgba(255,255,255,.45)", border: "1px dashed rgba(140,132,115,.4)", borderRadius: 14 }}>
+                    Tap any pin on the map to explore that place — conditions, details, and what&apos;s nearby.
+                  </div>
+                </>
               )}
               {ui.listMode && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
                   {sortedVisible.length === 0 && (
                     <div style={{ textAlign: "center", color: "#8c8473", padding: "26px 10px", fontSize: ".85rem" }}>No destinations match this filter right now.</div>
                   )}
-                  {sortedVisible.map((p) => {
-                    const v = vOf(p);
-                    const meta = TYPE_META[p.type];
-                    const inTrip = ui.trip.indexOf(p.name) > -1;
-                    const near = parks.filter((o) => o.name !== p.name && milesBetween(p, o) <= 50).length;
-                    return (
-                      <div key={p.name} onClick={() => selectPark(p.name)} style={{ background: "#fffdf7", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, overflow: "hidden", cursor: "pointer", boxShadow: "0 10px 26px -16px rgba(20,36,28,.45)" }}>
-                        <div style={{ position: "relative", height: 78, background: `linear-gradient(135deg,${v.dot}cc,${v.dot}88)`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                          <span style={{ fontSize: "1.9rem", opacity: 0.5, filter: "drop-shadow(0 2px 3px rgba(0,0,0,.2))" }}>{meta.icon}</span>
-                          <CoverPhoto park={p} />
-                          <span style={{ position: "absolute", top: 8, left: 8, background: "rgba(255,255,255,.95)", color: v.dot, fontSize: ".66rem", fontWeight: 800, letterSpacing: ".03em", padding: "4px 9px", borderRadius: 999, boxShadow: "0 3px 8px rgba(0,0,0,.18)" }}>{v.label}</span>
-                          <button
-                            title={inTrip ? "In your trip" : "Add to trip"}
-                            onClick={(e) => { e.stopPropagation(); toggleTripFor(p.name); }}
-                            style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: "50%", border: "none", cursor: "pointer", background: "rgba(255,255,255,.9)", color: inTrip ? "#1d4a37" : "#8c8473", fontSize: ".85rem", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 8px rgba(0,0,0,.18)" }}
-                          >{inTrip ? "✓" : "+"}</button>
-                        </div>
-                        <div style={{ padding: "9px 11px 11px" }}>
-                          <b style={{ fontFamily: serif, fontSize: ".94rem", color: "#163a2b", display: "block", lineHeight: 1.2 }}>{p.name}</b>
-                          <div style={{ fontSize: ".71rem", color: "#8c8473", margin: "2px 0 7px" }}>{meta.label} · {p.state}</div>
-                          <div style={{ display: "flex", gap: 10, fontSize: ".68rem", color: "#5b6258", fontWeight: 600 }}>
-                            <span>📍 {near} nearby</span>
-                            {ui.anchor && <span>{Math.round(milesBetween(ui.anchor, p))} mi from pin</span>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {sortedVisible.map((p) => renderParkCard(p))}
                 </div>
               )}
             </>
@@ -1046,6 +1073,9 @@ export default function ExploreApp() {
                         <div style={{ marginTop: 7 }}>Air quality: <b style={{ color: "#1d3941" }}>{selCond.airQuality.aqi}</b> ({selCond.airQuality.category}{selCond.airQuality.parameter ? ", " + selCond.airQuality.parameter : ""})</div>
                       )}
                     </div>
+                  )}
+                  {statusHrefFor(sel) && (
+                    <a href={statusHrefFor(sel)} style={{ display: "block", textAlign: "center", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginBottom: 14 }}>View full live status →</a>
                   )}
                 </>
               )}

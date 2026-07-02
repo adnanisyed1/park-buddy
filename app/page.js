@@ -1,18 +1,22 @@
-import EmbeddedSite from "./components/EmbeddedSite";
+import ExploreApp from "./explore/ExploreApp";
 
-// Homepage = the ParkBuddy bento launcher sitting over the live verdict map.
-// The bento (explore-intro.js) is the home: tiles either reveal the map in-place
-// or expand into their own pages. A home button returns to the bento.
-//
-// Server component: it emits real page metadata (good for SEO/social) and renders
-// the client-side <EmbeddedSite/> that boots the original page assets at runtime.
+// Homepage = the new map experience (the design-spec Explore app: live verdict
+// pins, filters panel, boundary/trail/campground layers, My Trip cart).
+// The legacy bento+map homepage (public/embed/index) is retired from routing but
+// kept on disk as the reference implementation. /explore redirects here.
 export const metadata = {
   title: "ParkBuddy — Discover, plan & collect the outdoors",
   description:
-    "Your home for the outdoors: discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
+    "An interactive map of national parks and lakes with live weather, alerts and official conditions. Find the best outdoors near any city and start a trip.",
   alternates: { canonical: "/" },
+  openGraph: {
+    title: "ParkBuddy — Discover, plan & collect the outdoors",
+    description:
+      "Interactive map of national parks and lakes with live weather, alerts and conditions.",
+    url: "/",
+  },
 };
 
 export default function HomePage() {
-  return <EmbeddedSite page="index" />;
+  return <ExploreApp />;
 }

@@ -32,16 +32,17 @@ const TYPE_META = {
 };
 
 // State parks, national forests and lakes are NOT hardcoded — they load live from
-// the real APIs as you pan the map (/api/destinations by bbox, /api/water by area),
-// exactly like the pre-migration /explore. See loadViewportDestinations() below.
+// the real APIs as you pan the map (/api/destinations by bbox, /api/water by area).
+// Campgrounds/rec-areas + trail layers load per selected park (/api/places, /api/trails),
+// and park boundaries come from the NPS boundary topojson — same sources and styling
+// as the legacy homepage map.
 
-const CAMPGROUNDS = [
-  { name: "Watchman Campground", lat: 37.193, lng: -112.988 },
-  { name: "Bridge Bay Campground", lat: 44.547, lng: -110.437 },
-  { name: "Elkmont Campground", lat: 35.652, lng: -83.587 },
-  { name: "Blackwoods Campground", lat: 44.301, lng: -68.211 },
-];
+// Trail polyline colors (legacy s0.js values).
+const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" };
+const BOUNDARY_URL = (code) =>
+  "https://raw.githubusercontent.com/nationalparkservice/data/gh-pages/base_data/boundaries/parks/" + code + ".topojson";
 
+// Fallback center (continental US) if browser geolocation is denied/unavailable.
 const USER_LOC = { lat: 39.8283, lng: -98.5795 };
 const AVG_MPH = 45;
 
@@ -143,11 +144,16 @@ function CoverPhoto({ park }) {
 /* ================================ component ================================ */
 
 export default function ExploreApp() {
-  const [parks, setParks] = useState([]); // real 63 parks + design sample extras
+  const [parks, setParks] = useState([]); // 63 national parks + live-loaded destinations
   const [verdicts, setVerdicts] = useState({}); // name -> 'go'|'prepare'|'hold' (absent = loading)
+  const [verdictFull, setVerdictFull] = useState({}); // name -> full PBVerdict result (word/sub/temp/sky/wind/chips)
+  const [npsData, setNpsData] = useState({}); // name -> /api/nps payload (description, activities, thingsToDo)
+  const [condData, setCondData] = useState({}); // name -> /api/conditions payload (alerts, wildfires, AQI)
+  const [placesData, setPlacesData] = useState({}); // name -> /api/places payload (facilities, recAreas)
   const [ui, setUi] = useState({
     panelOpen: false, filtersOpen: true, radius: 150,
     destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true,
+    layerHiking: true, layerOffroad: true, layerSki: true, // trail layers (per selected park)
     anchor: null, // { lat, lng, label, isUser }
     view: "browse", // browse | detail | trip
     listMode: false, selectedName: null, detailTab: "live",
@@ -161,7 +167,12 @@ export default function ExploreApp() {
   const keyInputRef = useRef(null);
   const mapObjRef = useRef(null);
   const markersRef = useRef(new Map()); // name -> Marker
-  const campMarkersRef = useRef([]);
+  const trailLinesRef = useRef({ hiking: [], offroad: [], ski: [] }); // polylines for selected park
+  const placeMarkersRef = useRef([]); // [{marker, layer: 'places'|'water'}] for selected park
+  const boundaryRef = useRef({ cache: {}, features: null }); // NPS boundary geojson per code
+  const npsFetchedRef = useRef({}); // park name -> true (guards duplicate fetches)
+  const condFetchedRef = useRef({});
+  const layersForRef = useRef(null); // which park the trail/place layers belong to
   const nearCircleRef = useRef(null);
   const nearMarkerRef = useRef(null);
   const gatewayMarkerRef = useRef(null);
@@ -203,15 +214,20 @@ export default function ExploreApp() {
   useEffect(() => {
     let disposed = false;
     (async () => {
-      // Real data + verdict engine + gateway towns (shared legacy globals).
+      // Real data + verdict engine + gateway towns + topojson (for NPS boundaries).
       await loadScript("/trip-data.js");
-      await Promise.all([loadScript("/pb-verdict.js"), loadScript("/gateway-towns.js")]);
+      await Promise.all([
+        loadScript("/pb-verdict.js"),
+        loadScript("/gateway-towns.js"),
+        loadScript("https://cdn.jsdelivr.net/npm/topojson-client@3"),
+      ]);
       if (disposed) return;
 
       const all = (window.TRIP_PARKS || []).map((p) => ({
         name: p.name,
         state: STATE_ABBR[p.state] || p.state,
         lat: p.lat, lng: p.lng, type: "national_park",
+        npsCode: (window.NPS_CODE || {})[p.id] || "", // for the boundary topojson
       }));
       setParks(all);
       parksRef.current = all;
@@ -267,14 +283,21 @@ export default function ExploreApp() {
     });
   }
 
-  // Show/hide markers per the type toggles + anchor radius. Uses refs so it can
-  // be called from map callbacks as well as the render effect.
+  // Show/hide everything per the type toggles + anchor radius + layer toggles.
+  // Uses refs so it can be called from map callbacks as well as the render effect.
   function applyVisibility() {
     const map = mapObjRef.current;
     if (!map) return;
-    const visibleSet = new Set(visibleParks(uiRef.current, parksRef.current).map((p) => p.name));
+    const u = uiRef.current;
+    const visibleSet = new Set(visibleParks(u, parksRef.current).map((p) => p.name));
     markersRef.current.forEach((m, name) => m.setMap(visibleSet.has(name) ? map : null));
-    campMarkersRef.current.forEach((m) => m.setMap(uiRef.current.campgrounds ? map : null));
+    // selected-park layers: trails + campgrounds/rec-areas + water facilities
+    trailLinesRef.current.hiking.forEach((l) => l.setMap(u.layerHiking ? map : null));
+    trailLinesRef.current.offroad.forEach((l) => l.setMap(u.layerOffroad ? map : null));
+    trailLinesRef.current.ski.forEach((l) => l.setMap(u.layerSki ? map : null));
+    placeMarkersRef.current.forEach((pm) =>
+      pm.marker.setMap((pm.layer === "water" ? u.destLake : u.campgrounds) ? map : null)
+    );
   }
 
   function draw(all) {
@@ -292,17 +315,6 @@ export default function ExploreApp() {
     const bounds = new g.maps.LatLngBounds();
     all.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
     ensureMarkers();
-
-    campMarkersRef.current = [];
-    CAMPGROUNDS.forEach((c) => {
-      campMarkersRef.current.push(new g.maps.Marker({
-        position: { lat: c.lat, lng: c.lng }, map: null, title: c.name + " — Campground",
-        icon: {
-          url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><rect x="2" y="2" width="10" height="10" fill="#b9823f" stroke="#fffdf7" stroke-width="1.5"/></svg>'),
-          scaledSize: new g.maps.Size(14, 14), anchor: new g.maps.Point(7, 7),
-        },
-      }));
-    });
 
     map.fitBounds(bounds, 40);
     g.maps.event.addListenerOnce(map, "idle", () => { if (map.getZoom() > 5) map.setZoom(5); });
@@ -381,6 +393,7 @@ export default function ExploreApp() {
             if (r) {
               const bucket = r.score >= 62 ? "go" : r.score >= 42 ? "prepare" : "hold";
               setVerdicts((v) => ({ ...v, [p.name]: bucket }));
+              setVerdictFull((v) => ({ ...v, [p.name]: r })); // word/sub/temp/sky/wind/chips for the Live tab
               const m = markersRef.current.get(p.name);
               if (m && window.google) {
                 m.setIcon({ url: markerIconUrl("national_park", V[bucket].dot), scaledSize: new window.google.maps.Size(18, 18), anchor: new window.google.maps.Point(9, 9) });
@@ -432,9 +445,155 @@ export default function ExploreApp() {
     if (p && map) { map.panTo({ lat: p.lat, lng: p.lng }); if (map.getZoom() < 7) map.setZoom(7); }
     if (infoWindowRef.current) infoWindowRef.current.close();
     showGatewayMarker(p);
+    if (p) loadParkLayers(p); // boundary + trails + campgrounds/areas + NPS info + live conditions
   }
 
-  function backToBrowse() { patch({ view: "browse", selectedName: null }); showGatewayMarker(null); }
+  function backToBrowse() {
+    patch({ view: "browse", selectedName: null });
+    showGatewayMarker(null);
+    clearSelectedLayers();
+  }
+
+  /* ---------------- selected-park layers (boundary, trails, places, info) ---------------- */
+
+  function clearSelectedLayers() {
+    const map = mapObjRef.current;
+    if (map && boundaryRef.current.features) boundaryRef.current.features.forEach((f) => map.data.remove(f));
+    boundaryRef.current.features = null;
+    ["hiking", "offroad", "ski"].forEach((k) => {
+      trailLinesRef.current[k].forEach((l) => l.setMap(null));
+      trailLinesRef.current[k] = [];
+    });
+    placeMarkersRef.current.forEach((pm) => pm.marker.setMap(null));
+    placeMarkersRef.current = [];
+    layersForRef.current = null;
+  }
+
+  function loadParkLayers(p) {
+    if (layersForRef.current === p.name) return; // already showing this park's layers
+    clearSelectedLayers();
+    layersForRef.current = p.name;
+    showBoundary(p);
+    loadTrailsFor(p);
+    loadPlacesFor(p);
+    loadNpsFor(p);
+    loadCondFor(p);
+  }
+
+  // NPS boundary polygon (legacy styling: dark-green stroke, translucent green fill).
+  async function showBoundary(p) {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map || !p.npsCode) return;
+    let geo = boundaryRef.current.cache[p.npsCode];
+    if (geo === undefined) {
+      try {
+        const topo = await fetch(BOUNDARY_URL(p.npsCode)).then((r) => (r.ok ? r.json() : null));
+        if (topo && window.topojson && topo.objects) {
+          const key = Object.keys(topo.objects)[0];
+          geo = key ? window.topojson.feature(topo, topo.objects[key]) : null;
+        } else geo = null;
+      } catch { geo = null; }
+      boundaryRef.current.cache[p.npsCode] = geo;
+    }
+    if (!geo || uiRef.current.selectedName !== p.name) return;
+    const feats = map.data.addGeoJson(geo);
+    map.data.setStyle({ strokeColor: "#1d4a37", strokeWeight: 2, fillColor: "#3f7a4a", fillOpacity: 0.22 });
+    boundaryRef.current.features = feats;
+    const b = new g.maps.LatLngBounds();
+    feats.forEach((f) => f.getGeometry().forEachLatLng((ll) => b.extend(ll)));
+    if (!b.isEmpty()) map.fitBounds(b, 70);
+  }
+
+  function layerInfoHtml(title, sub, extra) {
+    return (
+      '<div style="font-family:\'Hanken Grotesk\',sans-serif;max-width:220px"><b style="color:#1d3941">' + title + "</b>" +
+      '<div style="font-size:12px;color:#5b6258;margin-top:3px">' + sub + "</div>" +
+      (extra ? '<div style="font-size:10px;color:#a79f8c;margin-top:6px">' + extra + "</div>" : "") + "</div>"
+    );
+  }
+
+  // Hiking / off-road / ski polylines from OSM (legacy colors + weights).
+  async function loadTrailsFor(p) {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map) return;
+    try {
+      const d = await fetch("/api/trails?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=30").then((r) => (r.ok ? r.json() : null));
+      if (!d || layersForRef.current !== p.name) return;
+      ["hiking", "offroad", "ski"].forEach((cat) => {
+        (d[cat] || []).forEach((t) => {
+          if (!t.path || t.path.length < 2) return;
+          const line = new g.maps.Polyline({
+            path: t.path.map(([lat, lng]) => ({ lat, lng })),
+            strokeColor: TRAIL_STYLE[cat], strokeOpacity: 0.85, strokeWeight: 3, zIndex: 30,
+            map: null,
+          });
+          line.addListener("click", (e) => {
+            if (!infoWindowRef.current) infoWindowRef.current = new g.maps.InfoWindow();
+            infoWindowRef.current.setContent(layerInfoHtml(t.name || "Unnamed trail", ({ hiking: "Hiking trail", offroad: "Off-road / 4x4", ski: "Ski route" })[cat] + (t.difficulty ? " · " + t.difficulty : ""), "© OpenStreetMap contributors"));
+            infoWindowRef.current.setPosition(e.latLng);
+            infoWindowRef.current.open(map);
+          });
+          trailLinesRef.current[cat].push(line);
+        });
+      });
+      applyVisibility();
+    } catch {}
+  }
+
+  // Campgrounds, rec areas & water facilities from Recreation.gov/RIDB + OSM.
+  async function loadPlacesFor(p) {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map) return;
+    try {
+      const d = await fetch("/api/places?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=50").then((r) => (r.ok ? r.json() : null));
+      if (!d || layersForRef.current !== p.name) return;
+      setPlacesData((s) => ({ ...s, [p.name]: d }));
+      const svg = {
+        camp: '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"><polygon points="7.5,1.5 14,13.5 1,13.5" fill="#d2843a" stroke="#fffdf7" stroke-width="1.3"/></svg>',
+        recarea: '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"><circle cx="7.5" cy="7.5" r="5.5" fill="#2f7d4f" stroke="#fffdf7" stroke-width="1.5"/></svg>',
+        water: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="5" fill="#3a8fc4" stroke="#fffdf7" stroke-width="1.5"/></svg>',
+      };
+      const addMarker = (x, kind, sub) => {
+        if (typeof x.lat !== "number" || typeof x.lng !== "number") return;
+        const isWater = /lake|reservoir|pond|river|marina|boat|waterway|bay|lagoon/i.test((x.name || "") + " " + (x.type || ""));
+        const iconKey = kind === "recarea" ? "recarea" : isWater ? "water" : "camp";
+        const marker = new g.maps.Marker({
+          position: { lat: x.lat, lng: x.lng }, map: null, title: x.name, zIndex: 40,
+          icon: { url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg[iconKey]), scaledSize: new g.maps.Size(15, 15), anchor: new g.maps.Point(7, 7) },
+        });
+        marker.addListener("click", () => {
+          if (!infoWindowRef.current) infoWindowRef.current = new g.maps.InfoWindow();
+          const link = x.url ? '<a href="' + x.url + '" target="_blank" rel="noreferrer" style="font-size:12px;color:#2c5562;font-weight:700;display:inline-block;margin-top:6px">Recreation.gov →</a>' : "";
+          infoWindowRef.current.setContent(layerInfoHtml(x.name, sub + (x.description ? "<br>" + x.description.slice(0, 140) : "")) .replace("</div></div>", "</div>" + link + "</div>"));
+          infoWindowRef.current.open(map, marker);
+        });
+        placeMarkersRef.current.push({ marker, layer: iconKey === "water" ? "water" : "places" });
+      };
+      (d.facilities || []).forEach((f) => addMarker(f, "facility", f.type || "Campground"));
+      (d.recAreas || []).forEach((r) => addMarker(r, "recarea", "Recreation area"));
+      applyVisibility();
+    } catch {}
+  }
+
+  // NPS description / activities / things-to-do for the About tab (server key).
+  function loadNpsFor(p) {
+    if (p.type !== "national_park" || npsFetchedRef.current[p.name]) return;
+    npsFetchedRef.current[p.name] = true;
+    fetch("/api/nps?name=" + encodeURIComponent(p.name))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && d.park) setNpsData((s) => ({ ...s, [p.name]: d })); })
+      .catch(() => {});
+  }
+
+  // Live alerts / wildfire / air quality for the Live tab.
+  function loadCondFor(p) {
+    if (condFetchedRef.current[p.name]) return;
+    condFetchedRef.current[p.name] = true;
+    fetch("/api/conditions?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setCondData((s) => ({ ...s, [p.name]: d })); })
+      .catch(() => {});
+  }
 
   // gateway-town pin: a distinct gold square, only for the selected park
   function showGatewayMarker(park) {
@@ -513,7 +672,7 @@ export default function ExploreApp() {
     if (!mapObjRef.current) return;
     ensureMarkers();
     applyVisibility();
-  }, [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.anchor, ui.radius, parks]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.layerHiking, ui.layerOffroad, ui.layerSki, ui.anchor, ui.radius, parks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------- misc actions ---------------- */
 
@@ -534,6 +693,19 @@ export default function ExploreApp() {
     });
   }
 
+  // Real browser geolocation (legacy behavior), falling back to the US center
+  // if permission is denied or unavailable.
+  function useNearMe() {
+    const apply = (lat, lng) => setAnchor({ lat, lng, label: "your location", isUser: true }, true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => apply(pos.coords.latitude, pos.coords.longitude),
+        () => apply(USER_LOC.lat, USER_LOC.lng),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } else apply(USER_LOC.lat, USER_LOC.lng);
+  }
+
   const zoomIn = () => { const m = mapObjRef.current; if (m) m.setZoom(m.getZoom() + 1); };
   const zoomOut = () => { const m = mapObjRef.current; if (m) m.setZoom(m.getZoom() - 1); };
   const askParkBuddy = () => { const fab = document.querySelector(".pbask-fab"); if (fab) fab.click(); };
@@ -542,7 +714,7 @@ export default function ExploreApp() {
 
   const onTrack = "#c79a4b", offTrack = "#d9d3c2";
   const activeFilterCount =
-    [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds].filter(Boolean).length + (ui.anchor ? 1 : 0);
+    [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.layerHiking, ui.layerOffroad, ui.layerSki].filter(Boolean).length + (ui.anchor ? 1 : 0);
 
   const q = ui.searchQuery.trim().toLowerCase();
   const searchResults = q
@@ -565,11 +737,18 @@ export default function ExploreApp() {
     const dest = parks
       .filter((p) => p.name !== sel.name && typeOn(p.type))
       .map((p) => ({ name: p.name, type: p.type, dist: milesBetween(sel, p), click: () => selectPark(p.name) }));
-    const camps = ui.campgrounds
-      ? CAMPGROUNDS.map((c) => ({ name: c.name, type: "campground", dist: milesBetween(sel, c), click: null }))
+    const selPlaces = placesData[sel.name];
+    const camps = ui.campgrounds && selPlaces
+      ? (selPlaces.facilities || [])
+          .filter((c) => typeof c.lat === "number" && typeof c.lng === "number")
+          .map((c) => ({ name: c.name, type: "campground", dist: milesBetween(sel, c), click: null }))
       : [];
     return dest.concat(camps).filter((o) => o.dist <= ui.radius).sort((a, b) => a.dist - b.dist).slice(0, 10);
   })();
+
+  const selVf = sel ? verdictFull[sel.name] : null; // live weather detail (temp/sky/wind/chips)
+  const selCond = sel ? condData[sel.name] : null; // alerts / wildfire / AQI
+  const selNps = sel ? npsData[sel.name] : null; // description / activities / things to do
 
   const tripItems = ui.trip.map((n) => parks.find((p) => p.name === n)).filter(Boolean);
 
@@ -684,7 +863,7 @@ export default function ExploreApp() {
                 <div style={{ background: "rgba(255,255,255,.6)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: "12px 14px", marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <b style={{ fontSize: ".88rem", color: "#1a2b21" }}>Within {ui.radius} mi</b>
-                    <button onClick={() => setAnchor({ lat: USER_LOC.lat, lng: USER_LOC.lng, label: "your location", isUser: true }, true)} style={{ display: "flex", alignItems: "center", gap: 5, background: ui.anchor && ui.anchor.isUser ? "#1d4a37" : "#f0e8d5", color: ui.anchor && ui.anchor.isUser ? "#fbf6ea" : "#7a6a3c", border: "none", borderRadius: 999, padding: "6px 13px", fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📍 Near me</button>
+                    <button onClick={useNearMe} style={{ display: "flex", alignItems: "center", gap: 5, background: ui.anchor && ui.anchor.isUser ? "#1d4a37" : "#f0e8d5", color: ui.anchor && ui.anchor.isUser ? "#fbf6ea" : "#7a6a3c", border: "none", borderRadius: 999, padding: "6px 13px", fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📍 Near me</button>
                   </div>
                   <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ width: "100%", accentColor: "#c79a4b" }} />
                   <div style={{ fontSize: ".72rem", color: "#8c8473", marginTop: 6, lineHeight: 1.4 }}>Tap &quot;Near me&quot; or pick a place, then set the distance.</div>
@@ -715,10 +894,32 @@ export default function ExploreApp() {
                 </div>
 
                 <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#b07d3a", marginBottom: 8 }}>On the map</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  <span style={{ width: 8, height: 8, background: "#b9823f", display: "inline-block" }} />
-                  <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Campgrounds &amp; areas</span>
-                  <Switch on={ui.campgrounds} onClick={toggle("campgrounds")} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "9px solid #d2843a", display: "inline-block" }} />
+                    <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Campgrounds &amp; areas</span>
+                    <Switch on={ui.campgrounds} onClick={toggle("campgrounds")} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 14, height: 3, borderRadius: 2, background: TRAIL_STYLE.hiking, display: "inline-block" }} />
+                    <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Hiking trails</span>
+                    <Switch on={ui.layerHiking} onClick={toggle("layerHiking")} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 14, height: 3, borderRadius: 2, background: TRAIL_STYLE.offroad, display: "inline-block" }} />
+                    <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Off-road / 4x4</span>
+                    <Switch on={ui.layerOffroad} onClick={toggle("layerOffroad")} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 14, height: 3, borderRadius: 2, background: TRAIL_STYLE.ski, display: "inline-block" }} />
+                    <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Ski routes</span>
+                    <Switch on={ui.layerSki} onClick={toggle("layerSki")} />
+                  </div>
+                  <div style={{ fontSize: ".68rem", color: "#8c8473", lineHeight: 1.4 }}>Trail &amp; campground layers draw around the park you select.</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                  <button onClick={() => patch({ destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true, layerHiking: true, layerOffroad: true, layerSki: true })} style={{ flex: 1, border: "1px solid rgba(140,132,115,.35)", borderRadius: 9, padding: 7, fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.6)", color: "#1d3941" }}>All</button>
+                  <button onClick={() => patch({ destNational: false, destState: false, destForest: false, destLake: false, campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false })} style={{ flex: 1, border: "1px solid rgba(140,132,115,.35)", borderRadius: 9, padding: 7, fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.6)", color: "#1d3941" }}>None</button>
                 </div>
 
               </div>
@@ -806,19 +1007,83 @@ export default function ExploreApp() {
               </div>
 
               {ui.detailTab === "live" && (
-                <div style={{ background: selV.bg, borderRadius: 14, padding: 16, marginBottom: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: selV.dot }} />
-                    <b style={{ fontSize: "1rem", color: selV.dot }}>{selV.label}</b>
+                <>
+                  <div style={{ background: selVf ? (selVf.ring || selV.bg) : selV.bg, borderRadius: 14, padding: 16, marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: selVf ? selVf.c : selV.dot }} />
+                      <b style={{ fontSize: "1rem", color: selVf ? selVf.c : selV.dot }}>{selVf ? selVf.word : selV.label}</b>
+                    </div>
+                    <div style={{ fontSize: ".84rem", color: "#4c5443", lineHeight: 1.5 }}>{selVf ? selVf.sub : selV.note}</div>
+                    {selVf && (typeof selVf.temp === "number" || selVf.sky) && (
+                      <div style={{ fontSize: ".8rem", fontWeight: 700, color: "#1d3941", marginTop: 9 }}>
+                        {[typeof selVf.temp === "number" ? Math.round(selVf.temp) + "°F" : null, selVf.sky || null, typeof selVf.wind === "number" && selVf.wind ? "wind " + Math.round(selVf.wind) + " mph" : null].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
+                    {selVf && selVf.chips && selVf.chips.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
+                        {selVf.chips.slice(0, 4).map((c, i) => (
+                          <span key={i} style={{ fontSize: ".7rem", fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: c.pos ? "rgba(47,125,79,.12)" : "rgba(191,70,58,.1)", color: c.pos ? "#2f7d4f" : "#a8473c" }}>{c.t}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontSize: ".84rem", color: "#4c5443", lineHeight: 1.5 }}>{selV.note}</div>
-                </div>
+                  {selCond && (
+                    <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: "13px 15px", marginBottom: 14, fontSize: ".8rem", color: "#4c5443", lineHeight: 1.55 }}>
+                      {(selCond.weatherAlerts || []).length > 0 ? (
+                        <>
+                          <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#a8473c", marginBottom: 5 }}>⚠ {selCond.weatherAlerts.length} active weather alert{selCond.weatherAlerts.length === 1 ? "" : "s"}</div>
+                          {selCond.weatherAlerts.slice(0, 3).map((a, i) => (
+                            <div key={i} style={{ fontWeight: 700, color: "#7a3d34" }}>{a.event}</div>
+                          ))}
+                        </>
+                      ) : (
+                        <div style={{ fontWeight: 700, color: "#2f7d4f" }}>✓ No active weather alerts</div>
+                      )}
+                      {(selCond.wildfires || []).length > 0 && (
+                        <div style={{ marginTop: 7 }}>🔥 {selCond.wildfires.length} wildfire{selCond.wildfires.length === 1 ? "" : "s"} within ~80 mi{selCond.wildfires[0] && selCond.wildfires[0].name ? " · nearest: " + selCond.wildfires[0].name : ""}</div>
+                      )}
+                      {selCond.airQuality && (
+                        <div style={{ marginTop: 7 }}>Air quality: <b style={{ color: "#1d3941" }}>{selCond.airQuality.aqi}</b> ({selCond.airQuality.category}{selCond.airQuality.parameter ? ", " + selCond.airQuality.parameter : ""})</div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
               {ui.detailTab === "about" && (
                 <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: 16, marginBottom: 14, fontSize: ".84rem", color: "#4c5443", lineHeight: 1.6 }}>
-                  <div style={{ marginBottom: 8 }}><b style={{ color: "#1d3941" }}>Type:</b> {selMeta.label}</div>
-                  <div style={{ marginBottom: 8 }}><b style={{ color: "#1d3941" }}>State:</b> {sel.state}</div>
-                  <div style={{ color: "#8c8473", fontSize: ".78rem" }}>Full descriptions, photos and visitor info coming soon.</div>
+                  {selNps && selNps.park ? (
+                    <>
+                      {selNps.park.description && <p style={{ margin: "0 0 10px" }}>{selNps.park.description}</p>}
+                      {(selNps.park.activities || []).length > 0 && (
+                        <>
+                          <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#b07d3a", margin: "10px 0 7px" }}>Things to do</div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {selNps.park.activities.slice(0, 6).map((a) => (
+                              <span key={a} style={{ background: "#eef3e6", color: "#1d4a37", borderRadius: 999, padding: "3px 10px", fontSize: ".72rem", fontWeight: 600 }}>{a}</span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {(selNps.thingsToDo || []).length > 0 && (
+                        <div style={{ marginTop: 10 }}>
+                          {selNps.thingsToDo.slice(0, 3).map((t) => (
+                            <div key={t.title} style={{ fontSize: ".8rem", margin: "4px 0" }}>• {t.title}</div>
+                          ))}
+                        </div>
+                      )}
+                      {selNps.park.url && (
+                        <a href={selNps.park.url} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: ".78rem", fontWeight: 700, color: "#2c5562", textDecoration: "none" }}>More on NPS.gov →</a>
+                      )}
+                    </>
+                  ) : sel.type === "national_park" ? (
+                    <div style={{ color: "#8c8473", fontSize: ".8rem" }}>Loading park info from NPS.gov…</div>
+                  ) : (
+                    <>
+                      <div style={{ marginBottom: 8 }}><b style={{ color: "#1d3941" }}>Type:</b> {selMeta.label}</div>
+                      <div style={{ marginBottom: 8 }}><b style={{ color: "#1d3941" }}>State:</b> {sel.state}</div>
+                      <div style={{ color: "#8c8473", fontSize: ".78rem" }}>Live conditions on the Live tab · nearby places below.</div>
+                    </>
+                  )}
                 </div>
               )}
 

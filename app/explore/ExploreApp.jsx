@@ -185,6 +185,8 @@ export default function ExploreApp() {
   const gatewayMarkerRef = useRef(null);
   const infoWindowRef = useRef(null);
   const seenDestRef = useRef(new Set()); // dedupe live destinations across pans
+  const lakeCellsRef = useRef(new Set()); // viewport cells already queried for lakes (avoid re-hitting Overpass)
+  const idleTimerRef = useRef(null); // debounce for map idle → viewport loads
   const uiRef = useRef(ui);
   uiRef.current = ui;
   const parksRef = useRef(parks);
@@ -326,7 +328,11 @@ export default function ExploreApp() {
 
     map.fitBounds(bounds, 40);
     g.maps.event.addListenerOnce(map, "idle", () => { if (map.getZoom() > 5) map.setZoom(5); });
-    map.addListener("idle", () => loadViewportDestinations());
+    map.addListener("idle", () => {
+      // debounce: only fetch after the map has settled for a beat
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => loadViewportDestinations(), 700);
+    });
     applyVisibility();
     patch({ keyOverlay: false });
     startVerdictSweep(all);
@@ -363,6 +369,11 @@ export default function ExploreApp() {
     // Lakes come from Overpass — fetched CLIENT-SIDE (browser IP), since Overpass
     // blocks datacenter/serverless IPs. Only when zoomed in, radius capped.
     if (map.getZoom() >= 7) {
+      // one Overpass query per ~half-degree cell per session — panning back and
+      // forth over the same area doesn't re-hit the (rate-limited) service
+      const cell = "L" + Math.round(c.lat() * 2) / 2 + "," + Math.round(c.lng() * 2) / 2;
+      if (lakeCellsRef.current.has(cell)) return void (additions.length && mergeAdditions(additions));
+      lakeCellsRef.current.add(cell);
       const radiusKm = Math.min(70, Math.max(15, Math.round(milesBetween({ lat: c.lat(), lng: c.lng() }, { lat: ne.lat(), lng: ne.lng() }) * 1.609)));
       try {
         const lakes = await fetchLakes(+c.lat().toFixed(4), +c.lng().toFixed(4), radiusKm);
@@ -377,11 +388,14 @@ export default function ExploreApp() {
       } catch {}
     }
 
-    if (additions.length) {
-      const merged = parksRef.current.concat(additions);
-      parksRef.current = merged;
-      setParks(merged);
-    }
+    mergeAdditions(additions);
+  }
+
+  function mergeAdditions(adds) {
+    if (!adds.length) return;
+    const merged = parksRef.current.concat(adds);
+    parksRef.current = merged;
+    setParks(merged);
   }
 
   // Live verdict sweep — same pattern as the embed's s3.js: throttled queue,

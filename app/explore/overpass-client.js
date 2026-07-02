@@ -8,13 +8,20 @@
 // which Overpass serves normally, and it supports CORS. Data is cached in
 // localStorage so we don't re-hit Overpass for viewports already seen.
 
+// maps.mail.ru first: fast (~2.5s) and generous. overpass-api.de rate-limits
+// aggressively (429 after a burst of queries), so it's the fallback — and any
+// mirror that 429s is benched for a cooldown instead of being retried on every
+// map move (the 429→fallback stall was why layers felt slow to load).
 const ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "https://overpass-api.de/api/interpreter",
 ];
+const benchedUntil = {}; // url -> timestamp when it may be tried again
+const COOLDOWN_MS = 5 * 60 * 1000;
 
 async function overpass(query, timeoutMs = 20000) {
   for (const url of ENDPOINTS) {
+    if ((benchedUntil[url] || 0) > Date.now()) continue;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -27,6 +34,8 @@ async function overpass(query, timeoutMs = 20000) {
       if (r.ok) {
         const d = await r.json();
         if (d && Array.isArray(d.elements)) return d.elements;
+      } else if (r.status === 429 || r.status === 504) {
+        benchedUntil[url] = Date.now() + COOLDOWN_MS;
       }
     } catch {
       /* next mirror */

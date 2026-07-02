@@ -53,11 +53,24 @@ export async function GET(request) {
   // Try the exact name, then a state-qualified variant (helps disambiguate common names).
   const tries = [name];
   if (state) tries.push(name + " (" + state + ")");
+  // Singular variant: "… National Forests" → "… National Forest".
+  if (/national forests$/i.test(name)) tries.push(name.replace(/forests$/i, "Forest"));
   // A few state parks are titled "<Name> State Park" already; a bare-name fallback helps others.
-  if (/national forest|state park/i.test(name)) tries.push(name.replace(/s$/i, ""));
+  if (/state park/i.test(name)) tries.push(name.replace(/s$/i, ""));
+  // Combined/administrative forest names — e.g. "Arapaho and Roosevelt National
+  // Forests", "Grand Mesa, Uncompahgre and Gunnison National Forests",
+  // "Medicine Bow-Routt National Forest" — rarely have one Wikipedia page. Fall
+  // back to each constituent forest (first with an image wins).
+  const fm = name.match(/^(.*?)\s+National Forests?$/i);
+  if (fm) {
+    fm[1].split(/,|\s+and\s+|–|-/).map((s) => s.trim()).filter(Boolean).forEach((part) => tries.push(part + " National Forest"));
+  }
+  // De-dupe while preserving order.
+  const seenTry = new Set();
+  const queue = tries.filter((t) => t && !seenTry.has(t.toLowerCase()) && seenTry.add(t.toLowerCase()));
 
   let d = null;
-  for (const t of tries) {
+  for (const t of queue) {
     d = await summary(t);
     if (d && (d.originalimage || d.thumbnail)) break;
     d = null;

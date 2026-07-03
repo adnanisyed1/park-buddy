@@ -84,6 +84,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   const [navError, setNavError] = useState(null);
   const [navWatching, setNavWatching] = useState(false);
   const [mapsLoaded, setMapsLoaded] = useState(null); // null = loading, true = ready, false = failed/unavailable
+  const [isOffline, setIsOffline] = useState(false); // corrected from navigator.onLine on mount (server has no navigator)
   const svgRef = useRef(null);
   const navWatchIdRef = useRef(null);
   const mapDivRef = useRef(null);
@@ -97,12 +98,30 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     return () => { on = false; };
   }, [trailKey, path]);
 
+  // Track connectivity so we can (a) skip a doomed Maps-tile fetch and go
+  // straight to the offline-safe SVG line, and (b) tell the user plainly
+  // what still works rather than leaving a half-broken map unexplained.
+  // Live navigation itself needs none of this — GPS + the trail's own path
+  // (already in this component's props) work with zero network.
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+    setIsOffline(!navigator.onLine);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
+  }, []);
+
   // A real map is far more useful than an abstract line — load it in parallel
   // with the elevation fetch. Falls back to the SVG route rendering below if
-  // the key is missing/blocked (mapsLoaded === false) or still loading
-  // (mapsLoaded === null) — never a blank panel.
+  // offline, the key is missing/blocked (mapsLoaded === false), or still
+  // loading (mapsLoaded === null) — never a blank panel. Checks
+  // navigator.onLine directly (not the isOffline state, which may not have
+  // been corrected from its default yet on the very first render) so an
+  // already-offline page load doesn't even attempt a doomed script fetch.
   useEffect(() => {
     let on = true;
+    if (!navigator.onLine) { setMapsLoaded(false); return; }
     ensureMapsLoaded().then((ok) => { if (on) setMapsLoaded(ok); });
     return () => { on = false; };
   }, []);
@@ -119,7 +138,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     mapObjRef.current = map;
     new g.maps.Polyline({
       path: path.map(([lat, lng]) => ({ lat, lng })),
-      strokeColor: (category && TRAIL_STYLE[category]) || ACCENT, strokeOpacity: 0.9, strokeWeight: 4,
+      strokeColor: (category && TRAIL_STYLE[category]) || ACCENT, strokeOpacity: 1, strokeWeight: 6,
       map,
     });
     const bounds = new g.maps.LatLngBounds();
@@ -259,6 +278,11 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     <div style={{ background: "#fffdf8", border: "1px solid #e2dac8", borderRadius: 24, overflow: "hidden", marginBottom: 22 }}>
       <div style={{ padding: "18px 20px", borderBottom: "1px solid #efe8d8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
+          {isOffline && (
+            <div style={{ background: "#fdf3e4", border: "1px solid #eeddc0", color: "#8a6a2f", fontSize: ".76rem", fontWeight: 600, borderRadius: 10, padding: "7px 11px", marginBottom: 8, maxWidth: 340 }}>
+              You&apos;re offline — trail imagery isn&apos;t available, but live navigation still works.
+            </div>
+          )}
           <div style={{ fontFamily: mono, fontSize: ".62rem", fontWeight: 800, letterSpacing: ".16em", textTransform: "uppercase", color: "#8a8471", marginBottom: 4 }}>Live navigation</div>
           {!navWatching && !navError && <div style={{ fontSize: ".8rem", color: "#6d7263" }}>Get a compass direction to stay on this trail while you hike.</div>}
           {navError && <div style={{ fontSize: ".8rem", color: "#a8473c" }}>{navError}</div>}
@@ -292,8 +316,8 @@ export default function TrailRouteChart({ trailKey, path, category }) {
             <div ref={mapDivRef} style={{ width: "100%", height: 320, borderRadius: 12, overflow: "hidden" }} />
           ) : (
             <svg viewBox="0 0 400 320" style={{ width: "100%", height: "auto", display: "block" }}>
-              <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="7" strokeLinecap="round" />
-              <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinecap="round" />
+              <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="9" strokeLinecap="round" />
+              <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="5" strokeLinecap="round" />
               {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="6" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
               {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="7" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
             </svg>
@@ -312,7 +336,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
             onMouseMove={handleMove} onMouseLeave={() => setScrubMi(null)}
           >
             <path d={area} fill={ACCENT} opacity=".12" />
-            <path d={line} fill="none" stroke={ACCENT} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
+            <path d={line} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
             {scrubMi != null && (
               <>
                 <line x1={X(scrubMi)} y1={T} x2={X(scrubMi)} y2={H - B} stroke="#22261f" strokeWidth="1" strokeDasharray="3 3" />

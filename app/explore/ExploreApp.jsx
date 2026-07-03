@@ -13,7 +13,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
-import { fetchLakes, fetchTrails } from "./overpass-client";
+// Lakes and trails come from /api/water and /api/trails — plain server routes
+// backed by a pre-seeded Supabase cache (see supabase-trails.sql,
+// scripts/seed-nearby.mjs). They used to call OpenStreetMap/Overpass live from
+// the browser because Overpass blocks datacenter/serverless IPs; now that the
+// data is pre-fetched and cached, the normal server routes are fast + reliable.
 
 /* ---------------- design constants (verbatim from Explore.dc.html) ---------------- */
 
@@ -375,18 +379,15 @@ export default function ExploreApp() {
       });
     } catch {}
 
-    // Lakes come from Overpass — fetched CLIENT-SIDE (browser IP), since Overpass
-    // blocks datacenter/serverless IPs. Only when zoomed in, radius capped.
+    // Lakes: /api/water, backed by the Supabase cache — fast + reliable, no
+    // per-cell throttling needed anymore. Only when zoomed in, radius capped.
     if (map.getZoom() >= 7) {
-      // one Overpass query per ~half-degree cell per session — panning back and
-      // forth over the same area doesn't re-hit the (rate-limited) service. A
-      // cell is only marked done on SUCCESS, so a busy server retries next pan,
-      // and successful cells persist in localStorage for 30 days.
       const cell = "L" + Math.round(c.lat() * 2) / 2 + "," + Math.round(c.lng() * 2) / 2;
       if (!lakeCellsRef.current.has(cell)) {
         const radiusKm = Math.min(70, Math.max(15, Math.round(milesBetween({ lat: c.lat(), lng: c.lng() }, { lat: ne.lat(), lng: ne.lng() }) * 1.609)));
         try {
-          const lakes = await fetchLakes(+c.lat().toFixed(4), +c.lng().toFixed(4), radiusKm, "pb_lakes_v1_" + cell);
+          const w = await fetch("/api/water?lat=" + c.lat().toFixed(4) + "&lng=" + c.lng().toFixed(4) + "&radius=" + radiusKm).then((r) => (r.ok ? r.json() : null));
+          const lakes = w && w.lakes ? w.lakes : null;
           if (lakes) {
             lakeCellsRef.current.add(cell);
             lakes.forEach((x) => {
@@ -590,16 +591,14 @@ export default function ExploreApp() {
     );
   }
 
-  // Hiking / off-road / ski polylines from OSM (legacy colors + weights).
-  // Fetched CLIENT-SIDE (browser IP) — Overpass blocks serverless IPs. Results
-  // are localStorage-cached per park (trail geometry is static), and the panel
-  // shows loading / busy states instead of failing silently.
+  // Hiking / off-road / ski polylines (legacy colors + weights), via /api/trails
+  // — backed by the Supabase cache, so this is a normal fast server fetch now.
   async function loadTrailsFor(p) {
     const g = window.google, map = mapObjRef.current;
     if (!g || !map) return;
     setTrailStatus({ park: p.name, state: "loading" });
     try {
-      const d = await fetchTrails(+p.lat.toFixed(4), +p.lng.toFixed(4), 25, "pb_trails_v1_" + p.name);
+      const d = await fetch("/api/trails?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=25").then((r) => (r.ok ? r.json() : null));
       if (layersForRef.current !== p.name) return;
       if (!d) { setTrailStatus({ park: p.name, state: "error" }); return; }
       let n = 0;
@@ -1117,11 +1116,11 @@ export default function ExploreApp() {
 
               {trailStatus && trailStatus.park === sel.name && trailStatus.state !== "done" && (
                 <div style={{ fontSize: ".7rem", color: "#8c8473", margin: "-6px 0 12px", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
-                  {trailStatus.state === "loading" && <span>⏳ Loading trails around {sel.name}… (can take ~20s the first time)</span>}
-                  {trailStatus.state === "empty" && <span>No mapped trails within 15 mi of the park center.</span>}
+                  {trailStatus.state === "loading" && <span>⏳ Loading trails around {sel.name}…</span>}
+                  {trailStatus.state === "empty" && <span>No mapped trails within 25 mi of the park center yet.</span>}
                   {trailStatus.state === "error" && (
                     <>
-                      <span>Trail server is busy right now.</span>
+                      <span>Couldn't load trails just now.</span>
                       <button onClick={() => loadTrailsFor(sel)} style={{ border: "none", background: "none", color: "#2c5562", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", padding: 0, textDecoration: "underline" }}>Retry</button>
                     </>
                   )}

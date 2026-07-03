@@ -1,11 +1,15 @@
-// Park Buddy — lakes & water bodies (OpenStreetMap via Overpass API).
+// Park Buddy — lakes & water bodies, served from the pre-seeded Supabase cache.
 // GET /api/water?lat=..&lng=..&radius=..(km)  → named lakes & reservoirs near a point.
-// FREE, no key. Data credit: \u00a9 OpenStreetMap contributors (ODbL).
-
-import { overpass } from "../_overpass";
+//
+// This used to call OpenStreetMap/Overpass live, but Overpass rate-limits and
+// blocks datacenter/serverless IPs — calls from Netlify reliably failed (504s,
+// timeouts). Data is now pre-fetched by scripts/seed-nearby.mjs (run from a
+// network Overpass allows) and stored in Supabase (`pb_places`, type=water) via
+// /api/ingest-overpass. This route just reads that table — fast and reliable.
+// Credit: © OpenStreetMap contributors (ODbL) — the data's origin, even cached.
 
 export const runtime = "nodejs";
-export const revalidate = 86400;
+export const revalidate = 3600;
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -16,35 +20,28 @@ export async function GET(request) {
   if (lat == null || lng == null) {
     return Response.json({ error: "lat and lng query params are required." }, { status: 400 });
   }
-  const radiusM = Math.min((parseInt(searchParams.get("radius") || "35", 10) || 35), 80) * 1000;
-  const A = "(around:" + radiusM + "," + lat + "," + lng + ")";
-  const query =
-    "[out:json][timeout:25];(" +
-    'way["natural"="water"]["name"]' + A + ";" +
-    'relation["natural"="water"]["name"]' + A + ";" +
-    'way["water"="lake"]["name"]' + A + ";" +
-    'way["water"="reservoir"]["name"]' + A + ";" +
-    ");out tags center 80;";
+  const radiusKm = Math.min(parseInt(searchParams.get("radius") || "35", 10) || 35, 80);
 
-  const data = await overpass(query);
-  if (!data || !Array.isArray(data.elements)) {
-    const body = { lakes: [], credit: "\u00a9 OpenStreetMap contributors" };
-    if (searchParams.get("debug")) body.debug = overpass.lastErr || "no data";
-    return Response.json(body);
+  const sb = (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, "");
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!sb || !key) return Response.json({ lakes: [], credit: "© OpenStreetMap contributors" });
+
+  // Bounding box from a radius in km (degrees-per-km varies with latitude for longitude).
+  const dLat = radiusKm / 111;
+  const dLng = radiusKm / (111 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const url =
+    sb + "/rest/v1/pb_places?type=eq.water" +
+    "&lat=gte." + (lat - dLat) + "&lat=lte." + (lat + dLat) +
+    "&lng=gte." + (lng - dLng) + "&lng=lte." + (lng + dLng) +
+    "&select=name,lat,lng&limit=40";
+
+  try {
+    const r = await fetch(url, { headers: { apikey: key, Authorization: "Bearer " + key }, next: { revalidate: 3600 } });
+    if (!r.ok) return Response.json({ lakes: [], credit: "© OpenStreetMap contributors" });
+    const rows = await r.json();
+    const lakes = (Array.isArray(rows) ? rows : []).map((x) => ({ name: x.name, lat: x.lat, lng: x.lng, kind: "water" }));
+    return Response.json({ lakes, credit: "© OpenStreetMap contributors (ODbL)" });
+  } catch {
+    return Response.json({ lakes: [], credit: "© OpenStreetMap contributors" });
   }
-
-  const seen = {}, lakes = [];
-  for (const el of data.elements) {
-    const t = el.tags || {};
-    const name = t.name;
-    if (!name || seen[name.toLowerCase()]) continue;
-    seen[name.toLowerCase()] = 1;
-    const c = el.center || {};
-    const la = num(c.lat), ln = num(c.lon);
-    if (la == null || ln == null) continue;
-    lakes.push({ name, lat: la, lng: ln, kind: t.water || t.natural || "water" });
-    if (lakes.length >= 24) break;
-  }
-
-  return Response.json({ lakes, credit: "\u00a9 OpenStreetMap contributors (ODbL)" });
 }

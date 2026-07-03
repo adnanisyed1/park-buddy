@@ -1,13 +1,15 @@
-// Park Buddy — trails, off-road & ski routes (OpenStreetMap via Overpass API).
-// GET /api/trails?lat=..&lng=..&radius=..(km)  → named hiking trails, 4x4/OHV
-// tracks, and ski pistes near a point. FREE, no key.
+// Park Buddy — hiking / off-road / ski trails, served from the pre-seeded
+// Supabase cache. GET /api/trails?lat=..&lng=..&radius=..(km)
 //
-// Data credit: \u00a9 OpenStreetMap contributors (ODbL). We attribute OSM wherever shown.
-
-import { overpass } from "../_overpass";
+// This used to call OpenStreetMap/Overpass live, but Overpass rate-limits and
+// blocks datacenter/serverless IPs — calls from Netlify reliably failed. Data is
+// now pre-fetched by scripts/seed-nearby.mjs (run from a network Overpass
+// allows) and stored in Supabase (`pb_trails`) via /api/ingest-overpass. This
+// route just reads that table — fast and reliable.
+// Credit: © OpenStreetMap contributors (ODbL) — the data's origin, even cached.
 
 export const runtime = "nodejs";
-export const revalidate = 86400; // 1 day cache (trail geometry is static)
+export const revalidate = 3600;
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -18,46 +20,33 @@ export async function GET(request) {
   if (lat == null || lng == null) {
     return Response.json({ error: "lat and lng query params are required." }, { status: 400 });
   }
-  const radiusM = Math.min((parseInt(searchParams.get("radius") || "25", 10) || 25), 60) * 1000;
+  const radiusKm = Math.min(parseInt(searchParams.get("radius") || "25", 10) || 25, 60);
 
-  const A = "(around:" + radiusM + "," + lat + "," + lng + ")";
-  const query =
-    "[out:json][timeout:20];(" +
-    'way["highway"="path"]["name"]' + A + ";" +
-    'way["route"="hiking"]["name"]' + A + ";" +
-    'relation["route"="hiking"]["name"]' + A + ";" +
-    'way["highway"="track"]["name"]["tracktype"]' + A + ";" +
-    'way["4wd_only"="yes"]["name"]' + A + ";" +
-    'way["piste:type"]["name"]' + A + ";" +
-    ");out tags geom 120;";
+  const sb = (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, "");
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!sb || !key) return Response.json({ hiking: [], offroad: [], ski: [], credit: "© OpenStreetMap contributors" });
 
-  const data = await overpass(query);
-  if (!data || !Array.isArray(data.elements)) {
-    const body = { hiking: [], offroad: [], ski: [], credit: "\u00a9 OpenStreetMap contributors" };
-    if (searchParams.get("debug")) body.debug = overpass.lastErr || "no data";
-    return Response.json(body);
+  const dLat = radiusKm / 111;
+  const dLng = radiusKm / (111 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const url =
+    sb + "/rest/v1/pb_trails" +
+    "?lat=gte." + (lat - dLat) + "&lat=lte." + (lat + dLat) +
+    "&lng=gte." + (lng - dLng) + "&lng=lte." + (lng + dLng) +
+    "&select=name,category,difficulty,path&limit=100";
+
+  try {
+    const r = await fetch(url, { headers: { apikey: key, Authorization: "Bearer " + key }, next: { revalidate: 3600 } });
+    if (!r.ok) return Response.json({ hiking: [], offroad: [], ski: [], credit: "© OpenStreetMap contributors" });
+    const rows = await r.json();
+    const hiking = [], offroad = [], ski = [];
+    (Array.isArray(rows) ? rows : []).forEach((t) => {
+      const item = { name: t.name, difficulty: t.difficulty || "", path: t.path };
+      if (t.category === "ski") ski.push(item);
+      else if (t.category === "offroad") offroad.push(item);
+      else hiking.push(item);
+    });
+    return Response.json({ hiking, offroad, ski, credit: "© OpenStreetMap contributors (ODbL)" });
+  } catch {
+    return Response.json({ hiking: [], offroad: [], ski: [], credit: "© OpenStreetMap contributors" });
   }
-
-  const seen = {}, hiking = [], offroad = [], ski = [];
-  for (const el of data.elements) {
-    const t = el.tags || {};
-    const name = t.name;
-    if (!name || seen[name.toLowerCase()]) continue;
-    seen[name.toLowerCase()] = 1;
-    // Sample the geometry down to <=40 points to keep the payload small.
-    let path = null;
-    if (Array.isArray(el.geometry) && el.geometry.length) {
-      const g = el.geometry, step = Math.max(1, Math.floor(g.length / 40));
-      path = g.filter((_, i) => i % step === 0 || i === g.length - 1).map((pt) => [pt.lat, pt.lon]);
-    }
-    const item = { name, difficulty: t.sac_scale || t["piste:difficulty"] || t.tracktype || "", path };
-    if (t["piste:type"]) { if (ski.length < 12) ski.push(item); }
-    else if (t["4wd_only"] === "yes" || (t.highway === "track" && t.tracktype)) { if (offroad.length < 12) offroad.push(item); }
-    else { if (hiking.length < 16) hiking.push(item); }
-  }
-
-  return Response.json({
-    hiking, offroad, ski,
-    credit: "\u00a9 OpenStreetMap contributors (ODbL)",
-  });
 }

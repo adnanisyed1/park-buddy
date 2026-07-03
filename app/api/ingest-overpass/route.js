@@ -1,24 +1,22 @@
-// Park Buddy — receive PRE-FETCHED Overpass (OpenStreetMap) data for one park and
-// upsert it into Supabase (lakes → pb_places type=water, trails → pb_trails).
+// Park Buddy — receive PRE-FETCHED Overpass trail data for one park and upsert
+// it into Supabase (pb_trails).
 //
 // This endpoint deliberately does NOT call Overpass itself. Overpass rate-limits
-// and blocks datacenter/serverless IPs (Netlify's included) — that's the root
-// cause lakes/trails never loaded reliably at runtime. Instead, scripts/seed-nearby.mjs
-// fetches from a network Overpass actually allows (run locally) and POSTs the
-// results here. This route only needs SUPABASE_SERVICE_KEY, already configured
-// in Netlify for the existing ingest routes.
+// and blocks datacenter/serverless IPs (Netlify's included). Instead,
+// scripts/seed-nearby.mjs fetches from a network Overpass actually allows (run
+// locally) and POSTs the results here. This route only needs
+// SUPABASE_SERVICE_KEY, already configured in Netlify for the other ingest routes.
+//
+// Lakes used to go through here too (pb_places, type=water), but now come live
+// from USGS GNIS (app/api/water/route.js) — a government service with no
+// rate-limit problem, so no seeding is needed for lakes anymore.
 //
 // POST /api/ingest-overpass?token=<INGEST_SECRET, optional>
-// Body: { parkCode, water: [{name,lat,lng}], trails: {hiking:[],offroad:[],ski:[]} }
+// Body: { parkCode, trails: {hiking:[],offroad:[],ski:[]} }
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function placeId(name, lat, lng) {
-  const s = "water_" + String(name).toLowerCase().replace(/[^a-z0-9]/g, "") + "_" + lat.toFixed(3) + "_" + lng.toFixed(3);
-  let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return "p" + (h >>> 0).toString(36);
-}
 function trailId(parkCode, category, name, idx) {
   const s = "trail_" + parkCode + "_" + category + "_" + String(name).toLowerCase().replace(/[^a-z0-9]/g, "") + "_" + idx;
   let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
@@ -38,29 +36,11 @@ export async function POST(request) {
 
   let body;
   try { body = await request.json(); } catch { return Response.json({ error: "invalid JSON" }, { status: 400 }); }
-  const { parkCode, water, trails } = body || {};
+  const { parkCode, trails } = body || {};
   if (!parkCode) return Response.json({ error: "parkCode required" }, { status: 400 });
 
   const now = new Date().toISOString();
-  let waterUpserted = 0, trailsUpserted = 0;
-
-  if (Array.isArray(water) && water.length) {
-    const rows = water
-      .filter((w) => w && w.name && typeof w.lat === "number" && typeof w.lng === "number")
-      .map((w) => ({
-        id: placeId(w.name, w.lat, w.lng), name: w.name, type: "water", lat: w.lat, lng: w.lng,
-        url: "", detail: "", sources: ["OpenStreetMap"], park_code: parkCode, fetched_at: now, updated_at: now,
-      }));
-    if (rows.length) {
-      const r = await fetch(sb + "/rest/v1/pb_places?on_conflict=id", {
-        method: "POST",
-        headers: { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify(rows),
-      });
-      if (!r.ok) return Response.json({ error: "water upsert failed " + r.status + " " + (await r.text()).slice(0, 150) }, { status: 502 });
-      waterUpserted = rows.length;
-    }
-  }
+  let trailsUpserted = 0;
 
   if (trails && typeof trails === "object") {
     const rows = [];
@@ -86,5 +66,5 @@ export async function POST(request) {
     }
   }
 
-  return Response.json({ ok: true, parkCode, waterUpserted, trailsUpserted });
+  return Response.json({ ok: true, parkCode, trailsUpserted });
 }

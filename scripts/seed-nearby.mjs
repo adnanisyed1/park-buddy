@@ -1,6 +1,12 @@
 #!/usr/bin/env node
-// Park Buddy — one-time (or occasional) seed of lakes & trails for all 63
+// Park Buddy — one-time (or occasional) seed of TRAIL geometry for all 63
 // national parks, sourced from OpenStreetMap/Overpass.
+//
+// Lakes used to be seeded here too, but now come live from USGS GNIS
+// (app/api/water/route.js) — a government service with no rate-limit problem,
+// so no seeding is needed for lakes anymore. Trails still need Overpass (no
+// free government source has named trail line geometry), so this script is
+// still needed for that.
 //
 // WHY THIS IS A LOCAL SCRIPT, NOT A NETLIFY FUNCTION: Overpass rate-limits and
 // blocks datacenter/serverless IPs, so calling it FROM Netlify (even a
@@ -14,8 +20,10 @@
 //   node scripts/seed-nearby.mjs
 //   node scripts/seed-nearby.mjs https://theparkbuddy.netlify.app   # override target
 //
-// Lake/trail geometry barely changes — re-run this every few months, or after
+// Trail geometry barely changes — re-run this every few months, or after
 // adding new parks to trip-data.js. Safe to re-run any time (upserts by ID).
+// If Overpass is throttling (frequent "FAILED" lines), stop and retry later
+// from a different/quieter network rather than looping immediately.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -42,7 +50,6 @@ const MIRRORS = [
   "https://overpass-api.de/api/interpreter",
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const num = (v) => { const n = parseFloat(v); return isFinite(n) ? n : null; };
 
 async function overpass(query) {
   for (const url of MIRRORS) {
@@ -59,32 +66,6 @@ async function overpass(query) {
     } catch { /* try next mirror */ }
   }
   return null;
-}
-
-// NOTE: no relation clause — resolving relation geometries makes the query
-// self-timeout server-side, which returns HTTP 200 with elements:[] (a false
-// "success, but empty" rather than a visible error). Named ways cover it.
-async function lakesFor(p) {
-  const A = "(around:30000," + p.lat + "," + p.lng + ")";
-  const q =
-    "[out:json][timeout:25];(" +
-    'way["natural"="water"]["name"]' + A + ";" +
-    'way["water"="lake"]["name"]' + A + ";" +
-    'way["water"="reservoir"]["name"]' + A + ";" +
-    ");out tags center 40;";
-  const els = await overpass(q);
-  if (!els) return null;
-  const seen = {}, out = [];
-  for (const el of els) {
-    const t = el.tags || {}, name = t.name;
-    if (!name || seen[name.toLowerCase()]) continue;
-    seen[name.toLowerCase()] = 1;
-    const c = el.center || {}, la = num(c.lat), ln = num(c.lon);
-    if (la == null || ln == null) continue;
-    out.push({ name, lat: +la.toFixed(5), lng: +ln.toFixed(5) });
-    if (out.length >= 20) break;
-  }
-  return out;
 }
 
 // NOTE: no relation clause — resolving relation geometries makes the query slow
@@ -120,36 +101,34 @@ async function trailsFor(p) {
   return { hiking, offroad, ski };
 }
 
-async function postIngest(parkCode, water, trails) {
+async function postIngest(parkCode, trails) {
   const r = await fetch(BASE + "/api/ingest-overpass", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ parkCode, water: water || [], trails: trails || { hiking: [], offroad: [], ski: [] } }),
+    body: JSON.stringify({ parkCode, trails: trails || { hiking: [], offroad: [], ski: [] } }),
   });
   if (!r.ok) return { error: "HTTP " + r.status + " " + (await r.text()).slice(0, 150) };
   return r.json();
 }
 
 async function main() {
-  console.error("Seeding lakes & trails for " + PARKS.length + " parks → " + BASE);
+  console.error("Seeding trails for " + PARKS.length + " parks → " + BASE);
   let done = 0;
   const failed = [];
   for (const p of PARKS) {
     const code = CODES[String(p.id)] || p.name.toLowerCase().replace(/[^a-z]/g, "");
     process.stderr.write("[" + (done + 1) + "/" + PARKS.length + "] " + p.name + " ... ");
-    const water = await lakesFor(p);
-    await sleep(6000);
     const trails = await trailsFor(p);
     await sleep(6000);
-    if (!water && !trails) {
+    if (!trails) {
       failed.push(p.name);
       process.stderr.write("FAILED (Overpass unreachable — will retry on next run)\n");
       continue;
     }
-    const res = await postIngest(code, water, trails);
+    const res = await postIngest(code, trails);
     done++;
     if (res.error) process.stderr.write("ingest error: " + res.error + "\n");
-    else process.stderr.write("water:" + res.waterUpserted + " trails:" + res.trailsUpserted + "\n");
+    else process.stderr.write("trails:" + res.trailsUpserted + "\n");
   }
   console.error("\nDone. " + done + "/" + PARKS.length + " parks ingested." + (failed.length ? " Failed (re-run to retry): " + failed.join(", ") : ""));
 }

@@ -528,9 +528,16 @@ export default function ExploreApp() {
     const feats = map.data.addGeoJson(geo);
     map.data.setStyle({ strokeColor: "#1d4a37", strokeWeight: 2, fillColor: "#3f7a4a", fillOpacity: 0.22 });
     boundaryRef.current.features = feats;
+    // Draw the boundary but DON'T zoom tight to it — selectPark already framed a
+    // regional view (zoom ~7). A tight boundary fit pushed nearby campgrounds/
+    // trails (up to ~50 mi) off-screen, so they looked "missing". Only widen the
+    // view if the park boundary is bigger than what's currently shown.
     const b = new g.maps.LatLngBounds();
     feats.forEach((f) => f.getGeometry().forEachLatLng((ll) => b.extend(ll)));
-    if (!b.isEmpty()) map.fitBounds(b, 70);
+    const cur = map.getBounds();
+    if (!b.isEmpty() && cur && !cur.contains(b.getNorthEast()) && !cur.contains(b.getSouthWest())) {
+      map.fitBounds(b, 90);
+    }
   }
 
   function layerInfoHtml(title, sub, extra) {

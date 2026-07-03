@@ -44,6 +44,11 @@ const TYPE_META = {
 
 // Trail polyline colors (legacy s0.js values).
 const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" };
+const TRAIL_CAT_META = {
+  hiking: { icon: "🥾", label: "Hiking trail" },
+  offroad: { icon: "🚙", label: "Off-road / 4x4 route" },
+  ski: { icon: "⛷️", label: "Ski route" },
+};
 const BOUNDARY_URL = (code) =>
   "https://raw.githubusercontent.com/nationalparkservice/data/gh-pages/base_data/boundaries/parks/" + code + ".topojson";
 
@@ -215,6 +220,7 @@ export default function ExploreApp() {
   const [npsData, setNpsData] = useState({}); // name -> /api/nps payload (description, activities, thingsToDo)
   const [condData, setCondData] = useState({}); // name -> /api/conditions payload (alerts, wildfires, AQI)
   const [placesData, setPlacesData] = useState({}); // name -> /api/places payload (facilities, recAreas)
+  const [trailsData, setTrailsData] = useState({}); // name -> /api/trails payload ({hiking,offroad,ski}) — feeds the Trails tab list
   const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
   const [ui, setUi] = useState({
     panelOpen: false, filtersOpen: true, radius: 150,
@@ -596,7 +602,9 @@ export default function ExploreApp() {
   }
   function maybeLoadTrails(p) {
     const u = uiRef.current;
-    if ((!u.layerHiking && !u.layerOffroad && !u.layerSki) || trailsLoadedRef.current) return;
+    // Also load (without necessarily drawing lines on the map) when the Trails
+    // tab is open, so the list works even with all three trail toggles off.
+    if ((!u.layerHiking && !u.layerOffroad && !u.layerSki && u.detailTab !== "trails") || trailsLoadedRef.current) return;
     trailsLoadedRef.current = true;
     loadTrailsFor(p);
   }
@@ -622,7 +630,7 @@ export default function ExploreApp() {
   // pinned/selected, load that layer immediately instead of waiting for the
   // next pin click.
   useEffect(() => { if (focusedParkRef.current) maybeLoadCampgrounds(focusedParkRef.current); }, [ui.campgrounds]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (focusedParkRef.current) maybeLoadTrails(focusedParkRef.current); }, [ui.layerHiking, ui.layerOffroad, ui.layerSki]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (focusedParkRef.current) maybeLoadTrails(focusedParkRef.current); }, [ui.layerHiking, ui.layerOffroad, ui.layerSki, ui.detailTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // NPS boundary polygon (legacy styling: dark-green stroke, translucent green fill).
   async function showBoundary(p) {
@@ -678,6 +686,7 @@ export default function ExploreApp() {
       const d = await fetch("/api/trails?" + q).then((r) => (r.ok ? r.json() : null));
       if (layersForRef.current !== p.name) return;
       if (!d) { setTrailStatus({ park: p.name, state: "error" }); return; }
+      setTrailsData((s) => ({ ...s, [p.name]: d }));
       let n = 0;
       ["hiking", "offroad", "ski"].forEach((cat) => {
         (d[cat] || []).forEach((t) => {
@@ -1201,6 +1210,7 @@ export default function ExploreApp() {
               <div style={{ display: "flex", gap: 6, marginBottom: 14, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 4 }}>
                 <button onClick={() => patch({ detailTab: "live" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "live" ? "#1d4a37" : "transparent", color: ui.detailTab === "live" ? "#fff" : "#5b6258" }}>📡 Live</button>
                 <button onClick={() => patch({ detailTab: "about" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "about" ? "#1d4a37" : "transparent", color: ui.detailTab === "about" ? "#fff" : "#5b6258" }}>ℹ️ About</button>
+                <button onClick={() => patch({ detailTab: "trails" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "trails" ? "#1d4a37" : "transparent", color: ui.detailTab === "trails" ? "#fff" : "#5b6258" }}>🥾 Trails</button>
               </div>
 
               {trailStatus && trailStatus.park === sel.name && trailStatus.state !== "done" && (
@@ -1299,54 +1309,93 @@ export default function ExploreApp() {
                   )}
                 </div>
               )}
+              {ui.detailTab === "trails" && (() => {
+                const td = trailsData[sel.name];
+                const cats = td ? ["hiking", "offroad", "ski"].filter((c) => (td[c] || []).length > 0) : [];
+                return (
+                  <div style={{ marginBottom: 14 }}>
+                    {!td && (
+                      <div style={{ textAlign: "center", color: "#8c8473", padding: "16px 10px", fontSize: ".82rem" }}>⏳ Loading trails…</div>
+                    )}
+                    {td && cats.length === 0 && (
+                      <div style={{ textAlign: "center", color: "#8c8473", padding: "16px 10px", fontSize: ".82rem" }}>No mapped trails within 25 mi of the park center yet.</div>
+                    )}
+                    {cats.map((cat) => (
+                      <div key={cat} style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                          <span>{TRAIL_CAT_META[cat].icon}</span> {TRAIL_CAT_META[cat].label}s ({td[cat].length})
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {td[cat].map((t) => (
+                            <div key={t.name} onClick={() => selectTrail(sel, cat, t)} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px", cursor: "pointer" }}>
+                              <span style={{ width: 4, height: 30, borderRadius: 2, background: TRAIL_STYLE[cat], flex: "none" }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <b style={{ fontSize: ".85rem", color: "#163a2b", display: "block" }}>{t.name}</b>
+                                {t.trailClass && <span style={{ fontSize: ".7rem", color: "#8c8473" }}>{t.trailClass}</span>}
+                              </div>
+                              <div style={{ textAlign: "right", flex: "none" }}>
+                                <div style={{ fontSize: ".72rem", fontWeight: 700, color: "#8c8473" }}>{t.lengthMi > 0 ? t.lengthMi + " mi" : "—"}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               <button onClick={() => toggleTripFor(ui.selectedName)} style={{ width: "100%", boxSizing: "border-box", border: "none", borderRadius: 12, padding: 13, fontWeight: 800, fontSize: ".88rem", cursor: "pointer", fontFamily: "inherit", marginBottom: 18, background: tripHas ? "#eef4e6" : "#1d4a37", color: tripHas ? "#1d4a37" : "#fff" }}>
                 {tripHas ? "✓ In your trip — tap to remove" : "+ Add to trip"}
               </button>
 
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473" }}>Nearby — within {ui.radius} mi (~{driveTimeLabel(ui.radius)} drive)</span>
-              </div>
-              <div style={{ fontSize: ".72rem", color: "#8c8473", margin: "-4px 0 10px", lineHeight: 1.4 }}>
-                {!selPlaces
-                  ? "⏳ Loading campgrounds & recreation areas…"
-                  : ((selPlaces.facilities || []).length + (selPlaces.recAreas || []).length) === 0
-                    ? "No campgrounds found near this park."
-                    : "🏕 " + (selPlaces.facilities || []).length + " campgrounds · " + (selPlaces.recAreas || []).length + " recreation areas on the map"}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <button onClick={() => setRadius(ui.radius - 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>−</button>
-                <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ flex: 1, accentColor: "#c79a4b" }} />
-                <button onClick={() => setRadius(ui.radius + 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+</button>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {nearbyItems.length === 0 && (
-                  <div style={{ textAlign: "center", color: "#8c8473", padding: "16px 10px", fontSize: ".82rem" }}>Nothing within {ui.radius} mi — try widening the radius above.</div>
-                )}
-                {nearbyItems.map((o) => {
-                  const meta = TYPE_META[o.type];
-                  return (
-                    <div key={o.name} onClick={o.click || undefined} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px", cursor: o.click ? "pointer" : "default" }}>
-                      <span style={{ fontSize: "1rem" }}>{meta.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <b style={{ fontSize: ".85rem", color: "#163a2b", display: "block" }}>{o.name}</b>
-                        <span style={{ fontSize: ".7rem", color: "#8c8473" }}>{meta.label}</span>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: ".72rem", fontWeight: 700, color: "#8c8473" }}>{Math.round(o.dist)} mi</div>
-                        <div style={{ fontSize: ".64rem", color: "#a7a08c" }}>~{driveTimeLabel(o.dist)} drive</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              {ui.detailTab !== "trails" && (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473" }}>Nearby — within {ui.radius} mi (~{driveTimeLabel(ui.radius)} drive)</span>
+                  </div>
+                  <div style={{ fontSize: ".72rem", color: "#8c8473", margin: "-4px 0 10px", lineHeight: 1.4 }}>
+                    {!selPlaces
+                      ? "⏳ Loading campgrounds & recreation areas…"
+                      : ((selPlaces.facilities || []).length + (selPlaces.recAreas || []).length) === 0
+                        ? "No campgrounds found near this park."
+                        : "🏕 " + (selPlaces.facilities || []).length + " campgrounds · " + (selPlaces.recAreas || []).length + " recreation areas on the map"}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <button onClick={() => setRadius(ui.radius - 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>−</button>
+                    <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ flex: 1, accentColor: "#c79a4b" }} />
+                    <button onClick={() => setRadius(ui.radius + 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+</button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {nearbyItems.length === 0 && (
+                      <div style={{ textAlign: "center", color: "#8c8473", padding: "16px 10px", fontSize: ".82rem" }}>Nothing within {ui.radius} mi — try widening the radius above.</div>
+                    )}
+                    {nearbyItems.map((o) => {
+                      const meta = TYPE_META[o.type];
+                      return (
+                        <div key={o.name} onClick={o.click || undefined} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px", cursor: o.click ? "pointer" : "default" }}>
+                          <span style={{ fontSize: "1rem" }}>{meta.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <b style={{ fontSize: ".85rem", color: "#163a2b", display: "block" }}>{o.name}</b>
+                            <span style={{ fontSize: ".7rem", color: "#8c8473" }}>{meta.label}</span>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: ".72rem", fontWeight: 700, color: "#8c8473" }}>{Math.round(o.dist)} mi</div>
+                            <div style={{ fontSize: ".64rem", color: "#a7a08c" }}>~{driveTimeLabel(o.dist)} drive</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </>
           )}
 
           {/* ========== TRAIL DETAIL VIEW ========== */}
           {ui.view === "trail" && ui.selectedTrail && (() => {
             const tr = ui.selectedTrail;
-            const catMeta = { hiking: { icon: "🥾", label: "Hiking trail" }, offroad: { icon: "🚙", label: "Off-road / 4x4 route" }, ski: { icon: "⛷️", label: "Ski route" } }[tr.category] || { icon: "🥾", label: "Trail" };
+            const catMeta = TRAIL_CAT_META[tr.category] || { icon: "🥾", label: "Trail" };
             return (
               <>
                 <button onClick={() => patch({ view: "detail" })} style={{ background: "none", border: "none", color: "#1d3941", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "inherit", padding: "4px 4px 12px", display: "flex", alignItems: "center", gap: 5 }}>‹ Back to {tr.parkName}</button>

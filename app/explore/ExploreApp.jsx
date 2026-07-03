@@ -210,6 +210,111 @@ function TrailPhoto({ name, state }) {
   return <img src={url} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, display: "block" }} />;
 }
 
+/* ---------------- trail enrichment: elevation gain (computed) + estimates ---------------- */
+// NPS's own trail dataset has no elevation, difficulty rating, time estimate, or
+// route-type field — only geometry + surface/class/etc (already used above).
+// Elevation gain is computed via Google's ElevationService (part of the core
+// Maps JS API, no extra library needed); difficulty/time/route-type are then
+// derived from length + gain. All clearly labeled "Est." in the UI since
+// they're computed, not authoritative trail-agency ratings.
+
+let elevCache = null;
+function getElevCache() {
+  if (elevCache) return elevCache;
+  try { elevCache = JSON.parse(localStorage.getItem("pb_elev_cache_v1") || "{}"); } catch { elevCache = {}; }
+  return elevCache;
+}
+function saveElevCache() {
+  try { localStorage.setItem("pb_elev_cache_v1", JSON.stringify(elevCache)); } catch {}
+}
+
+// Lazy: only called when a trail's own detail panel opens, not for a whole
+// park's trail list, to avoid unnecessary Elevation API calls.
+function fetchElevationGainFt(key, path) {
+  const cache = getElevCache();
+  if (cache[key] !== undefined) return Promise.resolve(cache[key]);
+  if (!window.google || !window.google.maps || !Array.isArray(path) || path.length < 2) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const svc = new window.google.maps.ElevationService();
+    svc.getElevationForLocations({ locations: path.map(([lat, lng]) => ({ lat, lng })) }, (results, status) => {
+      let gainFt = null;
+      if (status === "OK" && results && results.length > 1) {
+        let gainM = 0;
+        for (let i = 1; i < results.length; i++) {
+          const d = results[i].elevation - results[i - 1].elevation;
+          if (d > 0) gainM += d;
+        }
+        gainFt = Math.round(gainM * 3.28084);
+      }
+      const c = getElevCache();
+      c[key] = gainFt;
+      saveElevCache();
+      resolve(gainFt);
+    });
+  });
+}
+
+// Naismith's-rule-style estimate: ~2 mph base pace + 30 min per 1000 ft of gain.
+function estimateTimeLabel(mi, gainFt) {
+  const minutes = mi * 30 + (gainFt / 1000) * 30;
+  if (minutes < 60) return Math.round(minutes / 5) * 5 + " min";
+  const h = Math.floor(minutes / 60), m = Math.round((minutes % 60) / 5) * 5;
+  return h + "h" + (m ? " " + m + "m" : "");
+}
+function estimateDifficulty(mi, gainFt) {
+  if (mi <= 3 && gainFt <= 500) return "Easy";
+  if (mi <= 8 && gainFt <= 1500) return "Moderate";
+  return "Hard";
+}
+// Geometric guess only — a real point-to-point (shuttle) trail looks identical
+// to an out-and-back in pure geometry, so this can only reliably detect loops.
+function routeTypeFor(path) {
+  if (!Array.isArray(path) || path.length < 3) return "Out & back";
+  const [lat1, lng1] = path[0], [lat2, lng2] = path[path.length - 1];
+  return milesBetween({ lat: lat1, lng: lng1 }, { lat: lat2, lng: lng2 }) < 0.15 ? "Loop" : "Out & back";
+}
+
+const trailStatLabel = { fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 };
+const trailStatValue = { fontSize: ".92rem", color: "#163a2b" };
+
+function TrailStats({ tr }) {
+  const [gainFt, setGainFt] = useState(undefined); // undefined = loading, null = unavailable
+  useEffect(() => {
+    let on = true;
+    setGainFt(undefined);
+    fetchElevationGainFt("trail:" + tr.parkName + "|" + tr.name, tr.path).then((g) => { if (on) setGainFt(g); });
+    return () => { on = false; };
+  }, [tr.parkName, tr.name, tr.path]);
+
+  const lengthMi = tr.lengthMi > 0 ? tr.lengthMi : null;
+  const canEstimate = lengthMi != null && typeof gainFt === "number";
+
+  return (
+    <>
+      <div>
+        <div style={trailStatLabel}>Elevation gain</div>
+        <b style={trailStatValue}>{gainFt === undefined ? "…" : gainFt == null ? "Unknown" : gainFt + " ft"}</b>
+      </div>
+      <div>
+        <div style={trailStatLabel}>Est. route type</div>
+        <b style={trailStatValue}>{routeTypeFor(tr.path)}</b>
+      </div>
+      {canEstimate && (
+        <div>
+          <div style={trailStatLabel}>Est. time</div>
+          <b style={trailStatValue}>{estimateTimeLabel(lengthMi, gainFt)}</b>
+        </div>
+      )}
+      {canEstimate && (
+        <div>
+          <div style={trailStatLabel}>Est. difficulty</div>
+          <b style={trailStatValue}>{estimateDifficulty(lengthMi, gainFt)}</b>
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ================================ component ================================ */
 
 export default function ExploreApp() {
@@ -1430,19 +1535,20 @@ export default function ExploreApp() {
                 <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: 16, marginTop: 12, marginBottom: 14 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 }}>Length</div>
-                      <b style={{ fontSize: ".92rem", color: "#163a2b" }}>{tr.lengthMi > 0 ? tr.lengthMi + " mi" : "Unknown"}</b>
+                      <div style={trailStatLabel}>Length</div>
+                      <b style={trailStatValue}>{tr.lengthMi > 0 ? tr.lengthMi + " mi" : "Unknown"}</b>
                     </div>
                     {tr.surface && (
                       <div>
-                        <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 }}>Surface</div>
-                        <b style={{ fontSize: ".92rem", color: "#163a2b" }}>{tr.surface}</b>
+                        <div style={trailStatLabel}>Surface</div>
+                        <b style={trailStatValue}>{tr.surface}</b>
                       </div>
                     )}
+                    <TrailStats tr={tr} />
                     {tr.trailClass && (
                       <div style={{ gridColumn: "1 / -1" }}>
-                        <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 }}>Trail class</div>
-                        <b style={{ fontSize: ".92rem", color: "#163a2b" }}>{tr.trailClass}</b>
+                        <div style={trailStatLabel}>Trail class</div>
+                        <b style={trailStatValue}>{tr.trailClass}</b>
                       </div>
                     )}
                   </div>

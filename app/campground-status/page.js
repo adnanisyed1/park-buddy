@@ -1,5 +1,5 @@
-import { StatusShell, StatusHeader, StatCard, StatCell, NearbySection, NotFoundBody } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby } from "../lib/statusData";
+import { StatusShell, HeroBand, StatGrid, BigStat, GoldButton, NearbySection, NotFoundBody } from "../components/StatusShell";
+import { getParks, nearestPark, getNearby, getPhoto } from "../lib/statusData";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -29,30 +29,33 @@ export default async function CampgroundStatusPage({ searchParams }) {
   const detail = searchParams.detail || "";
   const reservable = searchParams.reservable === "1";
 
-  const [parks, nearby] = await Promise.all([
+  const [parks, nearby, photoUrl] = await Promise.all([
     getParks(),
     getNearby(lat, lng, { excludeName: name }),
+    getPhoto(name, null),
   ]);
   const park = nearestPark(parks, lat, lng);
   const parkHref = park ? "/park-status?park=" + park.id : null;
 
   return (
-    <StatusShell backHref={parkHref || "/explore"} backLabel={park ? "Back to " + park.name : "Back to map"}>
-      <StatusHeader icon="🏕️" name={name} sub={type + (park ? " · near " + park.name : "")} />
+    <StatusShell
+      backHref={parkHref || "/explore"}
+      backLabel={park ? "Back to " + park.name : "Back to map"}
+      hero={<HeroBand photoUrl={photoUrl} photoAlt={name} breadcrumb={park ? park.name : type} title={name} pills={reservable ? [{ label: "Reservable via Recreation.gov" }] : []} />}
+    >
+      <div style={{ fontSize: ".85rem", color: "#8a8471", marginBottom: 18 }}>{type}{park ? " · near " + park.name : ""}</div>
 
-      <StatCard>
-        <StatCell label="Type" value={type} />
-        <StatCell label="Reservable" value={reservable ? "Yes, via Recreation.gov" : null} />
-        {park && <StatCell label="Nearest park" value={park.name + " (" + Math.round(park.dist) + " mi)"} />}
-        {detail && <StatCell label="Details" value={detail} full />}
-        {phone && <StatCell label="Phone" value={phone} />}
-      </StatCard>
+      <StatGrid>
+        <BigStat label="Type" value={type} />
+        {park && <BigStat label="Nearest park" value={park.name} unit={Math.round(park.dist) + " mi away"} />}
+      </StatGrid>
 
-      {url && (
-        <a href={url} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", background: "#fffdf7", border: "1px solid #ece3d0", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginBottom: 18 }}>View on Recreation.gov →</a>
-      )}
+      {detail && <div style={{ fontSize: ".84rem", color: "#4c5443", lineHeight: 1.55, marginBottom: 18 }}>{detail}</div>}
+      {phone && <div style={{ fontSize: ".8rem", color: "#6d7263", marginBottom: 18 }}>Phone: {phone}</div>}
 
-      <div style={{ fontSize: ".72rem", color: "#a7a08c", lineHeight: 1.4, marginBottom: 10 }}>
+      {url && <div style={{ marginBottom: 18 }}><GoldButton href={url}>View on Recreation.gov ↗</GoldButton></div>}
+
+      <div style={{ fontSize: ".72rem", color: "#a7a08c", lineHeight: 1.4, marginBottom: 18 }}>
         Source: Recreation.gov / RIDB (federal) or OpenStreetMap contributors.
       </div>
 

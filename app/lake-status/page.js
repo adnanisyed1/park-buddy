@@ -1,5 +1,5 @@
-import { StatusShell, StatusHeader, StatCard, StatCell, NearbySection, NotFoundBody } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby } from "../lib/statusData";
+import { StatusShell, HeroBand, StatGrid, BigStat, NearbySection, NotFoundBody } from "../components/StatusShell";
+import { getParks, nearestPark, getNearby, getPhoto } from "../lib/statusData";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -24,23 +24,28 @@ export default async function LakeStatusPage({ searchParams }) {
   }
 
   const kind = searchParams.kind === "reservoir" ? "Reservoir" : "Lake";
-  const [parks, nearby] = await Promise.all([
+  const [parks, nearby, photoUrl] = await Promise.all([
     getParks(),
     getNearby(lat, lng, { excludeName: name }),
+    getPhoto(name, null),
   ]);
   const park = nearestPark(parks, lat, lng);
   const parkHref = park ? "/park-status?park=" + park.id : null;
 
   return (
-    <StatusShell backHref={parkHref || "/explore"} backLabel={park ? "Back to " + park.name : "Back to map"}>
-      <StatusHeader icon="💧" name={name} sub={kind + (park ? " · near " + park.name : "")} />
+    <StatusShell
+      backHref={parkHref || "/explore"}
+      backLabel={park ? "Back to " + park.name : "Back to map"}
+      hero={<HeroBand photoUrl={photoUrl} photoAlt={name} breadcrumb={park ? park.name : "Lake"} title={name} pills={[{ label: kind }]} />}
+    >
+      <div style={{ fontSize: ".85rem", color: "#8a8471", marginBottom: 18 }}>{kind}{park ? " · near " + park.name : ""}</div>
 
-      <StatCard>
-        <StatCell label="Type" value={kind} />
-        {park && <StatCell label="Nearest park" value={park.name + " (" + Math.round(park.dist) + " mi)"} />}
-      </StatCard>
+      <StatGrid>
+        <BigStat label="Type" value={kind} />
+        {park && <BigStat label="Nearest park" value={park.name} unit={Math.round(park.dist) + " mi away"} />}
+      </StatGrid>
 
-      <div style={{ fontSize: ".72rem", color: "#a7a08c", lineHeight: 1.4, marginBottom: 10 }}>
+      <div style={{ fontSize: ".72rem", color: "#a7a08c", lineHeight: 1.4, marginBottom: 18 }}>
         Source: USGS GNIS / The National Map (public domain).
       </div>
 

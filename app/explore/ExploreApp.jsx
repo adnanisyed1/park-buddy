@@ -13,6 +13,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
+import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
+import { fetchElevationProfile } from "../lib/elevationClient";
 // Lakes and trails come live from /api/water (USGS GNIS) and /api/trails (NPS
 // Public Trails) — government ArcGIS REST services, no auth/rate-limiting/
 // seeding needed (unlike OpenStreetMap/Overpass, which blocks datacenter IPs).
@@ -213,66 +215,11 @@ function TrailPhoto({ name, state }) {
 /* ---------------- trail enrichment: elevation gain (computed) + estimates ---------------- */
 // NPS's own trail dataset has no elevation, difficulty rating, time estimate, or
 // route-type field — only geometry + surface/class/etc (already used above).
-// Elevation gain is computed via Google's ElevationService (part of the core
-// Maps JS API, no extra library needed); difficulty/time/route-type are then
-// derived from length + gain. All clearly labeled "Est." in the UI since
-// they're computed, not authoritative trail-agency ratings.
-
-let elevCache = null;
-function getElevCache() {
-  if (elevCache) return elevCache;
-  try { elevCache = JSON.parse(localStorage.getItem("pb_elev_cache_v1") || "{}"); } catch { elevCache = {}; }
-  return elevCache;
-}
-function saveElevCache() {
-  try { localStorage.setItem("pb_elev_cache_v1", JSON.stringify(elevCache)); } catch {}
-}
-
-// Lazy: only called when a trail's own detail panel opens, not for a whole
-// park's trail list, to avoid unnecessary Elevation API calls.
-function fetchElevationGainFt(key, path) {
-  const cache = getElevCache();
-  if (cache[key] !== undefined) return Promise.resolve(cache[key]);
-  if (!window.google || !window.google.maps || !Array.isArray(path) || path.length < 2) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const svc = new window.google.maps.ElevationService();
-    svc.getElevationForLocations({ locations: path.map(([lat, lng]) => ({ lat, lng })) }, (results, status) => {
-      let gainFt = null;
-      if (status === "OK" && results && results.length > 1) {
-        let gainM = 0;
-        for (let i = 1; i < results.length; i++) {
-          const d = results[i].elevation - results[i - 1].elevation;
-          if (d > 0) gainM += d;
-        }
-        gainFt = Math.round(gainM * 3.28084);
-      }
-      const c = getElevCache();
-      c[key] = gainFt;
-      saveElevCache();
-      resolve(gainFt);
-    });
-  });
-}
-
-// Naismith's-rule-style estimate: ~2 mph base pace + 30 min per 1000 ft of gain.
-function estimateTimeLabel(mi, gainFt) {
-  const minutes = mi * 30 + (gainFt / 1000) * 30;
-  if (minutes < 60) return Math.round(minutes / 5) * 5 + " min";
-  const h = Math.floor(minutes / 60), m = Math.round((minutes % 60) / 5) * 5;
-  return h + "h" + (m ? " " + m + "m" : "");
-}
-function estimateDifficulty(mi, gainFt) {
-  if (mi <= 3 && gainFt <= 500) return "Easy";
-  if (mi <= 8 && gainFt <= 1500) return "Moderate";
-  return "Hard";
-}
-// Geometric guess only — a real point-to-point (shuttle) trail looks identical
-// to an out-and-back in pure geometry, so this can only reliably detect loops.
-function routeTypeFor(path) {
-  if (!Array.isArray(path) || path.length < 3) return "Out & back";
-  const [lat1, lng1] = path[0], [lat2, lng2] = path[path.length - 1];
-  return milesBetween({ lat: lat1, lng: lng1 }, { lat: lat2, lng: lng2 }) < 0.15 ? "Loop" : "Out & back";
-}
+// Elevation gain comes from app/lib/elevationClient.js (Google's
+// ElevationService); difficulty/time/route-type (app/lib/trailStats.js) are
+// then derived from length + gain. All clearly labeled "Est." in the UI since
+// they're computed, not authoritative trail-agency ratings. Shared with
+// /trail-status's route/elevation-chart client island — one implementation.
 
 const trailStatLabel = { fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 };
 const trailStatValue = { fontSize: ".92rem", color: "#163a2b" };
@@ -282,7 +229,7 @@ function TrailStats({ tr }) {
   useEffect(() => {
     let on = true;
     setGainFt(undefined);
-    fetchElevationGainFt("trail:" + tr.parkName + "|" + tr.name, tr.path).then((g) => { if (on) setGainFt(g); });
+    fetchElevationProfile("trail:" + tr.parkName + "|" + tr.name, tr.path).then((p) => { if (on) setGainFt(p.gainFt); });
     return () => { on = false; };
   }, [tr.parkName, tr.name, tr.path]);
 

@@ -1,8 +1,10 @@
 import "./globals.css";
-import { Spectral, Hanken_Grotesk } from "next/font/google";
+import { Spectral, Hanken_Grotesk, Space_Grotesk } from "next/font/google";
 
 const spectral = Spectral({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--font-spectral" });
 const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-hanken" });
+// Stat numbers on the /trail-status, /lake-status, /campground-status pages.
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-space-grotesk" });
 
 // Set NEXT_PUBLIC_SITE_URL to your production domain (Netlify env var) so canonical
 // URLs, Open Graph images and the sitemap resolve to absolute URLs. Falls back to
@@ -56,7 +58,7 @@ export default function RootLayout({ children }) {
     // suppressHydrationWarning: browser extensions (Grammarly et al.) inject
     // attributes into <html>/<body> before React hydrates, throwing minified
     // errors #418/#423/#425 in production. React recovers, but noisily.
-    <html lang="en" className={`${spectral.variable} ${hanken.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${spectral.variable} ${hanken.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
         {/* Google Maps key, injected from the environment (Netlify env var).
             Runs before any embed-pipeline script (config.js no longer carries a

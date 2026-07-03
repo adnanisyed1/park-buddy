@@ -82,6 +82,71 @@ export async function getNearby(lat, lng, opts = {}) {
   };
 }
 
+// Hero photo for any of the three status pages — same source /api/photo
+// already uses client-side (TrailPhoto/CoverPhoto in ExploreApp.jsx), just
+// called server-side here since these pages don't need it to be interactive.
+export async function getPhoto(name, state) {
+  if (!name) return null;
+  try {
+    const r = await fetch(origin() + "/api/photo?name=" + encodeURIComponent(name) + "&state=" + encodeURIComponent(state || ""), { next: { revalidate: 604800 } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && d.found ? (d.thumb || d.image) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Real current conditions near a point, via the National Weather Service
+// (free, no key — same family of source as app/api/conditions/route.js's
+// weatherAlerts()). Replaces the mockup's fabricated "Open/Caution/Closed"
+// status pill and "Typical conditions · July" climate-normals card with
+// something genuinely live, just not framed as trail-specific open/closed.
+export async function getPointWeather(lat, lng) {
+  if (lat == null || lng == null) return null;
+  try {
+    const pt = await fetch("https://api.weather.gov/points/" + lat.toFixed(4) + "," + lng.toFixed(4), {
+      headers: { "User-Agent": "ParkBuddy (trail-status)", Accept: "application/geo+json" },
+      next: { revalidate: 1800 },
+    }).then((r) => (r.ok ? r.json() : null));
+    const forecastUrl = pt && pt.properties && pt.properties.forecast;
+    if (!forecastUrl) return null;
+    const fc = await fetch(forecastUrl, {
+      headers: { "User-Agent": "ParkBuddy (trail-status)", Accept: "application/geo+json" },
+      next: { revalidate: 1800 },
+    }).then((r) => (r.ok ? r.json() : null));
+    const period = fc && fc.properties && fc.properties.periods && fc.properties.periods[0];
+    if (!period) return null;
+    return {
+      tempF: period.temperature,
+      short: period.shortForecast,
+      wind: period.windSpeed,
+      isDaytime: !!period.isDaytime,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Real park-level entrance fees/passes from /api/nps (already fetched
+// elsewhere in the app) — not the mockup's trail-specific "Bear Lake Road
+// corridor" timed-entry detail, which isn't in any generic API, but genuinely
+// real at the park level.
+export async function getParkFees(unitCode) {
+  if (!unitCode) return null;
+  try {
+    const r = await fetch(origin() + "/api/nps?parkCode=" + encodeURIComponent(unitCode), { next: { revalidate: 900 } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const fees = (d.park && d.park.entranceFees) || [];
+    const passes = (d.park && d.park.entrancePasses) || [];
+    if (!fees.length && !passes.length) return null;
+    return { fees, passes };
+  } catch {
+    return null;
+  }
+}
+
 // Read-only reviews for a trail, straight from Supabase's REST API with the
 // anon key (RLS already makes reviews public-read — see
 // supabase-trail-reviews.sql). No write UI here: writing needs a signed-in

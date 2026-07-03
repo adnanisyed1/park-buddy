@@ -64,17 +64,23 @@ async function ingestOne(origin, lat, lng, parkCode, sb, key) {
     url: p.url || "", detail: p.detail || p.description || "", sources: ["Recreation.gov/RIDB"],
     park_code: parkCode || null, fetched_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   }));
-  if (!rows.length) return { parkCode, upserted: 0 };
+  // De-dupe by id within this batch — two places with the same name+rounded
+  // coords (e.g. an RIDB facility also returned by the OSM fallback) hash to
+  // the same id, and Postgres's ON CONFLICT rejects a batch that would affect
+  // the same row twice in one statement (seen live: Olympic NP, error 21000).
+  const seenId = {};
+  const dedupedRows = rows.filter((r) => (seenId[r.id] ? false : (seenId[r.id] = true)));
+  if (!dedupedRows.length) return { parkCode, upserted: 0 };
   const resp = await fetch(sb + "/rest/v1/pb_places?on_conflict=id", {
     method: "POST",
     headers: {
       apikey: key, Authorization: "Bearer " + key,
       "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal",
     },
-    body: JSON.stringify(rows),
+    body: JSON.stringify(dedupedRows),
   });
   if (!resp.ok) return { parkCode, error: "supabase " + resp.status + " " + (await resp.text()).slice(0, 120) };
-  return { parkCode, upserted: rows.length };
+  return { parkCode, upserted: dedupedRows.length };
 }
 
 export async function POST(request) {

@@ -39,7 +39,7 @@ export default async function TrailStatusPage({ searchParams }) {
   const trail = await getTrail(searchParams.trail);
   if (!trail) {
     return (
-      <StatusShell backHref="/" backLabel="Back to map">
+      <StatusShell backHref="/explore" backLabel="Back to map">
         <NotFoundBody label="trail" />
       </StatusShell>
     );
@@ -56,7 +56,7 @@ export default async function TrailStatusPage({ searchParams }) {
   const parkHref = park ? "/park-status?park=" + park.id : null;
 
   return (
-    <StatusShell backHref={parkHref || "/"} backLabel={park ? "Back to " + park.name : "Back to map"}>
+    <StatusShell backHref={parkHref || "/explore"} backLabel={park ? "Back to " + park.name : "Back to map"}>
       <StatusHeader icon={catMeta.icon} name={trail.name} sub={catMeta.label + (trail.unitName ? " · " + trail.unitName : "")} />
 
       <StatCard>

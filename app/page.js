@@ -1,22 +1,19 @@
-import ExploreClient from "./explore/ExploreClient";
+import EmbeddedSite from "./components/EmbeddedSite";
 
-// Homepage = the new map experience (the design-spec Explore app: live verdict
-// pins, filters panel, boundary/trail/campground layers, My Trip cart).
-// The legacy bento+map homepage (public/embed/index) is retired from routing but
-// kept on disk as the reference implementation. /explore redirects here.
+// Homepage = the marketing/hero landing page (public/embed/landing) — the
+// original "what we do" page with the bento feature grid. The interactive map
+// lives at /explore now (see app/explore/page.js), not here — restored
+// 2026-07-03 after /page.js briefly rendered the map directly (commit
+// 560a520). Every nav link across the app already targets /explore for
+// "Map"/"Live Status" and / for the logo/brand, so this swap needed no other
+// link changes.
 export const metadata = {
   title: "ParkBuddy — Discover, plan & collect the outdoors",
   description:
-    "An interactive map of national parks and lakes with live weather, alerts and official conditions. Find the best outdoors near any city and start a trip.",
+    "Your home for the outdoors: discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
   alternates: { canonical: "/" },
-  openGraph: {
-    title: "ParkBuddy — Discover, plan & collect the outdoors",
-    description:
-      "Interactive map of national parks and lakes with live weather, alerts and conditions.",
-    url: "/",
-  },
 };
 
 export default function HomePage() {
-  return <ExploreClient />;
+  return <EmbeddedSite page="landing" />;
 }

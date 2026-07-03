@@ -17,7 +17,7 @@ export default async function LakeStatusPage({ searchParams }) {
   const lat = num(searchParams.lat), lng = num(searchParams.lng);
   if (!name || lat == null || lng == null) {
     return (
-      <StatusShell backHref="/" backLabel="Back to map">
+      <StatusShell backHref="/explore" backLabel="Back to map">
         <NotFoundBody label="lake" />
       </StatusShell>
     );
@@ -32,7 +32,7 @@ export default async function LakeStatusPage({ searchParams }) {
   const parkHref = park ? "/park-status?park=" + park.id : null;
 
   return (
-    <StatusShell backHref={parkHref || "/"} backLabel={park ? "Back to " + park.name : "Back to map"}>
+    <StatusShell backHref={parkHref || "/explore"} backLabel={park ? "Back to " + park.name : "Back to map"}>
       <StatusHeader icon="💧" name={name} sub={kind + (park ? " · near " + park.name : "")} />
 
       <StatCard>

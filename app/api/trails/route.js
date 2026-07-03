@@ -72,15 +72,25 @@ function pathLengthMi(path) {
 // lookup modes stay in sync.
 const OUT_FIELDS = "OBJECTID,TRLNAME,TRLUSE,TRLSURFACE,TRLCLASS,SEASONAL,SEASDESC,ACCESSNOTES,NOTES,UNITCODE,UNITNAME";
 
+// Even after longestContinuousRun() splits out the biggest single obvious
+// jump, a handful of smaller-but-still-implausible jumps can sum to a total
+// that's clearly not one real named trail (seen live: 152.6mi -> 85.4mi after
+// the jump-split alone, still absurd — RMNP's ENTIRE trail network is only
+// ~355mi). No single NPS-catalogued trail feature legitimately runs this
+// long; better to drop it than show fabricated-looking geometry.
+const MAX_PLAUSIBLE_TRAIL_MI = 30;
+
 function shapeTrail(a, longest) {
   const latLngPath = longest.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)]);
+  const lengthMi = +pathLengthMi(latLngPath).toFixed(1);
+  if (lengthMi > MAX_PLAUSIBLE_TRAIL_MI) return null;
   return {
     id: a.OBJECTID,
     name: (a.TRLNAME || "").trim(),
     difficulty: clean(a.TRLCLASS) || "",
     path: samplePath(latLngPath, 30),
     // extra detail for the trail's own detail panel (not needed for the map line itself)
-    lengthMi: +pathLengthMi(latLngPath).toFixed(1),
+    lengthMi,
     surface: clean(a.TRLSURFACE),
     trailClass: clean(a.TRLCLASS),
     seasonal: a.SEASONAL === "Yes",
@@ -94,8 +104,43 @@ function shapeTrail(a, longest) {
 function longestPath(f) {
   const paths = (f.geometry && f.geometry.paths) || [];
   let longest = null;
-  for (const p of paths) if (!longest || p.length > longest.length) longest = p;
+  for (const p of paths) {
+    const run = longestContinuousRun(p);
+    if (!longest || run.length > longest.length) longest = run;
+  }
   return longest;
+}
+
+function milesBetweenXY(x1, y1, x2, y2) {
+  const R = 3958.8, toRad = Math.PI / 180;
+  const dLat = (y2 - y1) * toRad, dLng = (x2 - x1) * toRad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(y1 * toRad) * Math.cos(y2 * toRad) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// NPS_Public_Trails occasionally miscodes disconnected segments as one
+// continuous line — seen live: a trail that came back as 152.6 mi, physically
+// implausible for a single named trail. The signature is a multi-mile jump
+// between two consecutive vertices (real trails wind continuously; even long
+// straight stretches keep intermediate vertices at this simplification
+// level). Split at any such jump and keep the longest contiguous run, rather
+// than showing the whole broken line or discarding the trail entirely.
+const MAX_JUMP_MI = 1;
+function longestContinuousRun(path) {
+  if (path.length < 3) return path;
+  let bestStart = 0, bestLen = 1, curStart = 0, curLen = 1;
+  for (let i = 1; i < path.length; i++) {
+    const [x1, y1] = path[i - 1], [x2, y2] = path[i];
+    if (milesBetweenXY(x1, y1, x2, y2) > MAX_JUMP_MI) {
+      if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
+      curStart = i;
+      curLen = 1;
+    } else {
+      curLen++;
+    }
+  }
+  if (curLen > bestLen) { bestStart = curStart; bestLen = curLen; }
+  return path.slice(bestStart, bestStart + bestLen);
 }
 
 export async function GET(request) {
@@ -128,6 +173,7 @@ export async function GET(request) {
       const longest = f && longestPath(f);
       if (!f || !longest || longest.length < 2) return Response.json({ trail: null });
       const trail = shapeTrail(f.attributes || {}, longest);
+      if (!trail) return Response.json({ trail: null });
       return Response.json({ trail: { ...trail, category: categoryFor(f.attributes.TRLUSE) }, credit: "National Park Service (public domain)" });
     } catch {
       return Response.json({ trail: null });
@@ -183,8 +229,11 @@ export async function GET(request) {
       const longest = longestPath(f);
       if (!longest || longest.length < 2) continue;
 
+      const shaped = shapeTrail(a, longest);
+      if (!shaped) continue;
+
       seen[cat][key] = true;
-      buckets[cat].push(shapeTrail(a, longest));
+      buckets[cat].push(shaped);
     }
 
     return Response.json({ hiking, offroad, ski, credit: "National Park Service (public domain)" });

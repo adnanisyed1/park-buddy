@@ -68,12 +68,71 @@ function pathLengthMi(path) {
   return mi;
 }
 
+// Shared field list + row-shaping so the bulk (parkCode/bbox) and single-id
+// lookup modes stay in sync.
+const OUT_FIELDS = "OBJECTID,TRLNAME,TRLUSE,TRLSURFACE,TRLCLASS,SEASONAL,SEASDESC,ACCESSNOTES,NOTES,UNITCODE,UNITNAME";
+
+function shapeTrail(a, longest) {
+  const latLngPath = longest.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)]);
+  return {
+    id: a.OBJECTID,
+    name: (a.TRLNAME || "").trim(),
+    difficulty: clean(a.TRLCLASS) || "",
+    path: samplePath(latLngPath, 30),
+    // extra detail for the trail's own detail panel (not needed for the map line itself)
+    lengthMi: +pathLengthMi(latLngPath).toFixed(1),
+    surface: clean(a.TRLSURFACE),
+    trailClass: clean(a.TRLCLASS),
+    seasonal: a.SEASONAL === "Yes",
+    seasonNote: clean(a.SEASDESC),
+    notes: clean(a.NOTES) || clean(a.ACCESSNOTES),
+    unitCode: clean(a.UNITCODE),
+    unitName: clean(a.UNITNAME),
+  };
+}
+
+function longestPath(f) {
+  const paths = (f.geometry && f.geometry.paths) || [];
+  let longest = null;
+  for (const p of paths) if (!longest || p.length > longest.length) longest = p;
+  return longest;
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
   const parkCode = (searchParams.get("parkCode") || "").trim().toUpperCase();
   const lat = num(searchParams.get("lat"));
   const lng = num(searchParams.get("lng"));
   const radiusKm = Math.min(parseInt(searchParams.get("radius") || "25", 10) || 25, 60);
+
+  // Single-trail lookup by its NPS ArcGIS OBJECTID (stable per feature) — used
+  // by /trail-status for a deep-linkable page instead of a bbox/park re-fetch.
+  if (id) {
+    const idNum = parseInt(id, 10);
+    if (!isFinite(idNum)) return Response.json({ trail: null });
+    const params = new URLSearchParams({
+      where: "OBJECTID=" + idNum,
+      outFields: OUT_FIELDS,
+      returnGeometry: "true",
+      outSR: "4326",
+      maxAllowableOffset: "0.0003",
+      resultRecordCount: "1",
+      f: "json",
+    });
+    try {
+      const r = await fetch(NPS_TRAILS_URL + "?" + params.toString(), { next: { revalidate: 3600 } });
+      if (!r.ok) return Response.json({ trail: null });
+      const data = await r.json();
+      const f = (data.features || [])[0];
+      const longest = f && longestPath(f);
+      if (!f || !longest || longest.length < 2) return Response.json({ trail: null });
+      const trail = shapeTrail(f.attributes || {}, longest);
+      return Response.json({ trail: { ...trail, category: categoryFor(f.attributes.TRLUSE) }, credit: "National Park Service (public domain)" });
+    } catch {
+      return Response.json({ trail: null });
+    }
+  }
 
   let where, geometryParams = {};
   if (parkCode) {
@@ -94,7 +153,7 @@ export async function GET(request) {
 
   const params = new URLSearchParams({
     where,
-    outFields: "TRLNAME,TRLUSE,TRLSURFACE,TRLCLASS,SEASONAL,SEASDESC,ACCESSNOTES,NOTES,UNITNAME",
+    outFields: OUT_FIELDS,
     returnGeometry: "true",
     outSR: "4326",
     maxAllowableOffset: "0.0003", // ~30m simplification server-side
@@ -121,27 +180,11 @@ export async function GET(request) {
       const key = name.toLowerCase();
       if (seen[cat][key] || buckets[cat].length >= caps[cat]) continue;
 
-      const paths = (f.geometry && f.geometry.paths) || [];
-      // A feature can have multiple disconnected segments; use the longest.
-      let longest = null;
-      for (const p of paths) if (!longest || p.length > longest.length) longest = p;
+      const longest = longestPath(f);
       if (!longest || longest.length < 2) continue;
 
       seen[cat][key] = true;
-      const latLngPath = longest.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)]);
-      buckets[cat].push({
-        name,
-        difficulty: clean(a.TRLCLASS) || "",
-        path: samplePath(latLngPath, 30),
-        // extra detail for the trail's own detail panel (not needed for the map line itself)
-        lengthMi: +pathLengthMi(latLngPath).toFixed(1),
-        surface: clean(a.TRLSURFACE),
-        trailClass: clean(a.TRLCLASS),
-        seasonal: a.SEASONAL === "Yes",
-        seasonNote: clean(a.SEASDESC),
-        notes: clean(a.NOTES) || clean(a.ACCESSNOTES),
-        unitName: clean(a.UNITNAME),
-      });
+      buckets[cat].push(shapeTrail(a, longest));
     }
 
     return Response.json({ hiking, offroad, ski, credit: "National Park Service (public domain)" });

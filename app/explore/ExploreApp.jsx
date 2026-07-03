@@ -639,7 +639,7 @@ export default function ExploreApp() {
   // park's selectedName stays set, so "back" returns to that park's detail view.
   function selectTrail(p, cat, t) {
     if (infoWindowRef.current) infoWindowRef.current.close();
-    patch({ view: "trail", selectedTrail: { ...t, category: cat, parkName: p.name } });
+    patch({ view: "trail", selectedTrail: { ...t, category: cat, parkName: p.name, parkCode: p.npsCode || "" } });
     const map = mapObjRef.current;
     if (map && t.path && t.path.length > 1) {
       const g = window.google;
@@ -1026,13 +1026,21 @@ export default function ExploreApp() {
     const camps = ui.campgrounds && selPlaces
       ? (selPlaces.facilities || [])
           .filter((c) => typeof c.lat === "number" && typeof c.lng === "number")
-          .map((c) => ({ name: c.name, type: "campground", dist: milesBetween(sel, c), click: null }))
+          .map((c) => ({
+            name: c.name, type: "campground", dist: milesBetween(sel, c), click: null,
+            href: "/campground-status?" + new URLSearchParams({
+              name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "", phone: c.phone || "", detail: c.description || "", reservable: c.reservable ? "1" : "0",
+            }).toString(),
+          }))
       : [];
     const selLakes = lakesData[sel.name];
     const lakes = ui.destLake && selLakes
       ? selLakes
           .filter((l) => typeof l.lat === "number" && typeof l.lng === "number")
-          .map((l) => ({ name: l.name, type: "lake", dist: milesBetween(sel, l), click: null }))
+          .map((l) => ({
+            name: l.name, type: "lake", dist: milesBetween(sel, l), click: null,
+            href: "/lake-status?" + new URLSearchParams({ name: l.name, lat: l.lat, lng: l.lng, kind: l.kind || "lake" }).toString(),
+          }))
       : [];
     return dest.concat(camps).concat(lakes).filter((o) => o.dist <= ui.radius).sort((a, b) => a.dist - b.dist).slice(0, 10);
   })();
@@ -1496,8 +1504,9 @@ export default function ExploreApp() {
                     )}
                     {nearbyItems.map((o) => {
                       const meta = TYPE_META[o.type];
+                      const handleClick = o.click || (o.href ? () => { window.location.href = o.href; } : undefined);
                       return (
-                        <div key={o.name} onClick={o.click || undefined} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px", cursor: o.click ? "pointer" : "default" }}>
+                        <div key={o.name} onClick={handleClick} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px", cursor: handleClick ? "pointer" : "default" }}>
                           <span style={{ fontSize: "1rem" }}>{meta.icon}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <b style={{ fontSize: ".85rem", color: "#163a2b", display: "block" }}>{o.name}</b>
@@ -1561,6 +1570,10 @@ export default function ExploreApp() {
                     <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(140,132,115,.2)", fontSize: ".8rem", color: "#4c5443", lineHeight: 1.5 }}>{tr.notes}</div>
                   )}
                 </div>
+
+                {tr.id != null && tr.parkCode && (
+                  <a href={"/trail-status?trail=" + tr.id + "&park=" + encodeURIComponent(tr.parkCode)} style={{ display: "block", textAlign: "center", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginBottom: 14 }}>View full details →</a>
+                )}
 
                 <div style={{ fontSize: ".7rem", color: "#a7a08c", lineHeight: 1.4 }}>
                   Live per-trail conditions (closures, washouts) aren&apos;t published in a public feed — check the park&apos;s Live tab for general weather &amp; alerts, or the park&apos;s official site before heading out.

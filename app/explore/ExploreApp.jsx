@@ -160,8 +160,13 @@ export default function ExploreApp() {
   const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
   const [ui, setUi] = useState({
     panelOpen: false, filtersOpen: true, radius: 150,
-    destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true,
-    layerHiking: true, layerOffroad: true, layerSki: true, // trail layers (per selected park)
+    destNational: true, destState: true, destForest: true, destLake: true,
+    // Off by default: these fetch per-park data (campgrounds via RIDB, trails via
+    // Overpass) — no reason to hit those services until the user opts in. Once
+    // on, clicking any pin loads them immediately (see maybeLoadCampgrounds /
+    // maybeLoadTrails), and turning one on while already viewing a pin loads it
+    // right then too.
+    campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false,
     anchor: null, // { lat, lng, label, isUser }
     view: "browse", // browse | detail | trip
     listMode: false, selectedName: null, detailTab: "live",
@@ -181,6 +186,9 @@ export default function ExploreApp() {
   const npsFetchedRef = useRef({}); // park name -> true (guards duplicate fetches)
   const condFetchedRef = useRef({});
   const layersForRef = useRef(null); // which park the trail/place layers belong to
+  const focusedParkRef = useRef(null); // the actual park object currently pinned/selected
+  const placesLoadedRef = useRef(false); // campgrounds fetched for the CURRENT focus?
+  const trailsLoadedRef = useRef(false); // trails fetched for the CURRENT focus?
   const nearCircleRef = useRef(null);
   const nearMarkerRef = useRef(null);
   const gatewayMarkerRef = useRef(null);
@@ -446,6 +454,10 @@ export default function ExploreApp() {
     window.__pbExPreview = () => { infoWindowRef.current.close(); selectPark(p.name); };
     // tapping a pin also anchors the list around it — Zillow-style map/list sync
     setAnchor({ lat: p.lat, lng: p.lng, label: p.name, isUser: false }, false);
+    // "pinning down a location" loads its boundary + any toggled-on layers
+    // (campgrounds, trails) right on the map — the small preview popup stays
+    // lightweight; full detail is still a deliberate second click away.
+    loadParkLayers(p);
     const html =
       '<div style="font-family:\'Hanken Grotesk\',sans-serif;padding:2px 2px 4px;min-width:190px">' +
       '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">' +
@@ -496,18 +508,48 @@ export default function ExploreApp() {
     placeMarkersRef.current.forEach((pm) => pm.marker.setMap(null));
     placeMarkersRef.current = [];
     layersForRef.current = null;
+    focusedParkRef.current = null;
+    placesLoadedRef.current = false;
+    trailsLoadedRef.current = false;
   }
 
-  function loadParkLayers(p) {
-    if (layersForRef.current === p.name) return; // already showing this park's layers
-    clearSelectedLayers();
-    layersForRef.current = p.name;
-    showBoundary(p);
-    loadTrailsFor(p);
+  // Fetch campgrounds/trails only if the corresponding toggle is on — called
+  // both when a park is first pinned/selected AND reactively when a toggle
+  // flips on while that park is still the active focus (see the effects below).
+  function maybeLoadCampgrounds(p) {
+    if (!uiRef.current.campgrounds || placesLoadedRef.current) return;
+    placesLoadedRef.current = true;
     loadPlacesFor(p);
-    loadNpsFor(p);
-    loadCondFor(p);
   }
+  function maybeLoadTrails(p) {
+    const u = uiRef.current;
+    if ((!u.layerHiking && !u.layerOffroad && !u.layerSki) || trailsLoadedRef.current) return;
+    trailsLoadedRef.current = true;
+    loadTrailsFor(p);
+  }
+
+  // Called on a PIN CLICK (preview) as well as "View details" / list / search
+  // selection — any of those "pins down" a location, so its boundary + toggled
+  // layers should appear on the map right away, not just after opening the
+  // full detail panel.
+  function loadParkLayers(p) {
+    if (layersForRef.current !== p.name) {
+      clearSelectedLayers();
+      layersForRef.current = p.name;
+      focusedParkRef.current = p;
+      showBoundary(p);
+      loadNpsFor(p);
+      loadCondFor(p);
+    }
+    maybeLoadCampgrounds(p);
+    maybeLoadTrails(p);
+  }
+
+  // Reactive: if the user flips a layer toggle on while a park is already
+  // pinned/selected, load that layer immediately instead of waiting for the
+  // next pin click.
+  useEffect(() => { if (focusedParkRef.current) maybeLoadCampgrounds(focusedParkRef.current); }, [ui.campgrounds]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (focusedParkRef.current) maybeLoadTrails(focusedParkRef.current); }, [ui.layerHiking, ui.layerOffroad, ui.layerSki]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // NPS boundary polygon (legacy styling: dark-green stroke, translucent green fill).
   async function showBoundary(p) {

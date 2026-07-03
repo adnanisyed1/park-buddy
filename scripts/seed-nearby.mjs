@@ -61,12 +61,14 @@ async function overpass(query) {
   return null;
 }
 
+// NOTE: no relation clause — resolving relation geometries makes the query
+// self-timeout server-side, which returns HTTP 200 with elements:[] (a false
+// "success, but empty" rather than a visible error). Named ways cover it.
 async function lakesFor(p) {
   const A = "(around:30000," + p.lat + "," + p.lng + ")";
   const q =
     "[out:json][timeout:25];(" +
     'way["natural"="water"]["name"]' + A + ";" +
-    'relation["natural"="water"]["name"]' + A + ";" +
     'way["water"="lake"]["name"]' + A + ";" +
     'way["water"="reservoir"]["name"]' + A + ";" +
     ");out tags center 40;";
@@ -136,9 +138,9 @@ async function main() {
     const code = CODES[String(p.id)] || p.name.toLowerCase().replace(/[^a-z]/g, "");
     process.stderr.write("[" + (done + 1) + "/" + PARKS.length + "] " + p.name + " ... ");
     const water = await lakesFor(p);
-    await sleep(2500);
+    await sleep(6000);
     const trails = await trailsFor(p);
-    await sleep(2500);
+    await sleep(6000);
     if (!water && !trails) {
       failed.push(p.name);
       process.stderr.write("FAILED (Overpass unreachable — will retry on next run)\n");

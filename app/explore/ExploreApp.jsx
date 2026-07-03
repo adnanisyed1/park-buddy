@@ -795,6 +795,7 @@ export default function ExploreApp() {
   const selVf = sel ? verdictFull[sel.name] : null; // live weather detail (temp/sky/wind/chips)
   const selCond = sel ? condData[sel.name] : null; // alerts / wildfire / AQI
   const selNps = sel ? npsData[sel.name] : null; // description / activities / things to do
+  const selPlaces = sel ? placesData[sel.name] : null; // campgrounds + rec areas (undefined = still loading)
 
   // Deep link to the full live-status page (same targets the legacy map used).
   const statusHrefFor = (p) =>
@@ -1175,6 +1176,13 @@ export default function ExploreApp() {
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473" }}>Nearby — within {ui.radius} mi (~{driveTimeLabel(ui.radius)} drive)</span>
+              </div>
+              <div style={{ fontSize: ".72rem", color: "#8c8473", margin: "-4px 0 10px", lineHeight: 1.4 }}>
+                {!selPlaces
+                  ? "⏳ Loading campgrounds & recreation areas…"
+                  : ((selPlaces.facilities || []).length + (selPlaces.recAreas || []).length) === 0
+                    ? "No campgrounds found near this park."
+                    : "🏕 " + (selPlaces.facilities || []).length + " campgrounds · " + (selPlaces.recAreas || []).length + " recreation areas on the map"}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <button onClick={() => setRadius(ui.radius - 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>−</button>

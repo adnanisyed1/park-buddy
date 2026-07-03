@@ -1,4 +1,4 @@
-import ExploreApp from "./explore/ExploreApp";
+import ExploreClient from "./explore/ExploreClient";
 
 // Homepage = the new map experience (the design-spec Explore app: live verdict
 // pins, filters panel, boundary/trail/campground layers, My Trip cart).
@@ -18,5 +18,5 @@ export const metadata = {
 };
 
 export default function HomePage() {
-  return <ExploreApp />;
+  return <ExploreClient />;
 }

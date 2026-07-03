@@ -8,6 +8,8 @@
 // should treat a null result as "unavailable" and degrade gracefully rather
 // than erroring.
 
+import { ensureMapsLoaded } from "./googleMapsLoader";
+
 let elevCache = null;
 function getElevCache() {
   if (elevCache) return elevCache;
@@ -16,36 +18,6 @@ function getElevCache() {
 }
 function saveElevCache() {
   try { localStorage.setItem("pb_elev_cache_v2", JSON.stringify(elevCache)); } catch {}
-}
-
-// ExploreApp.jsx loads the Maps JS script itself as part of rendering the
-// map — pages with no map (like /trail-status) need to load it just for
-// ElevationService. Same key resolution as ExploreApp: env-injected
-// window.GMAPS_KEY (app/layout.js, site-wide) → localStorage dev fallback.
-let mapsLoadPromise = null;
-function ensureMapsLoaded() {
-  if (window.google && window.google.maps) return Promise.resolve(true);
-  if (mapsLoadPromise) return mapsLoadPromise;
-  let key = "";
-  try { key = localStorage.getItem("pb_gmaps_key") || ""; } catch {}
-  if (!key && window.GMAPS_KEY) key = window.GMAPS_KEY;
-  if (!key) return Promise.resolve(false);
-  mapsLoadPromise = new Promise((resolve) => {
-    if (document.getElementById("pb-elev-gm-js")) {
-      const check = setInterval(() => {
-        if (window.google && window.google.maps) { clearInterval(check); resolve(true); }
-      }, 200);
-      return;
-    }
-    window.__pbElevInit = () => resolve(true);
-    const s = document.createElement("script");
-    s.id = "pb-elev-gm-js";
-    s.async = true;
-    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly&loading=async&callback=__pbElevInit";
-    s.onerror = () => resolve(false);
-    document.head.appendChild(s);
-  });
-  return mapsLoadPromise;
 }
 
 // Returns { gainFt, points: [{mi, ft}, ...] } or { gainFt: null, points: [] }

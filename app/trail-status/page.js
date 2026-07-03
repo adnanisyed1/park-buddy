@@ -97,7 +97,7 @@ export default async function TrailStatusPage({ searchParams }) {
         <TrailStatsClient trailKey={trailKey} path={trail.path} lengthMi={trail.lengthMi} />
       </StatGrid>
 
-      <TrailRouteChart trailKey={trailKey} path={trail.path} />
+      <TrailRouteChart trailKey={trailKey} path={trail.path} category={trail.category} />
 
       <div style={{ marginBottom: 22 }}>
         <SectionTitle>Conditions</SectionTitle>

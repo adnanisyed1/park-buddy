@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fetchElevationProfile } from "../lib/elevationClient";
+import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { SectionTitle } from "../components/StatusShell";
 import { nearestPointOnPath, pointAtMile, bearingTo, compassLabel } from "../lib/trailStats";
 
 const ACCENT = "#b3862d";
 const NAV_COLOR = "#2c7a9e"; // distinct from ACCENT so "where you are" never looks like "where your mouse is"
+const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" }; // same convention as app/explore/ExploreApp.jsx
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const ON_TRAIL_MI = 0.02; // ~100 ft
 const LOOKAHEAD_MI = 0.1;
@@ -75,20 +77,98 @@ const GEO_ERROR_MESSAGES = {
   3: "Location request timed out — try again, especially if you're indoors or under heavy tree cover.",
 };
 
-export default function TrailRouteChart({ trailKey, path }) {
+export default function TrailRouteChart({ trailKey, path, category }) {
   const [profile, setProfile] = useState(undefined);
   const [scrubMi, setScrubMi] = useState(null);
   const [navPos, setNavPos] = useState(null); // { lat, lng, accuracy } while navigating
   const [navError, setNavError] = useState(null);
   const [navWatching, setNavWatching] = useState(false);
+  const [mapsLoaded, setMapsLoaded] = useState(null); // null = loading, true = ready, false = failed/unavailable
   const svgRef = useRef(null);
   const navWatchIdRef = useRef(null);
+  const mapDivRef = useRef(null);
+  const mapObjRef = useRef(null);
+  const scrubMarkerRef = useRef(null);
+  const liveMarkerRef = useRef(null);
 
   useEffect(() => {
     let on = true;
     fetchElevationProfile(trailKey, path).then((p) => { if (on) setProfile(p); });
     return () => { on = false; };
   }, [trailKey, path]);
+
+  // A real map is far more useful than an abstract line — load it in parallel
+  // with the elevation fetch. Falls back to the SVG route rendering below if
+  // the key is missing/blocked (mapsLoaded === false) or still loading
+  // (mapsLoaded === null) — never a blank panel.
+  useEffect(() => {
+    let on = true;
+    ensureMapsLoaded().then((ok) => { if (on) setMapsLoaded(ok); });
+    return () => { on = false; };
+  }, []);
+
+  // Instantiate the real map once it's loaded and the div exists (only once —
+  // guards against React StrictMode's double-invoke re-creating it).
+  useEffect(() => {
+    if (!mapsLoaded || !mapDivRef.current || !Array.isArray(path) || path.length < 2 || mapObjRef.current) return;
+    const g = window.google;
+    const map = new g.maps.Map(mapDivRef.current, {
+      mapTypeId: "hybrid", mapTypeControl: true, gestureHandling: "cooperative",
+      streetViewControl: false, fullscreenControl: false,
+    });
+    mapObjRef.current = map;
+    new g.maps.Polyline({
+      path: path.map(([lat, lng]) => ({ lat, lng })),
+      strokeColor: (category && TRAIL_STYLE[category]) || ACCENT, strokeOpacity: 0.9, strokeWeight: 4,
+      map,
+    });
+    const bounds = new g.maps.LatLngBounds();
+    path.forEach(([lat, lng]) => bounds.extend({ lat, lng }));
+    map.fitBounds(bounds, 30);
+  }, [mapsLoaded, path, category]);
+
+  // Elevation-chart hover scrub -> a real marker on the map at that mile.
+  useEffect(() => {
+    const map = mapObjRef.current;
+    if (!map || !window.google) return;
+    if (scrubMi == null) {
+      if (scrubMarkerRef.current) scrubMarkerRef.current.setMap(null);
+      return;
+    }
+    const pt = pointAtMile(path, scrubMi);
+    if (!pt) return;
+    if (!scrubMarkerRef.current) {
+      scrubMarkerRef.current = new window.google.maps.Marker({
+        position: pt, map, zIndex: 5,
+        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: ACCENT, fillOpacity: 1, strokeColor: "#fffdf8", strokeWeight: 2 },
+      });
+    } else {
+      scrubMarkerRef.current.setPosition(pt);
+      scrubMarkerRef.current.setMap(map);
+    }
+  }, [scrubMi, path]);
+
+  // Live navigation position -> a real marker, map gently pans to follow
+  // (never forces zoom — respects whatever the user has set).
+  useEffect(() => {
+    const map = mapObjRef.current;
+    if (!map || !window.google) return;
+    if (!navPos) {
+      if (liveMarkerRef.current) liveMarkerRef.current.setMap(null);
+      return;
+    }
+    const pos = { lat: navPos.lat, lng: navPos.lng };
+    if (!liveMarkerRef.current) {
+      liveMarkerRef.current = new window.google.maps.Marker({
+        position: pos, map, zIndex: 10,
+        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: NAV_COLOR, fillOpacity: 1, strokeColor: "#fffdf8", strokeWeight: 2.5 },
+      });
+    } else {
+      liveMarkerRef.current.setPosition(pos);
+      liveMarkerRef.current.setMap(map);
+    }
+    map.panTo(pos);
+  }, [navPos]);
 
   function stopNav() {
     if (navWatchIdRef.current != null && navigator.geolocation) {
@@ -207,13 +287,17 @@ export default function TrailRouteChart({ trailKey, path }) {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
         <div style={{ padding: "20px 20px 12px", borderRight: "1px solid #efe8d8" }}>
-          <SectionTitle>Route</SectionTitle>
-          <svg viewBox="0 0 400 320" style={{ width: "100%", height: "auto", display: "block" }}>
-            <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="7" strokeLinecap="round" />
-            <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinecap="round" />
-            {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="6" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
-            {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="7" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
-          </svg>
+          <SectionTitle>Trail map</SectionTitle>
+          {mapsLoaded ? (
+            <div ref={mapDivRef} style={{ width: "100%", height: 320, borderRadius: 12, overflow: "hidden" }} />
+          ) : (
+            <svg viewBox="0 0 400 320" style={{ width: "100%", height: "auto", display: "block" }}>
+              <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="7" strokeLinecap="round" />
+              <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinecap="round" />
+              {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="6" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
+              {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="7" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
+            </svg>
+          )}
         </div>
         <div style={{ padding: "20px 20px 16px" }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>

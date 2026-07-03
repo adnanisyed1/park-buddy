@@ -176,6 +176,36 @@ function CoverPhoto({ park }) {
   return <img src={url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 1, transition: "opacity .35s" }} />;
 }
 
+// Best-effort trail photo — most trails have no dedicated Wikipedia page (no
+// photo is expected and fine), but well-known ones often do (Bright Angel
+// Trail, Angels Landing, Highline Trail). Same /api/photo pipeline as parks,
+// keyed with a "trail:" cache prefix so it never collides with a park's cache
+// entry of the same or overlapping name.
+function fetchTrailPhoto(name, state) {
+  const cache = getPhotoCache();
+  const key = "trail:" + name;
+  const cached = cache[key];
+  if (cached) return Promise.resolve(cached);
+  if (cached === false) return Promise.resolve(null);
+  const apply = (url) => { cache[key] = url || false; savePhotoCache(); return url || null; };
+  return fetch("/api/photo?name=" + encodeURIComponent(name) + "&state=" + encodeURIComponent(state || ""))
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => apply(d && d.found ? (d.thumb || d.image) : null))
+    .catch(() => apply(null));
+}
+
+function TrailPhoto({ name, state }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let on = true;
+    setUrl(null);
+    fetchTrailPhoto(name, state).then((u) => { if (on) setUrl(u); });
+    return () => { on = false; };
+  }, [name, state]);
+  if (!url) return null;
+  return <img src={url} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12, display: "block" }} />;
+}
+
 /* ================================ component ================================ */
 
 export default function ExploreApp() {
@@ -196,8 +226,9 @@ export default function ExploreApp() {
     // right then too.
     campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false,
     anchor: null, // { lat, lng, label, isUser }
-    view: "browse", // browse | detail | trip
+    view: "browse", // browse | detail | trip | trail
     listMode: false, selectedName: null, detailTab: "live",
+    selectedTrail: null, // {..fields from /api/trails, category, parkName} — set on trail-line click
     searchQuery: "", trip: [],
     keyOverlay: false, keyMsg: "Paste a Google Maps JavaScript API key to load the live park map. Stored only in your browser — never committed to code.",
   });
@@ -516,6 +547,21 @@ export default function ExploreApp() {
     if (p) loadParkLayers(p); // boundary + trails + campgrounds/areas + NPS info + live conditions
   }
 
+  // Clicking a trail line opens its own detail panel (length, surface, class,
+  // season notes, best-effort photo) instead of a small popup — the parent
+  // park's selectedName stays set, so "back" returns to that park's detail view.
+  function selectTrail(p, cat, t) {
+    if (infoWindowRef.current) infoWindowRef.current.close();
+    patch({ view: "trail", selectedTrail: { ...t, category: cat, parkName: p.name } });
+    const map = mapObjRef.current;
+    if (map && t.path && t.path.length > 1) {
+      const g = window.google;
+      const b = new g.maps.LatLngBounds();
+      t.path.forEach(([lat, lng]) => b.extend({ lat, lng }));
+      map.fitBounds(b, 60);
+    }
+  }
+
   function backToBrowse() {
     patch({ view: "browse", selectedName: null });
     showGatewayMarker(null);
@@ -641,12 +687,7 @@ export default function ExploreApp() {
             strokeColor: TRAIL_STYLE[cat], strokeOpacity: 0.85, strokeWeight: 3, zIndex: 30,
             map: null,
           });
-          line.addListener("click", (e) => {
-            if (!infoWindowRef.current) infoWindowRef.current = new g.maps.InfoWindow();
-            infoWindowRef.current.setContent(layerInfoHtml(t.name || "Unnamed trail", ({ hiking: "Hiking trail", offroad: "Off-road / 4x4", ski: "Ski route" })[cat] + (t.difficulty ? " · " + t.difficulty : ""), "© OpenStreetMap contributors"));
-            infoWindowRef.current.setPosition(e.latLng);
-            infoWindowRef.current.open(map);
-          });
+          line.addListener("click", () => selectTrail(p, cat, t));
           trailLinesRef.current[cat].push(line);
           n++;
         });
@@ -1301,6 +1342,59 @@ export default function ExploreApp() {
               </div>
             </>
           )}
+
+          {/* ========== TRAIL DETAIL VIEW ========== */}
+          {ui.view === "trail" && ui.selectedTrail && (() => {
+            const tr = ui.selectedTrail;
+            const catMeta = { hiking: { icon: "🥾", label: "Hiking trail" }, offroad: { icon: "🚙", label: "Off-road / 4x4 route" }, ski: { icon: "⛷️", label: "Ski route" } }[tr.category] || { icon: "🥾", label: "Trail" };
+            return (
+              <>
+                <button onClick={() => patch({ view: "detail" })} style={{ background: "none", border: "none", color: "#1d3941", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "inherit", padding: "4px 4px 12px", display: "flex", alignItems: "center", gap: 5 }}>‹ Back to {tr.parkName}</button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: "1.3rem" }}>{catMeta.icon}</span>
+                  <span style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "#163a2b" }}>{tr.name}</span>
+                </div>
+                <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 14 }}>{catMeta.label} · {tr.parkName}</div>
+
+                <TrailPhoto name={tr.name} state={parks.find((p) => p.name === tr.parkName)?.state} />
+
+                <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: 16, marginTop: 12, marginBottom: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 }}>Length</div>
+                      <b style={{ fontSize: ".92rem", color: "#163a2b" }}>{tr.lengthMi > 0 ? tr.lengthMi + " mi" : "Unknown"}</b>
+                    </div>
+                    {tr.surface && (
+                      <div>
+                        <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 }}>Surface</div>
+                        <b style={{ fontSize: ".92rem", color: "#163a2b" }}>{tr.surface}</b>
+                      </div>
+                    )}
+                    {tr.trailClass && (
+                      <div style={{ gridColumn: "1 / -1" }}>
+                        <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 }}>Trail class</div>
+                        <b style={{ fontSize: ".92rem", color: "#163a2b" }}>{tr.trailClass}</b>
+                      </div>
+                    )}
+                  </div>
+                  {tr.seasonal && tr.seasonNote && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(140,132,115,.2)", fontSize: ".8rem", color: "#4c5443" }}>
+                      <b style={{ color: "#a8791f" }}>Seasonal:</b> {tr.seasonNote}
+                    </div>
+                  )}
+                  {tr.notes && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(140,132,115,.2)", fontSize: ".8rem", color: "#4c5443", lineHeight: 1.5 }}>{tr.notes}</div>
+                  )}
+                </div>
+
+                <div style={{ fontSize: ".7rem", color: "#a7a08c", lineHeight: 1.4 }}>
+                  Live per-trail conditions (closures, washouts) aren&apos;t published in a public feed — check the park&apos;s Live tab for general weather &amp; alerts, or the park&apos;s official site before heading out.
+                  <div style={{ marginTop: 6 }}>Source: National Park Service (public domain).</div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* ========== TRIP VIEW (the cart) ========== */}
           {ui.view === "trip" && (

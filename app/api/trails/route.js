@@ -36,13 +36,36 @@ function isWaterRoute(trluse) {
   return /watercraft|paddling|\bferry\b/i.test(String(trluse || ""));
 }
 
+// Many attribute fields are unpopulated per-trail (data readiness varies by
+// park unit) and come back as literal "Unknown"/"NA" strings rather than null.
+// Hide those rather than showing a placeholder in the UI.
+function clean(v) {
+  const s = String(v || "").trim();
+  return !s || /^(unknown|na|n\/a|none)$/i.test(s) ? null : s;
+}
+
 // Downsample a path to <=maxPts points, keeping the first/last. The API's own
 // maxAllowableOffset already generalizes server-side (some trails have 100k+
-// raw vertices), this is just a final safety net to keep the payload small.
+// raw vertices), this is just a final safety net to keep the map payload small.
 function samplePath(path, maxPts) {
   if (!Array.isArray(path) || path.length <= maxPts) return path;
   const step = Math.max(1, Math.floor(path.length / maxPts));
   return path.filter((_, i) => i % step === 0 || i === path.length - 1);
+}
+
+// Real length from the (server-simplified but not yet downsampled) path —
+// computed before samplePath() so the stat stays accurate even though the map
+// rendering uses fewer points.
+function pathLengthMi(path) {
+  const R = 3958.8, toRad = Math.PI / 180;
+  let mi = 0;
+  for (let i = 1; i < path.length; i++) {
+    const [lat1, lng1] = path[i - 1], [lat2, lng2] = path[i];
+    const dLat = (lat2 - lat1) * toRad, dLng = (lng2 - lng1) * toRad;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLng / 2) ** 2;
+    mi += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  return mi;
 }
 
 export async function GET(request) {
@@ -71,7 +94,7 @@ export async function GET(request) {
 
   const params = new URLSearchParams({
     where,
-    outFields: "TRLNAME,TRLUSE",
+    outFields: "TRLNAME,TRLUSE,TRLSURFACE,TRLCLASS,SEASONAL,SEASDESC,ACCESSNOTES,NOTES,UNITNAME",
     returnGeometry: "true",
     outSR: "4326",
     maxAllowableOffset: "0.0003", // ~30m simplification server-side
@@ -105,10 +128,19 @@ export async function GET(request) {
       if (!longest || longest.length < 2) continue;
 
       seen[cat][key] = true;
+      const latLngPath = longest.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)]);
       buckets[cat].push({
         name,
-        difficulty: "",
-        path: samplePath(longest.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)]), 30),
+        difficulty: clean(a.TRLCLASS) || "",
+        path: samplePath(latLngPath, 30),
+        // extra detail for the trail's own detail panel (not needed for the map line itself)
+        lengthMi: +pathLengthMi(latLngPath).toFixed(1),
+        surface: clean(a.TRLSURFACE),
+        trailClass: clean(a.TRLCLASS),
+        seasonal: a.SEASONAL === "Yes",
+        seasonNote: clean(a.SEASDESC),
+        notes: clean(a.NOTES) || clean(a.ACCESSNOTES),
+        unitName: clean(a.UNITNAME),
       });
     }
 

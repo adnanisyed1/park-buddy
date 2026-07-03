@@ -76,6 +76,47 @@ export function NearbySection({ title, items }) {
   );
 }
 
+export function Stars({ value, size }) {
+  return (
+    <span style={{ display: "inline-flex", gap: 1 }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} style={{ color: n <= Math.round(value) ? COLORS.gold : "#d9d3c2", fontSize: size || "1rem", lineHeight: 1 }}>★</span>
+      ))}
+    </span>
+  );
+}
+
+// Read-only — writing a review needs a signed-in session, which only exists
+// client-side (in ExploreApp's ReviewsSection). Link to the interactive
+// panel is the write path from a shared/standalone page like this one.
+export function ReviewsBlock({ reviews, avg, writeHref }) {
+  return (
+    <div style={{ marginTop: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: COLORS.muted }}>Reviews</span>
+        {avg != null && (
+          <span style={{ fontSize: ".78rem", color: COLORS.muted, display: "flex", alignItems: "center", gap: 6 }}>
+            <Stars value={avg} size=".85rem" /> {avg.toFixed(1)} ({reviews.length})
+          </span>
+        )}
+      </div>
+      {reviews.length === 0 && <div style={{ fontSize: ".8rem", color: COLORS.muted, marginBottom: 10 }}>No reviews yet.</div>}
+      {reviews.map((r, i) => (
+        <div key={i} style={{ background: COLORS.cream, border: "1px solid " + COLORS.line, borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <b style={{ fontSize: ".82rem", color: COLORS.green }}>{r.author_name || "Explorer"}</b>
+            <Stars value={r.rating} size=".8rem" />
+          </div>
+          {r.review_text && <div style={{ fontSize: ".8rem", color: "#4c5443", lineHeight: 1.5 }}>{r.review_text}</div>}
+        </div>
+      ))}
+      {writeHref && (
+        <a href={writeHref} style={{ display: "block", textAlign: "center", background: COLORS.cream, border: "1px solid " + COLORS.line, borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginTop: 4 }}>Write a review on the map →</a>
+      )}
+    </div>
+  );
+}
+
 export function NotFoundBody({ label }) {
   return (
     <div style={{ textAlign: "center", color: COLORS.muted, padding: "40px 10px" }}>

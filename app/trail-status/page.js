@@ -1,5 +1,5 @@
-import { StatusShell, StatusHeader, StatCard, StatCell, NearbySection, NotFoundBody } from "../components/StatusShell";
-import { origin, getParks, parkByUnitCode, getNearby } from "../lib/statusData";
+import { StatusShell, StatusHeader, StatCard, StatCell, NearbySection, ReviewsBlock, NotFoundBody } from "../components/StatusShell";
+import { origin, getParks, parkByUnitCode, getNearby, getTrailReviews } from "../lib/statusData";
 
 const CAT_META = {
   hiking: { icon: "🥾", label: "Hiking trail" },
@@ -46,9 +46,10 @@ export default async function TrailStatusPage({ searchParams }) {
   }
 
   const ref = midpoint(trail.path);
-  const [parks, nearby] = await Promise.all([
+  const [parks, nearby, { reviews, avg }] = await Promise.all([
     getParks(),
     getNearby(ref?.lat, ref?.lng, { excludeTrailId: trail.id }),
+    getTrailReviews(trail.id),
   ]);
   const park = parkByUnitCode(parks, trail.unitCode || searchParams.park);
   const catMeta = CAT_META[trail.category] || { icon: "🥾", label: "Trail" };
@@ -94,6 +95,8 @@ export default async function TrailStatusPage({ searchParams }) {
           href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString(),
         }))}
       />
+
+      <ReviewsBlock reviews={reviews} avg={avg} writeHref="/" />
     </StatusShell>
   );
 }

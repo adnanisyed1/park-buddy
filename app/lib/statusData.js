@@ -81,3 +81,25 @@ export async function getNearby(lat, lng, opts = {}) {
     camps: (placesD?.facilities || []).filter((c) => c.name !== opts.excludeName).slice(0, 6),
   };
 }
+
+// Read-only reviews for a trail, straight from Supabase's REST API with the
+// anon key (RLS already makes reviews public-read — see
+// supabase-trail-reviews.sql). No write UI here: writing needs a signed-in
+// session, which only exists client-side (in the interactive map panel).
+export async function getTrailReviews(trailId) {
+  if (trailId == null) return { reviews: [], avg: null };
+  const sb = (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, "");
+  const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY;
+  if (!sb || !key) return { reviews: [], avg: null };
+  try {
+    const url = sb + "/rest/v1/trail_reviews?trail_id=eq." + encodeURIComponent(String(trailId)) +
+      "&select=rating,review_text,author_name,created_at&order=created_at.desc&limit=20";
+    const r = await fetch(url, { headers: { apikey: key, Authorization: "Bearer " + key }, cache: "no-store" });
+    if (!r.ok) return { reviews: [], avg: null };
+    const reviews = await r.json();
+    const avg = reviews.length ? reviews.reduce((s, x) => s + x.rating, 0) / reviews.length : null;
+    return { reviews, avg };
+  } catch {
+    return { reviews: [], avg: null };
+  }
+}

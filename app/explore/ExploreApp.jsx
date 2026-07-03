@@ -315,6 +315,132 @@ function TrailStats({ tr }) {
   );
 }
 
+/* ---------------- trail reviews & ratings ---------------- */
+// Reuses the SAME Supabase client + session already set up by public/auth.js
+// (window.__ppAuth.supa) rather than instantiating a second client — one
+// session/auth source of truth. auth.js loads async on boot, so poll briefly
+// until it's ready instead of assuming it's already there.
+
+function useSupabaseClient() {
+  const [supa, setSupa] = useState(null);
+  useEffect(() => {
+    if (window.__ppAuth && window.__ppAuth.supa) { setSupa(window.__ppAuth.supa); return; }
+    const t = setInterval(() => {
+      if (window.__ppAuth && window.__ppAuth.supa) { setSupa(window.__ppAuth.supa); clearInterval(t); }
+    }, 300);
+    return () => clearInterval(t);
+  }, []);
+  return supa;
+}
+
+function StarRow({ value, onChange, size }) {
+  return (
+    <div style={{ display: "flex", gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? "#c79a4b" : "#d9d3c2", fontSize: size || "1.1rem", lineHeight: 1 }}>★</span>
+      ))}
+    </div>
+  );
+}
+
+// trail_reviews needs a stable trail id (the NPS OBJECTID) — see
+// supabase-trail-reviews.sql. tr.id is only present once /api/trails has been
+// updated to return it (already done), so this degrades to nothing rather
+// than erroring for any stale cached trail objects without one.
+function ReviewsSection({ tr }) {
+  const supa = useSupabaseClient();
+  const [reviews, setReviews] = useState(null); // null = loading
+  const [user, setUser] = useState(null);
+  const [myRating, setMyRating] = useState(0);
+  const [myText, setMyText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!supa) return;
+    let on = true;
+    supa.auth.getSession().then(({ data }) => { if (on) setUser((data && data.session && data.session.user) || null); });
+    const { data: sub } = supa.auth.onAuthStateChange((_evt, session) => { if (on) setUser((session && session.user) || null); });
+    return () => { on = false; sub && sub.subscription && sub.subscription.unsubscribe(); };
+  }, [supa]);
+
+  useEffect(() => {
+    if (!supa || tr.id == null) return;
+    let on = true;
+    setReviews(null);
+    supa.from("trail_reviews").select("*").eq("trail_id", String(tr.id)).order("created_at", { ascending: false })
+      .then(({ data, error }) => { if (on) setReviews(error ? [] : (data || [])); });
+    return () => { on = false; };
+  }, [supa, tr.id]);
+
+  useEffect(() => {
+    if (!user || !reviews) return;
+    const mine = reviews.find((r) => r.user_id === user.id);
+    if (mine) { setMyRating(mine.rating); setMyText(mine.review_text || ""); }
+  }, [user, reviews]);
+
+  if (tr.id == null) return null;
+
+  const avg = reviews && reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
+
+  async function submit() {
+    if (!supa || !user || !myRating) return;
+    setSaving(true);
+    const meta = user.user_metadata || {};
+    const name = meta.full_name || meta.name || (user.email || "Explorer").split("@")[0];
+    const { error } = await supa.from("trail_reviews").upsert({
+      user_id: user.id, trail_id: String(tr.id), park_code: tr.parkCode || "", trail_name: tr.name,
+      rating: myRating, review_text: myText.trim(), author_name: name, updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,trail_id" });
+    if (!error) {
+      const { data } = await supa.from("trail_reviews").select("*").eq("trail_id", String(tr.id)).order("created_at", { ascending: false });
+      setReviews(data || []);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473" }}>Reviews</span>
+        {avg != null && (
+          <span style={{ fontSize: ".78rem", color: "#8c8473", display: "flex", alignItems: "center", gap: 6 }}>
+            <StarRow value={Math.round(avg)} size=".85rem" /> {avg.toFixed(1)} ({reviews.length})
+          </span>
+        )}
+      </div>
+
+      {(!supa || reviews === null) && <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 10 }}>Loading reviews…</div>}
+
+      {supa && reviews && reviews.length === 0 && (
+        <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 10 }}>No reviews yet — be the first.</div>
+      )}
+
+      {supa && reviews && reviews.map((r) => (
+        <div key={r.id} style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <b style={{ fontSize: ".82rem", color: "#163a2b" }}>{r.author_name || "Explorer"}</b>
+            <StarRow value={r.rating} size=".8rem" />
+          </div>
+          {r.review_text && <div style={{ fontSize: ".8rem", color: "#4c5443", lineHeight: 1.5 }}>{r.review_text}</div>}
+        </div>
+      ))}
+
+      {supa && !user && (
+        <button onClick={() => window.__ppAuth.openAccount()} style={{ width: "100%", border: "1px solid rgba(140,132,115,.35)", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.6)", color: "#1d3941", marginTop: 4 }}>Sign in to write a review</button>
+      )}
+
+      {supa && user && (
+        <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: 12, marginTop: 4 }}>
+          <div style={{ fontSize: ".76rem", fontWeight: 700, color: "#1d3941", marginBottom: 6 }}>{myRating ? "Your review" : "Rate this trail"}</div>
+          <StarRow value={myRating} onChange={setMyRating} size="1.2rem" />
+          <textarea value={myText} onChange={(e) => setMyText(e.target.value)} placeholder="Share tips, conditions, or highlights (optional)" rows={3} style={{ width: "100%", boxSizing: "border-box", marginTop: 8, padding: 8, borderRadius: 8, border: "1px solid rgba(140,132,115,.35)", fontFamily: "inherit", fontSize: ".8rem", resize: "vertical" }} />
+          <button onClick={submit} disabled={!myRating || saving} style={{ width: "100%", marginTop: 8, border: "none", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 700, cursor: myRating ? "pointer" : "default", fontFamily: "inherit", background: myRating ? "#1d4a37" : "#cfc7b4", color: "#fff" }}>{saving ? "Saving…" : "Submit review"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ================================ component ================================ */
 
 export default function ExploreApp() {
@@ -1575,10 +1701,12 @@ export default function ExploreApp() {
                   <a href={"/trail-status?trail=" + tr.id + "&park=" + encodeURIComponent(tr.parkCode)} style={{ display: "block", textAlign: "center", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginBottom: 14 }}>View full details →</a>
                 )}
 
-                <div style={{ fontSize: ".7rem", color: "#a7a08c", lineHeight: 1.4 }}>
+                <div style={{ fontSize: ".7rem", color: "#a7a08c", lineHeight: 1.4, marginBottom: 18 }}>
                   Live per-trail conditions (closures, washouts) aren&apos;t published in a public feed — check the park&apos;s Live tab for general weather &amp; alerts, or the park&apos;s official site before heading out.
                   <div style={{ marginTop: 6 }}>Source: National Park Service (public domain).</div>
                 </div>
+
+                <ReviewsSection tr={tr} />
               </>
             );
           })()}

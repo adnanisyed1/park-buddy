@@ -305,8 +305,11 @@
   }
 
   function act(t) {
-    if (t.act === 'map') { hideCover(); }
-    else if (t.act === 'near') { hideCover(); if (typeof window.flyToMe === 'function') setTimeout(window.flyToMe, 350); }
+    // 'map'/'near' used to reveal the legacy embedded map in-place (this
+    // page's own s0-s3.js) — that map is stale (separate/unset Maps key,
+    // pre-dates the real app) so these now go to the real /explore map instead.
+    if (t.act === 'map') { go('/explore'); }
+    else if (t.act === 'near') { go('/explore'); }
     else if (t.act === 'passport') { if (window.__ppPassport && window.__ppPassport.open) window.__ppPassport.open(); else if (typeof toast === 'function') toast('Passport loads in a moment…'); }
     else if (t.act === 'about') { openAbout(); }
     else if (t.href) { go(t.href); }
@@ -370,7 +373,7 @@
     (document.body || document.documentElement).appendChild(modal);
     var listEl = modal.querySelector('.pl-list');
     var search = modal.querySelector('.pl-search');
-    function bind() { listEl.querySelectorAll('.pl-row').forEach(function (r) { r.addEventListener('click', function () { var id = +r.getAttribute('data-id'); close(); hideCover(); var p = parks.filter(function (x) { return x.id === id; })[0]; if (p && typeof window.selectPark === 'function') { setTimeout(function () { try { window.selectPark(p); } catch (e) {} }, 480); } else { go('/park-status?park=' + id); } }); }); }
+    function bind() { listEl.querySelectorAll('.pl-row').forEach(function (r) { r.addEventListener('click', function () { var id = +r.getAttribute('data-id'); close(); go('/park-status?park=' + id); }); }); }
     bind();
     search.addEventListener('input', function () { listEl.innerHTML = rowsHtml(search.value); bind(); });
     function close() { if (modal.parentNode) modal.parentNode.removeChild(modal); }
@@ -549,8 +552,8 @@
       el.addEventListener('click', function (e) {
         e.preventDefault(); e.stopPropagation();
         var v = el.getAttribute('data-hero');
-        if (v === 'map') { hideCover(); }
-        else if (v === 'near') { hideCover(); if (typeof window.flyToMe === 'function') setTimeout(window.flyToMe, 350); }
+        if (v === 'map') { go('/explore'); }
+        else if (v === 'near') { go('/explore'); }
         else if (v === 'status') { openParkList(); }
         else if (v === 'passport') { if (window.__ppPassport && window.__ppPassport.open) window.__ppPassport.open(); else if (typeof toast === 'function') toast('Passport loads in a moment\u2026'); }
         else if (v && v.charAt(0) === '/') { go(v); }
@@ -569,7 +572,7 @@
           e.stopPropagation();
           var o = b.getAttribute('data-statopt');
           statusCard.classList.remove('flipped');
-          if (o === 'map') { hideCover(); }
+          if (o === 'map') { go('/explore'); }
           else { openParkList(); }
         });
       });
@@ -585,7 +588,7 @@
         el.querySelectorAll('.exb-opt').forEach(function (b) {
           b.addEventListener('click', function (e) {
             e.stopPropagation();
-            if (b.getAttribute('data-sub') === 'map') { el.classList.remove('flipped'); hideCover(); }
+            if (b.getAttribute('data-sub') === 'map') { el.classList.remove('flipped'); go('/explore'); }
             else { openParkList(); }
           });
         });
@@ -608,7 +611,7 @@
     ov.querySelectorAll('.exb-btn[data-act], .exb-btn[data-go]').forEach(function (b) {
       b.addEventListener('click', function (e) {
         e.stopPropagation();
-        if (b.getAttribute('data-act') === 'map') hideCover();
+        if (b.getAttribute('data-act') === 'map') go('/explore');
         else if (b.getAttribute('data-go')) go(b.getAttribute('data-go'));
       });
     });

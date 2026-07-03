@@ -8,16 +8,15 @@
 //  • Gateway towns: /gateway-towns.js (window.PB_GATEWAY)
 //  • Maps key: NEXT_PUBLIC_GMAPS_KEY (Netlify env) → else the design's
 //    paste-a-key overlay (kept as designed, stored in localStorage)
-// The design's sample cross-type destinations (state parks / forests / lakes /
+// The design's sample cross-type destinations (state parks / forests /
 // campgrounds) and the NPS-photo-key panel are kept verbatim per the spec.
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
-// Lakes and trails come from /api/water and /api/trails — plain server routes
-// backed by a pre-seeded Supabase cache (see supabase-trails.sql,
-// scripts/seed-nearby.mjs). They used to call OpenStreetMap/Overpass live from
-// the browser because Overpass blocks datacenter/serverless IPs; now that the
-// data is pre-fetched and cached, the normal server routes are fast + reliable.
+// Lakes and trails come live from /api/water (USGS GNIS) and /api/trails (NPS
+// Public Trails) — government ArcGIS REST services, no auth/rate-limiting/
+// seeding needed (unlike OpenStreetMap/Overpass, which blocks datacenter IPs).
+// Both are scoped to the selected park, same as campgrounds (/api/places).
 
 /* ---------------- design constants (verbatim from Explore.dc.html) ---------------- */
 
@@ -36,11 +35,11 @@ const TYPE_META = {
   campground:      { label: "Campground",     icon: "🏕️", color: "#b9823f" },
 };
 
-// State parks, national forests and lakes are NOT hardcoded — they load live from
-// the real APIs as you pan the map (/api/destinations by bbox, /api/water by area).
-// Campgrounds/rec-areas + trail layers load per selected park (/api/places, /api/trails),
-// and park boundaries come from the NPS boundary topojson — same sources and styling
-// as the legacy homepage map.
+// State parks and national forests are NOT hardcoded — they load live from the
+// real API as you pan the map (/api/destinations by bbox). Campgrounds/rec-areas,
+// lakes, and trail layers all load per selected park (/api/places, /api/water,
+// /api/trails), and park boundaries come from the NPS boundary topojson — same
+// sources and styling as the legacy homepage map.
 
 // Trail polyline colors (legacy s0.js values).
 const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" };
@@ -220,17 +219,18 @@ export default function ExploreApp() {
   const [npsData, setNpsData] = useState({}); // name -> /api/nps payload (description, activities, thingsToDo)
   const [condData, setCondData] = useState({}); // name -> /api/conditions payload (alerts, wildfires, AQI)
   const [placesData, setPlacesData] = useState({}); // name -> /api/places payload (facilities, recAreas)
+  const [lakesData, setLakesData] = useState({}); // name -> /api/water payload's lakes[] — per-park, not the whole-map viewport pattern
   const [trailsData, setTrailsData] = useState({}); // name -> /api/trails payload ({hiking,offroad,ski}) — feeds the Trails tab list
   const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
   const [ui, setUi] = useState({
     panelOpen: false, filtersOpen: true, radius: 150,
-    destNational: true, destState: true, destForest: true, destLake: true,
+    destNational: true, destState: true, destForest: true,
     // Off by default: these fetch per-park data (campgrounds via RIDB, trails via
-    // Overpass) — no reason to hit those services until the user opts in. Once
-    // on, clicking any pin loads them immediately (see maybeLoadCampgrounds /
-    // maybeLoadTrails), and turning one on while already viewing a pin loads it
-    // right then too.
-    campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false,
+    // NPS, lakes via USGS GNIS) — no reason to hit those services until the user
+    // opts in. Once on, clicking any pin loads them immediately (see
+    // maybeLoadCampgrounds / maybeLoadTrails / maybeLoadLakes), and turning one
+    // on while already viewing a pin loads it right then too.
+    campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false, destLake: false,
     anchor: null, // { lat, lng, label, isUser }
     view: "browse", // browse | detail | trip | trail
     listMode: false, selectedName: null, detailTab: "live",
@@ -259,7 +259,7 @@ export default function ExploreApp() {
   const gatewayMarkerRef = useRef(null);
   const infoWindowRef = useRef(null);
   const seenDestRef = useRef(new Set()); // dedupe live destinations across pans
-  const lakeCellsRef = useRef(new Set()); // viewport cells already queried for lakes (avoid re-hitting Overpass)
+  const lakesLoadedRef = useRef(false); // lakes fetched for the CURRENT focus?
   const idleTimerRef = useRef(null); // debounce for map idle → viewport loads
   const uiRef = useRef(ui);
   uiRef.current = ui;
@@ -273,7 +273,6 @@ export default function ExploreApp() {
     if (type === "national_park") return s.destNational;
     if (type === "state_park") return s.destState;
     if (type === "national_forest") return s.destForest;
-    if (type === "lake") return s.destLake;
     return true;
   };
 
@@ -413,16 +412,17 @@ export default function ExploreApp() {
     loadViewportDestinations();
   }
 
-  // Live state parks + national forests (/api/destinations by bbox) and lakes
-  // (/api/water by area) for the current viewport, deduped across pans and merged
-  // into the unified destination model. Restores the pre-migration behavior where
-  // these types populated the map and list as you moved around.
+  // Live state parks + national forests (/api/destinations by bbox) for the
+  // current viewport, deduped across pans and merged into the unified
+  // destination model. Restores the pre-migration behavior where these types
+  // populated the map and list as you moved around. (Lakes used to be fetched
+  // here too, but now load per-park instead — see loadLakesFor.)
   async function loadViewportDestinations() {
     const g = window.google, map = mapObjRef.current;
     if (!g || !map) return;
     const b = map.getBounds();
     if (!b) return;
-    const sw = b.getSouthWest(), ne = b.getNorthEast(), c = b.getCenter();
+    const sw = b.getSouthWest(), ne = b.getNorthEast();
     const bbox = sw.lng().toFixed(3) + "," + sw.lat().toFixed(3) + "," + ne.lng().toFixed(3) + "," + ne.lat().toFixed(3);
     const seen = seenDestRef.current;
     const additions = [];
@@ -439,30 +439,6 @@ export default function ExploreApp() {
         additions.push({ name: x.name, state: x.state || "", lat: x.lat, lng: x.lng, type: x.type, destId: x.id }); // destId → /park-status?dest=
       });
     } catch {}
-
-    // Lakes: /api/water, backed by the Supabase cache — fast + reliable, no
-    // per-cell throttling needed anymore. Only when zoomed in, radius capped.
-    if (map.getZoom() >= 7) {
-      const cell = "L" + Math.round(c.lat() * 2) / 2 + "," + Math.round(c.lng() * 2) / 2;
-      if (!lakeCellsRef.current.has(cell)) {
-        const radiusKm = Math.min(70, Math.max(15, Math.round(milesBetween({ lat: c.lat(), lng: c.lng() }, { lat: ne.lat(), lng: ne.lng() }) * 1.609)));
-        try {
-          const w = await fetch("/api/water?lat=" + c.lat().toFixed(4) + "&lng=" + c.lng().toFixed(4) + "&radius=" + radiusKm).then((r) => (r.ok ? r.json() : null));
-          const lakes = w && w.lakes ? w.lakes : null;
-          if (lakes) {
-            lakeCellsRef.current.add(cell);
-            lakes.forEach((x) => {
-              if (typeof x.lat !== "number" || typeof x.lng !== "number" || !x.name) return;
-              const key = "w:" + x.name + x.lat.toFixed(3);
-              if (seen.has(key)) return;
-              seen.add(key);
-              if (parksRef.current.some((p) => p.name === x.name)) return;
-              additions.push({ name: x.name, state: "", lat: x.lat, lng: x.lng, type: "lake" });
-            });
-          }
-        } catch {}
-      }
-    }
 
     mergeAdditions(additions);
   }
@@ -590,11 +566,12 @@ export default function ExploreApp() {
     focusedParkRef.current = null;
     placesLoadedRef.current = false;
     trailsLoadedRef.current = false;
+    lakesLoadedRef.current = false;
   }
 
-  // Fetch campgrounds/trails only if the corresponding toggle is on — called
-  // both when a park is first pinned/selected AND reactively when a toggle
-  // flips on while that park is still the active focus (see the effects below).
+  // Fetch campgrounds/trails/lakes only if the corresponding toggle is on —
+  // called both when a park is first pinned/selected AND reactively when a
+  // toggle flips on while that park is still the active focus (see the effects below).
   function maybeLoadCampgrounds(p) {
     if (!uiRef.current.campgrounds || placesLoadedRef.current) return;
     placesLoadedRef.current = true;
@@ -607,6 +584,11 @@ export default function ExploreApp() {
     if ((!u.layerHiking && !u.layerOffroad && !u.layerSki && u.detailTab !== "trails") || trailsLoadedRef.current) return;
     trailsLoadedRef.current = true;
     loadTrailsFor(p);
+  }
+  function maybeLoadLakes(p) {
+    if (!uiRef.current.destLake || lakesLoadedRef.current) return;
+    lakesLoadedRef.current = true;
+    loadLakesFor(p);
   }
 
   // Called on a PIN CLICK (preview) as well as "View details" / list / search
@@ -624,6 +606,7 @@ export default function ExploreApp() {
     }
     maybeLoadCampgrounds(p);
     maybeLoadTrails(p);
+    maybeLoadLakes(p);
   }
 
   // Reactive: if the user flips a layer toggle on while a park is already
@@ -631,6 +614,7 @@ export default function ExploreApp() {
   // next pin click.
   useEffect(() => { if (focusedParkRef.current) maybeLoadCampgrounds(focusedParkRef.current); }, [ui.campgrounds]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (focusedParkRef.current) maybeLoadTrails(focusedParkRef.current); }, [ui.layerHiking, ui.layerOffroad, ui.layerSki, ui.detailTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (focusedParkRef.current) maybeLoadLakes(focusedParkRef.current); }, [ui.destLake]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // NPS boundary polygon (legacy styling: dark-green stroke, translucent green fill).
   async function showBoundary(p) {
@@ -739,6 +723,34 @@ export default function ExploreApp() {
       };
       (d.facilities || []).forEach((f) => addMarker(f, "facility", f.type || "Campground"));
       (d.recAreas || []).forEach((r) => addMarker(r, "recarea", "Recreation area"));
+      applyVisibility();
+    } catch {}
+  }
+
+  // Named lakes/reservoirs from USGS GNIS, scoped to the selected park (radius in
+  // km) — same "water" marker layer + destLake toggle that loadPlacesFor's
+  // water-named-facility heuristic already uses, so no change needed there.
+  async function loadLakesFor(p) {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map) return;
+    try {
+      const radiusKm = Math.round(50 * 1.609); // match the 50 mi radius used for campgrounds
+      const d = await fetch("/api/water?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=" + radiusKm).then((r) => (r.ok ? r.json() : null));
+      if (!d || layersForRef.current !== p.name) return;
+      const lakes = d.lakes || [];
+      setLakesData((s) => ({ ...s, [p.name]: lakes }));
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><circle cx="7" cy="7" r="5" fill="#3a8fc4" stroke="#fffdf7" stroke-width="1.5"/></svg>';
+      const icon = { url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg), scaledSize: new g.maps.Size(15, 15), anchor: new g.maps.Point(7, 7) };
+      lakes.forEach((x) => {
+        if (typeof x.lat !== "number" || typeof x.lng !== "number") return;
+        const marker = new g.maps.Marker({ position: { lat: x.lat, lng: x.lng }, map: null, title: x.name, zIndex: 40, icon });
+        marker.addListener("click", () => {
+          if (!infoWindowRef.current) infoWindowRef.current = new g.maps.InfoWindow();
+          infoWindowRef.current.setContent(layerInfoHtml(x.name, x.kind === "reservoir" ? "Reservoir" : "Lake"));
+          infoWindowRef.current.open(map, marker);
+        });
+        placeMarkersRef.current.push({ marker, layer: "water" });
+      });
       applyVisibility();
     } catch {}
   }
@@ -911,7 +923,13 @@ export default function ExploreApp() {
           .filter((c) => typeof c.lat === "number" && typeof c.lng === "number")
           .map((c) => ({ name: c.name, type: "campground", dist: milesBetween(sel, c), click: null }))
       : [];
-    return dest.concat(camps).filter((o) => o.dist <= ui.radius).sort((a, b) => a.dist - b.dist).slice(0, 10);
+    const selLakes = lakesData[sel.name];
+    const lakes = ui.destLake && selLakes
+      ? selLakes
+          .filter((l) => typeof l.lat === "number" && typeof l.lng === "number")
+          .map((l) => ({ name: l.name, type: "lake", dist: milesBetween(sel, l), click: null }))
+      : [];
+    return dest.concat(camps).concat(lakes).filter((o) => o.dist <= ui.radius).sort((a, b) => a.dist - b.dist).slice(0, 10);
   })();
 
   const selAccess = sel ? roadAccessNote(sel.name) : null; // no/limited road access note
@@ -1029,7 +1047,7 @@ export default function ExploreApp() {
             <input
               value={ui.searchQuery}
               onChange={(e) => patch({ searchQuery: e.target.value })}
-              placeholder="Search parks, forests, lakes…"
+              placeholder="Search parks, forests…"
               style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px 10px 34px", border: "1px solid rgba(255,255,255,.22)", borderRadius: 12, fontSize: ".86rem", fontFamily: "inherit", color: "#fbf6ea", background: "rgba(255,255,255,.12)", outline: "none" }}
             />
             {searchResults.length > 0 && (
@@ -1106,11 +1124,6 @@ export default function ExploreApp() {
                     <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>National Forests</span>
                     <Switch on={ui.destForest} onClick={toggle("destForest")} />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ width: 9, height: 9, borderRadius: "50% 50% 50% 0", background: "#2c6b8f", transform: "rotate(-45deg)", display: "inline-block" }} />
-                    <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Lakes</span>
-                    <Switch on={ui.destLake} onClick={toggle("destLake")} />
-                  </div>
                 </div>
 
                 <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#b07d3a", marginBottom: 8 }}>On the map</div>
@@ -1119,6 +1132,11 @@ export default function ExploreApp() {
                     <span style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "9px solid #d2843a", display: "inline-block" }} />
                     <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Campgrounds &amp; areas</span>
                     <Switch on={ui.campgrounds} onClick={toggle("campgrounds")} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: "50% 50% 50% 0", background: "#2c6b8f", transform: "rotate(-45deg)", display: "inline-block" }} />
+                    <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Lakes</span>
+                    <Switch on={ui.destLake} onClick={toggle("destLake")} />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ width: 14, height: 3, borderRadius: 2, background: TRAIL_STYLE.hiking, display: "inline-block" }} />
@@ -1135,7 +1153,7 @@ export default function ExploreApp() {
                     <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Ski routes</span>
                     <Switch on={ui.layerSki} onClick={toggle("layerSki")} />
                   </div>
-                  <div style={{ fontSize: ".68rem", color: "#8c8473", lineHeight: 1.4 }}>Trail &amp; campground layers draw around the park you select.</div>
+                  <div style={{ fontSize: ".68rem", color: "#8c8473", lineHeight: 1.4 }}>Trail, campground &amp; lake layers draw around the park you select.</div>
                 </div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
                   <button onClick={() => patch({ destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true, layerHiking: true, layerOffroad: true, layerSki: true })} style={{ flex: 1, border: "1px solid rgba(140,132,115,.35)", borderRadius: 9, padding: 7, fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.6)", color: "#1d3941" }}>All</button>
@@ -1360,6 +1378,7 @@ export default function ExploreApp() {
                       : ((selPlaces.facilities || []).length + (selPlaces.recAreas || []).length) === 0
                         ? "No campgrounds found near this park."
                         : "🏕 " + (selPlaces.facilities || []).length + " campgrounds · " + (selPlaces.recAreas || []).length + " recreation areas on the map"}
+                    {ui.destLake && lakesData[sel.name] && lakesData[sel.name].length > 0 && (" · 💧 " + lakesData[sel.name].length + " lakes")}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                     <button onClick={() => setRadius(ui.radius - 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>−</button>

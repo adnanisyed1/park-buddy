@@ -51,6 +51,30 @@ const BOUNDARY_URL = (code) =>
 const USER_LOC = { lat: 39.8283, lng: -98.5795 };
 const AVG_MPH = 45;
 
+// Parks with NO road connecting them to the outside road network — a distinct
+// fact from "sparse map data," and important enough to surface before someone
+// plans a drive there. Curated from well-established NPS access info (not
+// inferred from live data, which wouldn't be reliable for this).
+const NO_ROAD_ACCESS = {
+  "Gates of the Arctic": "No roads reach this park — access is by small plane, boat, or on foot only.",
+  "Kobuk Valley": "No roads reach this park — access is by small plane, boat, or on foot only.",
+  "Lake Clark": "No roads reach this park — access is by small plane or boat only.",
+  Katmai: "No roads connect to this park — most visitors arrive by small plane or boat (e.g. to Brooks Camp).",
+  "Isle Royale": "No roads or bridges reach this island park — access is by ferry or seaplane only; no cars are allowed on the island.",
+  "Dry Tortugas": "No roads reach this park — it's 70 miles from Key West, accessible only by boat or seaplane.",
+  "Virgin Islands": "No roads connect from the mainland U.S. — access is by ferry or flight to St. Thomas/St. John.",
+  "Nat. Park of American Samoa": "No roads connect from the mainland U.S. — access is by flight to Pago Pago, American Samoa.",
+};
+// Has some limited/seasonal road access, but most of the park is roadless.
+const LIMITED_ROAD_ACCESS = {
+  "Wrangell–St. Elias": "Only a small part of this park is road-accessible (the unpaved McCarthy Road) — the rest is roadless wilderness reached by plane or on foot.",
+};
+function roadAccessNote(name) {
+  if (NO_ROAD_ACCESS[name]) return { level: "none", text: NO_ROAD_ACCESS[name] };
+  if (LIMITED_ROAD_ACCESS[name]) return { level: "limited", text: LIMITED_ROAD_ACCESS[name] };
+  return null;
+}
+
 const MAP_STYLE = [
   { elementType: "geometry", stylers: [{ saturation: -55 }, { lightness: 8 }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#5a6b4c" }] },
@@ -459,6 +483,7 @@ export default function ExploreApp() {
     // (campgrounds, trails) right on the map — the small preview popup stays
     // lightweight; full detail is still a deliberate second click away.
     loadParkLayers(p);
+    const access = roadAccessNote(p.name);
     const html =
       '<div style="font-family:\'Hanken Grotesk\',sans-serif;padding:2px 2px 4px;min-width:190px">' +
       '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">' +
@@ -467,6 +492,7 @@ export default function ExploreApp() {
       '<div style="font-size:.72rem;color:#8c8473;margin-bottom:8px">' + meta.label + " · " + p.state + "</div>" +
       '<div style="display:inline-flex;align-items:center;gap:5px;background:' + v.dot + "18;color:" + v.dot + ';font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px;margin-bottom:10px">' +
       '<span style="width:6px;height:6px;border-radius:50%;background:' + v.dot + '"></span>' + v.label + "</div>" +
+      (access ? '<div style="display:flex;align-items:flex-start;gap:5px;background:rgba(199,154,75,.16);border-radius:8px;padding:6px 8px;margin-bottom:10px;font-size:.68rem;color:#7a5b1f;line-height:1.35"><span>✈️</span><span>' + (access.level === "none" ? "No road access" : "Limited road access") + "</span></div>" : "") +
       '<button onclick="window.__pbExPreview()" style="display:block;width:100%;box-sizing:border-box;border:none;border-radius:9px;padding:8px;background:#1d4a37;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit">View details →</button>' +
       "</div>";
     infoWindowRef.current.setContent(html);
@@ -833,6 +859,7 @@ export default function ExploreApp() {
     return dest.concat(camps).filter((o) => o.dist <= ui.radius).sort((a, b) => a.dist - b.dist).slice(0, 10);
   })();
 
+  const selAccess = sel ? roadAccessNote(sel.name) : null; // no/limited road access note
   const selVf = sel ? verdictFull[sel.name] : null; // live weather detail (temp/sky/wind/chips)
   const selCond = sel ? condData[sel.name] : null; // alerts / wildfire / AQI
   const selNps = sel ? npsData[sel.name] : null; // description / activities / things to do
@@ -853,6 +880,7 @@ export default function ExploreApp() {
     const inTrip = ui.trip.indexOf(p.name) > -1;
     const near = parks.filter((o) => o.name !== p.name && milesBetween(p, o) <= 50).length;
     const href = statusHrefFor(p);
+    const access = roadAccessNote(p.name);
     return (
       <div key={p.name} onClick={() => selectPark(p.name)} style={{ background: "#fffdf7", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, overflow: "hidden", cursor: "pointer", boxShadow: "0 10px 26px -16px rgba(20,36,28,.45)" }}>
         <div style={{ position: "relative", height: 78, background: `linear-gradient(135deg,${v.dot}cc,${v.dot}88)`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
@@ -868,6 +896,11 @@ export default function ExploreApp() {
         <div style={{ padding: "9px 11px 11px" }}>
           <b style={{ fontFamily: serif, fontSize: ".94rem", color: "#163a2b", display: "block", lineHeight: 1.2 }}>{p.name}</b>
           <div style={{ fontSize: ".71rem", color: "#8c8473", margin: "2px 0 7px" }}>{TYPE_META[p.type].label} · {p.state}</div>
+          {access && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: ".68rem", fontWeight: 700, color: "#a8791f", margin: "0 0 7px" }}>
+              <span>✈️</span><span>{access.level === "none" ? "No road access" : "Limited road access"}</span>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10, fontSize: ".68rem", color: "#5b6258", fontWeight: 600, alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ display: "flex", gap: 10 }}>
               <span>📍 {near} nearby</span>
@@ -1100,6 +1133,16 @@ export default function ExploreApp() {
                 <span style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "#163a2b" }}>{sel.name}</span>
               </div>
               <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 12 }}>{selMeta.label} · {sel.state}</div>
+
+              {selAccess && (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: selAccess.level === "none" ? "rgba(191,70,58,.1)" : "rgba(199,154,75,.16)", border: "1px solid " + (selAccess.level === "none" ? "rgba(191,70,58,.25)" : "rgba(199,154,75,.3)"), borderRadius: 12, padding: "11px 13px", marginBottom: 14 }}>
+                  <span style={{ fontSize: "1rem" }}>✈️</span>
+                  <div>
+                    <b style={{ fontSize: ".8rem", color: selAccess.level === "none" ? "#a8473c" : "#a8791f", display: "block", marginBottom: 2 }}>{selAccess.level === "none" ? "No road access" : "Limited road access"}</b>
+                    <span style={{ fontSize: ".76rem", color: "#6b6046", lineHeight: 1.4 }}>{selAccess.text}</span>
+                  </div>
+                </div>
+              )}
 
               {gateway && (
                 <div style={{ background: "rgba(199,154,75,.14)", border: "1px solid rgba(199,154,75,.3)", borderRadius: 12, padding: "11px 13px", marginBottom: 14 }}>

@@ -618,13 +618,18 @@ export default function ExploreApp() {
   }
 
   // Hiking / off-road / ski polylines (legacy colors + weights), via /api/trails
-  // — backed by the Supabase cache, so this is a normal fast server fetch now.
+  // — served live from the NPS's own trails GIS data, filtered by park unit
+  // code when we have one (precise — only trails actually in that park),
+  // falling back to a bbox query otherwise.
   async function loadTrailsFor(p) {
     const g = window.google, map = mapObjRef.current;
     if (!g || !map) return;
     setTrailStatus({ park: p.name, state: "loading" });
     try {
-      const d = await fetch("/api/trails?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=25").then((r) => (r.ok ? r.json() : null));
+      const q = p.npsCode
+        ? "parkCode=" + encodeURIComponent(p.npsCode)
+        : "lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=25";
+      const d = await fetch("/api/trails?" + q).then((r) => (r.ok ? r.json() : null));
       if (layersForRef.current !== p.name) return;
       if (!d) { setTrailStatus({ park: p.name, state: "error" }); return; }
       let n = 0;

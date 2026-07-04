@@ -56,6 +56,20 @@ export async function fetchElevationProfile(key, path) {
   });
 }
 
+// Single-point elevation in feet (for a lake/point page), via the same
+// google.maps.ElevationService — browser-only, returns null if unavailable.
+export async function fetchPointElevationFt(lat, lng) {
+  if (lat == null || lng == null) return null;
+  const loaded = await ensureMapsLoaded();
+  if (!loaded || !window.google || !window.google.maps) return null;
+  return new Promise((resolve) => {
+    const svc = new window.google.maps.ElevationService();
+    svc.getElevationForLocations({ locations: [{ lat, lng }] }, (res, status) => {
+      resolve(status === "OK" && res && res[0] ? Math.round(res[0].elevation * 3.28084) : null);
+    });
+  });
+}
+
 function milesBetween(a, b) {
   const R = 3958.8, toRad = Math.PI / 180;
   const [lat1, lng1] = a, [lat2, lng2] = b;

@@ -107,6 +107,47 @@ export async function getNearby(lat, lng, opts = {}) {
   };
 }
 
+// Real lake surface area from USGS NHD (National Hydrography Dataset) waterbody
+// polygons — a lake's own point usually falls inside its polygon. Returns acres.
+// (Depth/shoreline aren't in NHD or any public API for arbitrary lakes.)
+export async function getWaterbody(lat, lng) {
+  if (lat == null || lng == null) return null;
+  try {
+    const params = new URLSearchParams({
+      geometry: lng + "," + lat, geometryType: "esriGeometryPoint", inSR: "4326",
+      spatialRel: "esriSpatialRelIntersects", outFields: "gnis_name,areasqkm",
+      returnGeometry: "false", f: "json",
+    });
+    const r = await fetch("https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/12/query?" + params.toString(), { next: { revalidate: 604800 }, signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const f = (d.features || [])[0];
+    const a = f && f.attributes;
+    if (!a) return null;
+    // ArcGIS returns the actual field names (UPPERCASE) regardless of the
+    // lowercase outFields we requested — read case-insensitively.
+    const km2 = a.AREASQKM ?? a.areasqkm;
+    const gnis = a.GNIS_NAME ?? a.gnis_name;
+    return { name: gnis || null, areaAcres: km2 ? Math.round(km2 * 247.105) : null };
+  } catch {
+    return null;
+  }
+}
+
+// Real ACCESS facilities near a lake (boat ramps, marinas, swim beaches, day-use,
+// docks) from RIDB + OSM via /api/places. Existence is real; live status (waits,
+// lot %, hours) is NOT published anywhere, so the UI never claims open/closed.
+export async function getLakeAccess(lat, lng) {
+  if (lat == null || lng == null) return [];
+  const d = await safeJson(fetch(origin() + "/api/places?lat=" + lat + "&lng=" + lng + "&radius=8", { cache: "no-store", signal: AbortSignal.timeout(9000) }));
+  const fac = (d && d.facilities) || [];
+  const re = /boat|ramp|launch|marina|beach|swim|day.?use|picnic|dock|fishing pier|watercraft/i;
+  return fac
+    .filter((f) => re.test((f.type || "") + " " + (f.name || "")))
+    .slice(0, 6)
+    .map((f) => ({ name: f.name, type: f.type || "Facility", url: f.url || "", lat: f.lat, lng: f.lng }));
+}
+
 // Richer "near this trailhead" for /trail-status: five categories — trails,
 // lakes, national parks, national forests, gateway towns — each normalized to
 // { name, distMi, href|null, q, lat, lng, badge }. `q` is a pipe-separated

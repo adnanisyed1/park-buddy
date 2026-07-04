@@ -5,14 +5,29 @@ import { SectionTitle } from "./StatusShell";
 
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-export default function ThingsToDo({ items }) {
+// Internal-first: cards link to OUR /todo-status reference page (which carries
+// the coordinates, park phone, and the official NPS link as its leaf) — never
+// straight out to nps.gov from a listing.
+function todoHref(t, pc) {
+  const qs = new URLSearchParams({ t: t.title, pc: pc || "" });
+  if (t.short) qs.set("d", t.short);
+  if (t.img) qs.set("img", t.img);
+  if (t.duration) qs.set("dur", t.duration);
+  if (t.url) qs.set("url", t.url);
+  if (t.lat != null && t.lng != null) { qs.set("lat", t.lat); qs.set("lng", t.lng); }
+  if (t.activities && t.activities.length) qs.set("act", t.activities.join("|"));
+  if (t.reservation) qs.set("res", "1");
+  return "/todo-status?" + qs.toString();
+}
+
+export default function ThingsToDo({ items, parkCode }) {
   if (!items || !items.length) return null;
   return (
     <div style={{ marginBottom: 26 }}>
       <SectionTitle right="Curated by the National Park Service">Things to do</SectionTitle>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 }}>
         {items.map((t, i) => (
-          <a key={i} href={t.url} target="_blank" rel="noreferrer" style={{ display: "block", textDecoration: "none", background: "#fffdf8", border: "1px solid #e2dac8", borderRadius: 18, overflow: "hidden", color: "#22261f" }}>
+          <a key={i} href={todoHref(t, parkCode)} style={{ display: "block", textDecoration: "none", background: "#fffdf8", border: "1px solid #e2dac8", borderRadius: 18, overflow: "hidden", color: "#22261f" }}>
             <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,#ece5d4 0 12px,#e6dfcd 12px 24px)" }}>
               {t.img && <img src={t.img} alt={t.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
               {t.distMi != null && <span style={{ position: "absolute", left: 9, top: 9, background: "rgba(21,36,28,.85)", color: "#f3ede0", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".08em", borderRadius: 999, padding: "3px 9px" }}>{Math.round(t.distMi)} MI</span>}

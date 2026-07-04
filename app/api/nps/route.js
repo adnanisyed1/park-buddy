@@ -7,7 +7,9 @@ const BASE = "https://developer.nps.gov/api/v1";
 export const revalidate = 900; // cache responses for 15 min at the edge
 
 export async function GET(request) {
-  const key = process.env.NPS_API_KEY;
+  // Same key policy as /api/webcams: DEMO_KEY keeps local dev working (low
+  // shared rate limit); the real deployment (NETLIFY env) requires the real key.
+  const key = process.env.NPS_API_KEY || (process.env.NETLIFY ? "" : "DEMO_KEY");
   const { searchParams } = new URL(request.url);
   const headers = { "X-Api-Key": key || "", "User-Agent": "ParkPulse" };
 
@@ -92,6 +94,9 @@ export async function GET(request) {
           entrancePasses: (park.entrancePasses || []).map((f) => ({ cost: f.cost, title: f.title })),
           operatingHours: (park.operatingHours || []).slice(0, 1).map((h) => ({ name: h.name, description: h.description, standardHours: h.standardHours })),
           activities: (park.activities || []).map((a) => a.name),
+          // Park HQ phone — the "call to get the details" number the status
+          // pages show at their leaf endpoints.
+          phone: (park.contacts && park.contacts.phoneNumbers && park.contacts.phoneNumbers[0] && park.contacts.phoneNumbers[0].phoneNumber) || "",
         }
       : null;
 
@@ -101,6 +106,10 @@ export async function GET(request) {
       duration: t.duration || "",
       url: t.url || "",
       image: (t.images && t.images[0] && t.images[0].url) || "",
+      // Coordinates let the park-status embed deep-link each activity to our
+      // own /todo-status reference page instead of straight out to nps.gov.
+      latitude: t.latitude || "",
+      longitude: t.longitude || "",
     }));
     const campgrounds = ((cgD && cgD.data) || []).slice(0, 8).map((c) => ({
       name: c.name,

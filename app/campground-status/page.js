@@ -1,5 +1,5 @@
 import { StatusShell, HeroBand, StatGrid, BigStat, GoldButton, NearbySection, NotFoundBody } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby, getPhotoInfo } from "../lib/statusData";
+import { getParks, nearestPark, getNearby, getPhotoInfo, getParkContact } from "../lib/statusData";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -36,6 +36,7 @@ export default async function CampgroundStatusPage({ searchParams }) {
   ]);
   const park = nearestPark(parks, lat, lng);
   const parkHref = park ? "/park-status?park=" + park.id : null;
+  const contact = park && park.dist <= 60 ? await getParkContact(park.npsCode) : null;
   const photoUrl = photoInfo?.url || null;
   // A geotagged archive photo must carry its provenance label, same as the trail hero.
   const photoBadge = photoInfo?.geo ? "Nearby photo" + (photoInfo.photoDate ? " · " + photoInfo.photoDate : "") : null;
@@ -55,6 +56,12 @@ export default async function CampgroundStatusPage({ searchParams }) {
 
       {detail && <div style={{ fontSize: ".84rem", color: "#4c5443", lineHeight: 1.55, marginBottom: 18 }}>{detail}</div>}
       {phone && <div style={{ fontSize: ".8rem", color: "#6d7263", marginBottom: 18 }}>Phone: {phone}</div>}
+
+      {/* Leaf-endpoint info: raw coordinates + the park's phone for details. */}
+      <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: ".74rem", color: "#4c5443", lineHeight: 1.8, marginBottom: 18 }}>
+        Coordinates: {lat.toFixed(4)}, {lng.toFixed(4)}
+        {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{contact.phone}</a>{park ? " (" + park.name + ")" : ""}</>}
+      </div>
 
       {url && <div style={{ marginBottom: 18 }}><GoldButton href={url}>View on Recreation.gov ↗</GoldButton></div>}
 

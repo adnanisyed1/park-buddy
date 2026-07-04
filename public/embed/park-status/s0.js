@@ -609,7 +609,9 @@ function init(){
       card.innerHTML='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:9px">Nearby to explore</div><span style="'+S.load+'">Finding campgrounds, forests &amp; trails nearby…</span>';
       fetch('/api/places?lat='+p.lat.toFixed(4)+'&lng='+p.lng.toFixed(4)).then(function(r){return r.ok?r.json():null;}).then(function(d){
         if(!d||(!d.facilities||!d.facilities.length)&&(!d.recAreas||!d.recAreas.length)){ card.style.display='none'; return; }
-        var item=function(x,ic){return '<a href="'+(x.url||'#')+'" target="_blank" rel="noopener" style="display:flex;gap:11px;align-items:flex-start;text-decoration:none;padding:11px 0;border-top:1px solid #f1ead9"><span style="font-size:1.1rem">'+ic+'</span><div style="min-width:0"><b style="color:#1d4a37;font-size:.9rem;display:block">'+x.name+'</b>'+(x.type||x.description?'<span style="font-size:.76rem;color:#5b6258;line-height:1.4;display:block;margin-top:1px">'+(x.type||x.description)+'</span>':'')+'</div></a>';};
+        /* Internal-first: facilities/rec-areas open OUR reference page (which
+           carries coords, phone, and the Recreation.gov link as its leaf). */
+        var item=function(x,ic){var q='name='+encodeURIComponent(x.name||'')+(x.lat!=null?'&lat='+x.lat:'')+(x.lng!=null?'&lng='+x.lng:'')+'&type='+encodeURIComponent(x.type||'')+(x.url?'&url='+encodeURIComponent(x.url):'');return '<a href="/campground-status?'+q+'" style="display:flex;gap:11px;align-items:flex-start;text-decoration:none;padding:11px 0;border-top:1px solid #f1ead9"><span style="font-size:1.1rem">'+ic+'</span><div style="min-width:0"><b style="color:#1d4a37;font-size:.9rem;display:block">'+x.name+'</b>'+(x.type||x.description?'<span style="font-size:.76rem;color:#5b6258;line-height:1.4;display:block;margin-top:1px">'+(x.type||x.description)+'</span>':'')+'</div></a>';};
         var H='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:4px">Nearby to explore</div>';
         (d.recAreas||[]).slice(0,4).forEach(function(r){ H+=item(r,'🏞️'); });
         (d.facilities||[]).slice(0,6).forEach(function(f){ H+=item(f,/camp/i.test(f.type)?'⛺':/trail/i.test(f.type)?'🥾':'📍'); });
@@ -624,7 +626,9 @@ function init(){
       card.innerHTML='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:9px">Trails &amp; routes nearby</div><span style="'+S.load+'">Finding hikes, off-road &amp; ski routes…</span>';
       fetch('/api/trails?lat='+p.lat.toFixed(4)+'&lng='+p.lng.toFixed(4)+'&radius='+((p.source==='nps')?25:45)).then(function(r){return r.ok?r.json():null;}).then(function(d){
         if(!d||(!d.hiking||!d.hiking.length)&&(!d.offroad||!d.offroad.length)&&(!d.ski||!d.ski.length)){ card.style.display='none'; return; }
-        var grp=function(title,ic,arr){ if(!arr||!arr.length) return ''; return '<div style="margin-top:10px"><div style="font-size:.74rem;font-weight:800;color:#1d4a37;margin-bottom:5px">'+ic+' '+title+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+arr.slice(0,8).map(function(x){return '<span style="font-size:.76rem;color:#3a463c;background:#fbf6ea;border:1px solid #e7ddca;border-radius:999px;padding:5px 10px">'+x.name+'</span>';}).join('')+'</div></div>'; };
+        /* Trail chips are now LINKS to our own /trail-status pages (they were
+           inert spans) — internal-first navigation from the park page. */
+        var grp=function(title,ic,arr){ if(!arr||!arr.length) return ''; return '<div style="margin-top:10px"><div style="font-size:.74rem;font-weight:800;color:#1d4a37;margin-bottom:5px">'+ic+' '+title+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+arr.slice(0,8).map(function(x){return '<a href="/trail-status?trail='+encodeURIComponent(x.id)+'&park='+encodeURIComponent(x.unitCode||'')+'" style="font-size:.76rem;color:#1d4a37;font-weight:600;background:#fbf6ea;border:1px solid #e7ddca;border-radius:999px;padding:5px 10px;text-decoration:none">'+x.name+' →</a>';}).join('')+'</div></div>'; };
         var H='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:2px">Trails &amp; routes nearby</div>';
         H+=grp('Hiking trails','🥾',d.hiking)+grp('Off-road / 4x4','🚙',d.offroad)+grp('Ski routes','⛷️',d.ski);
         H+='<div style="font-size:.62rem;color:#a79f8c;margin-top:11px;line-height:1.4">Data &amp; credit: '+(d.credit||'© OpenStreetMap contributors')+'</div>';
@@ -696,7 +700,11 @@ function init(){
           html+='</div>'; box.innerHTML=npsMapBlock(p)+html;
         }
         var td=d.thingsToDo||[];
-        setBox('todo', td.length?td.map(function(t){return '<div style="'+S.td+'">'+(t.image?'<img style="'+S.tdimg+'" src="'+t.image+'" alt="">':'')+'<div><h4 style="'+S.h4+'">'+(t.title||'')+'</h4><p style="'+S.p+'">'+(t.shortDescription||'')+'</p>'+(t.duration?'<div style="'+S.dur+'">⏱ '+t.duration+'</div>':'')+(t.url?' <a href="'+t.url+'" target="_blank" rel="noopener" style="font-size:.78rem;color:#1d4a37;font-weight:600">Details ↗</a>':'')+'</div></div>';}).join(''):'<span style="'+S.load+'">No things-to-do listed for this park.</span>');
+        /* Internal-first: each activity links to OUR /todo-status reference page
+           (coords + park phone + the official NPS link live there), never straight
+           out to nps.gov from this listing. */
+        var pcode=park.parkCode||'';
+        setBox('todo', td.length?td.map(function(t){var q='t='+encodeURIComponent(t.title||'')+'&pc='+encodeURIComponent(pcode)+(t.shortDescription?'&d='+encodeURIComponent(t.shortDescription):'')+(t.image?'&img='+encodeURIComponent(t.image):'')+(t.duration?'&dur='+encodeURIComponent(t.duration):'')+(t.url?'&url='+encodeURIComponent(t.url):'')+((t.latitude&&t.longitude)?('&lat='+encodeURIComponent(t.latitude)+'&lng='+encodeURIComponent(t.longitude)):'');return '<div style="'+S.td+'">'+(t.image?'<img style="'+S.tdimg+'" src="'+t.image+'" alt="">':'')+'<div><h4 style="'+S.h4+'">'+(t.title||'')+'</h4><p style="'+S.p+'">'+(t.shortDescription||'')+'</p>'+(t.duration?'<div style="'+S.dur+'">⏱ '+t.duration+'</div>':'')+' <a href="/todo-status?'+q+'" style="font-size:.78rem;color:#1d4a37;font-weight:600">Details →</a></div></div>';}).join(''):'<span style="'+S.load+'">No things-to-do listed for this park.</span>');
         var acts=park.activities||[];
         setBox('activities', acts.length?'<div style="display:flex;flex-wrap:wrap;gap:7px">'+acts.map(function(a){return '<span style="'+S.achip+'">'+a+'</span>';}).join('')+'</div>':'<span style="'+S.load+'">No activities listed.</span>');
         var imgs=park.images||[];

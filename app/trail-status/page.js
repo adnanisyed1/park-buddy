@@ -2,7 +2,7 @@ import {
   StatusShell, HeroBand, SectionTitle, TipCard, ConditionCard, GoldButton,
   ReviewsBlock, NotFoundBody,
 } from "../components/StatusShell";
-import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhotoInfo, getPointWeather, getParkFees, getWebcams, getThingsToDo } from "../lib/statusData";
+import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhotoInfo, getPointWeather, getParkFees, getWebcams, getThingsToDo, getParkContact } from "../lib/statusData";
 import TrailHeroStats from "./TrailHeroStats";
 import TrailRouteChart from "./TrailRouteChart";
 import NearbyExplorer from "./NearbyExplorer";
@@ -76,7 +76,8 @@ export default async function TrailStatusPage({ searchParams }) {
   const heroInfo = photoInfo || (park ? await getPhotoInfo(park.name + " National Park", park.state) : null);
   const heroPhoto = heroInfo?.url || null;
   const heroBadge = heroInfo?.geo ? "Nearby photo" + (heroInfo.photoDate ? " · " + heroInfo.photoDate : "") : null;
-  const fees = park ? await getParkFees(park.npsCode) : null;
+  const [fees, contact] = park ? await Promise.all([getParkFees(park.npsCode), getParkContact(park.npsCode)]) : [null, null];
+  const trailhead = Array.isArray(trail.path) && trail.path.length ? trail.path[0] : null;
   const catMeta = CAT_META[trail.category] || { icon: "🥾", label: "Trail" };
   const parkHref = park ? "/park-status?park=" + park.id : null;
   const trailKey = "trail:" + (park ? park.name : trail.unitName || "") + "|" + trail.name;
@@ -133,6 +134,13 @@ export default async function TrailStatusPage({ searchParams }) {
           {tips.slice(0, 1).map((t, i) => (
             <ConditionCard key={i} label="Heads up" title={t.title}>{t.body}</ConditionCard>
           ))}
+          {/* Leaf-endpoint info: trailhead coordinates + the park's phone for
+              authoritative, current details. */}
+          <ConditionCard label="Trailhead & contact" title={trailhead ? trailhead[0].toFixed(4) + ", " + trailhead[1].toFixed(4) : null}>
+            {contact && contact.phone
+              ? "Trailhead GPS coordinates. For current conditions call " + (park ? park.name : "the park") + ": " + contact.phone
+              : "Trailhead GPS coordinates — confirm current conditions with the park before heading out."}
+          </ConditionCard>
         </div>
       </div>
 
@@ -146,7 +154,7 @@ export default async function TrailStatusPage({ searchParams }) {
       )}
 
       <WebcamsSection webcams={webcams} />
-      <ThingsToDo items={todos} />
+      <ThingsToDo items={todos} parkCode={park?.npsCode || ""} />
 
       <div style={{ marginBottom: 26 }}>
         <NearbyExplorer nearby={nearby} refName={trail.name} refLat={ref?.lat} refLng={ref?.lng} state={park?.state || ""} />

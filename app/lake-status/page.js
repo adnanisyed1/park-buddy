@@ -1,5 +1,5 @@
 import { StatusShell, NotFoundBody, NearbySection } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo } from "../lib/statusData";
+import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo, getParkContact } from "../lib/statusData";
 import LakeLivingHero from "./LakeLivingHero";
 import NearbyWater from "./NearbyWater";
 import WebcamsSection from "../components/WebcamsSection";
@@ -64,6 +64,7 @@ export default async function LakeStatusPage({ searchParams }) {
     parkRelevant ? getWebcams(park.npsCode, lat, lng) : Promise.resolve([]),
     parkRelevant ? getThingsToDo(park.npsCode, lat, lng) : Promise.resolve([]),
   ]);
+  const contact = parkRelevant ? await getParkContact(park.npsCode) : null;
   const photoUrl = photoInfo?.url || null;
   const parkHref = park ? "/park-status?park=" + park.id : null;
   const areaAcres = waterbody ? waterbody.areaAcres : null;
@@ -118,11 +119,13 @@ export default async function LakeStatusPage({ searchParams }) {
         {access.length ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 11 }}>
             {access.map((f, i) => (
-              <div key={i} style={{ background: CARD, border: "1px solid " + LINE, borderRadius: 20, padding: 16, boxShadow: "0 18px 44px -22px rgba(28,46,34,.35)" }}>
+              // Internal-first: the facility's own reference page carries the
+              // Recreation.gov link at its leaf — never link straight out here.
+              <a key={i} href={"/campground-status?" + new URLSearchParams({ name: f.name, lat: f.lat, lng: f.lng, type: f.type || "", url: f.url || "" }).toString()} style={{ display: "block", textDecoration: "none", background: CARD, border: "1px solid " + LINE, borderRadius: 20, padding: 16, boxShadow: "0 18px 44px -22px rgba(28,46,34,.35)" }}>
                 <div style={{ fontFamily: serif, fontWeight: 700, color: INK, fontSize: "1.02rem" }}>{f.name}</div>
                 <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".08em", textTransform: "uppercase", color: MUTED, marginTop: 4 }}>{f.type}</div>
-                {f.url && <a href={f.url} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: ".76rem", fontWeight: 700, color: "#2c5562", textDecoration: "none" }}>Details ↗</a>}
-              </div>
+                <span style={{ display: "inline-block", marginTop: 10, fontSize: ".76rem", fontWeight: 700, color: "#2c5562" }}>Details →</span>
+              </a>
             ))}
           </div>
         ) : (
@@ -139,6 +142,12 @@ export default async function LakeStatusPage({ searchParams }) {
           <p style={{ fontSize: ".88rem", color: BODY, lineHeight: 1.6, marginTop: 8 }}>
             {park ? "In or near " + park.name + " (about " + Math.round(park.dist) + " mi from the park center). See the park's official directions and seasonal road/timed-entry status before you go." : "Check the managing agency's site for directions and seasonal access."}
           </p>
+          {/* This page is the leaf endpoint — it carries the raw coordinates
+              and the park's phone so a visitor can get authoritative details. */}
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #efe8d8", fontFamily: mono, fontSize: ".72rem", color: "#4c5443", lineHeight: 1.8 }}>
+            Coordinates: {lat.toFixed(4)}, {lng.toFixed(4)}
+            {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{contact.phone}</a></>}
+          </div>
         </div>
         <div style={{ background: CARD, border: "1px solid " + LINE, borderRadius: 20, padding: 18, boxShadow: "0 18px 44px -22px rgba(28,46,34,.35)" }}>
           <h3 style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.05rem", color: INK, margin: 0 }}>Rules &amp; permits</h3>
@@ -150,7 +159,7 @@ export default async function LakeStatusPage({ searchParams }) {
       </div>
 
       <WebcamsSection webcams={webcams} />
-      <ThingsToDo items={todos} />
+      <ThingsToDo items={todos} parkCode={parkRelevant ? park.npsCode : ""} />
 
       {/* From the shore */}
       {photoUrl && (

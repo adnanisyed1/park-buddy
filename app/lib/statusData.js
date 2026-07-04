@@ -148,6 +148,16 @@ export async function getLakeAccess(lat, lng) {
     .map((f) => ({ name: f.name, type: f.type || "Facility", url: f.url || "", lat: f.lat, lng: f.lng }));
 }
 
+// Park contact info for the leaf "get the details" endpoints: HQ phone +
+// official site. Same /api/nps fetch the fees already use (ISR-cached).
+export async function getParkContact(parkCode) {
+  if (!parkCode) return null;
+  const d = await safeJson(fetch(origin() + "/api/nps?parkCode=" + encodeURIComponent(parkCode), { next: { revalidate: 900 }, signal: AbortSignal.timeout(9000) }));
+  const p = d && d.park;
+  if (!p) return null;
+  return { phone: p.phone || "", url: p.url || "", fullName: p.fullName || "" };
+}
+
 // Live NPS webcams for a park, nearest to a reference point first. Existence,
 // titles, and live-view links are real (NPS runs the cameras); we never claim
 // a snapshot is current — the link goes to NPS's own live player.

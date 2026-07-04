@@ -1,10 +1,11 @@
 import {
-  StatusShell, HeroBand, StatGrid, BigStat, SectionTitle, TipCard, ConditionCard, GoldButton,
-  NearbySection, ReviewsBlock, NotFoundBody,
+  StatusShell, HeroBand, SectionTitle, TipCard, ConditionCard, GoldButton,
+  ReviewsBlock, NotFoundBody,
 } from "../components/StatusShell";
-import { origin, getParks, parkByUnitCode, getNearby, getTrailReviews, getPhoto, getPointWeather, getParkFees } from "../lib/statusData";
-import TrailStatsClient from "./TrailStatsClient";
+import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhoto, getPointWeather, getParkFees } from "../lib/statusData";
+import TrailHeroStats from "./TrailHeroStats";
 import TrailRouteChart from "./TrailRouteChart";
+import NearbyExplorer from "./NearbyExplorer";
 import AddToTripButton from "../components/AddToTripButton";
 
 const CAT_META = {
@@ -37,7 +38,7 @@ export async function generateMetadata({ searchParams }) {
   const place = trail.unitName ? " in " + trail.unitName : "";
   return {
     title: trail.name + (trail.unitName ? " — " + trail.unitName : ""),
-    description: "Trail details for " + trail.name + place + ": length, surface, trail class, and nearby lakes & campgrounds.",
+    description: "Trail details for " + trail.name + place + ": length, surface, trail class, milestone photos, and what's nearby.",
   };
 }
 
@@ -52,21 +53,31 @@ export default async function TrailStatusPage({ searchParams }) {
   }
 
   const ref = midpoint(trail.path);
-  const [parks, nearby, { reviews, avg }, photoUrl, weather] = await Promise.all([
-    getParks(),
-    getNearby(ref?.lat, ref?.lng, { excludeTrailId: trail.id }),
+  const parks = await getParks();
+  const park = parkByUnitCode(parks, trail.unitCode || searchParams.park);
+  const [nearby, { reviews, avg }, photoUrl, weather] = await Promise.all([
+    getTrailNearby(ref, {
+      state: park?.state || "",
+      excludeTrailId: trail.id,
+      currentParkId: park?.id || null,
+      currentUnitCode: trail.unitCode || "",
+    }),
     getTrailReviews(trail.id),
     getPhoto(trail.name, null),
     getPointWeather(ref?.lat, ref?.lng),
   ]);
-  const park = parkByUnitCode(parks, trail.unitCode || searchParams.park);
+  // Guarantee a hero photo: individual trails rarely have their own image, so
+  // fall back to the park's photo when the trail lookup comes up empty.
+  const heroPhoto = photoUrl || (park ? await getPhoto(park.name + " National Park", park.state) : null);
   const fees = park ? await getParkFees(park.npsCode) : null;
   const catMeta = CAT_META[trail.category] || { icon: "🥾", label: "Trail" };
   const parkHref = park ? "/park-status?park=" + park.id : null;
   const trailKey = "trail:" + (park ? park.name : trail.unitName || "") + "|" + trail.name;
 
   const pills = [];
-  if (weather) pills.push({ label: weather.tempF + "°F · " + weather.short, dot: "#409e5e" });
+  if (weather) pills.push({ label: weather.tempF + "°F · " + weather.short, dot: "#7fc98f" });
+  pills.push({ label: catMeta.label });
+  if (trail.trailClass) pills.push({ label: trail.trailClass });
   if (trail.seasonal) pills.push({ label: "Seasonal access" });
 
   const tips = [];
@@ -77,31 +88,26 @@ export default async function TrailStatusPage({ searchParams }) {
 
   return (
     <StatusShell
+      wide
       backHref={parkHref || "/explore"}
       backLabel={park ? "Back to " + park.name : "Back to map"}
       headerRight={park ? <AddToTripButton pid={park.id} label={trail.name} itemName={trail.name} /> : null}
       hero={
         <HeroBand
-          photoUrl={photoUrl}
+          photoUrl={heroPhoto}
           photoAlt={trail.name}
-          breadcrumb={(trail.unitName || "").toString()}
+          breadcrumb={((trail.unitName || "") + (catMeta.label ? " · " + catMeta.label : "")).trim()}
           title={trail.name}
           pills={pills}
+          statsSlot={<TrailHeroStats trailKey={trailKey} path={trail.path} lengthMi={trail.lengthMi} />}
         />
       }
     >
-      <div style={{ fontSize: ".85rem", color: "#8a8471", marginBottom: 18 }}>{catMeta.label}{trail.unitName ? " · " + trail.unitName : ""}</div>
-
-      <StatGrid>
-        <BigStat label="Length" value={trail.lengthMi > 0 ? trail.lengthMi : null} unit="mi" />
-        <TrailStatsClient trailKey={trailKey} path={trail.path} lengthMi={trail.lengthMi} />
-      </StatGrid>
-
       <TrailRouteChart trailKey={trailKey} path={trail.path} category={trail.category} />
 
-      <div style={{ marginBottom: 22 }}>
+      <div style={{ marginBottom: 26 }}>
         <SectionTitle>Conditions</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 12 }}>
           <ConditionCard label="Right now" title={weather ? weather.tempF + "°F" : null}>
             {weather ? (weather.short + (weather.wind ? " · wind " + weather.wind : "")) : "Live weather isn't available for this location right now."}
           </ConditionCard>
@@ -116,41 +122,24 @@ export default async function TrailStatusPage({ searchParams }) {
           ) : (
             <ConditionCard label="Permits & fees" title="Check the park's site">No park-level fee data was available for this trail's park.</ConditionCard>
           )}
+          {tips.slice(0, 1).map((t, i) => (
+            <ConditionCard key={i} label="Heads up" title={t.title}>{t.body}</ConditionCard>
+          ))}
         </div>
       </div>
 
-      {tips.length > 0 && (
-        <div style={{ marginBottom: 22 }}>
+      {tips.length > 1 && (
+        <div style={{ marginBottom: 26 }}>
           <SectionTitle>Know before you go</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 10 }}>
-            {tips.map((t, i) => <TipCard key={i} title={t.title}>{t.body}</TipCard>)}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+            {tips.slice(1).map((t, i) => <TipCard key={i} title={t.title}>{t.body}</TipCard>)}
           </div>
         </div>
       )}
 
-      <NearbySection
-        title="Nearby trails"
-        items={nearby.trails.map((t) => ({
-          name: t.name,
-          sub: t.lengthMi > 0 ? t.lengthMi + " mi" : null,
-          href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || trail.unitCode || ""),
-        }))}
-      />
-      <NearbySection
-        title="Nearby lakes"
-        items={nearby.lakes.map((l) => ({
-          name: l.name,
-          href: "/lake-status?" + new URLSearchParams({ name: l.name, lat: l.lat, lng: l.lng, kind: l.kind || "lake" }).toString(),
-        }))}
-      />
-      <NearbySection
-        title="Nearby campgrounds"
-        items={nearby.camps.map((c) => ({
-          name: c.name,
-          sub: c.type || null,
-          href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString(),
-        }))}
-      />
+      <div style={{ marginBottom: 26 }}>
+        <NearbyExplorer nearby={nearby} refName={trail.name} refLat={ref?.lat} refLng={ref?.lng} state={park?.state || ""} />
+      </div>
 
       <ReviewsBlock reviews={reviews} avg={avg} writeHref="/explore" />
     </StatusShell>

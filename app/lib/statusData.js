@@ -22,6 +22,15 @@ function milesBetween(aLat, aLng, bLat, bLng) {
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
+async function safeJson(p) {
+  try { const r = await p; return r && r.ok ? await r.json() : null; } catch { return null; }
+}
+function midpoint(path) {
+  if (!Array.isArray(path) || !path.length) return null;
+  const p = path[Math.floor(path.length / 2)];
+  return { lat: p[0], lng: p[1] };
+}
+
 // TRIP_PARKS/NPS_CODE are set as `window.X = ...` side effects in a plain
 // browser script — not a module — so we self-fetch the raw file and pull the
 // JSON literals out rather than duplicating the dataset here.
@@ -56,6 +65,22 @@ export function nearestPark(parks, lat, lng) {
   return best ? { ...best, dist: bestDist } : null;
 }
 
+// US national forests (name + approximate centroid) — same self-fetch pattern
+// as getParks(), from public/forest-data.js. Used for the "forests near me"
+// section on /trail-status; centroids are approximate (forests are huge), so
+// distances are ballpark, matching how the UI labels them.
+export async function getForests() {
+  try {
+    const r = await fetch(origin() + "/forest-data.js", { next: { revalidate: 86400 } });
+    if (!r.ok) return [];
+    const text = await r.text();
+    const m = text.match(/window\.FOREST_DATA\s*=\s*(\[[\s\S]*?\]);/);
+    return m ? JSON.parse(m[1]) : [];
+  } catch {
+    return [];
+  }
+}
+
 // "What else is near this point" — same live sources the map uses, just
 // queried directly for a single reference point instead of via the client.
 export async function getNearby(lat, lng, opts = {}) {
@@ -80,6 +105,96 @@ export async function getNearby(lat, lng, opts = {}) {
     lakes: (waterD?.lakes || []).filter((l) => l.name !== opts.excludeName).slice(0, 6),
     camps: (placesD?.facilities || []).filter((c) => c.name !== opts.excludeName).slice(0, 6),
   };
+}
+
+// Richer "near this trailhead" for /trail-status: five categories — trails,
+// lakes, national parks, national forests, gateway towns — each normalized to
+// { name, distMi, href|null, q, lat, lng, badge }. `q` is a pipe-separated
+// photo-candidate list resolved CLIENT-side per tile (NearbyExplorer) via
+// /api/photo + the shared localStorage cache, so this stays a light data call.
+// Distances are precomputed so the client radius chips (10/25/50/Any) filter in
+// place with no refetch. Parks/forests come from the in-memory datasets (nearest
+// 8 by distance, any distance — so "Any" surfaces far units); trails/lakes/towns
+// come from the same live APIs the map uses, within a ~50 mi superset.
+export async function getTrailNearby(ref, opts = {}) {
+  const empty = { trails: [], lakes: [], parks: [], forests: [], places: [] };
+  const lat = ref?.lat, lng = ref?.lng;
+  if (lat == null || lng == null) return empty;
+  const o = origin();
+  const state = opts.state || "";
+
+  // Trails/water are fast; parks/forests are in-memory. Gateway TOWNS (Overpass)
+  // can take ~20s cold, so "places" is NOT fetched here — NearbyExplorer loads it
+  // client-side after paint so the page never blocks on a slow upstream. Each
+  // live fetch is still capped so one slow source can't stall the render.
+  const timed = (url, ms) => safeJson(fetch(url, { cache: "no-store", signal: AbortSignal.timeout(ms) }));
+  const [trailsD, waterD, parksData, forestsData] = await Promise.all([
+    timed(o + "/api/trails?lat=" + lat + "&lng=" + lng + "&radius=80", 9000),
+    timed(o + "/api/water?lat=" + lat + "&lng=" + lng + "&radius=80", 9000),
+    getParks(),
+    getForests(),
+  ]);
+
+  const trailItems = trailsD
+    ? ["hiking", "offroad", "ski"].flatMap((cat) => (trailsD[cat] || []).map((t) => ({ ...t, category: cat })))
+    : [];
+  const trails = trailItems
+    .filter((t) => t.id !== opts.excludeTrailId && t.name)
+    .map((t) => {
+      const mp = midpoint(t.path);
+      return {
+        name: t.name,
+        distMi: mp ? milesBetween(lat, lng, mp.lat, mp.lng) : null,
+        href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || opts.currentUnitCode || ""),
+        q: [t.name, t.unitName || ""].filter(Boolean).join("|"),
+        sub: t.lengthMi > 0 ? t.lengthMi + " mi" : null,
+        lat: mp?.lat, lng: mp?.lng,
+      };
+    })
+    .filter((t) => t.distMi == null || t.distMi <= 60)
+    .sort((a, b) => (a.distMi ?? 999) - (b.distMi ?? 999))
+    .slice(0, 8);
+
+  const lakes = (waterD?.lakes || [])
+    .filter((l) => l.name && l.name !== opts.excludeName)
+    .map((l) => ({
+      name: l.name,
+      distMi: milesBetween(lat, lng, l.lat, l.lng),
+      href: "/lake-status?" + new URLSearchParams({ name: l.name, lat: l.lat, lng: l.lng, kind: l.kind || "lake" }).toString(),
+      q: [l.name, l.name + " " + state].filter(Boolean).join("|"),
+      lat: l.lat, lng: l.lng,
+    }))
+    .sort((a, b) => a.distMi - b.distMi)
+    .slice(0, 8);
+
+  const parks = (parksData || [])
+    .map((p) => {
+      const full = /national park/i.test(p.name) ? p.name : p.name + " National Park";
+      return {
+        name: full,
+        distMi: milesBetween(lat, lng, p.lat, p.lng),
+        href: "/park-status?park=" + p.id,
+        q: [full, p.name].join("|"),
+        lat: p.lat, lng: p.lng,
+        badge: opts.currentParkId && p.id === opts.currentParkId ? "YOU'RE HERE" : null,
+      };
+    })
+    .sort((a, b) => a.distMi - b.distMi)
+    .slice(0, 8);
+
+  const forests = (forestsData || [])
+    .map((f) => ({
+      name: f.name,
+      distMi: milesBetween(lat, lng, f.lat, f.lng),
+      href: null,
+      q: [f.name, f.name.replace(/s$/i, "")].join("|"),
+      lat: f.lat, lng: f.lng,
+    }))
+    .sort((a, b) => a.distMi - b.distMi)
+    .slice(0, 8);
+
+  // places (gateway towns) intentionally omitted here — loaded client-side.
+  return { trails, lakes, parks, forests, places: [] };
 }
 
 // Hero photo for any of the three status pages — same source /api/photo

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchElevationProfile } from "../lib/elevationClient";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { SectionTitle } from "../components/StatusShell";
@@ -10,19 +10,26 @@ const ACCENT = "#b3862d";
 const NAV_COLOR = "#2c7a9e"; // distinct from ACCENT so "where you are" never looks like "where your mouse is"
 const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" }; // same convention as app/explore/ExploreApp.jsx
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
+const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
 const ON_TRAIL_MI = 0.02; // ~100 ft
 const LOOKAHEAD_MI = 0.1;
-// Map and elevation chart are stacked full-width sections now (not squeezed
-// into two half-width columns, which mismatched heights and wasted space) —
-// both get the full card width and a genuinely bigger, clearer size.
-const MAP_W = 800, MAP_H = 440;
-const CHART_W = 800, CHART_H = 300;
+const MAP_W = 800, MAP_H = 440, MAP_MINH = 420;
+const CHART_W = 1000, CHART_H = 300;
+// A photo may only be added while standing at the exact waypoint. ~60 m is
+// tight enough to mean "you're here" yet realistic for a phone GPS in the open.
+const AT_WAYPOINT_MI = 60 / 1609.34;
+const GPS_TOO_ROUGH_M = 80; // reject readings too imprecise to confirm the spot
 
-// Aspect-corrected lat/lng -> SVG-coordinate projector (a degree of longitude
-// is shorter than a degree of latitude away from the equator) — built ONCE
-// from the trail's own path bounds so the route line and a live position dot
-// always agree, even though the live position usually falls outside those
-// bounds while off-trail.
+function milesBetween(aLat, aLng, bLat, bLng) {
+  const R = 3958.8, toRad = Math.PI / 180;
+  const dLat = (bLat - aLat) * toRad, dLng = (bLng - aLng) * toRad;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * toRad) * Math.cos(bLat * toRad) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+// Aspect-corrected lat/lng -> SVG-coordinate projector (used only by the offline
+// SVG fallback; the live map is a real Google map). Built ONCE from the trail's
+// own path bounds so the route line and a live dot always agree.
 function makeProjector(path, W, H, pad) {
   const lats = path.map((p) => p[0]), lngs = path.map((p) => p[1]);
   const minLat = Math.min(...lats), maxLat = Math.max(...lats);
@@ -33,11 +40,9 @@ function makeProjector(path, W, H, pad) {
   const spanLng = Math.max((maxLng - minLng) * lngScale, 1e-5);
   const scale = Math.min((W - 2 * pad) / spanLng, (H - 2 * pad) / spanLat);
   const project = (lat, lng) => [W / 2 + (lng - midLng) * lngScale * scale, H / 2 - (lat - midLat) * scale];
-  project.milesPerPixel = 69 / scale; // scale is px per degree-lat; 1° latitude ≈ 69 mi
+  project.milesPerPixel = 69 / scale;
   return project;
 }
-// A round, human-friendly scale bar length (e.g. "0.5 mi") that fits within
-// a target pixel width, for the SVG fallback's real distance reference.
 function niceScaleBar(milesPerPixel, targetPx) {
   const targetMi = milesPerPixel * targetPx;
   const steps = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 50];
@@ -45,13 +50,10 @@ function niceScaleBar(milesPerPixel, targetPx) {
   for (const v of steps) { if (v <= targetMi) mi = v; else break; }
   return { mi, px: mi / milesPerPixel };
 }
-// NOT the decorative bezier curve from the original prototype — a real
-// projection of the trail's actual geometry.
 function projectPath(path, W, H, pad) {
   const project = makeProjector(path, W, H, pad);
   return path.map(([lat, lng]) => project(lat, lng));
 }
-
 function elevAt(points, mi) {
   if (!points.length) return null;
   for (let i = 1; i < points.length; i++) {
@@ -64,49 +66,99 @@ function elevAt(points, mi) {
   return points[points.length - 1].ft;
 }
 
-// Generic real checkpoints (distance + elevation) — no landmark names, since
-// NPS's dataset has none generically. One per mile for longer trails, three
-// evenly-spaced points for short ones, capped so the list stays scannable.
-function buildMileMarkers(points) {
-  if (!points.length) return [];
+// A note describing a real OSM feature type — honest context, no invention.
+function featureNote(type) {
+  return ({
+    peak: "A named summit on the route.", saddle: "A saddle on the ridge.",
+    pass: "A named pass along the way.", water: "A named lake beside the trail.",
+    waterfall: "A waterfall near the trail.", glacier: "A glacier along the route.",
+    spring: "A spring near the trail.", viewpoint: "A marked viewpoint.",
+  })[type] || "A named landmark on the route.";
+}
+
+// Build up to ~5 milestones from the trail's OWN data: real elevation + geometry
+// give the mile marks and coordinates; nearby real OSM features (peaks, passes,
+// lakes…) give the names where they exist; otherwise an honest descriptive label
+// derived from the elevation role. Nothing invented, nothing hardcoded per-trail.
+function buildMilestones(points, path, features) {
+  if (!points.length || !Array.isArray(path) || path.length < 2) return [];
   const maxMi = points[points.length - 1].mi;
-  if (maxMi <= 0) return [{ mi: 0, ft: points[0].ft }];
-  let marks;
-  if (maxMi < 2) {
-    marks = [0, maxMi / 2, maxMi].map((mi) => ({ mi, ft: elevAt(points, mi) }));
-  } else {
-    marks = [];
-    for (let mi = 0; mi <= Math.floor(maxMi); mi++) marks.push({ mi, ft: elevAt(points, mi) });
-    if (Math.floor(maxMi) < maxMi - 0.05) marks.push({ mi: maxMi, ft: elevAt(points, maxMi) });
+  if (maxMi <= 0) return [];
+  let hp = points[0];
+  for (const p of points) if (p.ft > hp.ft) hp = p;
+
+  const cand = [0, maxMi * 0.25, hp.mi, maxMi * 0.55, maxMi * 0.8, maxMi].filter((m) => m >= 0 && m <= maxMi).sort((a, b) => a - b);
+  const minGap = Math.max(0.15, maxMi * 0.12);
+  const miles = [];
+  for (const m of cand) { if (!miles.length || m - miles[miles.length - 1] >= minGap) miles.push(m); }
+  if (miles[miles.length - 1] < maxMi - 1e-6) {
+    if (maxMi - miles[miles.length - 1] < minGap) miles[miles.length - 1] = maxMi;
+    else miles.push(maxMi);
   }
-  if (marks.length > 7) {
-    const step = Math.ceil(marks.length / 7);
-    marks = marks.filter((_, i) => i % step === 0 || i === marks.length - 1);
-  }
-  return marks;
+
+  const usedFeature = new Set();
+  return miles.map((mi, i, arr) => {
+    const ll = pointAtMile(path, mi) || { lat: path[0][0], lng: path[0][1] };
+    const ft = elevAt(points, mi);
+    let feat = null, best = 0.3;
+    for (const f of features || []) {
+      if (usedFeature.has(f.name)) continue;
+      const d = milesBetween(ll.lat, ll.lng, f.lat, f.lng);
+      if (d < best) { best = d; feat = f; }
+    }
+    let name, note;
+    if (feat) {
+      usedFeature.add(feat.name);
+      name = feat.name; note = featureNote(feat.type);
+    } else if (i === 0) {
+      name = "Trailhead"; note = "Start of the trail.";
+    } else if (i === arr.length - 1) {
+      name = "Trail's end"; note = "End of the trail.";
+    } else if (ft != null && Math.round(ft) === Math.round(hp.ft)) {
+      name = "High point"; note = "Highest point on the route.";
+    } else {
+      const prevFt = elevAt(points, arr[i - 1]);
+      if (ft != null && prevFt != null && ft < prevFt - 60) { name = "Descending"; note = "The trail drops from here."; }
+      else if (ft != null && prevFt != null && ft > prevFt + 60) { name = "Climbing"; note = "A sustained climb ahead."; }
+      else { name = "Along the trail"; note = "A waypoint on the route."; }
+    }
+    return { mi, ft, name, note, lat: ll.lat, lng: ll.lng, viaFeature: !!feat };
+  });
 }
 
 // err.code from the Geolocation API: 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT.
 const GEO_ERROR_MESSAGES = {
-  1: "Location access was denied — allow it in your browser's site settings to use live navigation.",
+  1: "Location access was denied — allow it in your browser's site settings.",
   2: "Couldn't get your location — GPS may be unavailable here.",
-  3: "Location request timed out — try again, especially if you're indoors or under heavy tree cover.",
+  3: "Location request timed out — try again in the open, away from heavy tree cover.",
 };
 
 export default function TrailRouteChart({ trailKey, path, category }) {
   const [profile, setProfile] = useState(undefined);
   const [scrubMi, setScrubMi] = useState(null);
-  const [navPos, setNavPos] = useState(null); // { lat, lng, accuracy } while navigating
+  const [navPos, setNavPos] = useState(null);
   const [navError, setNavError] = useState(null);
   const [navWatching, setNavWatching] = useState(false);
-  const [mapsLoaded, setMapsLoaded] = useState(null); // null = loading, true = ready, false = failed/unavailable
-  const [isOffline, setIsOffline] = useState(false); // corrected from navigator.onLine on mount (server has no navigator)
+  const [mapsLoaded, setMapsLoaded] = useState(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [features, setFeatures] = useState([]);
+  const [selected, setSelected] = useState(0);
+  const [photos, setPhotos] = useState({}); // { [milestoneIndex]: [ {url,lat,lng,accuracyFt,ts} ] }
+  const [toast, setToast] = useState(null);
+
   const svgRef = useRef(null);
   const navWatchIdRef = useRef(null);
   const mapDivRef = useRef(null);
   const mapObjRef = useRef(null);
   const scrubMarkerRef = useRef(null);
   const liveMarkerRef = useRef(null);
+  const msMarkersRef = useRef([]);
+  const fileRef = useRef(null);
+  const pendingRef = useRef(null); // stamped GPS coords for a photo being added
+  const panelRef = useRef(null);
+  const toastTimer = useRef(null);
+
+  const milestones = useMemo(() => buildMilestones(profile?.points || [], path, features), [profile, path, features]);
 
   useEffect(() => {
     let on = true;
@@ -114,11 +166,10 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     return () => { on = false; };
   }, [trailKey, path]);
 
-  // Track connectivity so we can (a) skip a doomed Maps-tile fetch and go
-  // straight to the offline-safe SVG line, and (b) tell the user plainly
-  // what still works rather than leaving a half-broken map unexplained.
-  // Live navigation itself needs none of this — GPS + the trail's own path
-  // (already in this component's props) work with zero network.
+  useEffect(() => {
+    try { setPhotos(JSON.parse(localStorage.getItem("pb_photos_" + trailKey) || "{}") || {}); } catch { setPhotos({}); }
+  }, [trailKey]);
+
   useEffect(() => {
     const goOnline = () => setIsOffline(false);
     const goOffline = () => setIsOffline(true);
@@ -128,13 +179,6 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
   }, []);
 
-  // A real map is far more useful than an abstract line — load it in parallel
-  // with the elevation fetch. Falls back to the SVG route rendering below if
-  // offline, the key is missing/blocked (mapsLoaded === false), or still
-  // loading (mapsLoaded === null) — never a blank panel. Checks
-  // navigator.onLine directly (not the isOffline state, which may not have
-  // been corrected from its default yet on the very first render) so an
-  // already-offline page load doesn't even attempt a doomed script fetch.
   useEffect(() => {
     let on = true;
     if (!navigator.onLine) { setMapsLoaded(false); return; }
@@ -142,8 +186,19 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     return () => { on = false; };
   }, []);
 
-  // Instantiate the real map once it's loaded and the div exists (only once —
-  // guards against React StrictMode's double-invoke re-creating it).
+  // Real named features near the trail (for milestone names). Best-effort — if
+  // Overpass is slow/down, milestones fall back to descriptive labels.
+  useEffect(() => {
+    if (!Array.isArray(path) || path.length < 2 || !navigator.onLine) return;
+    const lats = path.map((p) => p[0]), lngs = path.map((p) => p[1]);
+    const pad = 0.005;
+    const bbox = [Math.min(...lats) - pad, Math.min(...lngs) - pad, Math.max(...lats) + pad, Math.max(...lngs) + pad].map((v) => v.toFixed(5)).join(",");
+    let on = true;
+    fetch("/api/waypoints?bbox=" + bbox).then((r) => (r.ok ? r.json() : null)).then((d) => { if (on && d && d.features) setFeatures(d.features); }).catch(() => {});
+    return () => { on = false; };
+  }, [path]);
+
+  // Instantiate the real map once (guards StrictMode double-invoke).
   useEffect(() => {
     if (!mapsLoaded || !mapDivRef.current || !Array.isArray(path) || path.length < 2 || mapObjRef.current) return;
     const g = window.google;
@@ -153,8 +208,6 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     });
     mapObjRef.current = map;
     const trailColor = (category && TRAIL_STYLE[category]) || ACCENT;
-    // Dashed trail-marker look (matches topo-map convention) — Maps draws
-    // dashes via a repeated line symbol "icon" rather than a strokeDasharray.
     new g.maps.Polyline({
       path: path.map(([lat, lng]) => ({ lat, lng })),
       strokeOpacity: 0, map,
@@ -165,63 +218,69 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     map.fitBounds(bounds, 30);
   }, [mapsLoaded, path, category]);
 
-  // Elevation-chart hover scrub -> a real marker on the map at that mile.
+  // Numbered milestone markers on the map; clicking one selects it in the panel.
   useEffect(() => {
     const map = mapObjRef.current;
     if (!map || !window.google) return;
-    if (scrubMi == null) {
-      if (scrubMarkerRef.current) scrubMarkerRef.current.setMap(null);
-      return;
-    }
+    msMarkersRef.current.forEach((m) => m.setMap(null));
+    msMarkersRef.current = [];
+    milestones.forEach((ms, i) => {
+      const sel = i === selected;
+      const mk = new window.google.maps.Marker({
+        position: { lat: ms.lat, lng: ms.lng }, map, zIndex: sel ? 9 : 6,
+        label: { text: String(i + 1), color: "#15241c", fontSize: "11px", fontWeight: "800" },
+        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: sel ? 12 : 10, fillColor: sel ? "#e4be78" : "#fbf6ea", fillOpacity: 1, strokeColor: "#15241c", strokeWeight: 2 },
+      });
+      mk.addListener("click", () => setSelected(i));
+      msMarkersRef.current.push(mk);
+    });
+    return () => { msMarkersRef.current.forEach((m) => m.setMap(null)); msMarkersRef.current = []; };
+  }, [milestones, selected, mapsLoaded]);
+
+  useEffect(() => {
+    const map = mapObjRef.current;
+    if (!map || !window.google) return;
+    if (scrubMi == null) { if (scrubMarkerRef.current) scrubMarkerRef.current.setMap(null); return; }
     const pt = pointAtMile(path, scrubMi);
     if (!pt) return;
     if (!scrubMarkerRef.current) {
       scrubMarkerRef.current = new window.google.maps.Marker({
-        position: pt, map, zIndex: 5,
+        position: pt, map, zIndex: 12,
         icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: ACCENT, fillOpacity: 1, strokeColor: "#fffdf8", strokeWeight: 2 },
       });
-    } else {
-      scrubMarkerRef.current.setPosition(pt);
-      scrubMarkerRef.current.setMap(map);
-    }
+    } else { scrubMarkerRef.current.setPosition(pt); scrubMarkerRef.current.setMap(map); }
   }, [scrubMi, path]);
 
-  // Live navigation position -> a real marker, map gently pans to follow
-  // (never forces zoom — respects whatever the user has set).
   useEffect(() => {
     const map = mapObjRef.current;
     if (!map || !window.google) return;
-    if (!navPos) {
-      if (liveMarkerRef.current) liveMarkerRef.current.setMap(null);
-      return;
-    }
+    if (!navPos) { if (liveMarkerRef.current) liveMarkerRef.current.setMap(null); return; }
     const pos = { lat: navPos.lat, lng: navPos.lng };
     if (!liveMarkerRef.current) {
       liveMarkerRef.current = new window.google.maps.Marker({
-        position: pos, map, zIndex: 10,
+        position: pos, map, zIndex: 15,
         icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: NAV_COLOR, fillOpacity: 1, strokeColor: "#fffdf8", strokeWeight: 2.5 },
       });
-    } else {
-      liveMarkerRef.current.setPosition(pos);
-      liveMarkerRef.current.setMap(map);
-    }
+    } else { liveMarkerRef.current.setPosition(pos); liveMarkerRef.current.setMap(map); }
     map.panTo(pos);
   }, [navPos]);
 
+  useEffect(() => () => { if (navWatchIdRef.current != null && navigator.geolocation) navigator.geolocation.clearWatch(navWatchIdRef.current); }, []);
+
+  function showToast(msg) {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3600);
+  }
   function stopNav() {
-    if (navWatchIdRef.current != null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(navWatchIdRef.current);
-    }
+    if (navWatchIdRef.current != null && navigator.geolocation) navigator.geolocation.clearWatch(navWatchIdRef.current);
     navWatchIdRef.current = null;
     setNavWatching(false);
     setNavPos(null);
   }
   function startNav() {
     setNavError(null);
-    if (!navigator.geolocation) {
-      setNavError("Geolocation isn't available in this browser.");
-      return;
-    }
+    if (!navigator.geolocation) { setNavError("Geolocation isn't available in this browser."); return; }
     setNavWatching(true);
     navWatchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => setNavPos({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
@@ -229,26 +288,82 @@ export default function TrailRouteChart({ trailKey, path, category }) {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
   }
-  // Stop watching on unmount (e.g. navigating away from the page) — never
-  // leave GPS polling running in the background.
-  useEffect(() => () => { if (navWatchIdRef.current != null && navigator.geolocation) navigator.geolocation.clearWatch(navWatchIdRef.current); }, []);
 
-  if (profile === undefined) {
-    return (
-      <div style={{ background: "#fffdf8", border: "1px solid #e2dac8", borderRadius: 24, padding: 24, textAlign: "center", color: "#8a8471", fontSize: ".84rem", marginBottom: 22 }}>Loading route &amp; elevation…</div>
+  function selectMilestone(i) {
+    setSelected(i);
+    if (panelRef.current) panelRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // "Add yours" — a photo is only accepted while the hiker is physically AT this
+  // milestone. We check the device's precise location against THIS waypoint's
+  // coordinates; if they're actually at a different milestone we say which; on
+  // acceptance the capture coordinates are stamped onto the photo record.
+  // Production: this same check re-runs server-side on upload before moderation.
+  function addPhoto() {
+    const ms = milestones[selected];
+    if (!ms) return;
+    if (!navigator.geolocation) { showToast("Geolocation isn't available — can't verify you're at this spot."); return; }
+    showToast("Checking you're at " + ms.name + "…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        if (accuracy != null && accuracy > GPS_TOO_ROUGH_M) {
+          showToast("Your GPS is too rough (~" + Math.round(accuracy) + " m) to confirm you're here — try again in the open.");
+          return;
+        }
+        const d = milesBetween(lat, lng, ms.lat, ms.lng);
+        if (d > AT_WAYPOINT_MI) {
+          let nearestIdx = -1, nearestD = AT_WAYPOINT_MI;
+          milestones.forEach((m, i) => { const dd = milesBetween(lat, lng, m.lat, m.lng); if (dd < nearestD) { nearestD = dd; nearestIdx = i; } });
+          if (nearestIdx >= 0 && nearestIdx !== selected) showToast("You're at milestone " + (nearestIdx + 1) + " (" + milestones[nearestIdx].name + "), not this one. Select it to add a photo there.");
+          else showToast("You need to be at " + ms.name + " to add a photo here — you're about " + Math.round(d * 5280) + " ft away.");
+          return;
+        }
+        pendingRef.current = { lat, lng, accuracyFt: accuracy != null ? Math.round(accuracy * 3.28084) : null };
+        if (fileRef.current) fileRef.current.click();
+      },
+      (err) => showToast(GEO_ERROR_MESSAGES[err.code] || "Couldn't get your location."),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
     );
   }
+  function onFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    const coords = pendingRef.current;
+    pendingRef.current = null;
+    if (!file || !coords) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        const w = Math.min(640, img.width);
+        c.width = w; c.height = Math.round((img.height * w) / img.width);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        const url = c.toDataURL("image/jpeg", 0.8);
+        const rec = { url, lat: coords.lat, lng: coords.lng, accuracyFt: coords.accuracyFt, ts: Date.now() };
+        setPhotos((prev) => {
+          const next = { ...prev, [selected]: [...(prev[selected] || []), rec] };
+          try { localStorage.setItem("pb_photos_" + trailKey, JSON.stringify(next)); } catch {}
+          return next;
+        });
+        showToast("Photo added at " + (milestones[selected]?.name || "this spot") + " ✓");
+      };
+      img.src = rd.result;
+    };
+    rd.readAsDataURL(file);
+  }
+
+  if (profile === undefined) {
+    return <div style={{ background: "#fffdf8", border: "1px solid #e2dac8", borderRadius: 24, padding: 24, textAlign: "center", color: "#8a8471", fontSize: ".84rem", marginBottom: 22 }}>Loading route &amp; elevation…</div>;
+  }
   const { points } = profile;
-  if (!points.length || path.length < 2) return null; // Elevation API unavailable — omit rather than show a broken chart
+  if (!points.length || path.length < 2) return null;
 
   const routePts = projectPath(path, MAP_W, MAP_H, 40);
   const projectLive = makeProjector(path, MAP_W, MAP_H, 40);
   const scaleBar = niceScaleBar(projectLive.milesPerPixel, 90);
 
-  // Off-trail: distance + bearing back to the nearest point. On-trail:
-  // progress + bearing toward a lookahead point (assumes forward = increasing
-  // mile-mark along the stored path — a real v1 simplification, doesn't infer
-  // which direction the hiker is actually walking).
   let nav = null;
   if (navPos) {
     const nearest = nearestPointOnPath(navPos.lat, navPos.lng, path);
@@ -261,6 +376,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   }
   const liveDot = navPos ? projectLive(navPos.lat, navPos.lng) : null;
   const maxMi = points[points.length - 1].mi;
+  const netFt = Math.round(points[points.length - 1].ft - points[0].ft);
   const W = CHART_W, H = CHART_H, L = 56, R = 16, T = 20, B = 32;
   const fts = points.map((p) => p.ft);
   const ymin = Math.min(...fts) - 40, ymax = Math.max(...fts) + 40;
@@ -277,10 +393,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     const mi = Math.max(0, Math.min(maxMi, ((x - L) / (W - L - R)) * maxMi));
     setScrubMi(mi);
   }
-
   const scrubFt = scrubMi != null ? elevAt(points, scrubMi) : null;
-  // path[i] and points[i] correspond 1:1 (same source array), so interpolate
-  // the route-map position at the same index/fraction as the elevation scrub.
   let routeDot = null;
   if (scrubMi != null) {
     let idx = 0;
@@ -292,14 +405,18 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     routeDot = [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
   }
 
-  const markers = buildMileMarkers(points);
+  // Milestone numbered dots for the SVG fallback.
+  const msDots = milestones.map((ms) => ({ pt: projectLive(ms.lat, ms.lng) }));
+  const sel = milestones[selected];
+  const selPhotos = photos[selected] || [];
 
   return (
     <div style={{ background: "#fffdf8", border: "1px solid #e2dac8", borderRadius: 24, overflow: "hidden", marginBottom: 22 }}>
+      {/* Live navigation bar */}
       <div style={{ padding: "18px 20px", borderBottom: "1px solid #efe8d8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
           {isOffline && (
-            <div style={{ background: "#fdf3e4", border: "1px solid #eeddc0", color: "#8a6a2f", fontSize: ".76rem", fontWeight: 600, borderRadius: 10, padding: "7px 11px", marginBottom: 8, maxWidth: 340 }}>
+            <div style={{ background: "#fdf3e4", border: "1px solid #eeddc0", color: "#8a6a2f", fontSize: ".76rem", fontWeight: 600, borderRadius: 10, padding: "7px 11px", marginBottom: 8, maxWidth: 360 }}>
               You&apos;re offline — trail imagery isn&apos;t available, but live navigation still works.
             </div>
           )}
@@ -310,71 +427,97 @@ export default function TrailRouteChart({ trailKey, path, category }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ display: "inline-block", transform: "rotate(" + nav.bearing + "deg)", fontSize: "1.4rem", lineHeight: 1, color: NAV_COLOR }}>↑</span>
               <div>
-                <b style={{ fontSize: ".88rem", color: "#22261f", display: "block" }}>
-                  {nav.onTrail ? "On trail — mi " + nav.mileMark.toFixed(1) + " of " + maxMi.toFixed(1) : nav.distFt + " ft off trail"}
-                </b>
-                <span style={{ fontSize: ".76rem", color: "#6d7263" }}>
-                  {nav.onTrail ? "Keep going " + nav.compass : "Head " + nav.compass + " to rejoin the trail"}
-                  {nav.accuracyFt != null && " · ~" + nav.accuracyFt + " ft accuracy"}
-                </span>
+                <b style={{ fontSize: ".88rem", color: "#22261f", display: "block" }}>{nav.onTrail ? "On trail — mi " + nav.mileMark.toFixed(1) + " of " + maxMi.toFixed(1) : nav.distFt + " ft off trail"}</b>
+                <span style={{ fontSize: ".76rem", color: "#6d7263" }}>{nav.onTrail ? "Keep going " + nav.compass : "Head " + nav.compass + " to rejoin the trail"}{nav.accuracyFt != null && " · ~" + nav.accuracyFt + " ft accuracy"}</span>
               </div>
             </div>
           )}
           {navWatching && !nav && <div style={{ fontSize: ".8rem", color: "#6d7263" }}>Finding your location…</div>}
         </div>
-        <button
-          onClick={navWatching ? stopNav : startNav}
-          style={{ border: "none", borderRadius: 999, padding: "9px 16px", fontSize: ".78rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit", flex: "none", background: navWatching ? "#22261f" : "linear-gradient(120deg,#e4be78,#c79a4b)", color: navWatching ? "#f3efe7" : "#15241c" }}
-        >
-          {navWatching ? "■ Stop navigation" : "▶ Start navigation"}
-        </button>
+        <button onClick={navWatching ? stopNav : startNav} style={{ border: "none", borderRadius: 999, padding: "9px 16px", fontSize: ".78rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit", flex: "none", background: navWatching ? "#22261f" : "linear-gradient(120deg,#e4be78,#c79a4b)", color: navWatching ? "#f3efe7" : "#15241c" }}>{navWatching ? "■ Stop navigation" : "▶ Start navigation"}</button>
       </div>
-      <div style={{ padding: "20px 20px 12px", borderBottom: "1px solid #efe8d8" }}>
-        <SectionTitle>Trail map</SectionTitle>
-        {mapsLoaded ? (
-          <div style={{ position: "relative" }}>
-            <div ref={mapDivRef} style={{ width: "100%", height: MAP_H, borderRadius: 12, overflow: "hidden" }} />
-            {/* Compass rose — google.maps.Map has no heading/tilt set here, so it's always north-up and a static "N" is accurate. Top-right, clear of the map-type control at top-left. */}
-            <div style={{ position: "absolute", top: 10, right: 10, width: 34, height: 46, background: "rgba(255,253,248,.85)", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: ".68rem", fontWeight: 700, color: "#4c5443", pointerEvents: "none" }}>
-              <span>N</span>
-              <span style={{ fontSize: ".78rem", lineHeight: 1 }}>↑</span>
-            </div>
+
+      {/* Map + Milestone photos side by side */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))" }}>
+        <div style={{ position: "relative", minHeight: MAP_MINH, borderRight: "1px solid #efe8d8" }}>
+          {mapsLoaded ? (
+            <>
+              <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
+              <span style={{ position: "absolute", left: 12, top: 12, zIndex: 2, background: "rgba(21,36,28,.85)", color: "#f3ede0", fontFamily: mono, fontSize: ".58rem", letterSpacing: ".14em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>Satellite · tap a number</span>
+              <div style={{ position: "absolute", top: 12, right: 12, zIndex: 2, width: 34, height: 46, background: "rgba(255,253,248,.85)", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: ".68rem", fontWeight: 700, color: "#4c5443", pointerEvents: "none" }}>
+                <span>N</span><span style={{ fontSize: ".78rem", lineHeight: 1 }}>↑</span>
+              </div>
+            </>
+          ) : (
+            <svg viewBox={"0 0 " + MAP_W + " " + MAP_H} preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", background: "#f0ead9" }}>
+              <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="11" strokeLinecap="round" />
+              <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="6" strokeLinecap="round" strokeDasharray="10 9" />
+              {msDots.map((d, i) => (
+                <g key={i} onClick={() => setSelected(i)} style={{ cursor: "pointer" }}>
+                  <circle cx={d.pt[0]} cy={d.pt[1]} r={i === selected ? 13 : 11} fill={i === selected ? "#e4be78" : "#fbf6ea"} stroke="#15241c" strokeWidth="2" />
+                  <text x={d.pt[0]} y={d.pt[1] + 4} textAnchor="middle" fontFamily={mono} fontSize="12" fontWeight="800" fill="#15241c">{i + 1}</text>
+                </g>
+              ))}
+              {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="7" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
+              {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="8" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
+              <g fontFamily={mono} fontSize="13" fill="#8a8471">
+                <text x="30" y="40">N</text>
+                <line x1="35" y1="47" x2="35" y2="78" stroke="#8a8471" strokeWidth="1.6" />
+                <path d="M35 45 l-5 9 h10 Z" fill="#8a8471" />
+              </g>
+              <g fontFamily={mono} fontSize="12" fill="#8a8471">
+                <line x1={MAP_W - 24 - scaleBar.px} y1={MAP_H - 24} x2={MAP_W - 24} y2={MAP_H - 24} stroke="#8a8471" strokeWidth="1.6" />
+                <text x={MAP_W - 24 - scaleBar.px} y={MAP_H - 32} textAnchor="start">0</text>
+                <text x={MAP_W - 24} y={MAP_H - 32} textAnchor="end">{scaleBar.mi} mi</text>
+              </g>
+            </svg>
+          )}
+        </div>
+
+        {/* Milestone photos panel */}
+        <div ref={panelRef} style={{ position: "relative", minHeight: MAP_MINH, display: "flex", flexDirection: "column", padding: "18px 18px 16px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+            <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.1rem", margin: 0, color: "#163a2b" }}>Milestone photos</h2>
+            <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#8a8471" }}>Tap a numbered marker</span>
           </div>
-        ) : (
-          <svg viewBox={"0 0 " + MAP_W + " " + MAP_H} style={{ width: "100%", height: "auto", display: "block" }}>
-            <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="11" strokeLinecap="round" />
-            <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="6" strokeLinecap="round" strokeDasharray="10 9" />
-            {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="7" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
-            {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="8" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
-            {/* Compass rose — the map is always north-up (no rotation applied), so a static "N" is accurate. */}
-            <g fontFamily={mono} fontSize="13" fill="#8a8471">
-              <text x="30" y="40">N</text>
-              <line x1="35" y1="47" x2="35" y2="78" stroke="#8a8471" strokeWidth="1.6" />
-              <path d="M35 45 l-5 9 h10 Z" fill="#8a8471" />
-            </g>
-            {/* Real distance scale, computed from the same projection the route line uses. */}
-            <g fontFamily={mono} fontSize="12" fill="#8a8471">
-              <line x1={MAP_W - 24 - scaleBar.px} y1={MAP_H - 24} x2={MAP_W - 24} y2={MAP_H - 24} stroke="#8a8471" strokeWidth="1.6" />
-              <text x={MAP_W - 24 - scaleBar.px} y={MAP_H - 32} textAnchor="start">0</text>
-              <text x={MAP_W - 24} y={MAP_H - 32} textAnchor="end">{scaleBar.mi} mi</text>
-            </g>
-          </svg>
-        )}
+          {sel && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", marginTop: 10 }}>
+              <div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".16em", textTransform: "uppercase", color: ACCENT }}>Milestone {selected + 1} · MI {sel.mi.toFixed(1)}{sel.ft != null ? " · " + Math.round(sel.ft).toLocaleString() + " FT" : ""}</div>
+              <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.15rem", marginTop: 4, color: "#22261f" }}>{sel.name}</div>
+              <div style={{ fontSize: ".8rem", color: "#6d7263", marginTop: 3, lineHeight: 1.5 }}>{sel.note}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginTop: 12 }}>
+                {selPhotos.slice().reverse().map((p, i) => (
+                  <figure key={i} style={{ position: "relative", aspectRatio: "1/1", margin: 0, overflow: "hidden", borderRadius: 12, background: "#ece5d4" }}>
+                    <img src={p.url} alt="Your photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                    <span style={{ position: "absolute", left: 7, top: 7, background: "linear-gradient(120deg,#e4be78,#c79a4b)", color: "#15241c", fontFamily: mono, fontSize: ".54rem", fontWeight: 700, letterSpacing: ".08em", borderRadius: 999, padding: "2px 7px" }}>YOU</span>
+                  </figure>
+                ))}
+                <button onClick={addPhoto} style={{ aspectRatio: "1/1", border: "1.5px dashed #c79a4b", borderRadius: 12, background: "#fdf8ec", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit", padding: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b3862d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                  <span style={{ fontFamily: mono, fontSize: ".56rem", fontWeight: 700, letterSpacing: ".1em", color: "#8a6a2f" }}>ADD YOURS</span>
+                </button>
+              </div>
+              <div style={{ marginTop: "auto", paddingTop: 12, fontSize: ".72rem", color: "#8a8471", lineHeight: 1.5 }}>
+                {selPhotos.length > 0 ? selPhotos.length + " photo" + (selPhotos.length === 1 ? "" : "s") + " here · " : "No photos here yet · "}
+                photos are accepted only when you&apos;re standing at this waypoint (GPS-verified).
+              </div>
+            </div>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+        </div>
       </div>
-      <div style={{ padding: "20px 20px 16px" }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+
+      {/* Elevation profile — full width */}
+      <div style={{ padding: "20px 22px 18px", borderTop: "1px solid #efe8d8" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <SectionTitle>Elevation profile</SectionTitle>
           <span style={{ fontFamily: mono, fontSize: ".68rem", color: "#4c5443", fontWeight: 600, whiteSpace: "nowrap" }}>
-            {scrubMi != null ? "MI " + scrubMi.toFixed(1) + " · " + Math.round(scrubFt).toLocaleString() + " FT" : "MI 0.0 – " + maxMi.toFixed(1)}
+            {scrubMi != null ? "MI " + scrubMi.toFixed(1) + " · " + Math.round(scrubFt).toLocaleString() + " FT" : "MI 0.0 – " + maxMi.toFixed(1) + " · " + (netFt >= 0 ? "+" : "−") + Math.abs(netFt).toLocaleString() + " FT NET"}
           </span>
         </div>
-        <svg
-          ref={svgRef} viewBox={"0 0 " + W + " " + H}
-          style={{ width: "100%", height: "auto", display: "block", cursor: "crosshair", marginTop: 6 }}
-          onMouseMove={handleMove} onMouseLeave={() => setScrubMi(null)}
-        >
+        <svg ref={svgRef} viewBox={"0 0 " + W + " " + H} style={{ width: "100%", height: "auto", display: "block", cursor: "crosshair", marginTop: 6 }} onMouseMove={handleMove} onMouseLeave={() => setScrubMi(null)}>
           <path d={area} fill={ACCENT} opacity=".12" />
-          <path d={line} fill="none" stroke={ACCENT} strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />
+          <path d={line} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
           {scrubMi != null && (
             <>
               <line x1={X(scrubMi)} y1={T} x2={X(scrubMi)} y2={H - B} stroke="#22261f" strokeWidth="1" strokeDasharray="3 3" />
@@ -382,20 +525,34 @@ export default function TrailRouteChart({ trailKey, path, category }) {
             </>
           )}
         </svg>
+        <div style={{ fontSize: ".74rem", color: "#6d7263", marginTop: 8 }}>Hover the profile — the dot traces your position on the map.</div>
       </div>
-      {markers.length > 0 && (
-        <div style={{ borderTop: "1px solid #efe8d8", padding: "16px 20px 20px" }}>
+
+      {/* Mile by mile — real milestone names + photo chips */}
+      {milestones.length > 0 && (
+        <div style={{ borderTop: "1px solid #efe8d8", padding: "16px 22px 22px" }}>
           <SectionTitle>Mile by mile</SectionTitle>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {markers.map((m, i) => (
-              <div key={i} style={{ display: "flex", gap: 16, alignItems: "baseline", padding: "10px 0", borderTop: i ? "1px solid #efe8d8" : "none" }}>
-                <span style={{ fontFamily: mono, fontSize: ".72rem", fontWeight: 700, color: ACCENT, flex: "none", width: 60 }}>MI {m.mi.toFixed(1)}</span>
-                <span style={{ flex: 1, fontSize: ".8rem", color: "#6d7263" }}>{i === 0 ? "Trailhead" : i === markers.length - 1 ? "End of trail" : "Along the trail"}</span>
-                <span style={{ fontFamily: mono, fontSize: ".7rem", color: "#8a8471", flex: "none" }}>{Math.round(m.ft).toLocaleString()} FT</span>
-              </div>
-            ))}
+            {milestones.map((m, i) => {
+              const n = (photos[i] || []).length;
+              return (
+                <div key={i} style={{ display: "flex", gap: 14, alignItems: "baseline", padding: "12px 0", borderTop: i ? "1px solid #efe8d8" : "none" }}>
+                  <span style={{ fontFamily: mono, fontSize: ".72rem", fontWeight: 700, color: ACCENT, flex: "none", width: 52 }}>MI {m.mi.toFixed(1)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <b style={{ fontSize: ".95rem", color: "#22261f" }}>{m.name}</b>
+                    <button onClick={() => selectMilestone(i)} style={{ marginLeft: 8, cursor: "pointer", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, color: ACCENT, background: "#fdf3e4", border: "1px solid #eeddc0", borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>{n > 0 ? n + " PHOTO" + (n === 1 ? "" : "S") + " →" : "ADD PHOTO →"}</button>
+                    {m.note && <div style={{ fontSize: ".8rem", color: "#6d7263", marginTop: 2 }}>{m.note}</div>}
+                  </div>
+                  {m.ft != null && <span style={{ fontFamily: mono, fontSize: ".7rem", color: "#8a8471", flex: "none" }}>{Math.round(m.ft).toLocaleString()} FT</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
+      )}
+
+      {toast && (
+        <div style={{ position: "fixed", left: "50%", bottom: 26, transform: "translateX(-50%)", zIndex: 120, background: "#15241c", color: "#f3efe7", fontSize: ".84rem", fontWeight: 700, padding: "11px 18px", borderRadius: 999, boxShadow: "0 16px 40px -16px rgba(0,0,0,.5)", maxWidth: "90vw", textAlign: "center" }}>{toast}</div>
       )}
     </div>
   );

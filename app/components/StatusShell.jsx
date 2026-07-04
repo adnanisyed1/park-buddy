@@ -18,7 +18,7 @@ const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const numeric = "var(--font-space-grotesk), 'Space Grotesk', sans-serif";
 const microLabel = { fontFamily: mono, fontSize: ".6rem", letterSpacing: ".16em", textTransform: "uppercase", color: COLORS.muted };
 
-export function StatusShell({ children, hero, backHref, backLabel, headerRight }) {
+export function StatusShell({ children, hero, backHref, backLabel, headerRight, wide, bare }) {
   return (
     <div style={{ minHeight: "100vh", background: COLORS.cream, fontFamily: sans, color: COLORS.ink }}>
       <header style={{ position: "sticky", top: 0, zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px clamp(16px,4vw,40px)", background: "rgba(16,32,23,.7)", backdropFilter: "blur(16px) saturate(1.4)", WebkitBackdropFilter: "blur(16px) saturate(1.4)", borderBottom: "1px solid rgba(228,190,120,.28)" }}>
@@ -33,27 +33,32 @@ export function StatusShell({ children, hero, backHref, backLabel, headerRight }
       </header>
       {hero}
       <div style={{ position: "relative", zIndex: 3, background: COLORS.cream, borderRadius: hero ? "24px 24px 0 0" : 0, marginTop: hero ? -20 : 0 }}>
-        <main style={{ maxWidth: 760, margin: "0 auto", padding: "26px 20px 60px" }}>
-          {children}
-        </main>
+        {bare ? children : (
+          <main style={{ maxWidth: wide ? 1180 : 760, margin: "0 auto", padding: wide ? "22px clamp(16px,4vw,40px) 60px" : "26px 20px 60px" }}>
+            {children}
+          </main>
+        )}
       </div>
     </div>
   );
 }
 
-// Full-bleed dark hero: photo (optional) + gradient + breadcrumb + title + pill row.
-export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pills }) {
+// Full-bleed dark hero: photo (optional) + gradient + breadcrumb + title + pill
+// row, plus an optional glassy stat-chip row (trail-status moves its stats up
+// here over the photo). When `stats` is present the hero grows taller/wider.
+export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pills, stats, statsSlot }) {
+  const tall = statsSlot != null || (stats && stats.length > 0);
   return (
-    <section style={{ position: "relative", overflow: "hidden", minHeight: "clamp(320px,46vh,460px)", display: "flex", flexDirection: "column", justifyContent: "flex-end", background: COLORS.heroDark }}>
+    <section style={{ position: "relative", overflow: "hidden", minHeight: tall ? "clamp(380px,56vh,560px)" : "clamp(320px,46vh,460px)", display: "flex", flexDirection: "column", justifyContent: "flex-end", background: COLORS.heroDark }}>
       {photoUrl ? (
         <img src={photoUrl} alt={photoAlt || ""} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
         <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(135deg,#26413a 0 12px,#21372f 12px 24px)" }} />
       )}
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,18,12,.5) 0%,rgba(8,18,12,.14) 34%,rgba(8,18,12,.42) 64%,rgba(8,18,12,.92) 100%)" }} />
-      <div style={{ position: "relative", zIndex: 2, maxWidth: 900, margin: "0 auto", width: "100%", padding: "clamp(50px,10vh,90px) clamp(16px,4vw,40px) 36px", boxSizing: "border-box" }}>
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,18,12,.55) 0%,rgba(8,18,12,.12) 36%,rgba(8,18,12,.46) 66%,rgba(8,18,12,.94) 100%)" }} />
+      <div style={{ position: "relative", zIndex: 2, maxWidth: tall ? 1180 : 900, margin: "0 auto", width: "100%", padding: "clamp(50px,10vh,90px) clamp(16px,4vw,40px) 36px", boxSizing: "border-box" }}>
         {breadcrumb && <div style={{ ...microLabel, color: COLORS.gold, textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>{breadcrumb}</div>}
-        <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#fbf6ea", fontSize: "clamp(2rem,5.4vw,3.4rem)", lineHeight: 1, letterSpacing: "-.02em", margin: "10px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.55)" }}>
+        <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#fbf6ea", fontSize: tall ? "clamp(2.4rem,6vw,4.2rem)" : "clamp(2rem,5.4vw,3.4rem)", lineHeight: 1, letterSpacing: "-.02em", margin: "10px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.55)" }}>
           {title}{titleSub && <span style={{ fontStyle: "italic", color: "rgba(251,246,234,.72)", fontWeight: 500, fontSize: ".42em", letterSpacing: 0, display: "block", marginTop: 6 }}>{titleSub}</span>}
         </h1>
         {pills && pills.length > 0 && (
@@ -61,15 +66,32 @@ export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pill
             {pills.map((p, i) => <HeroPill key={i} {...p} />)}
           </div>
         )}
+        {statsSlot ? <div style={{ marginTop: 22 }}>{statsSlot}</div> : tall && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 8, marginTop: 22 }}>
+            {stats.filter((s) => s && s.value != null && s.value !== "").map((s, i) => (
+              <div key={i} style={{ background: "rgba(251,246,234,.07)", border: "1px solid rgba(228,190,120,.24)", borderRadius: 14, padding: "12px 14px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
+                <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "#c9bf9f" }}>{s.label}</div>
+                <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "#fbf6ea", marginTop: 3, lineHeight: 1 }}>{s.value}{s.unit && <span style={{ fontSize: ".5em", color: "#c9bf9f" }}> {s.unit}</span>}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
-export function HeroPill({ label, dot }) {
+export function HeroPill({ label, dot, dots }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(12,26,18,.5)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.24)", borderRadius: 999, padding: dot ? "7px 15px 7px 11px" : "7px 14px", fontSize: ".8rem", fontWeight: 700, color: "#fbf6ea", textShadow: "0 1px 3px rgba(0,0,0,.4)" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(15,32,23,.72)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(228,190,120,.35)", borderRadius: 999, padding: dot || dots ? "7px 15px 7px 11px" : "7px 14px", fontSize: ".8rem", fontWeight: 700, color: "#f3ede0", textShadow: "0 1px 3px rgba(0,0,0,.4)" }}>
       {dot && <i style={{ width: 9, height: 9, borderRadius: "50%", background: dot, flex: "none" }} />}
+      {dots && (
+        <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+          {Array.from({ length: dots.total }).map((_, i) => (
+            <i key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: i < dots.filled ? "#e4be78" : "rgba(228,190,120,.25)" }} />
+          ))}
+        </span>
+      )}
       {label}
     </span>
   );

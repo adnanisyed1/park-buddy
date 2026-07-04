@@ -44,14 +44,27 @@ async function npsPhoto(name) {
   }
 }
 
+// Reject images that aren't real photos — Wikipedia summaries sometimes lead
+// with a locator map, logo, seal, flag, or a vector/animated file. Callers want
+// a representative PHOTO, so skip these and fall through to the next candidate.
+function badFile(u) {
+  const f = (u || "").split("/").pop() || "";
+  return /\.(gif|svg)(\?|$)/i.test(u || "") || /map|locator|logo|diagram|seal|flag|icon/i.test(f);
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const name = (searchParams.get("name") || "").trim();
   const state = (searchParams.get("state") || "").trim();
-  if (!name) return Response.json({ error: "name required" }, { status: 400 });
+  // `q` = caller-supplied pipe-separated candidate titles, tried first in order
+  // (e.g. "Longs Peak|Rocky Mountain National Park"). Lets callers steer the
+  // lookup toward a nearby named feature that actually has a good photo.
+  const q = (searchParams.get("q") || "").trim();
+  if (!name && !q) return Response.json({ error: "name or q required" }, { status: 400 });
 
-  // Try the exact name, then a state-qualified variant (helps disambiguate common names).
-  const tries = [name];
+  // Caller candidates first, then variants of `name` for disambiguation.
+  const tries = q ? q.split("|").map((s) => s.trim()).filter(Boolean) : [];
+  if (name) tries.push(name);
   if (state) tries.push(name + " (" + state + ")");
   // Singular variant: "… National Forests" → "… National Forest".
   if (/national forests$/i.test(name)) tries.push(name.replace(/forests$/i, "Forest"));
@@ -69,16 +82,15 @@ export async function GET(request) {
   const seenTry = new Set();
   const queue = tries.filter((t) => t && !seenTry.has(t.toLowerCase()) && seenTry.add(t.toLowerCase()));
 
-  let d = null;
+  let d = null, image = "";
   for (const t of queue) {
-    d = await summary(t);
-    if (d && (d.originalimage || d.thumbnail)) break;
-    d = null;
+    const s = await summary(t);
+    const img = s ? (s.originalimage && s.originalimage.source) || (s.thumbnail && s.thumbnail.source) || "" : "";
+    if (img && !badFile(img)) { d = s; image = img; break; }
   }
 
-  const image = d ? (d.originalimage && d.originalimage.source) || (d.thumbnail && d.thumbnail.source) || "" : "";
   if (!image) {
-    // Wikipedia had nothing — for national parks, fall back to the official NPS photo.
+    // Wikipedia had nothing usable — for national parks, fall back to the official NPS photo.
     if (/national park/i.test(name)) {
       const nps = await npsPhoto(name);
       if (nps) return Response.json(nps);

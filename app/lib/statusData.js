@@ -156,7 +156,7 @@ export async function getWebcams(parkCode, lat, lng) {
   const d = await safeJson(fetch(origin() + "/api/webcams?parkCode=" + encodeURIComponent(parkCode), { next: { revalidate: 3600 }, signal: AbortSignal.timeout(9000) }));
   const cams = (d && d.webcams) || [];
   return cams
-    .map((w) => ({ ...w, distMi: lat != null && w.lat != null ? milesBetween(lat, lng, w.lat, w.lng) : null }))
+    .map((w) => ({ ...w, distMi: lat != null && lng != null && w.lat != null && w.lng != null ? milesBetween(lat, lng, w.lat, w.lng) : null }))
     .sort((a, b) => (a.distMi ?? 9999) - (b.distMi ?? 9999))
     .slice(0, 4);
 }
@@ -168,7 +168,7 @@ export async function getThingsToDo(parkCode, lat, lng) {
   const d = await safeJson(fetch(origin() + "/api/thingstodo?parkCode=" + encodeURIComponent(parkCode), { next: { revalidate: 21600 }, signal: AbortSignal.timeout(9000) }));
   const items = (d && d.items) || [];
   return items
-    .map((t) => ({ ...t, distMi: lat != null && t.lat != null ? milesBetween(lat, lng, t.lat, t.lng) : null }))
+    .map((t) => ({ ...t, distMi: lat != null && lng != null && t.lat != null && t.lng != null ? milesBetween(lat, lng, t.lat, t.lng) : null }))
     .sort((a, b) => (a.distMi ?? 9999) - (b.distMi ?? 9999))
     .slice(0, 6);
 }
@@ -278,7 +278,9 @@ export async function getPhotoInfo(name, state, coords) {
       qs.set("lat", coords.lat);
       qs.set("lng", coords.lng);
     }
-    const r = await fetch(origin() + "/api/photo?" + qs.toString(), { next: { revalidate: 604800 } });
+    // Bounded: the geo fallback inside /api/photo can take ~12s worst case —
+    // never let a photo lookup hold the whole SSR page render hostage.
+    const r = await fetch(origin() + "/api/photo?" + qs.toString(), { next: { revalidate: 604800 }, signal: AbortSignal.timeout(14000) });
     if (!r.ok) return null;
     const d = await r.json();
     if (!d || !d.found) return null;

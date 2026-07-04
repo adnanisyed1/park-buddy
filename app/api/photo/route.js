@@ -70,7 +70,11 @@ function captureDate(extmetadata) {
 // actual photo of the spot instead of nothing. Marked geo:true + photoDate so
 // the UI labels it honestly (a real photo, not a live view). CC-licensed;
 // pageUrl links to the file page for attribution.
+// Returns a photo object, null (genuinely nothing there), or { error: true }
+// (upstream failed/timed out — callers must NOT cache that as a definitive
+// not-found). 6s per try keeps the worst case ~12s, under serverless limits.
 async function geoPhoto(lat, lng) {
+  let sawError = false;
   for (const radius of [3000, 10000]) {
     try {
       const params = new URLSearchParams({
@@ -81,9 +85,9 @@ async function geoPhoto(lat, lng) {
       const r = await fetch("https://commons.wikimedia.org/w/api.php?" + params.toString(), {
         headers: { "User-Agent": "ParkBuddy/1.0 (park status)" },
         next: { revalidate: 604800 },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(6000),
       });
-      if (!r.ok) continue;
+      if (!r.ok) { sawError = true; continue; }
       const d = await r.json();
       const pages = Object.values((d.query && d.query.pages) || {})
         .sort((a, b) => (a.index ?? 99) - (b.index ?? 99)); // generator index = distance order
@@ -104,10 +108,10 @@ async function geoPhoto(lat, lng) {
         };
       }
     } catch {
-      /* try wider radius / give up */
+      sawError = true; /* try wider radius / give up */
     }
   }
-  return null;
+  return sawError ? { error: true } : null;
 }
 
 export async function GET(request) {
@@ -160,7 +164,10 @@ export async function GET(request) {
     // Then: a real geotagged photo taken at the coordinates, if the caller gave any.
     if (lat != null && lng != null) {
       const gp = await geoPhoto(lat, lng);
-      if (gp) return Response.json(gp);
+      if (gp && gp.found) return Response.json(gp);
+      // Upstream failed (not "genuinely no photo here") — return 503 so Next's
+      // fetch cache does NOT pin this as a definitive not-found for 7 days.
+      if (gp && gp.error) return Response.json({ found: false, degraded: true }, { status: 503 });
     }
     return Response.json({ found: false });
   }

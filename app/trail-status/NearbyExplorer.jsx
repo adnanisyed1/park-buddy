@@ -76,7 +76,7 @@ function Tile({ item }) {
         {badge && <span style={{ position: "absolute", left: 9, top: 9, background: "rgba(21,36,28,.85)", color: "#f3ede0", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".08em", borderRadius: 999, padding: "3px 9px" }}>{badge}</span>}
         {photo && photo.geo && (
           <span style={{ position: "absolute", right: 8, bottom: 8, background: "rgba(21,36,28,.75)", color: "rgba(243,237,224,.85)", fontFamily: mono, fontSize: ".52rem", fontWeight: 700, letterSpacing: ".06em", borderRadius: 999, padding: "2px 7px" }}>
-            {photo.date ? "PHOTO · " + photo.date.toUpperCase() : "NEARBY PHOTO"}
+            {photo.date ? "NEARBY · " + photo.date.toUpperCase() : "NEARBY PHOTO"}
           </span>
         )}
       </figure>
@@ -159,7 +159,10 @@ export default function NearbyExplorer({ nearby, refName, refLat, refLng, state 
                 <div style={{ background: CARD, border: "1px dashed #d8d0bc", borderRadius: 16, padding: "16px 18px", fontSize: ".84rem", color: MUTED }}>Nothing within {label} — widen the radius to see more.</div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: 10 }}>
-                  {items.map((it, i) => <Tile key={sec.key + i} item={it} />)}
+                  {/* Name-keyed (not index) so radius refilters remount tiles
+                      instead of leaving a reused tile showing the previous
+                      item's photo/badge. */}
+                  {items.map((it) => <Tile key={sec.key + "|" + it.name} item={it} />)}
                 </div>
               )}
             </div>

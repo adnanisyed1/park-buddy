@@ -165,7 +165,12 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   const [isOffline, setIsOffline] = useState(false);
   const [features, setFeatures] = useState([]);
   const [selected, setSelected] = useState(0);
-  const [photos, setPhotos] = useState({}); // { [milestoneIndex]: [ {url,lat,lng,accuracyFt,ts} ] }
+  // Flat list of stamped photo records {url,lat,lng,accuracyFt,ts}. Photos are
+  // bound to WHERE THEY WERE TAKEN (their stamped coordinates), and matched to
+  // milestones by proximity at render time — never by array index, since
+  // milestone positions/count re-derive when the named-features fetch lands
+  // and an index-keyed photo would silently reattach to the wrong waypoint.
+  const [photoRecs, setPhotoRecs] = useState([]);
   const [toast, setToast] = useState(null);
 
   const svgRef = useRef(null);
@@ -189,7 +194,20 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   }, [trailKey, path]);
 
   useEffect(() => {
-    try { setPhotos(JSON.parse(localStorage.getItem("pb_photos_" + trailKey) || "{}") || {}); } catch { setPhotos({}); }
+    try {
+      const flat = JSON.parse(localStorage.getItem("pb_photos2_" + trailKey) || "null");
+      if (Array.isArray(flat)) { setPhotoRecs(flat); return; }
+      // Migrate the legacy index-keyed store — records already carry their
+      // stamped capture coordinates, so flattening loses nothing.
+      const legacy = JSON.parse(localStorage.getItem("pb_photos_" + trailKey) || "null");
+      if (legacy && typeof legacy === "object") {
+        const migrated = Object.values(legacy).flat().filter((r) => r && r.url);
+        setPhotoRecs(migrated);
+        localStorage.setItem("pb_photos2_" + trailKey, JSON.stringify(migrated));
+      } else {
+        setPhotoRecs([]);
+      }
+    } catch { setPhotoRecs([]); }
   }, [trailKey]);
 
   useEffect(() => {
@@ -364,9 +382,9 @@ export default function TrailRouteChart({ trailKey, path, category }) {
         c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
         const url = c.toDataURL("image/jpeg", 0.8);
         const rec = { url, lat: coords.lat, lng: coords.lng, accuracyFt: coords.accuracyFt, ts: Date.now() };
-        setPhotos((prev) => {
-          const next = { ...prev, [selected]: [...(prev[selected] || []), rec] };
-          try { localStorage.setItem("pb_photos_" + trailKey, JSON.stringify(next)); } catch {}
+        setPhotoRecs((prev) => {
+          const next = [...prev, rec];
+          try { localStorage.setItem("pb_photos2_" + trailKey, JSON.stringify(next)); } catch {}
           return next;
         });
         showToast("Photo added at " + (milestones[selected]?.name || "this spot") + " ✓");
@@ -430,7 +448,11 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   // Milestone numbered dots for the SVG fallback.
   const msDots = milestones.map((ms) => ({ pt: projectLive(ms.lat, ms.lng) }));
   const sel = milestones[selected];
-  const selPhotos = photos[selected] || [];
+  // Match photos to a milestone by their STAMPED capture coordinates (small
+  // slop over the gate radius for GPS jitter) — index-independent, so photos
+  // stay at the spot they were taken even if milestones re-derive.
+  const photosFor = (ms) => (ms ? photoRecs.filter((r) => r.lat != null && milesBetween(r.lat, r.lng, ms.lat, ms.lng) <= AT_WAYPOINT_MI * 1.5) : []);
+  const selPhotos = photosFor(sel);
 
   return (
     <div style={{ background: "#fffdf8", border: "1px solid #e2dac8", borderRadius: 24, overflow: "hidden", marginBottom: 22 }}>
@@ -556,7 +578,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
           <SectionTitle>Mile by mile</SectionTitle>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {milestones.map((m, i) => {
-              const n = (photos[i] || []).length;
+              const n = photosFor(m).length;
               return (
                 <div key={i} style={{ display: "flex", gap: 14, alignItems: "baseline", padding: "12px 0", borderTop: i ? "1px solid #efe8d8" : "none" }}>
                   <span style={{ fontFamily: mono, fontSize: ".72rem", fontWeight: 700, color: ACCENT, flex: "none", width: 52 }}>MI {m.mi.toFixed(1)}</span>

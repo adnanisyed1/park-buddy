@@ -47,7 +47,7 @@ function Tile({ it }) {
         {it.badge && <span style={{ position: "absolute", left: 10, top: 10, background: "rgba(21,36,28,.82)", color: "#f3ede0", fontFamily: mono, fontSize: ".56rem", fontWeight: 700, letterSpacing: ".1em", borderRadius: 999, padding: "3px 9px" }}>{it.badge}</span>}
         {photo && photo.geo && (
           <span style={{ position: "absolute", right: 8, bottom: 8, background: "rgba(21,36,28,.75)", color: "rgba(243,237,224,.85)", fontFamily: mono, fontSize: ".52rem", fontWeight: 700, letterSpacing: ".06em", borderRadius: 999, padding: "2px 7px" }}>
-            {photo.date ? "PHOTO · " + photo.date.toUpperCase() : "NEARBY PHOTO"}
+            {photo.date ? "NEARBY · " + photo.date.toUpperCase() : "NEARBY PHOTO"}
           </span>
         )}
       </figure>
@@ -65,7 +65,8 @@ export default function NearbyWater({ items }) {
   }
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 11 }}>
-      {items.map((it, i) => <Tile key={i} it={it} />)}
+      {/* Name-keyed so list changes remount tiles rather than reusing one with stale photo state. */}
+      {items.map((it) => <Tile key={it.name} it={it} />)}
     </div>
   );
 }

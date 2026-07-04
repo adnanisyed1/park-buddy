@@ -1,5 +1,5 @@
 import { StatusShell, HeroBand, StatGrid, BigStat, GoldButton, NearbySection, NotFoundBody } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby, getPhoto } from "../lib/statusData";
+import { getParks, nearestPark, getNearby, getPhotoInfo } from "../lib/statusData";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -29,19 +29,22 @@ export default async function CampgroundStatusPage({ searchParams }) {
   const detail = searchParams.detail || "";
   const reservable = searchParams.reservable === "1";
 
-  const [parks, nearby, photoUrl] = await Promise.all([
+  const [parks, nearby, photoInfo] = await Promise.all([
     getParks(),
     getNearby(lat, lng, { excludeName: name }),
-    getPhoto(name, null, { lat, lng }), // geotagged fallback when the campground has no article
+    getPhotoInfo(name, null, { lat, lng }), // geotagged fallback when the campground has no article
   ]);
   const park = nearestPark(parks, lat, lng);
   const parkHref = park ? "/park-status?park=" + park.id : null;
+  const photoUrl = photoInfo?.url || null;
+  // A geotagged archive photo must carry its provenance label, same as the trail hero.
+  const photoBadge = photoInfo?.geo ? "Nearby photo" + (photoInfo.photoDate ? " · " + photoInfo.photoDate : "") : null;
 
   return (
     <StatusShell
       backHref={parkHref || "/explore"}
       backLabel={park ? "Back to " + park.name : "Back to map"}
-      hero={<HeroBand photoUrl={photoUrl} photoAlt={name} breadcrumb={park ? park.name : type} title={name} pills={reservable ? [{ label: "Reservable via Recreation.gov" }] : []} />}
+      hero={<HeroBand photoUrl={photoUrl} photoAlt={name} photoBadge={photoBadge} breadcrumb={park ? park.name : type} title={name} pills={reservable ? [{ label: "Reservable via Recreation.gov" }] : []} />}
     >
       <div style={{ fontSize: ".85rem", color: "#8a8471", marginBottom: 18 }}>{type}{park ? " · near " + park.name : ""}</div>
 

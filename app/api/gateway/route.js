@@ -69,7 +69,10 @@ async function gnisLayer(layer, lat, lng, radiusKm, place) {
       spatialRel: "esriSpatialRelIntersects",
       where: "1=1",
       outFields: "gaz_name", returnGeometry: "true", outSR: "4326",
-      resultRecordCount: "200", f: "json",
+      // ArcGIS truncates by OBJECTID (arbitrary order), not proximity — in
+      // dense regions a low cap could drop the genuinely nearest town, so ask
+      // for the server max; callers keep radii small for the dense layer.
+      resultRecordCount: "1000", f: "json",
     });
     const r = await fetch("https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/" + layer + "/query?" + params.toString(), {
       next: { revalidate: 86400 }, signal: AbortSignal.timeout(9000),
@@ -78,9 +81,9 @@ async function gnisLayer(layer, lat, lng, radiusKm, place) {
     const d = await r.json();
     return (d.features || []).map((f) => {
       const raw = (f.attributes || {}).gaz_name;
-      // GNIS incorporated names carry a legal prefix ("Town of Estes Park") —
-      // strip it for display.
-      const name = raw ? String(raw).replace(/^(Town|City|Village|Township) of /i, "") : "";
+      // GNIS incorporated names carry a legal prefix ("Town of Estes Park",
+      // "City and County of Denver") — strip it for display.
+      const name = raw ? String(raw).replace(/^((City|Town|Village|Township|Borough|Municipality)( and (County|Borough))? of )/i, "") : "";
       const g = f.geometry || {};
       const pt = (g.points && g.points[0]) || (g.x != null ? [g.x, g.y] : null);
       if (!name || !pt || pt[0] == null) return null;
@@ -91,13 +94,16 @@ async function gnisLayer(layer, lat, lng, radiusKm, place) {
   }
 }
 
-async function gnisTowns(lat, lng, radiusKm) {
+async function gnisTowns(lat, lng) {
   // Layer 1 = Incorporated Places (real towns/cities — Estes Park, Grand Lake);
   // layer 3 = unincorporated Populated Places. Incorporated ranked as "city"
   // tier so they beat scattered subdivisions, matching the OSM tier logic.
+  // Radii differ deliberately: incorporated places are sparse (60 km stays
+  // well under the record cap), but layer 3 counts thousands near metros, so
+  // it gets a tight 25 km where the cap can't shadow the nearest places.
   const [inc, pop] = await Promise.all([
-    gnisLayer(1, lat, lng, radiusKm, "city"),
-    gnisLayer(3, lat, lng, radiusKm, "town"),
+    gnisLayer(1, lat, lng, 60, "city"),
+    gnisLayer(3, lat, lng, 25, "town"),
   ]);
   return inc.concat(pop);
 }
@@ -120,8 +126,10 @@ export async function GET(request) {
     if (wide.length) els = wide;
   }
   // Overpass gave nothing at all → USGS GNIS populated places (reliable from server IPs).
+  let source = "osm";
   if (!els.length) {
-    els = await gnisTowns(lat, lng, 60);
+    els = await gnisTowns(lat, lng);
+    if (els.length) source = "gnis";
   }
 
   // Rank tiers: city > town > village. Within a tier, nearer is better. A bigger place a
@@ -159,6 +167,8 @@ export async function GET(request) {
       ? "Closest towns for lodging, food, gas and outfitters — nearest first."
       : "",
     dynamic: true,
-    credit: "Towns: OpenStreetMap contributors (ODbL).",
+    credit: source === "gnis"
+      ? "Towns: USGS Geographic Names Information System (public domain)."
+      : "Towns: OpenStreetMap contributors (ODbL).",
   });
 }

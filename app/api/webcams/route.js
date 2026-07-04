@@ -17,13 +17,23 @@ export async function GET(request) {
   const parkCode = (searchParams.get("parkCode") || "").trim().toLowerCase();
   if (!parkCode) return Response.json({ error: "parkCode required" }, { status: 400 });
 
-  const key = process.env.NPS_API_KEY || "DEMO_KEY";
+  // DEMO_KEY is a LOCAL convenience only (30 req/hr shared quota) — on the
+  // real deployment (NETLIFY env var present) a missing NPS_API_KEY fails
+  // loudly (503, uncached, logged) instead of silently degrading every park
+  // page to a rate-limited shared key. NODE_ENV can't tell local `npm start`
+  // apart from Netlify, so gate on the platform var instead.
+  const key = process.env.NPS_API_KEY || (process.env.NETLIFY ? "" : "DEMO_KEY");
+  if (!key) {
+    console.error("[webcams] NPS_API_KEY missing in production");
+    return Response.json({ webcams: [], degraded: true }, { status: 503 });
+  }
   try {
     const r = await fetch(
       "https://developer.nps.gov/api/v1/webcams?parkCode=" + encodeURIComponent(parkCode) + "&limit=50&api_key=" + encodeURIComponent(key),
       { headers: { "User-Agent": "ParkBuddy/1.0" }, next: { revalidate: 3600 }, signal: AbortSignal.timeout(9000) }
     );
-    if (!r.ok) return Response.json({ webcams: [] });
+    // Upstream failure ≠ "this park has no webcams" — 503 so it isn't cached as empty.
+    if (!r.ok) return Response.json({ webcams: [], degraded: true }, { status: 503 });
     const d = await r.json();
     const webcams = (d.data || [])
       .filter((w) => w.status === "Active")
@@ -39,6 +49,6 @@ export async function GET(request) {
       .filter((w) => w.pageUrl);
     return Response.json({ webcams, credit: "Webcams: National Park Service (live feeds on nps.gov)." });
   } catch {
-    return Response.json({ webcams: [] });
+    return Response.json({ webcams: [], degraded: true }, { status: 503 });
   }
 }

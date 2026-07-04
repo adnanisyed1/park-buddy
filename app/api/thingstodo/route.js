@@ -14,13 +14,20 @@ export async function GET(request) {
   const parkCode = (searchParams.get("parkCode") || "").trim().toLowerCase();
   if (!parkCode) return Response.json({ error: "parkCode required" }, { status: 400 });
 
-  const key = process.env.NPS_API_KEY || "DEMO_KEY";
+  // Same key policy as /api/webcams: DEMO_KEY locally; the real deployment
+  // (NETLIFY env var) without NPS_API_KEY fails loudly and uncached.
+  const key = process.env.NPS_API_KEY || (process.env.NETLIFY ? "" : "DEMO_KEY");
+  if (!key) {
+    console.error("[thingstodo] NPS_API_KEY missing in production");
+    return Response.json({ items: [], degraded: true }, { status: 503 });
+  }
   try {
     const r = await fetch(
       "https://developer.nps.gov/api/v1/thingstodo?parkCode=" + encodeURIComponent(parkCode) + "&limit=30&api_key=" + encodeURIComponent(key),
       { headers: { "User-Agent": "ParkBuddy/1.0" }, next: { revalidate: 21600 }, signal: AbortSignal.timeout(9000) }
     );
-    if (!r.ok) return Response.json({ items: [] });
+    // Upstream failure ≠ "this park has nothing to do" — 503 so it isn't cached as empty.
+    if (!r.ok) return Response.json({ items: [], degraded: true }, { status: 503 });
     const d = await r.json();
     const items = (d.data || [])
       .map((t) => ({
@@ -37,6 +44,6 @@ export async function GET(request) {
       .filter((t) => t.title && t.url);
     return Response.json({ items, credit: "Things to do: National Park Service." });
   } catch {
-    return Response.json({ items: [] });
+    return Response.json({ items: [], degraded: true }, { status: 503 });
   }
 }

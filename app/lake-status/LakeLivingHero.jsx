@@ -56,7 +56,7 @@ function Scene({ palette }) {
   );
 }
 
-export default function LakeLivingHero({ name, typeLabel, palette, weather, areaAcres, kind, parkName, parkDist, lat, lng }) {
+export default function LakeLivingHero({ name, typeLabel, palette, weather, areaAcres, kind, parkName, parkDist, lat, lng, photoUrl, photoBadge }) {
   const [elevFt, setElevFt] = useState(null);
   useEffect(() => {
     let on = true;
@@ -65,10 +65,19 @@ export default function LakeLivingHero({ name, typeLabel, palette, weather, area
   }, [lat, lng]);
 
   return (
-    <section style={{ position: "relative", overflow: "hidden", minHeight: 520, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "clamp(70px,10vh,110px) clamp(16px,4vw,40px) 56px" }}>
+    <section style={{ position: "relative", overflow: "hidden", minHeight: 520, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "clamp(70px,10vh,110px) clamp(16px,4vw,40px) 56px", background: "#11281d" }}>
       <style>{KEYFRAMES}</style>
-      <Scene palette={palette} />
+      {/* Real photo of the lake front and center in the header; the animated
+          water scene is only the no-photo fallback. */}
+      {photoUrl ? (
+        <img src={photoUrl} alt={name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <Scene palette={palette} />
+      )}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.28) 0%,rgba(9,24,16,.08) 40%,rgba(9,24,16,.58) 88%,rgba(9,24,16,.78) 100%)" }} />
+      {photoUrl && photoBadge && (
+        <span style={{ position: "absolute", top: 14, left: 16, zIndex: 3, background: "rgba(12,26,18,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.22)", color: "rgba(243,237,224,.9)", fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>{photoBadge}</span>
+      )}
       <div style={{ position: "absolute", top: 14, right: 16, zIndex: 3, display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(120deg,#e4be78,#c79a4b)", color: "#15241c", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: 999, padding: "5px 12px" }}>● Live weather</div>
       <div style={{ position: "relative", zIndex: 2, maxWidth: 1180, margin: "0 auto", width: "100%" }}>
         <div className="lk-anim" style={{ fontFamily: mono, fontSize: ".66rem", fontWeight: 700, letterSpacing: ".22em", textTransform: "uppercase", color: "#e4be78", animation: "lk-fadeup .5s ease both" }}>{typeLabel}</div>

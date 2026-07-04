@@ -91,6 +91,8 @@ export default async function LakeStatusPage({ searchParams }) {
           weather={weather} areaAcres={areaAcres} kind={kind}
           parkName={park ? park.name : null} parkDist={park ? park.dist : null}
           lat={lat} lng={lng}
+          photoUrl={photoUrl}
+          photoBadge={photoInfo?.geo ? "Nearby photo" + (photoInfo.photoDate ? " · " + photoInfo.photoDate : "") : null}
         />
       }
     >
@@ -160,18 +162,8 @@ export default async function LakeStatusPage({ searchParams }) {
 
       <WebcamsSection webcams={webcams} />
       <ThingsToDo items={todos} parkCode={parkRelevant ? park.npsCode : ""} />
-
-      {/* From the shore */}
-      {photoUrl && (
-        <div style={{ marginBottom: 26 }}>
-          <figure style={{ position: "relative", margin: 0, height: "clamp(260px,38vh,400px)", overflow: "hidden", borderRadius: 24, border: "1px solid " + LINE, background: "repeating-linear-gradient(135deg,#ece5d4 0 12px,#e6dfcd 12px 24px)" }}>
-            <img src={photoUrl} alt={name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-            <figcaption style={{ position: "absolute", left: 14, bottom: 14, background: "rgba(21,36,28,.82)", color: "#f3ede0", fontSize: ".7rem", fontWeight: 800, letterSpacing: ".04em", borderRadius: 999, padding: "5px 13px" }}>
-              {name}{photoInfo?.geo ? " · nearby photo" + (photoInfo.photoDate ? ", " + photoInfo.photoDate : "") : ""}
-            </figcaption>
-          </figure>
-        </div>
-      )}
+      {/* (The lake photo now leads the page as the hero background — the old
+          "From the shore" figure showed the same image twice.) */}
 
       {/* More water nearby */}
       <div style={{ marginBottom: 26 }}>

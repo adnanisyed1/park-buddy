@@ -2,7 +2,7 @@ import {
   StatusShell, HeroBand, SectionTitle, TipCard, ConditionCard, GoldButton,
   ReviewsBlock, NotFoundBody,
 } from "../components/StatusShell";
-import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhotoInfo, getPointWeather, getParkFees, getWebcams, getThingsToDo, getParkContact } from "../lib/statusData";
+import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhotoInfo, getPointWeather, getParkFees, getWebcams, getThingsToDo, getParkContact, formatPhone } from "../lib/statusData";
 import TrailHeroStats from "./TrailHeroStats";
 import TrailRouteChart from "./TrailRouteChart";
 import NearbyExplorer from "./NearbyExplorer";
@@ -138,7 +138,7 @@ export default async function TrailStatusPage({ searchParams }) {
               authoritative, current details. */}
           <ConditionCard label="Trailhead & contact" title={trailhead ? trailhead[0].toFixed(4) + ", " + trailhead[1].toFixed(4) : null}>
             {contact && contact.phone
-              ? "Trailhead GPS coordinates. For current conditions call " + (park ? park.name : "the park") + ": " + contact.phone
+              ? "Trailhead GPS coordinates. For current conditions call " + (park ? park.name : "the park") + ": " + formatPhone(contact.phone)
               : "Trailhead GPS coordinates — confirm current conditions with the park before heading out."}
           </ConditionCard>
         </div>

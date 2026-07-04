@@ -1,5 +1,5 @@
 import { StatusShell, NotFoundBody, NearbySection } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo, getParkContact } from "../lib/statusData";
+import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo, getParkContact, formatPhone } from "../lib/statusData";
 import LakeLivingHero from "./LakeLivingHero";
 import NearbyWater from "./NearbyWater";
 import WebcamsSection from "../components/WebcamsSection";
@@ -146,7 +146,7 @@ export default async function LakeStatusPage({ searchParams }) {
               and the park's phone so a visitor can get authoritative details. */}
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #efe8d8", fontFamily: mono, fontSize: ".72rem", color: "#4c5443", lineHeight: 1.8 }}>
             Coordinates: {lat.toFixed(4)}, {lng.toFixed(4)}
-            {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{contact.phone}</a></>}
+            {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{formatPhone(contact.phone)}</a></>}
           </div>
         </div>
         <div style={{ background: CARD, border: "1px solid " + LINE, borderRadius: 20, padding: 18, boxShadow: "0 18px 44px -22px rgba(28,46,34,.35)" }}>

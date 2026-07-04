@@ -3,7 +3,7 @@
 // is the leaf endpoint that carries the external NPS link, the coordinates,
 // and the park's phone number "to get the details".
 import { StatusShell, HeroBand, SectionTitle, ConditionCard, GoldButton, NearbySection, NotFoundBody } from "../components/StatusShell";
-import { getParks, parkByUnitCode, nearestPark, getNearby, getParkContact } from "../lib/statusData";
+import { getParks, parkByUnitCode, nearestPark, getNearby, getParkContact, formatPhone } from "../lib/statusData";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -70,7 +70,7 @@ export default async function TodoStatusPage({ searchParams }) {
             </ConditionCard>
           )}
           {contact && (contact.phone || contact.url) ? (
-            <ConditionCard label="Contact the park" title={contact.phone || null}>
+            <ConditionCard label="Contact the park" title={contact.phone ? formatPhone(contact.phone) : null}>
               {(contact.fullName || (park ? park.name : "The park")) + " can confirm current conditions, closures, and requirements."}
             </ConditionCard>
           ) : (

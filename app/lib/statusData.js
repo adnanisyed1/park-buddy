@@ -148,6 +148,14 @@ export async function getLakeAccess(lat, lng) {
     .map((f) => ({ name: f.name, type: f.type || "Facility", url: f.url || "", lat: f.lat, lng: f.lng }));
 }
 
+// NPS returns phones as bare digits ("9705861206") — format for display.
+export function formatPhone(p) {
+  const d = String(p || "").replace(/[^0-9]/g, "");
+  if (d.length === 10) return "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
+  if (d.length === 11 && d[0] === "1") return "(" + d.slice(1, 4) + ") " + d.slice(4, 7) + "-" + d.slice(7);
+  return String(p || "");
+}
+
 // Park contact info for the leaf "get the details" endpoints: HQ phone +
 // official site. Same /api/nps fetch the fees already use (ISR-cached).
 export async function getParkContact(parkCode) {

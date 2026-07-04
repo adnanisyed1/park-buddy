@@ -1,5 +1,5 @@
 import { StatusShell, HeroBand, StatGrid, BigStat, GoldButton, NearbySection, NotFoundBody } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby, getPhotoInfo, getParkContact } from "../lib/statusData";
+import { getParks, nearestPark, getNearby, getPhotoInfo, getParkContact, formatPhone } from "../lib/statusData";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -60,7 +60,7 @@ export default async function CampgroundStatusPage({ searchParams }) {
       {/* Leaf-endpoint info: raw coordinates + the park's phone for details. */}
       <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: ".74rem", color: "#4c5443", lineHeight: 1.8, marginBottom: 18 }}>
         Coordinates: {lat.toFixed(4)}, {lng.toFixed(4)}
-        {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{contact.phone}</a>{park ? " (" + park.name + ")" : ""}</>}
+        {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{formatPhone(contact.phone)}</a>{park ? " (" + park.name + ")" : ""}</>}
       </div>
 
       {url && <div style={{ marginBottom: 18 }}><GoldButton href={url}>View on Recreation.gov ↗</GoldButton></div>}

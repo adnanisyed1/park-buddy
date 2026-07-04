@@ -65,6 +65,25 @@ export function nearestPark(parks, lat, lng) {
   return best ? { ...best, dist: bestDist } : null;
 }
 
+// America's Byways (scenic drives) — same self-fetch pattern as getParks(),
+// from public/byways-data.js. Core fields are real FHWA designation data.
+export async function getByways() {
+  try {
+    const r = await fetch(origin() + "/byways-data.js", { next: { revalidate: 86400 } });
+    if (!r.ok) return [];
+    const text = await r.text();
+    const m = text.match(/window\.BYWAYS_DATA\s*=\s*(\[[\s\S]*?\]);/);
+    return m ? JSON.parse(m[1]) : [];
+  } catch {
+    return [];
+  }
+}
+export async function getByway(id) {
+  if (!id) return null;
+  const list = await getByways();
+  return list.find((d) => d.id === id) || null;
+}
+
 // US national forests (name + approximate centroid) — same self-fetch pattern
 // as getParks(), from public/forest-data.js. Used for the "forests near me"
 // section on /trail-status; centroids are approximate (forests are huge), so

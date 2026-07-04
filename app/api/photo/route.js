@@ -119,9 +119,51 @@ async function geoPhoto(lat, lng) {
   return sawError ? { error: true } : null;
 }
 
+// A LIST of distinct geotagged photos near a point (for a filmstrip/gallery of
+// a scenic drive). Same source as geoPhoto, but returns several deduped by file.
+async function geoPhotoList(lat, lng, n) {
+  try {
+    const params = new URLSearchParams({
+      action: "query", format: "json", generator: "geosearch",
+      ggscoord: lat + "|" + lng, ggsradius: "10000", ggslimit: "30", ggsnamespace: "6",
+      prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "1200",
+    });
+    const r = await fetch("https://commons.wikimedia.org/w/api.php?" + params.toString(), {
+      headers: { "User-Agent": "ParkBuddy/1.0 (park status)" },
+      next: { revalidate: 604800 },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    const pages = Object.values((d.query && d.query.pages) || {}).sort((a, b) => (a.index ?? 99) - (b.index ?? 99));
+    const out = [];
+    const seen = new Set();
+    for (const p of pages) {
+      const ii = p.imageinfo && p.imageinfo[0];
+      const full = ii && ii.url;
+      if (!full || badFile(full) || seen.has(full)) continue;
+      seen.add(full);
+      const title = (p.title || "").replace(/^File:/, "").replace(/\.[a-z0-9]+$/i, "").replace(/_/g, " ");
+      out.push({ image: full, thumb: ii.thumburl || full, cap: title.slice(0, 60), date: captureDate(ii.extmetadata), pageUrl: ii.descriptionurl || "" });
+      if (out.length >= n) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const name = (searchParams.get("name") || "").trim();
+  // Filmstrip mode: several geotagged photos near a point.
+  if (searchParams.get("geolist")) {
+    const glat = num(searchParams.get("lat")), glng = num(searchParams.get("lng"));
+    if (glat == null || glng == null) return Response.json({ photos: [] });
+    const n = Math.min(8, Math.max(1, parseInt(searchParams.get("n") || "6", 10)));
+    const photos = await geoPhotoList(glat, glng, n);
+    return Response.json({ photos, credit: "Photos: Wikimedia Commons contributors (CC), near this route." });
+  }
   const state = (searchParams.get("state") || "").trim();
   // `q` = caller-supplied pipe-separated candidate titles, tried first in order
   // (e.g. "Longs Peak|Rocky Mountain National Park"). Lets callers steer the

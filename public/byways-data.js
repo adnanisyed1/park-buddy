@@ -64,7 +64,7 @@ window.BYWAYS_DATA=[
   "season":"Year-round (spring–fall best)","mapCap":"Shenandoah → Blue Ridge crest → Great Smokies",
   "planNote":"Sections close in winter ice and for landslide repairs — check the real-time road map before you go. Fall color peaks from north to south through October; the Linn Cove Viaduct and the highlands around Mount Mitchell are the most photographed stretches.",
   "link":"https://www.nps.gov/blri/planyourvisit/index.htm",
-  "wiki":["Blue Ridge Parkway","Linn Cove Viaduct","Mount Mitchell"],
+  "wiki":["Linn Cove Viaduct","Mount Mitchell","Grandfather Mountain"],
   "film":[
     {"q":["Blue Ridge Parkway"],"cap":"Layered ridgelines from the crest"},
     {"q":["Linn Cove Viaduct"],"cap":"The Linn Cove Viaduct"},

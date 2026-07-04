@@ -609,7 +609,7 @@ function init(){
       Array.prototype.forEach.call(imgs,function(img,i){
         if(img.getAttribute('data-pbdone'))return; img.setAttribute('data-pbdone','1');
         setTimeout(function(){
-          var u='/api/photo?q='+encodeURIComponent(img.getAttribute('data-pbq'))+((img.getAttribute('data-pblat'))?('&lat='+img.getAttribute('data-pblat')+'&lng='+img.getAttribute('data-pblng')):'')+'&v=3';
+          var u='/api/photo?q='+encodeURIComponent(img.getAttribute('data-pbq'))+((img.getAttribute('data-pblat'))?('&lat='+img.getAttribute('data-pblat')+'&lng='+img.getAttribute('data-pblng')):'')+'&v=4';
           fetch(u).then(function(r){return r.ok?r.json():null;}).then(function(d){ if(d&&d.found){ img.onload=function(){img.style.opacity='1';}; img.src=d.thumb||d.image; } }).catch(function(){});
         }, i*140);
       });

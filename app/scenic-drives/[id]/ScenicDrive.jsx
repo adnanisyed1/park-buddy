@@ -108,7 +108,7 @@ export default function ScenicDrive({ drive, cross }) {
     let on = true;
     if (drive.film && drive.film.length) {
       Promise.all(drive.film.map((f) =>
-        fetch("/api/photo?q=" + encodeURIComponent(f.q.join("|")) + "&lat=" + drive.lat + "&lng=" + drive.lng + "&v=3")
+        fetch("/api/photo?q=" + encodeURIComponent(f.q.join("|")) + "&lat=" + drive.lat + "&lng=" + drive.lng + "&v=4")
           .then((r) => (r.ok ? r.json() : null)).then((d) => (d && d.found ? { url: d.image || d.thumb, cap: f.cap } : null)).catch(() => null)
       )).then((arr) => { if (on) setFilm(arr.filter(Boolean)); });
     } else {

@@ -312,7 +312,7 @@ export async function getPhotoInfo(name, state, coords) {
   try {
     // v=2 busts data-cache entries poisoned during the window when upstream
     // failures were still cached as empty 200s (fixed in 08fb4e0).
-    const qs = new URLSearchParams({ name: name || "", state: state || "", v: "3" });
+    const qs = new URLSearchParams({ name: name || "", state: state || "", v: "4" });
     if (coords && coords.lat != null && coords.lng != null) {
       qs.set("lat", coords.lat);
       qs.set("lng", coords.lng);

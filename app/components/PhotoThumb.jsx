@@ -30,7 +30,7 @@ export function usePhoto(q, lat, lng) {
   useEffect(() => {
     if (photo !== undefined || !q) return;
     let on = true;
-    fetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + "&v=3")
+    fetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + "&v=4")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         const u = d && d.found ? d.thumb || d.image : null;

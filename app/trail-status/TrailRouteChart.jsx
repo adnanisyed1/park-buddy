@@ -33,7 +33,7 @@ function makeProjector(path, W, H, pad) {
   const spanLng = Math.max((maxLng - minLng) * lngScale, 1e-5);
   const scale = Math.min((W - 2 * pad) / spanLng, (H - 2 * pad) / spanLat);
   const project = (lat, lng) => [W / 2 + (lng - midLng) * lngScale * scale, H / 2 - (lat - midLat) * scale];
-  project.milesPerPixel = 1 / (scale * 69); // 1° latitude ≈ 69 mi; scale is px per degree-lat
+  project.milesPerPixel = 69 / scale; // scale is px per degree-lat; 1° latitude ≈ 69 mi
   return project;
 }
 // A round, human-friendly scale bar length (e.g. "0.5 mi") that fits within

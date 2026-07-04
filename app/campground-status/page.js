@@ -1,7 +1,14 @@
 import { StatusShell, HeroBand, StatGrid, BigStat, GoldButton, NearbySection, NotFoundBody } from "../components/StatusShell";
 import { getParks, nearestPark, getNearby, getPhotoInfo, getParkContact, formatPhone } from "../lib/statusData";
+import CampAvailability from "./CampAvailability";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
+// Recreation.gov campground booking URLs carry the facility id we need for the
+// live-availability endpoint: /camping/campgrounds/<id>.
+function recGovCampId(url) {
+  const m = /recreation\.gov\/camping\/campgrounds\/(\d+)/.exec(url || "");
+  return m ? m[1] : null;
+}
 
 export async function generateMetadata({ searchParams }) {
   const name = searchParams.name;
@@ -63,7 +70,13 @@ export default async function CampgroundStatusPage({ searchParams }) {
         {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{formatPhone(contact.phone)}</a>{park ? " (" + park.name + ")" : ""}</>}
       </div>
 
-      {url && <div style={{ marginBottom: 18 }}><GoldButton href={url}>View on Recreation.gov ↗</GoldButton></div>}
+      {/* Live availability + booking popup for reservable Recreation.gov
+          campgrounds; plain link for everything else (state/OSM campgrounds). */}
+      {recGovCampId(url) ? (
+        <CampAvailability campgroundId={recGovCampId(url)} bookUrl={url} name={name} />
+      ) : (
+        url && <div style={{ marginBottom: 18 }}><GoldButton href={url}>View on Recreation.gov ↗</GoldButton></div>
+      )}
 
       <div style={{ fontSize: ".72rem", color: "#a7a08c", lineHeight: 1.4, marginBottom: 18 }}>
         Source: Recreation.gov / RIDB (federal) or OpenStreetMap contributors.

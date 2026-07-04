@@ -48,8 +48,13 @@ async function npsPhoto(name) {
 // with a locator map, logo, seal, flag, or a vector/animated file. Callers want
 // a representative PHOTO, so skip these and fall through to the next candidate.
 function badFile(u) {
-  const f = (u || "").split("/").pop() || "";
-  return /\.(gif|svg)(\?|$)/i.test(u || "") || /map|locator|logo|diagram|seal|flag|icon/i.test(f);
+  const s = String(u || "");
+  const f = s.split("/").pop() || "";
+  // ".svg" ANYWHERE in the path also rejects PNG thumbnails OF svg files
+  // (".../Foo.svg/500px-Foo.svg.png") — vector sources are locator maps and
+  // logos, never photographs. Caught live: Gem Lake rendering a county map.
+  return /\.(gif|svg)(\?|$)/i.test(s) || /\.svg(\/|\.)/i.test(s)
+    || /map|locator|logo|diagram|seal|flag|icon|highlighted|boundar|incorporated/i.test(f);
 }
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }

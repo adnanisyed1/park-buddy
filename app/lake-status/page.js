@@ -181,11 +181,14 @@ export default async function LakeStatusPage({ searchParams }) {
 
       <NearbySection
         title="Nearby trails"
-        items={(nearby.trails || []).map((t) => ({ name: t.name, sub: t.lengthMi > 0 ? t.lengthMi + " mi" : null, href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || "") }))}
+        items={(nearby.trails || []).map((t) => {
+          const mp = Array.isArray(t.path) && t.path.length ? t.path[Math.floor(t.path.length / 2)] : null;
+          return { name: t.name, sub: t.lengthMi > 0 ? t.lengthMi + " mi" : null, href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || ""), q: t.name, lat: mp ? mp[0] : null, lng: mp ? mp[1] : null };
+        })}
       />
       <NearbySection
         title="Nearby campgrounds"
-        items={(nearby.camps || []).map((c) => ({ name: c.name, sub: c.type || null, href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString() }))}
+        items={(nearby.camps || []).map((c) => ({ name: c.name, sub: c.type || null, href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString(), q: c.name, lat: c.lat, lng: c.lng }))}
       />
 
       <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".1em", textTransform: "uppercase", color: MUTED, marginTop: 22, paddingTop: 18, borderTop: "1px solid " + LINE }}>

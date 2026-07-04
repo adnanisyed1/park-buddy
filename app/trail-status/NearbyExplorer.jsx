@@ -22,45 +22,9 @@ const SECTIONS = [
 ];
 const RADII = [{ v: 10, l: "10 mi" }, { v: 25, l: "25 mi" }, { v: 50, l: "50 mi" }, { v: 9999, l: "Any" }];
 
-// Shared localStorage photo cache (same key/shape as ExploreApp.jsx).
-let photoCache = null;
-function readCache() {
-  if (photoCache) return photoCache;
-  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v2") || "{}"); } catch { photoCache = {}; }
-  return photoCache;
-}
-function saveCache() { try { localStorage.setItem("pb_photo_cache_v2", JSON.stringify(photoCache)); } catch {} }
-
-// Resolve a tile photo: name candidates first, then (when coords are given) a
-// real geotagged photo taken at the spot — returned with geo/date metadata so
-// the tile can label it honestly. Cache entries are {u,g,d} objects now; old
-// plain-string entries from earlier versions are still readable.
-function usePhoto(q, lat, lng) {
-  const key = q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "");
-  const [photo, setPhoto] = useState(() => {
-    const c = readCache();
-    if (!(key in c)) return undefined;
-    const v = c[key];
-    if (!v) return null;
-    return typeof v === "string" ? { url: v, geo: false, date: null } : { url: v.u, geo: !!v.g, date: v.d || null };
-  });
-  useEffect(() => {
-    if (photo !== undefined) return;
-    let on = true;
-    const qs = "/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "");
-    fetch(qs)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        const u = d && d.found ? d.thumb || d.image : null;
-        const rec = u ? { u, g: !!d.geo, d: d.photoDate || null } : false;
-        const c = readCache(); c[key] = rec; saveCache();
-        if (on) setPhoto(u ? { url: u, geo: !!d.geo, date: d.photoDate || null } : null);
-      })
-      .catch(() => { const c = readCache(); c[key] = false; saveCache(); if (on) setPhoto(null); });
-    return () => { on = false; };
-  }, [q, lat, lng, key, photo]);
-  return photo;
-}
+// Photo resolution + cache live in the shared hook (PhotoThumb.jsx, v3 cache
+// with the v=2 cache-buster) — one pipeline for every tile and thumbnail.
+import { usePhoto } from "../components/PhotoThumb";
 
 function Tile({ item }) {
   const photo = usePhoto(item.q, item.lat, item.lng);

@@ -1,41 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 // Photo cards for "More water nearby" on /lake-status — same per-tile photo
 // resolution + localStorage cache as the explore/nearby tiles.
 const serif = "'Spectral', Georgia, serif";
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-let cache = null;
-function readCache() { if (cache) return cache; try { cache = JSON.parse(localStorage.getItem("pb_photo_cache_v2") || "{}"); } catch { cache = {}; } return cache; }
-function saveCache() { try { localStorage.setItem("pb_photo_cache_v2", JSON.stringify(cache)); } catch {} }
-
-// Name candidates first; geotagged-photo fallback (with honest date label)
-// when the lake has no article of its own. Cache stores {u,g,d}; old string
-// entries still readable.
-function usePhoto(q, lat, lng) {
-  const key = q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "");
-  const [photo, setPhoto] = useState(() => {
-    const c = readCache();
-    if (!(key in c)) return undefined;
-    const v = c[key];
-    if (!v) return null;
-    return typeof v === "string" ? { url: v, geo: false, date: null } : { url: v.u, geo: !!v.g, date: v.d || null };
-  });
-  useEffect(() => {
-    if (photo !== undefined) return;
-    let on = true;
-    fetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : ""))
-      .then((r) => (r.ok ? r.json() : null)).then((d) => {
-        const u = d && d.found ? d.thumb || d.image : null;
-        const c = readCache(); c[key] = u ? { u, g: !!d.geo, d: d.photoDate || null } : false; saveCache();
-        if (on) setPhoto(u ? { url: u, geo: !!d.geo, date: d.photoDate || null } : null);
-      }).catch(() => { const c = readCache(); c[key] = false; saveCache(); if (on) setPhoto(null); });
-    return () => { on = false; };
-  }, [q, lat, lng, key, photo]);
-  return photo;
-}
+// Photo resolution + cache live in the shared hook (PhotoThumb.jsx, v3 cache
+// with the v=2 cache-buster) — one pipeline for every tile and thumbnail.
+import { usePhoto } from "../components/PhotoThumb";
 
 function Tile({ it }) {
   const photo = usePhoto(it.q, it.lat, it.lng);

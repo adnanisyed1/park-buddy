@@ -601,6 +601,19 @@ function init(){
             +'</div></div>'; }).join('')+credit; }
       }).catch(function(){});
     }
+    /* Fill data-pbq images with a real photo of each item — name lookup first,
+       geotagged-Commons fallback via data-pblat/lng (the same /api/photo
+       pipeline the React tiles use). Staggered so we don't burst the API. */
+    function pbPhotoHydrate(scope){
+      var imgs=(scope||document).querySelectorAll('img[data-pbq]');
+      Array.prototype.forEach.call(imgs,function(img,i){
+        if(img.getAttribute('data-pbdone'))return; img.setAttribute('data-pbdone','1');
+        setTimeout(function(){
+          var u='/api/photo?q='+encodeURIComponent(img.getAttribute('data-pbq'))+((img.getAttribute('data-pblat'))?('&lat='+img.getAttribute('data-pblat')+'&lng='+img.getAttribute('data-pblng')):'')+'&v=3';
+          fetch(u).then(function(r){return r.ok?r.json():null;}).then(function(d){ if(d&&d.found){ img.onload=function(){img.style.opacity='1';}; img.src=d.thumb||d.image; } }).catch(function(){});
+        }, i*140);
+      });
+    }
     function loadPlaces(p){
       loadGateway(p);
       var pane2=el('pane-now'); if(!pane2) return;
@@ -609,14 +622,16 @@ function init(){
       card.innerHTML='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:9px">Nearby to explore</div><span style="'+S.load+'">Finding campgrounds, forests &amp; trails nearby…</span>';
       fetch('/api/places?lat='+p.lat.toFixed(4)+'&lng='+p.lng.toFixed(4)).then(function(r){return r.ok?r.json():null;}).then(function(d){
         if(!d||(!d.facilities||!d.facilities.length)&&(!d.recAreas||!d.recAreas.length)){ card.style.display='none'; return; }
-        /* Internal-first: facilities/rec-areas open OUR reference page (which
-           carries coords, phone, and the Recreation.gov link as its leaf). */
-        var item=function(x,ic){var q='name='+encodeURIComponent(x.name||'')+(x.lat!=null?'&lat='+x.lat:'')+(x.lng!=null?'&lng='+x.lng:'')+'&type='+encodeURIComponent(x.type||'')+(x.url?'&url='+encodeURIComponent(x.url):'');return '<a href="/campground-status?'+q+'" style="display:flex;gap:11px;align-items:flex-start;text-decoration:none;padding:11px 0;border-top:1px solid #f1ead9"><span style="font-size:1.1rem">'+ic+'</span><div style="min-width:0"><b style="color:#1d4a37;font-size:.9rem;display:block">'+x.name+'</b>'+(x.type||x.description?'<span style="font-size:.76rem;color:#5b6258;line-height:1.4;display:block;margin-top:1px">'+(x.type||x.description)+'</span>':'')+'</div></a>';};
+        /* Internal-first + photo thumbnails: facilities/rec-areas open OUR
+           reference page, and each row carries a real photo (icon shows until
+           pbPhotoHydrate resolves one). */
+        var item=function(x,ic){var q='name='+encodeURIComponent(x.name||'')+(x.lat!=null?'&lat='+x.lat:'')+(x.lng!=null?'&lng='+x.lng:'')+'&type='+encodeURIComponent(x.type||'')+(x.url?'&url='+encodeURIComponent(x.url):'');var nm=String(x.name||'').replace(/"/g,'&quot;');return '<a href="/campground-status?'+q+'" style="display:flex;gap:11px;align-items:center;text-decoration:none;padding:9px 0;border-top:1px solid #f1ead9"><span style="position:relative;width:64px;height:48px;flex:none;border-radius:9px;overflow:hidden;background:#f1ead9;display:flex;align-items:center;justify-content:center;font-size:1.05rem">'+ic+'<img alt="" data-pbq="'+nm+'"'+(x.lat!=null?' data-pblat="'+x.lat+'" data-pblng="'+x.lng+'"':'')+' style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s"></span><div style="min-width:0"><b style="color:#1d4a37;font-size:.9rem;display:block">'+x.name+'</b>'+(x.type||x.description?'<span style="font-size:.76rem;color:#5b6258;line-height:1.4;display:block;margin-top:1px">'+(x.type||x.description)+'</span>':'')+'<span style="font-size:.72rem;color:#b3862d;font-weight:700">Details →</span></div></a>';};
         var H='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:4px">Nearby to explore</div>';
         (d.recAreas||[]).slice(0,4).forEach(function(r){ H+=item(r,'🏞️'); });
         (d.facilities||[]).slice(0,6).forEach(function(f){ H+=item(f,/camp/i.test(f.type)?'⛺':/trail/i.test(f.type)?'🥾':'📍'); });
         H+='<div style="font-size:.62rem;color:#a79f8c;margin-top:11px;line-height:1.4">Data &amp; credit: '+(d.credit||'Recreation.gov / RIDB')+'</div>';
         card.innerHTML=H; card.style.display='';
+        pbPhotoHydrate(card);
       }).catch(function(){ card.style.display='none'; });
     }
     function loadTrails(p){
@@ -626,13 +641,15 @@ function init(){
       card.innerHTML='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:9px">Trails &amp; routes nearby</div><span style="'+S.load+'">Finding hikes, off-road &amp; ski routes…</span>';
       fetch('/api/trails?lat='+p.lat.toFixed(4)+'&lng='+p.lng.toFixed(4)+'&radius='+((p.source==='nps')?25:45)).then(function(r){return r.ok?r.json():null;}).then(function(d){
         if(!d||(!d.hiking||!d.hiking.length)&&(!d.offroad||!d.offroad.length)&&(!d.ski||!d.ski.length)){ card.style.display='none'; return; }
-        /* Trail chips are now LINKS to our own /trail-status pages (they were
-           inert spans) — internal-first navigation from the park page. */
-        var grp=function(title,ic,arr){ if(!arr||!arr.length) return ''; return '<div style="margin-top:10px"><div style="font-size:.74rem;font-weight:800;color:#1d4a37;margin-bottom:5px">'+ic+' '+title+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+arr.slice(0,8).map(function(x){return '<a href="/trail-status?trail='+encodeURIComponent(x.id)+'&park='+encodeURIComponent(x.unitCode||'')+'" style="font-size:.76rem;color:#1d4a37;font-weight:600;background:#fbf6ea;border:1px solid #e7ddca;border-radius:999px;padding:5px 10px;text-decoration:none">'+x.name+' →</a>';}).join('')+'</div></div>'; };
+        /* Photo TILES linking to our /trail-status pages — every trail gets a
+           real photo (name lookup → geotagged fallback at the trail midpoint,
+           hydrated by pbPhotoHydrate) and a "Details" affordance. */
+        var grp=function(title,ic,arr){ if(!arr||!arr.length) return ''; return '<div style="margin-top:12px"><div style="font-size:.74rem;font-weight:800;color:#1d4a37;margin-bottom:7px">'+ic+' '+title+'</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px">'+arr.slice(0,8).map(function(x){var mp=(x.path&&x.path.length)?x.path[Math.floor(x.path.length/2)]:null;var nm=String(x.name||'').replace(/"/g,'&quot;');return '<a href="/trail-status?trail='+encodeURIComponent(x.id)+'&park='+encodeURIComponent(x.unitCode||'')+'" style="text-decoration:none;background:#fffdf7;border:1px solid #e7ddca;border-radius:14px;overflow:hidden;display:block"><span style="display:block;position:relative;padding-top:62%;background:repeating-linear-gradient(135deg,#ece5d4 0 12px,#e6dfcd 12px 24px)"><img alt="" data-pbq="'+nm+'"'+(mp?' data-pblat="'+mp[0]+'" data-pblng="'+mp[1]+'"':'')+' style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s"></span><span style="display:block;padding:8px 10px"><b style="display:block;font-size:.78rem;color:#1d4a37;line-height:1.3">'+x.name+'</b><span style="font-size:.68rem;color:#8c8473">'+(x.lengthMi>0?(x.lengthMi+' mi · '):'')+'Details →</span></span></a>';}).join('')+'</div></div>'; };
         var H='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:2px">Trails &amp; routes nearby</div>';
         H+=grp('Hiking trails','🥾',d.hiking)+grp('Off-road / 4x4','🚙',d.offroad)+grp('Ski routes','⛷️',d.ski);
         H+='<div style="font-size:.62rem;color:#a79f8c;margin-top:11px;line-height:1.4">Data &amp; credit: '+(d.credit||'© OpenStreetMap contributors')+'</div>';
         card.innerHTML=H; card.style.display='';
+        pbPhotoHydrate(card);
       }).catch(function(){ card.style.display='none'; });
     }
     function loadForecast(p){

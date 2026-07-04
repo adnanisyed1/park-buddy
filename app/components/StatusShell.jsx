@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PhotoThumb from "./PhotoThumb";
 
 // Shared look for the new /trail-status, /lake-status, /campground-status
 // pages — standalone deep-linkable content pages (SEO + shareable), separate
@@ -185,12 +186,15 @@ export function NearbySection({ title, items }) {
       <SectionTitle>{title}</SectionTitle>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((it, i) => (
-          <a key={i} href={it.href} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 12, padding: "10px 12px", textDecoration: "none", color: COLORS.ink }}>
-            <span>
+          <a key={i} href={it.href} style={{ display: "flex", alignItems: "center", gap: 12, background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 12, padding: "8px 12px 8px 8px", textDecoration: "none", color: COLORS.ink }}>
+            {/* Every row gets a real photo when the item carries q (name
+                candidates) — geotagged fallback via coords, like the big tiles. */}
+            {it.q && <PhotoThumb q={it.q} lat={it.lat} lng={it.lng} alt={it.name} />}
+            <span style={{ flex: 1, minWidth: 0 }}>
               <b style={{ fontSize: ".85rem", color: COLORS.green, display: "block" }}>{it.name}</b>
               {it.sub && <span style={{ fontSize: ".72rem", color: COLORS.muted }}>{it.sub}</span>}
             </span>
-            <span style={{ color: COLORS.muted, fontSize: ".8rem" }}>→</span>
+            <span style={{ color: COLORS.muted, fontSize: ".8rem", flex: "none" }}>→</span>
           </a>
         ))}
       </div>

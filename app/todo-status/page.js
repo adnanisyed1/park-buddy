@@ -88,17 +88,22 @@ export default async function TodoStatusPage({ searchParams }) {
 
       <NearbySection
         title="Trails nearby"
-        items={(nearby.trails || []).map((t) => ({
-          name: t.name,
-          sub: t.lengthMi > 0 ? t.lengthMi + " mi" : null,
-          href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || pc || ""),
-        }))}
+        items={(nearby.trails || []).map((t) => {
+          const mp = Array.isArray(t.path) && t.path.length ? t.path[Math.floor(t.path.length / 2)] : null;
+          return {
+            name: t.name,
+            sub: t.lengthMi > 0 ? t.lengthMi + " mi" : null,
+            href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || pc || ""),
+            q: t.name, lat: mp ? mp[0] : null, lng: mp ? mp[1] : null,
+          };
+        })}
       />
       <NearbySection
         title="Lakes nearby"
         items={(nearby.lakes || []).map((l) => ({
           name: l.name,
           href: "/lake-status?" + new URLSearchParams({ name: l.name, lat: l.lat, lng: l.lng, kind: l.kind || "lake" }).toString(),
+          q: l.name, lat: l.lat, lng: l.lng,
         }))}
       />
       <NearbySection
@@ -107,6 +112,7 @@ export default async function TodoStatusPage({ searchParams }) {
           name: c.name,
           sub: c.type || null,
           href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString(),
+          q: c.name, lat: c.lat, lng: c.lng,
         }))}
       />
     </StatusShell>

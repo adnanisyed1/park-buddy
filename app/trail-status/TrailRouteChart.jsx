@@ -12,6 +12,11 @@ const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" }; /
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const ON_TRAIL_MI = 0.02; // ~100 ft
 const LOOKAHEAD_MI = 0.1;
+// Map and elevation chart are stacked full-width sections now (not squeezed
+// into two half-width columns, which mismatched heights and wasted space) —
+// both get the full card width and a genuinely bigger, clearer size.
+const MAP_W = 800, MAP_H = 440;
+const CHART_W = 800, CHART_H = 300;
 
 // Aspect-corrected lat/lng -> SVG-coordinate projector (a degree of longitude
 // is shorter than a degree of latitude away from the equator) — built ONCE
@@ -236,9 +241,9 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   const { points } = profile;
   if (!points.length || path.length < 2) return null; // Elevation API unavailable — omit rather than show a broken chart
 
-  const routePts = projectPath(path, 400, 320, 30);
-  const projectLive = makeProjector(path, 400, 320, 30);
-  const scaleBar = niceScaleBar(projectLive.milesPerPixel, 70);
+  const routePts = projectPath(path, MAP_W, MAP_H, 40);
+  const projectLive = makeProjector(path, MAP_W, MAP_H, 40);
+  const scaleBar = niceScaleBar(projectLive.milesPerPixel, 90);
 
   // Off-trail: distance + bearing back to the nearest point. On-trail:
   // progress + bearing toward a lookahead point (assumes forward = increasing
@@ -256,7 +261,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   }
   const liveDot = navPos ? projectLive(navPos.lat, navPos.lng) : null;
   const maxMi = points[points.length - 1].mi;
-  const W = 560, H = 220, L = 46, R = 10, T = 14, B = 26;
+  const W = CHART_W, H = CHART_H, L = 56, R = 16, T = 20, B = 32;
   const fts = points.map((p) => p.ft);
   const ymin = Math.min(...fts) - 40, ymax = Math.max(...fts) + 40;
   const X = (mi) => L + (mi / (maxMi || 1)) * (W - L - R);
@@ -324,61 +329,59 @@ export default function TrailRouteChart({ trailKey, path, category }) {
           {navWatching ? "■ Stop navigation" : "▶ Start navigation"}
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
-        <div style={{ padding: "20px 20px 12px", borderRight: "1px solid #efe8d8" }}>
-          <SectionTitle>Trail map</SectionTitle>
-          {mapsLoaded ? (
-            <div style={{ position: "relative" }}>
-              <div ref={mapDivRef} style={{ width: "100%", height: 320, borderRadius: 12, overflow: "hidden" }} />
-              {/* Compass rose — google.maps.Map has no heading/tilt set here, so it's always north-up and a static "N" is accurate. Top-right, clear of the map-type control at top-left. */}
-              <div style={{ position: "absolute", top: 10, right: 10, width: 30, height: 40, background: "rgba(255,253,248,.85)", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: ".62rem", fontWeight: 700, color: "#4c5443", pointerEvents: "none" }}>
-                <span>N</span>
-                <span style={{ fontSize: ".7rem", lineHeight: 1 }}>↑</span>
-              </div>
+      <div style={{ padding: "20px 20px 12px", borderBottom: "1px solid #efe8d8" }}>
+        <SectionTitle>Trail map</SectionTitle>
+        {mapsLoaded ? (
+          <div style={{ position: "relative" }}>
+            <div ref={mapDivRef} style={{ width: "100%", height: MAP_H, borderRadius: 12, overflow: "hidden" }} />
+            {/* Compass rose — google.maps.Map has no heading/tilt set here, so it's always north-up and a static "N" is accurate. Top-right, clear of the map-type control at top-left. */}
+            <div style={{ position: "absolute", top: 10, right: 10, width: 34, height: 46, background: "rgba(255,253,248,.85)", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: ".68rem", fontWeight: 700, color: "#4c5443", pointerEvents: "none" }}>
+              <span>N</span>
+              <span style={{ fontSize: ".78rem", lineHeight: 1 }}>↑</span>
             </div>
-          ) : (
-            <svg viewBox="0 0 400 320" style={{ width: "100%", height: "auto", display: "block" }}>
-              <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="9" strokeLinecap="round" />
-              <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="5" strokeLinecap="round" strokeDasharray="9 8" />
-              {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="6" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
-              {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="7" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
-              {/* Compass rose — the map is always north-up (no rotation applied), so a static "N" is accurate. */}
-              <g fontFamily={mono} fontSize="11" fill="#8a8471">
-                <text x="26" y="34">N</text>
-                <line x1="30" y1="40" x2="30" y2="66" stroke="#8a8471" strokeWidth="1.4" />
-                <path d="M30 38 l-4 8 h8 Z" fill="#8a8471" />
-              </g>
-              {/* Real distance scale, computed from the same projection the route line uses. */}
-              <g fontFamily={mono} fontSize="10" fill="#8a8471">
-                <line x1={400 - 20 - scaleBar.px} y1="300" x2={400 - 20} y2="300" stroke="#8a8471" strokeWidth="1.4" />
-                <text x={400 - 20 - scaleBar.px} y="292" textAnchor="start">0</text>
-                <text x={400 - 20} y="292" textAnchor="end">{scaleBar.mi} mi</text>
-              </g>
-            </svg>
-          )}
-        </div>
-        <div style={{ padding: "20px 20px 16px" }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-            <SectionTitle>Elevation profile</SectionTitle>
-            <span style={{ fontFamily: mono, fontSize: ".68rem", color: "#4c5443", fontWeight: 600, whiteSpace: "nowrap" }}>
-              {scrubMi != null ? "MI " + scrubMi.toFixed(1) + " · " + Math.round(scrubFt).toLocaleString() + " FT" : "MI 0.0 – " + maxMi.toFixed(1)}
-            </span>
           </div>
-          <svg
-            ref={svgRef} viewBox={"0 0 " + W + " " + H}
-            style={{ width: "100%", height: "auto", display: "block", cursor: "crosshair", marginTop: 6 }}
-            onMouseMove={handleMove} onMouseLeave={() => setScrubMi(null)}
-          >
-            <path d={area} fill={ACCENT} opacity=".12" />
-            <path d={line} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-            {scrubMi != null && (
-              <>
-                <line x1={X(scrubMi)} y1={T} x2={X(scrubMi)} y2={H - B} stroke="#22261f" strokeWidth="1" strokeDasharray="3 3" />
-                <circle cx={X(scrubMi)} cy={Y(scrubFt)} r="5" fill={ACCENT} stroke="#fffdf8" strokeWidth="2" />
-              </>
-            )}
+        ) : (
+          <svg viewBox={"0 0 " + MAP_W + " " + MAP_H} style={{ width: "100%", height: "auto", display: "block" }}>
+            <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="11" strokeLinecap="round" />
+            <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="6" strokeLinecap="round" strokeDasharray="10 9" />
+            {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="7" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
+            {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="8" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
+            {/* Compass rose — the map is always north-up (no rotation applied), so a static "N" is accurate. */}
+            <g fontFamily={mono} fontSize="13" fill="#8a8471">
+              <text x="30" y="40">N</text>
+              <line x1="35" y1="47" x2="35" y2="78" stroke="#8a8471" strokeWidth="1.6" />
+              <path d="M35 45 l-5 9 h10 Z" fill="#8a8471" />
+            </g>
+            {/* Real distance scale, computed from the same projection the route line uses. */}
+            <g fontFamily={mono} fontSize="12" fill="#8a8471">
+              <line x1={MAP_W - 24 - scaleBar.px} y1={MAP_H - 24} x2={MAP_W - 24} y2={MAP_H - 24} stroke="#8a8471" strokeWidth="1.6" />
+              <text x={MAP_W - 24 - scaleBar.px} y={MAP_H - 32} textAnchor="start">0</text>
+              <text x={MAP_W - 24} y={MAP_H - 32} textAnchor="end">{scaleBar.mi} mi</text>
+            </g>
           </svg>
+        )}
+      </div>
+      <div style={{ padding: "20px 20px 16px" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+          <SectionTitle>Elevation profile</SectionTitle>
+          <span style={{ fontFamily: mono, fontSize: ".68rem", color: "#4c5443", fontWeight: 600, whiteSpace: "nowrap" }}>
+            {scrubMi != null ? "MI " + scrubMi.toFixed(1) + " · " + Math.round(scrubFt).toLocaleString() + " FT" : "MI 0.0 – " + maxMi.toFixed(1)}
+          </span>
         </div>
+        <svg
+          ref={svgRef} viewBox={"0 0 " + W + " " + H}
+          style={{ width: "100%", height: "auto", display: "block", cursor: "crosshair", marginTop: 6 }}
+          onMouseMove={handleMove} onMouseLeave={() => setScrubMi(null)}
+        >
+          <path d={area} fill={ACCENT} opacity=".12" />
+          <path d={line} fill="none" stroke={ACCENT} strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />
+          {scrubMi != null && (
+            <>
+              <line x1={X(scrubMi)} y1={T} x2={X(scrubMi)} y2={H - B} stroke="#22261f" strokeWidth="1" strokeDasharray="3 3" />
+              <circle cx={X(scrubMi)} cy={Y(scrubFt)} r="6" fill={ACCENT} stroke="#fffdf8" strokeWidth="2" />
+            </>
+          )}
+        </svg>
       </div>
       {markers.length > 0 && (
         <div style={{ borderTop: "1px solid #efe8d8", padding: "16px 20px 20px" }}>

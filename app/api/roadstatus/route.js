@@ -28,25 +28,29 @@ export async function GET(request) {
     const d = await r.json();
     const all = d.data || [];
 
-    // Road-relevant: mentions the specific road, or the words road/pass/closed/
-    // highway/parkway. Fall back to closures/cautions if the road name isn't hit.
-    const roadWords = /road|pass|highway|parkway|drive|closed|closure/i;
-    const named = road ? new RegExp(road.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
-    const relevant = all.filter((a) => {
-      const t = (a.title || "") + " " + (a.description || "");
-      return (named && named.test(t)) || roadWords.test(t);
-    }).slice(0, 6).map((a) => ({
+    const norm = (a) => ({
       title: a.title || "",
       category: a.category || "Information", // Danger | Caution | Park Closure | Information
       description: (a.description || "").replace(/<[^>]*>/g, "").slice(0, 240),
       url: a.url || "",
-    }));
+    });
+    // Prefer alerts that mention THIS road by name — an unrelated campground or
+    // trail closure shouldn't drive the road's status. Only if none name the
+    // road do we fall back to generic road-word alerts.
+    const named = road ? new RegExp(road.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
+    const roadWords = /\b(road|pass|highway|parkway|drive)\b/i;
+    const nameHits = named ? all.filter((a) => named.test((a.title || "") + " " + (a.description || ""))) : [];
+    const source = nameHits.length ? nameHits : all.filter((a) => roadWords.test((a.title || "") + " " + (a.description || "")));
+    const relevant = source.slice(0, 6).map(norm);
 
-    // Derive an honest overall state from alert severity.
+    // Honest state from NPS CATEGORY (authoritative), not title keywords: a
+    // "Park Closure" alert about the road means closed; Danger/Caution means
+    // advisories; Information (even if it says "…Closures" elsewhere) does not
+    // close the road.
     let state = "open";
-    if (relevant.some((a) => a.category === "Park Closure" || /closed|closure/i.test(a.title))) state = "closed";
+    if (relevant.some((a) => a.category === "Park Closure")) state = "closed";
     else if (relevant.some((a) => a.category === "Danger" || a.category === "Caution")) state = "caution";
-    const label = state === "closed" ? "Closures reported" : state === "caution" ? "Open · advisories in effect" : "No closures reported";
+    const label = state === "closed" ? "Closures reported on the road" : state === "caution" ? "Open · advisories in effect" : (relevant.length ? "Open · see notices" : "No closures reported");
 
     return Response.json({ state, label, alerts: relevant, credit: "Road status: National Park Service alerts (live)." });
   } catch {

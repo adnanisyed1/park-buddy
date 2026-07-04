@@ -80,7 +80,7 @@ const OUT_FIELDS = "OBJECTID,TRLNAME,TRLUSE,TRLSURFACE,TRLCLASS,SEASONAL,SEASDES
 // long; better to drop it than show fabricated-looking geometry.
 const MAX_PLAUSIBLE_TRAIL_MI = 30;
 
-function shapeTrail(a, longest) {
+function shapeTrail(a, longest, maxPts = 30) {
   const latLngPath = longest.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)]);
   const lengthMi = +pathLengthMi(latLngPath).toFixed(1);
   if (lengthMi > MAX_PLAUSIBLE_TRAIL_MI) return null;
@@ -88,7 +88,7 @@ function shapeTrail(a, longest) {
     id: a.OBJECTID,
     name: (a.TRLNAME || "").trim(),
     difficulty: clean(a.TRLCLASS) || "",
-    path: samplePath(latLngPath, 30),
+    path: samplePath(latLngPath, maxPts),
     // extra detail for the trail's own detail panel (not needed for the map line itself)
     lengthMi,
     surface: clean(a.TRLSURFACE),
@@ -161,7 +161,11 @@ export async function GET(request) {
       outFields: OUT_FIELDS,
       returnGeometry: "true",
       outSR: "4326",
-      maxAllowableOffset: "0.0003",
+      // Finer than the bulk query's 0.0003 (~30m) — this endpoint only ever
+      // renders ONE trail (its own dedicated page/map), so there's no reason
+      // to sacrifice contour fidelity for payload size the way the bulk
+      // endpoint (up to 16+ trails at once) needs to.
+      maxAllowableOffset: "0.00003",
       resultRecordCount: "1",
       f: "json",
     });
@@ -172,7 +176,7 @@ export async function GET(request) {
       const f = (data.features || [])[0];
       const longest = f && longestPath(f);
       if (!f || !longest || longest.length < 2) return Response.json({ trail: null });
-      const trail = shapeTrail(f.attributes || {}, longest);
+      const trail = shapeTrail(f.attributes || {}, longest, 400);
       if (!trail) return Response.json({ trail: null });
       return Response.json({ trail: { ...trail, category: categoryFor(f.attributes.TRLUSE) }, credit: "National Park Service (public domain)" });
     } catch {

@@ -27,7 +27,18 @@ function makeProjector(path, W, H, pad) {
   const spanLat = Math.max(maxLat - minLat, 1e-5);
   const spanLng = Math.max((maxLng - minLng) * lngScale, 1e-5);
   const scale = Math.min((W - 2 * pad) / spanLng, (H - 2 * pad) / spanLat);
-  return (lat, lng) => [W / 2 + (lng - midLng) * lngScale * scale, H / 2 - (lat - midLat) * scale];
+  const project = (lat, lng) => [W / 2 + (lng - midLng) * lngScale * scale, H / 2 - (lat - midLat) * scale];
+  project.milesPerPixel = 1 / (scale * 69); // 1° latitude ≈ 69 mi; scale is px per degree-lat
+  return project;
+}
+// A round, human-friendly scale bar length (e.g. "0.5 mi") that fits within
+// a target pixel width, for the SVG fallback's real distance reference.
+function niceScaleBar(milesPerPixel, targetPx) {
+  const targetMi = milesPerPixel * targetPx;
+  const steps = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 50];
+  let mi = steps[0];
+  for (const v of steps) { if (v <= targetMi) mi = v; else break; }
+  return { mi, px: mi / milesPerPixel };
 }
 // NOT the decorative bezier curve from the original prototype — a real
 // projection of the trail's actual geometry.
@@ -133,13 +144,16 @@ export default function TrailRouteChart({ trailKey, path, category }) {
     const g = window.google;
     const map = new g.maps.Map(mapDivRef.current, {
       mapTypeId: "hybrid", mapTypeControl: true, gestureHandling: "cooperative",
-      streetViewControl: false, fullscreenControl: false,
+      streetViewControl: false, fullscreenControl: false, scaleControl: true,
     });
     mapObjRef.current = map;
+    const trailColor = (category && TRAIL_STYLE[category]) || ACCENT;
+    // Dashed trail-marker look (matches topo-map convention) — Maps draws
+    // dashes via a repeated line symbol "icon" rather than a strokeDasharray.
     new g.maps.Polyline({
       path: path.map(([lat, lng]) => ({ lat, lng })),
-      strokeColor: (category && TRAIL_STYLE[category]) || ACCENT, strokeOpacity: 1, strokeWeight: 6,
-      map,
+      strokeOpacity: 0, map,
+      icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 1, strokeColor: trailColor, strokeWeight: 6, scale: 4 }, offset: "0", repeat: "16px" }],
     });
     const bounds = new g.maps.LatLngBounds();
     path.forEach(([lat, lng]) => bounds.extend({ lat, lng }));
@@ -224,6 +238,7 @@ export default function TrailRouteChart({ trailKey, path, category }) {
 
   const routePts = projectPath(path, 400, 320, 30);
   const projectLive = makeProjector(path, 400, 320, 30);
+  const scaleBar = niceScaleBar(projectLive.milesPerPixel, 70);
 
   // Off-trail: distance + bearing back to the nearest point. On-trail:
   // progress + bearing toward a lookahead point (assumes forward = increasing
@@ -313,13 +328,32 @@ export default function TrailRouteChart({ trailKey, path, category }) {
         <div style={{ padding: "20px 20px 12px", borderRight: "1px solid #efe8d8" }}>
           <SectionTitle>Trail map</SectionTitle>
           {mapsLoaded ? (
-            <div ref={mapDivRef} style={{ width: "100%", height: 320, borderRadius: 12, overflow: "hidden" }} />
+            <div style={{ position: "relative" }}>
+              <div ref={mapDivRef} style={{ width: "100%", height: 320, borderRadius: 12, overflow: "hidden" }} />
+              {/* Compass rose — google.maps.Map has no heading/tilt set here, so it's always north-up and a static "N" is accurate. Top-right, clear of the map-type control at top-left. */}
+              <div style={{ position: "absolute", top: 10, right: 10, width: 30, height: 40, background: "rgba(255,253,248,.85)", borderRadius: 6, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: ".62rem", fontWeight: 700, color: "#4c5443", pointerEvents: "none" }}>
+                <span>N</span>
+                <span style={{ fontSize: ".7rem", lineHeight: 1 }}>↑</span>
+              </div>
+            </div>
           ) : (
             <svg viewBox="0 0 400 320" style={{ width: "100%", height: "auto", display: "block" }}>
               <path d={routeLine} fill="none" stroke="#e6dfd0" strokeWidth="9" strokeLinecap="round" />
-              <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="5" strokeLinecap="round" />
+              <path d={routeLine} fill="none" stroke={ACCENT} strokeWidth="5" strokeLinecap="round" strokeDasharray="9 8" />
               {routeDot && <circle cx={routeDot[0]} cy={routeDot[1]} r="6" fill={ACCENT} stroke="#fffdf8" strokeWidth="2.5" />}
               {liveDot && <circle cx={liveDot[0]} cy={liveDot[1]} r="7" fill={NAV_COLOR} stroke="#fffdf8" strokeWidth="2.5" />}
+              {/* Compass rose — the map is always north-up (no rotation applied), so a static "N" is accurate. */}
+              <g fontFamily={mono} fontSize="11" fill="#8a8471">
+                <text x="26" y="34">N</text>
+                <line x1="30" y1="40" x2="30" y2="66" stroke="#8a8471" strokeWidth="1.4" />
+                <path d="M30 38 l-4 8 h8 Z" fill="#8a8471" />
+              </g>
+              {/* Real distance scale, computed from the same projection the route line uses. */}
+              <g fontFamily={mono} fontSize="10" fill="#8a8471">
+                <line x1={400 - 20 - scaleBar.px} y1="300" x2={400 - 20} y2="300" stroke="#8a8471" strokeWidth="1.4" />
+                <text x={400 - 20 - scaleBar.px} y="292" textAnchor="start">0</text>
+                <text x={400 - 20} y="292" textAnchor="end">{scaleBar.mi} mi</text>
+              </g>
             </svg>
           )}
         </div>

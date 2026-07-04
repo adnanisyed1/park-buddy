@@ -2,11 +2,13 @@ import {
   StatusShell, HeroBand, SectionTitle, TipCard, ConditionCard, GoldButton,
   ReviewsBlock, NotFoundBody,
 } from "../components/StatusShell";
-import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhoto, getPointWeather, getParkFees } from "../lib/statusData";
+import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhotoInfo, getPointWeather, getParkFees, getWebcams, getThingsToDo } from "../lib/statusData";
 import TrailHeroStats from "./TrailHeroStats";
 import TrailRouteChart from "./TrailRouteChart";
 import NearbyExplorer from "./NearbyExplorer";
 import AddToTripButton from "../components/AddToTripButton";
+import WebcamsSection from "../components/WebcamsSection";
+import ThingsToDo from "../components/ThingsToDo";
 
 const CAT_META = {
   hiking: { icon: "🥾", label: "Hiking trail" },
@@ -55,7 +57,7 @@ export default async function TrailStatusPage({ searchParams }) {
   const ref = midpoint(trail.path);
   const parks = await getParks();
   const park = parkByUnitCode(parks, trail.unitCode || searchParams.park);
-  const [nearby, { reviews, avg }, photoUrl, weather] = await Promise.all([
+  const [nearby, { reviews, avg }, photoInfo, weather, webcams, todos] = await Promise.all([
     getTrailNearby(ref, {
       state: park?.state || "",
       excludeTrailId: trail.id,
@@ -63,12 +65,17 @@ export default async function TrailStatusPage({ searchParams }) {
       currentUnitCode: trail.unitCode || "",
     }),
     getTrailReviews(trail.id),
-    getPhoto(trail.name, null),
+    // Name lookup first; if the trail has no photo of its own, /api/photo falls
+    // back to a real geotagged photo taken at the trail's coordinates.
+    getPhotoInfo(trail.name, null, ref),
     getPointWeather(ref?.lat, ref?.lng),
+    getWebcams(park?.npsCode, ref?.lat, ref?.lng),
+    getThingsToDo(park?.npsCode, ref?.lat, ref?.lng),
   ]);
-  // Guarantee a hero photo: individual trails rarely have their own image, so
-  // fall back to the park's photo when the trail lookup comes up empty.
-  const heroPhoto = photoUrl || (park ? await getPhoto(park.name + " National Park", park.state) : null);
+  // Guarantee a hero photo: trail's own → geotagged nearby (labeled) → park's.
+  const heroInfo = photoInfo || (park ? await getPhotoInfo(park.name + " National Park", park.state) : null);
+  const heroPhoto = heroInfo?.url || null;
+  const heroBadge = heroInfo?.geo ? "Nearby photo" + (heroInfo.photoDate ? " · " + heroInfo.photoDate : "") : null;
   const fees = park ? await getParkFees(park.npsCode) : null;
   const catMeta = CAT_META[trail.category] || { icon: "🥾", label: "Trail" };
   const parkHref = park ? "/park-status?park=" + park.id : null;
@@ -96,6 +103,7 @@ export default async function TrailStatusPage({ searchParams }) {
         <HeroBand
           photoUrl={heroPhoto}
           photoAlt={trail.name}
+          photoBadge={heroBadge}
           breadcrumb={((trail.unitName || "") + (catMeta.label ? " · " + catMeta.label : "")).trim()}
           title={trail.name}
           pills={pills}
@@ -136,6 +144,9 @@ export default async function TrailStatusPage({ searchParams }) {
           </div>
         </div>
       )}
+
+      <WebcamsSection webcams={webcams} />
+      <ThingsToDo items={todos} />
 
       <div style={{ marginBottom: 26 }}>
         <NearbyExplorer nearby={nearby} refName={trail.name} refLat={ref?.lat} refLng={ref?.lng} state={park?.state || ""} />

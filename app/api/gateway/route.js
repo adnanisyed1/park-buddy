@@ -54,6 +54,54 @@ async function osmTowns(lat, lng, radiusKm) {
   return [];
 }
 
+// USGS GNIS "Populated Place" fallback for when Overpass is rate-limiting this
+// server's IP (a known, recurring problem — the reason trails/lakes left
+// Overpass). Returns pseudo-elements shaped like Overpass nodes so the same
+// dedupe/rank pipeline below works unchanged. GNIS has no population data, so
+// these rank purely by distance ("town" tier, pop 0) — still real towns.
+async function gnisLayer(layer, lat, lng, radiusKm, place) {
+  try {
+    const dLat = radiusKm / 111;
+    const dLng = radiusKm / (111 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+    const params = new URLSearchParams({
+      geometry: [lng - dLng, lat - dLat, lng + dLng, lat + dLat].join(","),
+      geometryType: "esriGeometryEnvelope", inSR: "4326",
+      spatialRel: "esriSpatialRelIntersects",
+      where: "1=1",
+      outFields: "gaz_name", returnGeometry: "true", outSR: "4326",
+      resultRecordCount: "200", f: "json",
+    });
+    const r = await fetch("https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/" + layer + "/query?" + params.toString(), {
+      next: { revalidate: 86400 }, signal: AbortSignal.timeout(9000),
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.features || []).map((f) => {
+      const raw = (f.attributes || {}).gaz_name;
+      // GNIS incorporated names carry a legal prefix ("Town of Estes Park") —
+      // strip it for display.
+      const name = raw ? String(raw).replace(/^(Town|City|Village|Township) of /i, "") : "";
+      const g = f.geometry || {};
+      const pt = (g.points && g.points[0]) || (g.x != null ? [g.x, g.y] : null);
+      if (!name || !pt || pt[0] == null) return null;
+      return { tags: { name, place, population: "0" }, lat: pt[1], lon: pt[0] };
+    }).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function gnisTowns(lat, lng, radiusKm) {
+  // Layer 1 = Incorporated Places (real towns/cities — Estes Park, Grand Lake);
+  // layer 3 = unincorporated Populated Places. Incorporated ranked as "city"
+  // tier so they beat scattered subdivisions, matching the OSM tier logic.
+  const [inc, pop] = await Promise.all([
+    gnisLayer(1, lat, lng, radiusKm, "city"),
+    gnisLayer(3, lat, lng, radiusKm, "town"),
+  ]);
+  return inc.concat(pop);
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const lat = num(searchParams.get("lat"));
@@ -70,6 +118,10 @@ export async function GET(request) {
   if (els.length < 3) {
     const wide = await osmTowns(lat, lng, 160);
     if (wide.length) els = wide;
+  }
+  // Overpass gave nothing at all → USGS GNIS populated places (reliable from server IPs).
+  if (!els.length) {
+    els = await gnisTowns(lat, lng, 60);
   }
 
   // Rank tiers: city > town > village. Within a tier, nearer is better. A bigger place a

@@ -31,29 +31,40 @@ function readCache() {
 }
 function saveCache() { try { localStorage.setItem("pb_photo_cache_v2", JSON.stringify(photoCache)); } catch {} }
 
-function usePhoto(q) {
-  const [url, setUrl] = useState(() => {
+// Resolve a tile photo: name candidates first, then (when coords are given) a
+// real geotagged photo taken at the spot — returned with geo/date metadata so
+// the tile can label it honestly. Cache entries are {u,g,d} objects now; old
+// plain-string entries from earlier versions are still readable.
+function usePhoto(q, lat, lng) {
+  const key = q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "");
+  const [photo, setPhoto] = useState(() => {
     const c = readCache();
-    return q in c ? c[q] || null : undefined;
+    if (!(key in c)) return undefined;
+    const v = c[key];
+    if (!v) return null;
+    return typeof v === "string" ? { url: v, geo: false, date: null } : { url: v.u, geo: !!v.g, date: v.d || null };
   });
   useEffect(() => {
-    if (url !== undefined) return;
+    if (photo !== undefined) return;
     let on = true;
-    fetch("/api/photo?q=" + encodeURIComponent(q))
+    const qs = "/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "");
+    fetch(qs)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         const u = d && d.found ? d.thumb || d.image : null;
-        const c = readCache(); c[q] = u || false; saveCache();
-        if (on) setUrl(u || null);
+        const rec = u ? { u, g: !!d.geo, d: d.photoDate || null } : false;
+        const c = readCache(); c[key] = rec; saveCache();
+        if (on) setPhoto(u ? { url: u, geo: !!d.geo, date: d.photoDate || null } : null);
       })
-      .catch(() => { const c = readCache(); c[q] = false; saveCache(); if (on) setUrl(null); });
+      .catch(() => { const c = readCache(); c[key] = false; saveCache(); if (on) setPhoto(null); });
     return () => { on = false; };
-  }, [q, url]);
-  return url;
+  }, [q, lat, lng, key, photo]);
+  return photo;
 }
 
 function Tile({ item }) {
-  const url = usePhoto(item.q);
+  const photo = usePhoto(item.q, item.lat, item.lng);
+  const url = photo ? photo.url : null;
   const badge = item.badge || (item.distMi != null ? Math.round(item.distMi) + " MI" : null);
   const inner = (
     <>
@@ -63,6 +74,11 @@ function Tile({ item }) {
           <svg viewBox="0 0 24 24" width="26" height="26" fill="#c9bf9f" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}><path d="M12 3l5 9h-3l5 9H5l5-9H7z" /></svg>
         )}
         {badge && <span style={{ position: "absolute", left: 9, top: 9, background: "rgba(21,36,28,.85)", color: "#f3ede0", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".08em", borderRadius: 999, padding: "3px 9px" }}>{badge}</span>}
+        {photo && photo.geo && (
+          <span style={{ position: "absolute", right: 8, bottom: 8, background: "rgba(21,36,28,.75)", color: "rgba(243,237,224,.85)", fontFamily: mono, fontSize: ".52rem", fontWeight: 700, letterSpacing: ".06em", borderRadius: 999, padding: "2px 7px" }}>
+            {photo.date ? "PHOTO · " + photo.date.toUpperCase() : "NEARBY PHOTO"}
+          </span>
+        )}
       </figure>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "11px 13px" }}>
         <div style={{ minWidth: 0 }}>

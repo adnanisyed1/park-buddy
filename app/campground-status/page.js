@@ -32,7 +32,7 @@ export default async function CampgroundStatusPage({ searchParams }) {
   const [parks, nearby, photoUrl] = await Promise.all([
     getParks(),
     getNearby(lat, lng, { excludeName: name }),
-    getPhoto(name, null),
+    getPhoto(name, null, { lat, lng }), // geotagged fallback when the campground has no article
   ]);
   const park = nearestPark(parks, lat, lng);
   const parkHref = park ? "/park-status?park=" + park.id : null;

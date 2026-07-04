@@ -62,6 +62,58 @@ function typeOf(t) {
   return "feature";
 }
 
+// ---- USGS GNIS fallback -------------------------------------------------
+// Overpass rate-limits/blocks many server IPs (the reason trails and lakes
+// left Overpass), so when it returns nothing we fall back to the government's
+// own place-name database — same carto.nationalmap.gov service the water API
+// already uses, reliable from datacenter IPs. Landforms (layer 5) carry the
+// names hikers actually use ("Tombstone Ridge", "Timberline Pass"); layer 7
+// adds falls/springs/lakes/glaciers.
+const GNIS_TYPE = {
+  Summit: "peak", Ridge: "ridge", Gap: "pass", Cliff: "cliff", Arch: "arch",
+  Pillar: "feature", Falls: "waterfall", Spring: "spring", Lake: "water",
+  Reservoir: "water", Glacier: "glacier",
+};
+
+async function gnisLayer(layer, classes, envelope) {
+  try {
+    const params = new URLSearchParams({
+      geometry: envelope, geometryType: "esriGeometryEnvelope", inSR: "4326",
+      spatialRel: "esriSpatialRelIntersects",
+      where: "gaz_featureclass IN (" + classes.map((c) => "'" + c + "'").join(",") + ")",
+      outFields: "gaz_name,gaz_featureclass", returnGeometry: "true", outSR: "4326",
+      resultRecordCount: "80", f: "json",
+    });
+    const r = await fetch("https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/" + layer + "/query?" + params.toString(), {
+      next: { revalidate: 86400 }, signal: AbortSignal.timeout(9000),
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.features || []).map((f) => {
+      const a = f.attributes || {};
+      const name = a.gaz_name ?? a.GAZ_NAME;
+      const cls = a.gaz_featureclass ?? a.GAZ_FEATURECLASS;
+      // Points arrive as esriGeometryMultipoint: geometry.points[0] = [lng, lat].
+      const g = f.geometry || {};
+      const pt = (g.points && g.points[0]) || (g.x != null ? [g.x, g.y] : null);
+      if (!name || !pt || pt[0] == null) return null;
+      return { name, type: GNIS_TYPE[cls] || "feature", lat: pt[1], lng: pt[0] };
+    }).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function gnisFeatures(parts) {
+  // parts = [south, west, north, east]; ArcGIS envelope = west,south,east,north.
+  const envelope = [parts[1], parts[0], parts[3], parts[2]].join(",");
+  const [landforms, hydro] = await Promise.all([
+    gnisLayer(5, ["Summit", "Ridge", "Gap", "Cliff", "Arch"], envelope),
+    gnisLayer(7, ["Falls", "Spring", "Lake", "Glacier"], envelope),
+  ]);
+  return landforms.concat(hydro);
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const bbox = (searchParams.get("bbox") || "").trim();
@@ -72,7 +124,7 @@ export async function GET(request) {
 
   const els = await osmFeatures(bbox);
   const seen = new Set();
-  const features = [];
+  let features = [];
   for (const el of els) {
     const t = el.tags || {};
     const name = (t.name || "").trim();
@@ -83,6 +135,18 @@ export async function GET(request) {
     seen.add(name.toLowerCase());
     features.push({ name, type: typeOf(t), lat, lng });
   }
+  let credit = "Features: OpenStreetMap contributors (ODbL).";
 
-  return Response.json({ features, credit: "Features: OpenStreetMap contributors (ODbL)." });
+  // Overpass empty (usually rate-limited from this server IP) → USGS GNIS.
+  if (!features.length) {
+    const gnis = await gnisFeatures(parts);
+    for (const f of gnis) {
+      if (seen.has(f.name.toLowerCase())) continue;
+      seen.add(f.name.toLowerCase());
+      features.push(f);
+    }
+    if (features.length) credit = "Features: USGS Geographic Names Information System (public domain).";
+  }
+
+  return Response.json({ features, credit });
 }

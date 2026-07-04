@@ -52,6 +52,64 @@ function badFile(u) {
   return /\.(gif|svg)(\?|$)/i.test(u || "") || /map|locator|logo|diagram|seal|flag|icon/i.test(f);
 }
 
+function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// "2012-08-29 11:59:27" (or richer HTML-wrapped forms) -> "Aug 2012"; null if unparseable.
+function captureDate(extmetadata) {
+  const raw = (extmetadata && extmetadata.DateTimeOriginal && extmetadata.DateTimeOriginal.value) || "";
+  const m = String(raw).match(/(\d{4})-(\d{2})/);
+  if (!m) return null;
+  const mo = parseInt(m[2], 10);
+  return mo >= 1 && mo <= 12 ? MONTHS[mo - 1] + " " + m[1] : m[1];
+}
+
+// GEO fallback: a real photograph TAKEN AT these coordinates, from Wikimedia
+// Commons' geosearch (geotagged files, nearest first). For the huge majority of
+// trails/lakes/towns with no Wikipedia article of their own, this returns an
+// actual photo of the spot instead of nothing. Marked geo:true + photoDate so
+// the UI labels it honestly (a real photo, not a live view). CC-licensed;
+// pageUrl links to the file page for attribution.
+async function geoPhoto(lat, lng) {
+  for (const radius of [3000, 10000]) {
+    try {
+      const params = new URLSearchParams({
+        action: "query", format: "json", generator: "geosearch",
+        ggscoord: lat + "|" + lng, ggsradius: String(radius), ggslimit: "12", ggsnamespace: "6",
+        prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "960",
+      });
+      const r = await fetch("https://commons.wikimedia.org/w/api.php?" + params.toString(), {
+        headers: { "User-Agent": "ParkBuddy/1.0 (park status)" },
+        next: { revalidate: 604800 },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) continue;
+      const d = await r.json();
+      const pages = Object.values((d.query && d.query.pages) || {})
+        .sort((a, b) => (a.index ?? 99) - (b.index ?? 99)); // generator index = distance order
+      for (const p of pages) {
+        const ii = p.imageinfo && p.imageinfo[0];
+        const full = ii && ii.url;
+        if (!full || badFile(full)) continue;
+        return {
+          found: true,
+          image: full,
+          thumb: ii.thumburl || full,
+          extract: "",
+          pageUrl: ii.descriptionurl || "",
+          title: (p.title || "").replace(/^File:/, ""),
+          credit: "Photo: Wikimedia Commons contributors (CC), taken near this spot.",
+          geo: true,
+          photoDate: captureDate(ii.extmetadata),
+        };
+      }
+    } catch {
+      /* try wider radius / give up */
+    }
+  }
+  return null;
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const name = (searchParams.get("name") || "").trim();
@@ -60,7 +118,11 @@ export async function GET(request) {
   // (e.g. "Longs Peak|Rocky Mountain National Park"). Lets callers steer the
   // lookup toward a nearby named feature that actually has a good photo.
   const q = (searchParams.get("q") || "").trim();
-  if (!name && !q) return Response.json({ error: "name or q required" }, { status: 400 });
+  // Optional coordinates: enables the geotagged-Commons fallback when no
+  // name-based photo exists (most trails, small lakes, towns).
+  const lat = num(searchParams.get("lat"));
+  const lng = num(searchParams.get("lng"));
+  if (!name && !q && lat == null) return Response.json({ error: "name, q, or lat/lng required" }, { status: 400 });
 
   // Caller candidates first, then variants of `name` for disambiguation.
   const tries = q ? q.split("|").map((s) => s.trim()).filter(Boolean) : [];
@@ -94,6 +156,11 @@ export async function GET(request) {
     if (/national park/i.test(name)) {
       const nps = await npsPhoto(name);
       if (nps) return Response.json(nps);
+    }
+    // Then: a real geotagged photo taken at the coordinates, if the caller gave any.
+    if (lat != null && lng != null) {
+      const gp = await geoPhoto(lat, lng);
+      if (gp) return Response.json(gp);
     }
     return Response.json({ found: false });
   }

@@ -148,6 +148,31 @@ export async function getLakeAccess(lat, lng) {
     .map((f) => ({ name: f.name, type: f.type || "Facility", url: f.url || "", lat: f.lat, lng: f.lng }));
 }
 
+// Live NPS webcams for a park, nearest to a reference point first. Existence,
+// titles, and live-view links are real (NPS runs the cameras); we never claim
+// a snapshot is current — the link goes to NPS's own live player.
+export async function getWebcams(parkCode, lat, lng) {
+  if (!parkCode) return [];
+  const d = await safeJson(fetch(origin() + "/api/webcams?parkCode=" + encodeURIComponent(parkCode), { next: { revalidate: 3600 }, signal: AbortSignal.timeout(9000) }));
+  const cams = (d && d.webcams) || [];
+  return cams
+    .map((w) => ({ ...w, distMi: lat != null && w.lat != null ? milesBetween(lat, lng, w.lat, w.lng) : null }))
+    .sort((a, b) => (a.distMi ?? 9999) - (b.distMi ?? 9999))
+    .slice(0, 4);
+}
+
+// NPS's own curated "things to do" for a park, nearest-first when items carry
+// coordinates (park-wide items without coords sort last but still show).
+export async function getThingsToDo(parkCode, lat, lng) {
+  if (!parkCode) return [];
+  const d = await safeJson(fetch(origin() + "/api/thingstodo?parkCode=" + encodeURIComponent(parkCode), { next: { revalidate: 21600 }, signal: AbortSignal.timeout(9000) }));
+  const items = (d && d.items) || [];
+  return items
+    .map((t) => ({ ...t, distMi: lat != null && t.lat != null ? milesBetween(lat, lng, t.lat, t.lng) : null }))
+    .sort((a, b) => (a.distMi ?? 9999) - (b.distMi ?? 9999))
+    .slice(0, 6);
+}
+
 // Richer "near this trailhead" for /trail-status: five categories — trails,
 // lakes, national parks, national forests, gateway towns — each normalized to
 // { name, distMi, href|null, q, lat, lng, badge }. `q` is a pipe-separated
@@ -241,16 +266,31 @@ export async function getTrailNearby(ref, opts = {}) {
 // Hero photo for any of the three status pages — same source /api/photo
 // already uses client-side (TrailPhoto/CoverPhoto in ExploreApp.jsx), just
 // called server-side here since these pages don't need it to be interactive.
-export async function getPhoto(name, state) {
-  if (!name) return null;
+// Full photo lookup: name/state chain first; when `coords` is given and no
+// name-based photo exists, /api/photo falls back to a real geotagged Commons
+// photo taken at those coordinates (geo:true + photoDate so the UI can label
+// it honestly). Returns { url, geo, photoDate, pageUrl } or null.
+export async function getPhotoInfo(name, state, coords) {
+  if (!name && !coords) return null;
   try {
-    const r = await fetch(origin() + "/api/photo?name=" + encodeURIComponent(name) + "&state=" + encodeURIComponent(state || ""), { next: { revalidate: 604800 } });
+    const qs = new URLSearchParams({ name: name || "", state: state || "" });
+    if (coords && coords.lat != null && coords.lng != null) {
+      qs.set("lat", coords.lat);
+      qs.set("lng", coords.lng);
+    }
+    const r = await fetch(origin() + "/api/photo?" + qs.toString(), { next: { revalidate: 604800 } });
     if (!r.ok) return null;
     const d = await r.json();
-    return d && d.found ? (d.thumb || d.image) : null;
+    if (!d || !d.found) return null;
+    return { url: d.thumb || d.image, geo: !!d.geo, photoDate: d.photoDate || null, pageUrl: d.pageUrl || "" };
   } catch {
     return null;
   }
+}
+
+export async function getPhoto(name, state, coords) {
+  const info = await getPhotoInfo(name, state, coords);
+  return info ? info.url : null;
 }
 
 // Real current conditions near a point, via the National Weather Service

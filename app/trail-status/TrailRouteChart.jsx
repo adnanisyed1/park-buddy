@@ -73,56 +73,78 @@ function featureNote(type) {
     pass: "A named pass along the way.", water: "A named lake beside the trail.",
     waterfall: "A waterfall near the trail.", glacier: "A glacier along the route.",
     spring: "A spring near the trail.", viewpoint: "A marked viewpoint.",
+    ridge: "A named ridge on the route.", cliff: "A named cliff near the trail.",
+    arch: "A natural arch nearby.",
   })[type] || "A named landmark on the route.";
 }
 
-// Build up to ~5 milestones from the trail's OWN data: real elevation + geometry
-// give the mile marks and coordinates; nearby real OSM features (peaks, passes,
-// lakes…) give the names where they exist; otherwise an honest descriptive label
-// derived from the elevation role. Nothing invented, nothing hardcoded per-trail.
+// Build up to ~6 milestones from the trail's OWN data. Real named features
+// (peaks, ridges, passes, lakes — OSM or USGS GNIS) that sit ON the route are
+// projected onto the path and become milestones AT THEIR REAL MILE-MARK (the
+// way "Tombstone Ridge · MI 0.7" works on a paper map) — not forced onto
+// preset mile points. Trailhead and Trail's end anchor both ends; the high
+// point and honest descriptive labels fill in only where no named feature
+// exists. Nothing invented, nothing hardcoded per-trail.
 function buildMilestones(points, path, features) {
   if (!points.length || !Array.isArray(path) || path.length < 2) return [];
   const maxMi = points[points.length - 1].mi;
   if (maxMi <= 0) return [];
   let hp = points[0];
   for (const p of points) if (p.ft > hp.ft) hp = p;
+  const minGap = Math.max(0.2, maxMi * 0.1);
 
-  const cand = [0, maxMi * 0.25, hp.mi, maxMi * 0.55, maxMi * 0.8, maxMi].filter((m) => m >= 0 && m <= maxMi).sort((a, b) => a - b);
-  const minGap = Math.max(0.15, maxMi * 0.12);
-  const miles = [];
-  for (const m of cand) { if (!miles.length || m - miles[miles.length - 1] >= minGap) miles.push(m); }
-  if (miles[miles.length - 1] < maxMi - 1e-6) {
-    if (maxMi - miles[miles.length - 1] < minGap) miles[miles.length - 1] = maxMi;
-    else miles.push(maxMi);
+  // Named features within ~0.25 mi of the route, at their projected mile-mark.
+  const onRoute = [];
+  const seenName = new Set();
+  for (const f of features || []) {
+    if (!f.name || seenName.has(f.name.toLowerCase())) continue;
+    const near = nearestPointOnPath(f.lat, f.lng, path);
+    if (near && near.distMi <= 0.25) {
+      seenName.add(f.name.toLowerCase());
+      onRoute.push({ name: f.name, type: f.type, mi: near.mileMark, distMi: near.distMi });
+    }
+  }
+  // Closest-to-the-trail wins a contested stretch: when a diffuse feature (a
+  // ridge) and a precise one (the pass the trail actually crosses) project to
+  // nearly the same mile, keep the one the trail truly touches.
+  onRoute.sort((a, b) => a.distMi - b.distMi);
+
+  // Up to 3 interior feature milestones, away from the endpoints, ≥0.15 mi apart.
+  const interior = [];
+  for (const f of onRoute) {
+    if (f.mi < minGap || f.mi > maxMi - minGap) continue;
+    if (interior.some((m) => Math.abs(m.mi - f.mi) < 0.15)) continue;
+    interior.push({ mi: f.mi, name: f.name, note: featureNote(f.type) });
+    if (interior.length >= 3) break;
+  }
+  interior.sort((a, b) => a.mi - b.mi);
+  // No named features on this route → honest elevation-derived waypoints.
+  if (!interior.length) {
+    for (const mi of [maxMi * 0.3, hp.mi, maxMi * 0.7]) {
+      if (mi < minGap || mi > maxMi - minGap) continue;
+      if (interior.some((m) => Math.abs(m.mi - mi) < minGap)) continue;
+      const ft = elevAt(points, mi), prevFt = elevAt(points, Math.max(0, mi - maxMi * 0.15));
+      let name = "Along the trail", note = "A waypoint on the route.";
+      if (ft != null && Math.round(ft) === Math.round(hp.ft)) { name = "High point"; note = "Highest point on the route."; }
+      else if (ft != null && prevFt != null && ft < prevFt - 60) { name = "Descending"; note = "The trail drops from here."; }
+      else if (ft != null && prevFt != null && ft > prevFt + 60) { name = "Climbing"; note = "A sustained climb ahead."; }
+      interior.push({ mi, name, note });
+    }
+    interior.sort((a, b) => a.mi - b.mi);
+  } else if (hp.mi > minGap && hp.mi < maxMi - minGap && !interior.some((m) => Math.abs(m.mi - hp.mi) < minGap)) {
+    // Keep the high point alongside named features when it's distinct.
+    interior.push({ mi: hp.mi, name: "High point", note: "Highest point on the route." });
+    interior.sort((a, b) => a.mi - b.mi);
   }
 
-  const usedFeature = new Set();
-  return miles.map((mi, i, arr) => {
-    const ll = pointAtMile(path, mi) || { lat: path[0][0], lng: path[0][1] };
-    const ft = elevAt(points, mi);
-    let feat = null, best = 0.3;
-    for (const f of features || []) {
-      if (usedFeature.has(f.name)) continue;
-      const d = milesBetween(ll.lat, ll.lng, f.lat, f.lng);
-      if (d < best) { best = d; feat = f; }
-    }
-    let name, note;
-    if (feat) {
-      usedFeature.add(feat.name);
-      name = feat.name; note = featureNote(feat.type);
-    } else if (i === 0) {
-      name = "Trailhead"; note = "Start of the trail.";
-    } else if (i === arr.length - 1) {
-      name = "Trail's end"; note = "End of the trail.";
-    } else if (ft != null && Math.round(ft) === Math.round(hp.ft)) {
-      name = "High point"; note = "Highest point on the route.";
-    } else {
-      const prevFt = elevAt(points, arr[i - 1]);
-      if (ft != null && prevFt != null && ft < prevFt - 60) { name = "Descending"; note = "The trail drops from here."; }
-      else if (ft != null && prevFt != null && ft > prevFt + 60) { name = "Climbing"; note = "A sustained climb ahead."; }
-      else { name = "Along the trail"; note = "A waypoint on the route."; }
-    }
-    return { mi, ft, name, note, lat: ll.lat, lng: ll.lng, viaFeature: !!feat };
+  const ms = [{ mi: 0, name: "Trailhead", note: "Start of the trail." }]
+    .concat(interior.slice(0, 4))
+    .concat([{ mi: maxMi, name: "Trail's end", note: "End of the trail." }]);
+  return ms.map((m) => {
+    // Coordinates are the ON-PATH point at that mile (markers sit on the line;
+    // the GPS photo gate expects the hiker standing on the trail).
+    const ll = pointAtMile(path, m.mi) || { lat: path[0][0], lng: path[0][1] };
+    return { mi: m.mi, ft: elevAt(points, m.mi), name: m.name, note: m.note, lat: ll.lat, lng: ll.lng };
   });
 }
 

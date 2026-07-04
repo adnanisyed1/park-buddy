@@ -46,7 +46,7 @@ export function StatusShell({ children, hero, backHref, backLabel, headerRight, 
 // Full-bleed dark hero: photo (optional) + gradient + breadcrumb + title + pill
 // row, plus an optional glassy stat-chip row (trail-status moves its stats up
 // here over the photo). When `stats` is present the hero grows taller/wider.
-export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pills, stats, statsSlot }) {
+export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pills, stats, statsSlot, photoBadge }) {
   const tall = statsSlot != null || (stats && stats.length > 0);
   return (
     <section style={{ position: "relative", overflow: "hidden", minHeight: tall ? "clamp(380px,56vh,560px)" : "clamp(320px,46vh,460px)", display: "flex", flexDirection: "column", justifyContent: "flex-end", background: COLORS.heroDark }}>
@@ -56,6 +56,12 @@ export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pill
         <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(135deg,#26413a 0 12px,#21372f 12px 24px)" }} />
       )}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,18,12,.55) 0%,rgba(8,18,12,.12) 36%,rgba(8,18,12,.46) 66%,rgba(8,18,12,.94) 100%)" }} />
+      {/* Honest provenance label for the hero photo (e.g. a geotagged nearby
+          photo with its capture date) — never passes an archive photo off as
+          a live view. */}
+      {photoUrl && photoBadge && (
+        <span style={{ position: "absolute", top: 14, right: 16, zIndex: 3, background: "rgba(12,26,18,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.22)", color: "rgba(243,237,224,.9)", fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>{photoBadge}</span>
+      )}
       <div style={{ position: "relative", zIndex: 2, maxWidth: tall ? 1180 : 900, margin: "0 auto", width: "100%", padding: "clamp(50px,10vh,90px) clamp(16px,4vw,40px) 36px", boxSizing: "border-box" }}>
         {breadcrumb && <div style={{ ...microLabel, color: COLORS.gold, textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>{breadcrumb}</div>}
         <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#fbf6ea", fontSize: tall ? "clamp(2.4rem,6vw,4.2rem)" : "clamp(2rem,5.4vw,3.4rem)", lineHeight: 1, letterSpacing: "-.02em", margin: "10px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.55)" }}>

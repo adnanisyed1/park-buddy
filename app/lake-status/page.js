@@ -1,7 +1,9 @@
 import { StatusShell, NotFoundBody, NearbySection } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby, getPhoto, getPointWeather, getWaterbody, getLakeAccess } from "../lib/statusData";
+import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo } from "../lib/statusData";
 import LakeLivingHero from "./LakeLivingHero";
 import NearbyWater from "./NearbyWater";
+import WebcamsSection from "../components/WebcamsSection";
+import ThingsToDo from "../components/ThingsToDo";
 
 const serif = "'Spectral', Georgia, serif";
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -48,13 +50,21 @@ export default async function LakeStatusPage({ searchParams }) {
   const parks = await getParks();
   const park = nearestPark(parks, lat, lng);
   const state = park ? park.state : "";
-  const [nearby, photoUrl, weather, waterbody, access] = await Promise.all([
+  // Webcams/things-to-do only when the lake is genuinely in/near the park.
+  const parkRelevant = park && park.dist <= 60;
+  const [nearby, photoInfo, weather, waterbody, access, webcams, todos] = await Promise.all([
     getNearby(lat, lng, { excludeName: name }),
-    getPhoto(name, state), // state-qualified so "Grand Lake" → "Grand Lake (Colorado)", not the disambig page
+    // State-qualified so "Grand Lake" → "Grand Lake (Colorado)", not the
+    // disambig page; coords enable the geotagged-photo fallback for the
+    // majority of lakes with no article of their own.
+    getPhotoInfo(name, state, { lat, lng }),
     getPointWeather(lat, lng),
     getWaterbody(lat, lng),
     getLakeAccess(lat, lng),
+    parkRelevant ? getWebcams(park.npsCode, lat, lng) : Promise.resolve([]),
+    parkRelevant ? getThingsToDo(park.npsCode, lat, lng) : Promise.resolve([]),
   ]);
+  const photoUrl = photoInfo?.url || null;
   const parkHref = park ? "/park-status?park=" + park.id : null;
   const areaAcres = waterbody ? waterbody.areaAcres : null;
   // Warm big-water palette for reservoirs / large lakes; cool alpine otherwise.
@@ -66,6 +76,7 @@ export default async function LakeStatusPage({ searchParams }) {
     href: "/lake-status?" + new URLSearchParams({ name: l.name, lat: l.lat, lng: l.lng, kind: l.kind || "lake" }).toString(),
     q: [l.name, state ? l.name + " (" + state + ")" : "", l.name + " lake"].filter(Boolean).join("|"),
     badge: (l.kind || "lake") === "reservoir" ? "RESERVOIR" : "LAKE",
+    lat: l.lat, lng: l.lng, // enables the geotagged-photo fallback per tile
   }));
 
   return (
@@ -138,12 +149,17 @@ export default async function LakeStatusPage({ searchParams }) {
         </div>
       </div>
 
+      <WebcamsSection webcams={webcams} />
+      <ThingsToDo items={todos} />
+
       {/* From the shore */}
       {photoUrl && (
         <div style={{ marginBottom: 26 }}>
           <figure style={{ position: "relative", margin: 0, height: "clamp(260px,38vh,400px)", overflow: "hidden", borderRadius: 24, border: "1px solid " + LINE, background: "repeating-linear-gradient(135deg,#ece5d4 0 12px,#e6dfcd 12px 24px)" }}>
             <img src={photoUrl} alt={name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-            <figcaption style={{ position: "absolute", left: 14, bottom: 14, background: "rgba(21,36,28,.82)", color: "#f3ede0", fontSize: ".7rem", fontWeight: 800, letterSpacing: ".04em", borderRadius: 999, padding: "5px 13px" }}>{name}</figcaption>
+            <figcaption style={{ position: "absolute", left: 14, bottom: 14, background: "rgba(21,36,28,.82)", color: "#f3ede0", fontSize: ".7rem", fontWeight: 800, letterSpacing: ".04em", borderRadius: 999, padding: "5px 13px" }}>
+              {name}{photoInfo?.geo ? " · nearby photo" + (photoInfo.photoDate ? ", " + photoInfo.photoDate : "") : ""}
+            </figcaption>
           </figure>
         </div>
       )}

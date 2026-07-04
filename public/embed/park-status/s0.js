@@ -652,6 +652,20 @@ function init(){
         pbPhotoHydrate(card);
       }).catch(function(){ card.style.display='none'; });
     }
+    function loadByways(p){
+      var pane=el('pane-now'); if(!pane) return;
+      var card=el('nearbyDrives');
+      if(!card){ card=document.createElement('div'); card.id='nearbyDrives'; card.style.cssText='grid-column:1/-1;background:#fffdf7;border:1px solid #e7ddca;border-radius:20px;padding:18px;box-shadow:0 18px 44px -22px rgba(28,46,34,.45),0 2px 6px rgba(28,46,34,.05)'; pane.appendChild(card); }
+      card.innerHTML='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:9px">Scenic drives</div><span style="'+S.load+'">Finding America’s Byways nearby…</span>';
+      fetch('/api/byways?lat='+p.lat.toFixed(4)+'&lng='+p.lng.toFixed(4)+'&parkCode='+encodeURIComponent(p.npsCode||'')).then(function(r){return r.ok?r.json():null;}).then(function(d){
+        if(!d||!d.drives||!d.drives.length){ card.style.display='none'; return; }
+        var tierLabel=function(t){return t==='all-american'?'All-American Road':t==='landmark'?'Historic landmark':'National Scenic Byway';};
+        var H='<div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#8c8473;font-weight:800;margin-bottom:9px">Scenic drives</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px">';
+        H+=d.drives.map(function(x){var nm=String(x.name||'').replace(/"/g,'&quot;');var q=(x.wiki&&x.wiki.length?x.wiki.join('|'):x.name);return '<a href="/scenic-drives/'+x.id+'" style="text-decoration:none;background:#fffdf7;border:1px solid #e7ddca;border-radius:14px;overflow:hidden;display:block"><span style="display:block;position:relative;padding-top:60%;background:repeating-linear-gradient(135deg,#ece5d4 0 12px,#e6dfcd 12px 24px)"><img alt="" data-pbq="'+q.replace(/"/g,'&quot;')+'"'+(x.lat!=null?' data-pblat="'+x.lat+'" data-pblng="'+x.lng+'"':'')+' style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s">'+(x.tier==='all-american'?'<span style="position:absolute;left:8px;top:8px;background:linear-gradient(135deg,#f0d38a,#c79a4b);color:#4a3410;font-size:.56rem;font-weight:800;border-radius:999px;padding:2px 8px">All-American</span>':'')+'</span><span style="display:block;padding:8px 10px"><b style="display:block;font-size:.78rem;color:#1d4a37;line-height:1.25">'+x.name+'</b><span style="font-size:.66rem;color:#8c8473">'+tierLabel(x.tier)+(x.length?' · '+x.length:'')+'</span></span></a>';}).join('');
+        H+='</div><div style="font-size:.62rem;color:#a79f8c;margin-top:11px;line-height:1.4">Data: FHWA America’s Byways · <a href="/scenic-drives" style="color:#b3862d;font-weight:700;text-decoration:none">All scenic drives →</a></div>';
+        card.innerHTML=H; card.style.display=''; pbPhotoHydrate(card);
+      }).catch(function(){ card.style.display='none'; });
+    }
     function loadForecast(p){
       fetch('https://api.weather.gov/points/'+p.lat.toFixed(4)+','+p.lng.toFixed(4),{headers:{Accept:'application/geo+json'}})
         .then(function(r){if(!r.ok)throw 0;return r.json();})
@@ -1025,6 +1039,7 @@ function init(){
       loadConditions(p);
       loadPlaces(p);
       loadTrails(p);
+      loadByways(p);
       loadReviews(p);
       if(p.region==='territory'){ offline('This U.S. territory is outside the National Weather Service coverage area.'); return; }
       loadForecast(p); loadAlerts(p);

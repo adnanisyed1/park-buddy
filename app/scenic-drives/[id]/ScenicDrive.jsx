@@ -36,16 +36,18 @@ const QUAL_META = {
 const FEATURE_NOTE = { peak: "A named summit near the route", pass: "A named pass on the drive", saddle: "A saddle on the ridge", water: "A lake beside the route", waterfall: "A waterfall near the road", glacier: "A glacier along the route", viewpoint: "A marked viewpoint", ridge: "A named ridge", spring: "A spring near the road" };
 
 function Badge({ tier }) {
-  const top = tier === "all-american";
-  const grad = top ? "linear-gradient(135deg,#f0d38a,#c79a4b)" : "linear-gradient(135deg,#e6e8ea,#a9b0b6)";
-  const ink = top ? "#4a3410" : "#2c3338";
+  const meta = tier === "all-american"
+    ? { grad: "linear-gradient(135deg,#f0d38a,#c79a4b)", ink: "#4a3410", label: "All-American Road", sub: "Top tier · unique in the nation" }
+    : tier === "landmark"
+    ? { grad: "linear-gradient(135deg,#d9b38a,#a9764a)", ink: "#3f2a12", label: "National Historic Landmark", sub: "Iconic road · not an FHWA byway" }
+    : { grad: "linear-gradient(135deg,#e6e8ea,#a9b0b6)", ink: "#2c3338", label: "National Scenic Byway", sub: "Nationally significant" };
   return (
-    <div style={{ position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 10, background: grad, borderRadius: 16, padding: "10px 15px", boxShadow: "0 16px 40px -18px rgba(0,0,0,.7)" }}>
+    <div style={{ position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 10, background: meta.grad, borderRadius: 16, padding: "10px 15px", boxShadow: "0 16px 40px -18px rgba(0,0,0,.7)" }}>
       <div className="sd-anim" style={{ position: "absolute", inset: 0, background: "linear-gradient(100deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%)", backgroundSize: "220% 100%", animation: "sd-shine 4.5s ease-in-out infinite" }} />
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={ink} style={{ position: "relative", flex: "none" }}><path d="M12 2l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17l-5.8 3 1.1-6.5L2.6 8.8l6.5-.9z" /></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill={meta.ink} style={{ position: "relative", flex: "none" }}><path d="M12 2l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17l-5.8 3 1.1-6.5L2.6 8.8l6.5-.9z" /></svg>
       <span style={{ position: "relative", display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-        <b style={{ fontFamily: serif, fontWeight: 800, fontSize: ".98rem", color: ink }}>{top ? "All-American Road" : "National Scenic Byway"}</b>
-        <span style={{ fontSize: ".58rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: ink, opacity: .8 }}>{top ? "Top tier · unique in the nation" : "Nationally significant"}</span>
+        <b style={{ fontFamily: serif, fontWeight: 800, fontSize: ".98rem", color: meta.ink }}>{meta.label}</b>
+        <span style={{ fontSize: ".58rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: meta.ink, opacity: .8 }}>{meta.sub}</span>
       </span>
     </div>
   );
@@ -87,9 +89,12 @@ export default function ScenicDrive({ drive, cross }) {
     return () => { on = false; };
   }, [drive.parkCode, drive.name]);
 
-  // Highlights: curated (flagships) or derived from real named features on the route.
+  // Highlights: curated (flagships) or derived from real named features on the
+  // route. Skip derivation when the drive only has an APPROXIMATE (state-level)
+  // location — features around a state centroid wouldn't be on the actual road.
   useEffect(() => {
     if (drive.highlights && drive.highlights.length) { setHighlights(drive.highlights); return; }
+    if (drive.approxLoc) { setHighlights([]); return; }
     let on = true;
     const pad = 0.12;
     const bbox = [drive.lat - pad, drive.lng - pad, drive.lat + pad, drive.lng + pad].map((v) => v.toFixed(4)).join(",");
@@ -134,8 +139,8 @@ export default function ScenicDrive({ drive, cross }) {
     const map = new g.maps.Map(mapDivRef.current, { mapTypeId: "terrain", mapTypeControl: true, streetViewControl: false, fullscreenControl: false, gestureHandling: "cooperative" });
     mapObjRef.current = map;
     map.setCenter({ lat: drive.lat, lng: drive.lng });
-    map.setZoom(9);
-  }, [mapsLoaded, drive.lat, drive.lng]);
+    map.setZoom(drive.approxLoc ? 6 : 9); // approximate location → show the region
+  }, [mapsLoaded, drive.lat, drive.lng, drive.approxLoc]);
 
   // (Re)draw markers when highlights resolve.
   useEffect(() => {
@@ -249,7 +254,8 @@ export default function ScenicDrive({ drive, cross }) {
           </div>
         </section>
 
-        {/* INTRINSIC QUALITIES */}
+        {/* INTRINSIC QUALITIES — only when we have the real designation data */}
+        {(drive.qualities && drive.qualities.length > 0) && (
         <section style={{ padding: "clamp(24px,3.5vh,40px) clamp(16px,4vw,40px) 6px" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
             <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".18em", textTransform: "uppercase", color: "#8c8473" }}>Designated for its</div>
@@ -266,12 +272,13 @@ export default function ScenicDrive({ drive, cross }) {
             </div>
           </div>
         </section>
+        )}
 
         {/* THE DRIVE */}
         <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) 6px" }}>
           <div style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 8 }}>
             <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.5rem,3.4vw,2.1rem)", color: "#163a2b", lineHeight: 1.1 }}>The drive</h2>
-            <p style={{ fontSize: "clamp(1rem,1.5vw,1.12rem)", color: "#3f4a3c", lineHeight: 1.72 }}>{drive.blurb}</p>
+            <p style={{ fontSize: "clamp(1rem,1.5vw,1.12rem)", color: "#3f4a3c", lineHeight: 1.72 }}>{drive.blurb || ("A " + (drive.tier === "all-american" ? "top-tier All-American Road" : drive.tier === "landmark" ? "nationally significant historic road" : "National Scenic Byway") + " in " + drive.states + ". Federally recognized as one of America's most scenic drives — see the official page for the full route and what to see along the way.")}</p>
           </div>
         </section>
 
@@ -280,11 +287,11 @@ export default function ScenicDrive({ drive, cross }) {
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
               <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.4rem,3vw,1.9rem)", color: "#163a2b" }}>The route</h2>
-              <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#8c8473" }}>Hover an overlook ↔ its map marker</span>
+              <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#8c8473" }}>{drive.approxLoc ? "Approximate area" : "Hover an overlook ↔ its map marker"}</span>
             </div>
             <figure style={{ position: "relative", margin: "14px 0 0", height: "clamp(300px,44vh,460px)", overflow: "hidden", borderRadius: 24, border: "1px solid #e7ddca", background: "#0e2318" }}>
               <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
-              {drive.mapCap && <figcaption style={{ position: "absolute", left: 14, bottom: 14, zIndex: 3, background: "rgba(21,36,28,.82)", color: "#f3ede0", fontSize: ".72rem", fontWeight: 700, borderRadius: 999, padding: "6px 14px", pointerEvents: "none" }}>{drive.mapCap}</figcaption>}
+              <figcaption style={{ position: "absolute", left: 14, bottom: 14, zIndex: 3, background: "rgba(21,36,28,.82)", color: "#f3ede0", fontSize: ".72rem", fontWeight: 700, borderRadius: 999, padding: "6px 14px", pointerEvents: "none" }}>{drive.mapCap || (drive.approxLoc ? "Approximate area — see the official page for the route" : drive.states)}</figcaption>
             </figure>
           </div>
         </section>

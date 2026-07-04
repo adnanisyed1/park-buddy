@@ -14,10 +14,12 @@ const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 function DriveTile({ d }) {
   const photo = usePhoto([...(d.wiki || []), d.name].join("|"), d.lat, d.lng);
-  const top = d.tier === "all-american";
-  const bg = top ? "linear-gradient(135deg,#f0d38a,#c79a4b)" : "linear-gradient(135deg,#e6e8ea,#a9b0b6)";
-  const ink = top ? "#4a3410" : "#2c3338";
-  const badge = top ? "All-American Road" : "National Scenic Byway";
+  const bm = d.tier === "all-american"
+    ? { bg: "linear-gradient(135deg,#f0d38a,#c79a4b)", ink: "#4a3410", label: "All-American Road" }
+    : d.tier === "landmark"
+    ? { bg: "linear-gradient(135deg,#d9b38a,#a9764a)", ink: "#3f2a12", label: "National Historic Landmark" }
+    : { bg: "linear-gradient(135deg,#e6e8ea,#a9b0b6)", ink: "#2c3338", label: "National Scenic Byway" };
+  const bg = bm.bg, ink = bm.ink, badge = bm.label;
   return (
     <Link href={"/scenic-drives/" + d.id} style={{ display: "block", textDecoration: "none", cursor: "pointer", background: "#12291a", border: "1px solid rgba(251,246,234,.12)", borderRadius: 22, overflow: "hidden", boxShadow: "0 26px 60px -40px rgba(0,0,0,.9)" }}>
       <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,#16321f 0 14px,#12291a 14px 28px)" }}>
@@ -27,7 +29,7 @@ function DriveTile({ d }) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill={ink} style={{ flex: "none" }}><path d="M12 2l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17l-5.8 3 1.1-6.5L2.6 8.8l6.5-.9z" /></svg>
           <b style={{ fontFamily: serif, fontWeight: 800, fontSize: ".74rem", color: ink }}>{badge}</b>
         </div>
-        <div style={{ position: "absolute", right: 12, top: 12, background: "rgba(15,32,23,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(251,246,234,.2)", borderRadius: 999, padding: "5px 11px", fontFamily: mono, fontSize: ".62rem", fontWeight: 700, color: "#f3ede0" }}>{d.length}</div>
+        {d.length && <div style={{ position: "absolute", right: 12, top: 12, background: "rgba(15,32,23,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(251,246,234,.2)", borderRadius: 999, padding: "5px 11px", fontFamily: mono, fontSize: ".62rem", fontWeight: 700, color: "#f3ede0" }}>{d.length}</div>}
         <div style={{ position: "absolute", left: 14, right: 14, bottom: 12 }}>
           <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".16em", textTransform: "uppercase", color: "#e4be78" }}>{d.regionLabel} · {d.states}</div>
           <b style={{ display: "block", fontFamily: serif, fontWeight: 700, color: "#fbf6ea", fontSize: "1.5rem", lineHeight: 1.08, marginTop: 3, textShadow: "0 2px 14px rgba(0,0,0,.5)" }}>{d.name}</b>

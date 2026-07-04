@@ -84,6 +84,27 @@ export async function getByway(id) {
   return list.find((d) => d.id === id) || null;
 }
 
+// Scenic drives related to a point — any whose parkCode matches, plus the
+// nearest byways within a wide radius (drives are regional, so 120 mi). Used to
+// showcase drives on park/trail/lake pages. Returns light tile items.
+export async function getNearbyByways(lat, lng, opts = {}) {
+  const list = await getByways();
+  const pc = (opts.parkCode || "").toLowerCase();
+  const scored = list.map((d) => ({
+    d, isPark: pc && d.parkCode === pc,
+    distMi: lat != null && lng != null && d.lat != null ? milesBetween(lat, lng, d.lat, d.lng) : null,
+  }));
+  return scored
+    .filter((s) => s.isPark || (s.distMi != null && s.distMi <= (opts.radiusMi || 120)))
+    .sort((a, b) => (b.isPark ? 1 : 0) - (a.isPark ? 1 : 0) || (a.distMi ?? 9999) - (b.distMi ?? 9999))
+    .slice(0, opts.limit || 6)
+    .map(({ d, distMi, isPark }) => ({
+      id: d.id, name: d.name, tier: d.tier, length: d.length, states: d.states,
+      regionLabel: d.regionLabel, lat: d.lat, lng: d.lng, wiki: d.wiki,
+      distMi: distMi != null ? Math.round(distMi) : null, isPark,
+    }));
+}
+
 // US national forests (name + approximate centroid) — same self-fetch pattern
 // as getParks(), from public/forest-data.js. Used for the "forests near me"
 // section on /trail-status; centroids are approximate (forests are huge), so

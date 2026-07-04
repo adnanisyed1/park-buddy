@@ -1,5 +1,5 @@
 import { StatusShell, NotFoundBody, NearbySection } from "../components/StatusShell";
-import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo, getParkContact, formatPhone } from "../lib/statusData";
+import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo, getParkContact, formatPhone, getNearbyByways } from "../lib/statusData";
 import LakeLivingHero from "./LakeLivingHero";
 import NearbyWater from "./NearbyWater";
 import WebcamsSection from "../components/WebcamsSection";
@@ -65,6 +65,8 @@ export default async function LakeStatusPage({ searchParams }) {
     parkRelevant ? getThingsToDo(park.npsCode, lat, lng) : Promise.resolve([]),
   ]);
   const contact = parkRelevant ? await getParkContact(park.npsCode) : null;
+  const scenicDrives = await getNearbyByways(lat, lng, { parkCode: park?.npsCode, limit: 4 });
+  const driveSub = (d) => (d.tier === "all-american" ? "All-American Road" : d.tier === "landmark" ? "Historic landmark road" : "National Scenic Byway") + (d.length ? " · " + d.length : "") + (d.distMi != null ? " · " + d.distMi + " mi" : "");
   const photoUrl = photoInfo?.url || null;
   const parkHref = park ? "/park-status?park=" + park.id : null;
   const areaAcres = waterbody ? waterbody.areaAcres : null;
@@ -162,6 +164,10 @@ export default async function LakeStatusPage({ searchParams }) {
 
       <WebcamsSection webcams={webcams} />
       <ThingsToDo items={todos} parkCode={parkRelevant ? park.npsCode : ""} />
+      <NearbySection
+        title="Scenic drives nearby"
+        items={scenicDrives.map((d) => ({ name: d.name, sub: driveSub(d), href: "/scenic-drives/" + d.id, q: [...(d.wiki || []), d.name].join("|"), lat: d.lat, lng: d.lng }))}
+      />
       {/* (The lake photo now leads the page as the hero background — the old
           "From the shore" figure showed the same image twice.) */}
 

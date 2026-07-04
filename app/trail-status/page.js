@@ -1,8 +1,8 @@
 import {
   StatusShell, HeroBand, SectionTitle, TipCard, ConditionCard, GoldButton,
-  ReviewsBlock, NotFoundBody,
+  ReviewsBlock, NotFoundBody, NearbySection,
 } from "../components/StatusShell";
-import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhotoInfo, getPointWeather, getParkFees, getWebcams, getThingsToDo, getParkContact, formatPhone } from "../lib/statusData";
+import { origin, getParks, parkByUnitCode, getTrailNearby, getTrailReviews, getPhotoInfo, getPointWeather, getParkFees, getWebcams, getThingsToDo, getParkContact, formatPhone, getNearbyByways } from "../lib/statusData";
 import TrailHeroStats from "./TrailHeroStats";
 import TrailRouteChart from "./TrailRouteChart";
 import NearbyExplorer from "./NearbyExplorer";
@@ -72,6 +72,8 @@ export default async function TrailStatusPage({ searchParams }) {
     getWebcams(park?.npsCode, ref?.lat, ref?.lng),
     getThingsToDo(park?.npsCode, ref?.lat, ref?.lng),
   ]);
+  const scenicDrives = await getNearbyByways(ref?.lat, ref?.lng, { parkCode: park?.npsCode, limit: 4 });
+  const driveSub = (d) => (d.tier === "all-american" ? "All-American Road" : d.tier === "landmark" ? "Historic landmark road" : "National Scenic Byway") + (d.length ? " · " + d.length : "") + (d.distMi != null ? " · " + d.distMi + " mi" : "");
   // Guarantee a hero photo: trail's own → geotagged nearby (labeled) → park's.
   const heroInfo = photoInfo || (park ? await getPhotoInfo(park.name + " National Park", park.state) : null);
   const heroPhoto = heroInfo?.url || null;
@@ -155,6 +157,10 @@ export default async function TrailStatusPage({ searchParams }) {
 
       <WebcamsSection webcams={webcams} />
       <ThingsToDo items={todos} parkCode={park?.npsCode || ""} />
+      <NearbySection
+        title="Scenic drives nearby"
+        items={scenicDrives.map((d) => ({ name: d.name, sub: driveSub(d), href: "/scenic-drives/" + d.id, q: [...(d.wiki || []), d.name].join("|"), lat: d.lat, lng: d.lng }))}
+      />
 
       <div style={{ marginBottom: 26 }}>
         <NearbyExplorer nearby={nearby} refName={trail.name} refLat={ref?.lat} refLng={ref?.lng} state={park?.state || ""} />

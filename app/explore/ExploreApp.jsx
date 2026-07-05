@@ -433,6 +433,7 @@ export default function ExploreApp() {
   const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
   const [ui, setUi] = useState({
     panelOpen: true, filtersOpen: true, radius: 150, mapStyle: "dark",
+    stateFilter: "", liveLoc: false,
     destNational: true, destState: true, destForest: true,
     // Off by default: these fetch per-park data (campgrounds via RIDB, trails via
     // NPS, lakes via USGS GNIS) — no reason to hit those services until the user
@@ -466,6 +467,8 @@ export default function ExploreApp() {
   const nearCircleRef = useRef(null);
   const nearMarkerRef = useRef(null);
   const mapStyleRef = useRef("dark"); // 'dark' | 'standard' — read from localStorage at boot, used by draw()
+  const liveWatchRef = useRef(null); // navigator.geolocation.watchPosition id
+  const liveMarkerRef = useRef(null); // live "you are here" blue dot
   const gatewayMarkerRef = useRef(null);
   const infoWindowRef = useRef(null);
   const seenDestRef = useRef(new Set()); // dedupe live destinations across pans
@@ -488,6 +491,7 @@ export default function ExploreApp() {
 
   const visibleParks = (s = ui, list = parks) => {
     let out = list.filter((p) => typeOn(p.type, s));
+    if (s.stateFilter) out = out.filter((p) => p.state === s.stateFilter);
     if (s.anchor) out = out.filter((p) => milesBetween(s.anchor, p) <= s.radius);
     return out;
   };
@@ -1125,6 +1129,42 @@ export default function ExploreApp() {
     } else apply(USER_LOC.lat, USER_LOC.lng);
   }
 
+  // Live location — a distinct blue "you are here" dot that follows the device
+  // (watchPosition), separate from the "Near me" radius anchor. Toggle on/off.
+  const LIVE_DOT = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><circle cx="11" cy="11" r="10" fill="#3aa0d0" fill-opacity=".22"/><circle cx="11" cy="11" r="5.5" fill="#2c7a9e" stroke="#ffffff" stroke-width="2.5"/></svg>');
+  function toggleLiveLocation() {
+    const g = window.google;
+    if (uiRef.current.liveLoc) {
+      if (liveWatchRef.current != null && navigator.geolocation) navigator.geolocation.clearWatch(liveWatchRef.current);
+      liveWatchRef.current = null;
+      if (liveMarkerRef.current) liveMarkerRef.current.setMap(null);
+      patch({ liveLoc: false });
+      return;
+    }
+    if (!navigator.geolocation) return;
+    patch({ liveLoc: true });
+    let first = true;
+    liveWatchRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const map = mapObjRef.current;
+        if (!window.google || !map) return;
+        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        if (!liveMarkerRef.current) {
+          liveMarkerRef.current = new window.google.maps.Marker({
+            position: p, map, zIndex: 60, title: "Your live location",
+            icon: { url: LIVE_DOT, scaledSize: new window.google.maps.Size(22, 22), anchor: new window.google.maps.Point(11, 11) },
+          });
+        } else { liveMarkerRef.current.setPosition(p); liveMarkerRef.current.setMap(map); }
+        if (first) { map.panTo(p); if (map.getZoom() < 7) map.setZoom(8); first = false; }
+      },
+      () => { patch({ liveLoc: false }); if (liveWatchRef.current != null && navigator.geolocation) navigator.geolocation.clearWatch(liveWatchRef.current); liveWatchRef.current = null; },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+  }
+  // Stop watching on unmount so GPS isn't left polling in the background.
+  useEffect(() => () => { if (liveWatchRef.current != null && navigator.geolocation) navigator.geolocation.clearWatch(liveWatchRef.current); }, []);
+
   // Consume the pre-flight filters the landing page's map modal wrote to
   // pb_map_filters, so "Design your adventure → Enter the map" actually carries
   // the selection into /explore. One-shot: we clear it after applying so a normal
@@ -1164,12 +1204,20 @@ export default function ExploreApp() {
 
   const onTrack = "#c9a35f", offTrack = "rgba(217,183,121,.16)";
   const activeFilterCount =
-    [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.layerHiking, ui.layerOffroad, ui.layerSki].filter(Boolean).length + (ui.anchor ? 1 : 0);
+    [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.layerHiking, ui.layerOffroad, ui.layerSki].filter(Boolean).length + (ui.anchor ? 1 : 0) + (ui.stateFilter ? 1 : 0);
 
+  // Distinct states present in the loaded destinations, for the State filter.
+  const stateOptions = Array.from(new Set(parks.map((p) => p.state).filter(Boolean))).sort();
+
+  // Search matches NAME or STATE, then splits into the divided type sections
+  // (National Parks / State Parks / National Forests) the design calls for.
   const q = ui.searchQuery.trim().toLowerCase();
   const searchResults = q
-    ? parks.filter((p) => p.name.toLowerCase().indexOf(q) > -1).slice(0, 8)
+    ? parks.filter((p) => p.name.toLowerCase().indexOf(q) > -1 || (p.state || "").toLowerCase().indexOf(q) > -1).slice(0, 18)
     : [];
+  const searchGroups = ["national_park", "state_park", "national_forest", "lake"]
+    .map((t) => ({ type: t, items: searchResults.filter((r) => r.type === t) }))
+    .filter((g) => g.items.length);
 
   const sel = getSelected();
   const selMeta = sel ? TYPE_META[sel.type] : null;
@@ -1324,18 +1372,29 @@ export default function ExploreApp() {
             <input value={ui.searchQuery} onChange={(e) => patch({ searchQuery: e.target.value })} placeholder="Search parks, forests, lakes…" autoComplete="off" style={{ flex: 1, background: "transparent", border: "none", color: "#f4f1ea", fontSize: ".92rem", outline: "none", fontFamily: "inherit" }} />
             <span style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".1em", textTransform: "uppercase", color: "#7f8a82" }}>⌘K</span>
           </div>
-          {searchResults.length > 0 && (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 70, ...panelGlass, borderRadius: 16, overflow: "hidden", maxHeight: 340, overflowY: "auto" }}>
-              {searchResults.map((r) => {
-                const rv = V[bucketOf(r.name, r.type)];
-                return (
-                  <button key={r.name} onClick={() => { patch({ searchQuery: "" }); selectPark(r.name); }} style={{ width: "100%", boxSizing: "border-box", textAlign: "left", display: "flex", alignItems: "center", gap: 11, padding: "11px 15px", border: "none", borderBottom: "1px solid rgba(217,183,121,.08)", background: "none", cursor: "pointer", fontFamily: "inherit" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: rv.dot, flex: "none" }} />
-                    <span style={{ fontSize: ".9rem", color: "#f4f1ea", flex: 1 }}>{r.name}</span>
-                    <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".08em", textTransform: "uppercase", color: "#8a938b" }}>{r.state}</span>
-                  </button>
-                );
-              })}
+          {q && (
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 70, ...panelGlass, borderRadius: 16, overflow: "hidden", maxHeight: 380, overflowY: "auto" }}>
+              {searchGroups.length === 0 && (
+                <div style={{ padding: "16px", textAlign: "center", color: "#7f8a82", fontSize: ".84rem" }}>No parks, forests or state parks match “{ui.searchQuery.trim()}”.</div>
+              )}
+              {searchGroups.map((g) => (
+                <div key={g.type}>
+                  <div style={{ ...monoLabel, padding: "9px 15px 4px", display: "flex", alignItems: "center", gap: 7 }}>
+                    <span>{TYPE_META[g.type].icon}</span>{TYPE_META[g.type].label}s
+                    <span style={{ color: "#5f6a62" }}>· {g.items.length}</span>
+                  </div>
+                  {g.items.map((r) => {
+                    const rv = V[bucketOf(r.name, r.type)];
+                    return (
+                      <button key={r.name} onClick={() => { patch({ searchQuery: "" }); selectPark(r.name); }} style={{ width: "100%", boxSizing: "border-box", textAlign: "left", display: "flex", alignItems: "center", gap: 11, padding: "10px 15px", border: "none", borderBottom: "1px solid rgba(217,183,121,.06)", background: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: rv.dot, flex: "none" }} />
+                        <span style={{ fontSize: ".9rem", color: "#f4f1ea", flex: 1 }}>{r.name}</span>
+                        <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".08em", textTransform: "uppercase", color: "#8a938b" }}>{r.state}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1370,6 +1429,22 @@ export default function ExploreApp() {
                   </div>
                   <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ width: "100%", marginTop: 10, accentColor: "#c9a35f" }} />
                   <button onClick={useNearMe} style={{ cursor: "pointer", width: "100%", marginTop: 8, fontSize: ".78rem", fontWeight: 600, color: "#0b1710", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", border: "none", borderRadius: 10, padding: 9, fontFamily: "inherit" }}>Use my location</button>
+                </div>
+
+                <div style={{ ...monoLabel, marginBottom: 8 }}>State</div>
+                <div style={{ position: "relative", marginBottom: 18 }}>
+                  <select
+                    value={ui.stateFilter}
+                    onChange={(e) => patch({ stateFilter: e.target.value })}
+                    style={{ width: "100%", boxSizing: "border-box", appearance: "none", WebkitAppearance: "none", cursor: "pointer", fontFamily: "inherit", fontSize: ".84rem", fontWeight: 600, color: ui.stateFilter ? "#f4f1ea" : "#c3c8d0", background: "rgba(255,255,255,.04)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 10, padding: "10px 34px 10px 12px", outline: "none" }}
+                  >
+                    <option value="">All states</option>
+                    {stateOptions.map((st) => (<option key={st} value={st}>{st}</option>))}
+                  </select>
+                  <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#9aa7a0", fontSize: ".7rem", pointerEvents: "none" }}>▾</span>
+                  {ui.stateFilter && (
+                    <button onClick={() => patch({ stateFilter: "" })} style={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#d9b779", fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                  )}
                 </div>
 
                 <div style={{ ...monoLabel, marginBottom: 6 }}>Destination types</div>
@@ -1771,7 +1846,8 @@ export default function ExploreApp() {
         <button onClick={() => { const m = mapObjRef.current; if (m) { m.setZoom(4); m.setCenter({ lat: 39.5, lng: -98.5 }); } }} aria-label="Reset view" style={{ cursor: "pointer", width: 42, height: 42, background: "transparent", border: "none", color: "#e8cf9a", fontSize: ".9rem" }}>⌂</button>
       </div>
 
-      {/* ---- bottom-right: fullscreen + Ask Park Buddy ---- */}
+      {/* ---- bottom-right: my location + fullscreen + Ask Park Buddy ---- */}
+      <button title={ui.liveLoc ? "Hide my live location" : "Show my live location"} onClick={toggleLiveLocation} style={{ position: "absolute", right: 16, bottom: 120, zIndex: 20, width: 38, height: 38, borderRadius: "50%", ...panelGlass, border: ui.liveLoc ? "1px solid #3aa0d0" : panelGlass.border, color: ui.liveLoc ? "#3aa0d0" : "#e8cf9a", fontSize: "1.05rem", cursor: "pointer" }}>◉</button>
       <button title="Fullscreen" onClick={() => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen(); else if (document.exitFullscreen) document.exitFullscreen(); }} style={{ position: "absolute", right: 16, bottom: 72, zIndex: 20, width: 38, height: 38, borderRadius: "50%", ...panelGlass, color: "#e8cf9a", fontSize: "1rem", cursor: "pointer" }}>⤢</button>
       <button onClick={askParkBuddy} style={{ position: "absolute", right: 16, bottom: 18, zIndex: 20, display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0b1710", border: "none", borderRadius: 999, padding: "12px 18px", fontFamily: "inherit", fontWeight: 600, fontSize: ".84rem", cursor: "pointer", boxShadow: "0 14px 32px -14px rgba(0,0,0,.7)" }}>
         <span>✦</span>Ask Park Buddy

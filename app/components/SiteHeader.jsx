@@ -19,6 +19,7 @@ import Link from "next/link";
 const LINKS = [
   { key: "explore", label: "Explore", href: "/explore" },
   { key: "drives", label: "Scenic Drives", href: "/scenic-drives" },
+  { key: "cruises", label: "Cruises", href: "/cruises" },
   { key: "stay", label: "Stay & Gear", href: "/#stay" },
   { key: "pro", label: "Pro", href: "/#pro" },
   { key: "learn", label: "Learn", href: "/#learn" },

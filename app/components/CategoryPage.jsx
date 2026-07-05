@@ -18,13 +18,13 @@ import { Button, Tag } from "./ui";
 const serif = "var(--pb-serif)";
 const mono = "var(--pb-mono)";
 
-export default function CategoryPage({ eyebrow, title, emphasis, blurb, photoQ, mode = "soon", mapHref = "/explore", features = [] }) {
+export default function CategoryPage({ eyebrow, title, emphasis, blurb, photoQ, mode = "soon", mapHref = "/explore", features = [], navActive = "explore" }) {
   const hero = usePhoto(photoQ, null, null);
   const [sent, setSent] = useState(false);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
-      <SiteHeader active="explore" />
+      <SiteHeader active={navActive} />
 
       <section style={{ position: "relative", minHeight: "min(84vh,720px)", display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden", padding: "120px clamp(16px,4vw,54px) 64px" }}>
         <div style={{ position: "absolute", inset: 0, background: "var(--pb-surface)" }}>

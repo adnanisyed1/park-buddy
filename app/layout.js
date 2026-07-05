@@ -1,10 +1,17 @@
 import "./globals.css";
-import { Spectral, Hanken_Grotesk, Space_Grotesk } from "next/font/google";
+import { Spectral, Hanken_Grotesk, Space_Grotesk, Cormorant_Garamond, Inter, Space_Mono } from "next/font/google";
 
 const spectral = Spectral({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--font-spectral" });
 const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-hanken" });
 // Stat numbers on the /trail-status, /lake-status, /campground-status pages.
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-space-grotesk" });
+
+// Park Buddy design system (see DESIGN.md): Cormorant Garamond (display serif) +
+// Inter (body) + Space Mono (micro-labels), matching the landing page. These
+// power the --pb-serif / --pb-sans / --pb-mono tokens in globals.css.
+const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["400", "500", "600", "700"], style: ["normal", "italic"], variable: "--font-cormorant" });
+const inter = Inter({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--font-inter" });
+const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-space-mono" });
 
 // Set NEXT_PUBLIC_SITE_URL to whatever domain is CURRENTLY serving (the Vercel
 // preview URL until launch, then https://theparkbuddy.com) so canonical URLs,
@@ -59,7 +66,7 @@ export default function RootLayout({ children }) {
     // suppressHydrationWarning: browser extensions (Grammarly et al.) inject
     // attributes into <html>/<body> before React hydrates, throwing minified
     // errors #418/#423/#425 in production. React recovers, but noisily.
-    <html lang="en" className={`${spectral.variable} ${hanken.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${spectral.variable} ${hanken.variable} ${spaceGrotesk.variable} ${cormorant.variable} ${inter.variable} ${spaceMono.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
         {/* Google Maps key, injected from the environment (Netlify env var).
             Runs before any embed-pipeline script (config.js no longer carries a

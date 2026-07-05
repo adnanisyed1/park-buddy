@@ -1,4 +1,5 @@
 :root {
+  /* ── Legacy warm/cream tokens (kept while pages migrate to --pb-* below) ── */
   --bg: #ece4d3;
   --land: #dbe2c4;
   --landHover: #cdd7b0;
@@ -16,6 +17,36 @@
   --ink: #2c281f;
   --muted: #8c8473;
   --head: #163a2b;
+
+  /* ────────────────────────────────────────────────────────────────────────
+     PARK BUDDY DESIGN SYSTEM — the single source of truth for the platform.
+     Futuristic-royal / quiet-luxury, extracted from the approved landing page.
+     Every migrated page reads these; change one value → the whole app shifts.
+     See DESIGN.md for the token reference + voice & tone.
+     ──────────────────────────────────────────────────────────────────────── */
+  --pb-bg: #0a1712;            /* base forest */
+  --pb-bg-2: #08130d;          /* deeper base (footers, wells) */
+  --pb-surface: #0b1710;       /* card */
+  --pb-surface-2: #0e2016;     /* raised / active card */
+  --pb-line: rgba(217, 183, 121, 0.16); /* hairline gold border */
+  --pb-line-strong: rgba(217, 183, 121, 0.30);
+  --pb-gold: #e8cf9a;          /* champagne gold — light */
+  --pb-gold-2: #c9a35f;        /* champagne gold — deep */
+  --pb-gold-soft: #d9b779;     /* muted gold (micro-labels) */
+  --pb-grad-gold: linear-gradient(120deg, #e8cf9a, #c9a35f);
+  --pb-ink: #f4f1ea;           /* primary text */
+  --pb-ink-2: #aab0ba;         /* secondary text */
+  --pb-muted: #7f8a82;         /* tertiary / fine print */
+  --pb-go: #4fd98a;            /* verdict: GO */
+  --pb-prepare: #e8cf9a;       /* verdict: PREPARE */
+  --pb-hold: #e0906a;          /* verdict: HOLD */
+  --pb-radius: 18px;
+  --pb-radius-lg: 24px;
+  --pb-shadow: 0 40px 100px -60px rgba(0, 0, 0, 0.9);
+  --pb-shadow-gold: 0 10px 40px -14px rgba(217, 183, 121, 0.6);
+  --pb-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --pb-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+  --pb-mono: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
 }
 
 * { margin: 0; box-sizing: border-box; }

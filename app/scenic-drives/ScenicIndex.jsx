@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "../components/PhotoThumb";
+import SiteHeader from "../components/SiteHeader";
 
 // /scenic-drives index — scroll-animated grid of America's Byways tiles with
 // designation + region filter chips. Ported 1:1 from the Claude-design spec;
@@ -80,16 +81,8 @@ export default function ScenicIndex({ drives }) {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f2017", color: "#f3ede0", fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px clamp(16px,4vw,40px)", borderBottom: "1px solid rgba(251,246,234,.12)" }}>
-        <Link href="/explore" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", color: "#b8b19b", fontSize: ".84rem", fontWeight: 700 }}>← <span>Explore</span></Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <span style={{ width: 28, height: 28, borderRadius: 9, background: "linear-gradient(145deg,#e4be78,#c79a4b)", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="15" height="15" viewBox="0 0 24 24" fill="#15241c"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg></span>
-          <b style={{ fontFamily: serif, fontSize: "1rem" }}>ParkBuddy</b>
-          <span style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#b8b19b", border: "1px solid rgba(251,246,234,.2)", borderRadius: 999, padding: "3px 9px" }}>/scenic-drives</span>
-        </div>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: mono, fontSize: ".62rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#e4be78" }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: "#e4be78" }} />Federal byways</span>
-      </header>
+    <div style={{ minHeight: "100vh", paddingTop: 64, background: "#0f2017", color: "#f3ede0", fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}>
+      <SiteHeader active="drives" />
 
       <section style={{ position: "relative", overflow: "hidden", padding: "clamp(40px,8vh,84px) clamp(16px,4vw,40px) clamp(28px,5vh,52px)", background: "radial-gradient(1100px 420px at 72% -12%,rgba(228,190,120,.14),transparent 62%)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>

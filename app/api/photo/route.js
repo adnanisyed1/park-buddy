@@ -57,6 +57,10 @@ function badFile(u) {
     // .tif(f) anywhere = aerial/satellite imagery tiles (e.g. NAIP
     // "M_4510954_..._20210611.tif.png"), never a scenic photograph.
     || /\.tiff?(\/|\.|\?|$)/i.test(s)
+    // Astronaut/ISS orbital shots ("ISS045-E-74139_-_View_of_Earth.jpg") are
+    // geotagged to whatever they photographed and keep surfacing in geo-searches
+    // — never a ground-level scenic photo.
+    || /view.of.earth|iss\d\d|astronaut/i.test(f)
     // Highway/route shields & markers are graphics, not photos (caught live:
     // "Blue_Ridge_Parkway_shield.png").
     || /map|locator|logo|diagram|seal|flag|icon|shield|highlighted|boundar|incorporated/i.test(f);

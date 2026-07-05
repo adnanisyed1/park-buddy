@@ -68,7 +68,9 @@ function CrossTile({ c }) {
 }
 
 export default function ScenicDrive({ drive, cross }) {
-  const heroPhoto = usePhoto([...(drive.wiki || []), drive.name].join("|"), drive.lat, drive.lng);
+  // Name-only (no geo fallback): a byway is linear, so a geo-search near one
+  // coordinate returns junk (a church, a brewery, a photo of Earth from orbit).
+  const heroPhoto = usePhoto([...(drive.wiki || []), drive.name].join("|"), null, null);
   const [road, setRoad] = useState(undefined);
   const [highlights, setHighlights] = useState(drive.highlights || null);
   const [film, setFilm] = useState([]);
@@ -112,14 +114,15 @@ export default function ScenicDrive({ drive, cross }) {
   useEffect(() => {
     let on = true;
     if (drive.film && drive.film.length) {
+      // Curated flagship captions — matched by name (no geo fallback).
       Promise.all(drive.film.map((f) =>
-        fetch("/api/photo?q=" + encodeURIComponent(f.q.join("|")) + "&lat=" + drive.lat + "&lng=" + drive.lng + "&v=4")
+        fetch("/api/photo?q=" + encodeURIComponent(f.q.join("|")) + "&v=4")
           .then((r) => (r.ok ? r.json() : null)).then((d) => (d && d.found ? { url: d.image || d.thumb, cap: f.cap } : null)).catch(() => null)
       )).then((arr) => { if (on) setFilm(arr.filter(Boolean)); });
-    } else {
-      fetch("/api/photo?geolist=1&lat=" + drive.lat + "&lng=" + drive.lng + "&n=6")
-        .then((r) => (r.ok ? r.json() : null)).then((d) => { if (on) setFilm(((d && d.photos) || []).map((p) => ({ url: p.image || p.thumb, cap: p.cap, date: p.date }))); }).catch(() => {});
     }
+    // No curated film → no filmstrip. We used to pull geotagged photos near the
+    // route here, but for a linear byway those are junk (churches, breweries,
+    // even photos of Earth from orbit) — better no filmstrip than a wrong one.
     return () => { on = false; };
   }, [drive.id, drive.lat, drive.lng]);
 
@@ -382,7 +385,10 @@ export default function ScenicDrive({ drive, cross }) {
 }
 
 function HighlightCard({ h, i, active, onHover }) {
-  const photo = usePhoto(Array.isArray(h.q) ? h.q.join("|") : h.q || h.n, h.lat, h.lng);
+  // Name-only (no geo fallback): the nearest geotagged photo to a highlight's
+  // coordinate is unreliable (verified live: ISS "View of Earth" shots, a moth,
+  // a wildflower). Match by the feature's name or show the placeholder.
+  const photo = usePhoto(Array.isArray(h.q) ? h.q.join("|") : h.q || h.n, null, null);
   return (
     <div onMouseEnter={() => onHover(i)} onMouseLeave={() => onHover(null)} style={{ background: "#fffdf7", border: "1px solid " + (active ? "#e4be78" : "#e7ddca"), borderRadius: 20, overflow: "hidden", boxShadow: active ? "0 24px 50px -22px rgba(28,46,34,.6)" : "0 18px 44px -24px rgba(28,46,34,.4)", transform: active ? "translateY(-4px)" : "none", transition: "transform .25s,box-shadow .25s,border-color .25s" }}>
       <figure style={{ position: "relative", aspectRatio: "4/3", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,#ece5d4 0 12px,#e6dfcd 12px 24px)" }}>

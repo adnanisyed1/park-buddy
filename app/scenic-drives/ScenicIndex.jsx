@@ -14,12 +14,13 @@ const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 function DriveTile({ d }) {
   const tileRef = useRef(null);
-  // Only use the geotagged-photo fallback when we have a PRECISE location. For
-  // approxLoc byways the coords are just a state-centroid guess, so a geo-search
-  // there returns random junk near the center (a grocery store, an aerial tile,
-  // a photo of Earth from orbit). Better to match by name or show the elegant
-  // placeholder than a wrong photo — pass null coords to skip the geo fallback.
-  const photo = usePhoto([...(d.wiki || []), d.name].join("|"), d.approxLoc ? null : d.lat, d.approxLoc ? null : d.lng, tileRef);
+  // NEVER use the geotagged-photo fallback for byways. A byway is a long, linear
+  // route, so a point geo-search near any single coordinate returns whatever
+  // random thing happens to sit there — verified live: a church for Beartooth, a
+  // brewery for Red Rock, an office building for Seward, even photos of Earth
+  // from the ISS. Only the name-based match is reliably relevant; otherwise show
+  // the elegant placeholder. (Honest > wrong, per the no-wrong-images rule.)
+  const photo = usePhoto([...(d.wiki || []), d.name].join("|"), null, null, tileRef);
   const bm = d.tier === "all-american"
     ? { bg: "linear-gradient(135deg,#f0d38a,#c79a4b)", ink: "#4a3410", label: "All-American Road" }
     : d.tier === "landmark"

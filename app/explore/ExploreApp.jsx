@@ -24,14 +24,14 @@ import { fetchElevationProfile } from "../lib/elevationClient";
 
 const V = {
   go:      { dot: "#2f7d4f", label: "Go",       note: "Conditions look good — clear access and comfortable weather today.", bg: "rgba(47,125,79,.1)" },
-  prepare: { dot: "#b9802a", label: "Prepare",  note: "Manageable, but check conditions and pack accordingly before you head out.", bg: "rgba(185,128,42,.12)" },
-  hold:    { dot: "#bf463a", label: "Hold off", note: "An advisory is in effect — consider rescheduling or picking another spot nearby.", bg: "rgba(191,70,58,.12)" },
+  prepare: { dot: "#c9a35f", label: "Prepare",  note: "Manageable, but check conditions and pack accordingly before you head out.", bg: "rgba(185,128,42,.12)" },
+  hold:    { dot: "var(--pb-hold)", label: "Hold off", note: "An advisory is in effect — consider rescheduling or picking another spot nearby.", bg: "rgba(191,70,58,.12)" },
   loading: { dot: "#b3ab97", label: "Loading",  note: "We don't have a live read yet — check back shortly.", bg: "rgba(179,171,151,.14)" },
 };
 
 const TYPE_META = {
   national_park:   { label: "National Park",  icon: "🏔️", color: null }, // null => verdict color
-  state_park:      { label: "State Park",     icon: "🌳", color: "#c79a4b" },
+  state_park:      { label: "State Park",     icon: "🌳", color: "#c9a35f" },
   national_forest: { label: "National Forest", icon: "🌲", color: "#3f5d2f" },
   lake:            { label: "Lake",           icon: "💧", color: "#2c6b8f" },
   campground:      { label: "Campground",     icon: "🏕️", color: "#b9823f" },
@@ -84,10 +84,10 @@ function roadAccessNote(name) {
 const MAP_STYLE = [
   { elementType: "geometry", stylers: [{ saturation: -55 }, { lightness: 8 }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#5a6b4c" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#f3ede0" }, { weight: 3 }] },
-  { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#c79a4b" }, { weight: 1 }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "var(--pb-ink)" }, { weight: 3 }] },
+  { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#c9a35f" }, { weight: 1 }] },
   { featureType: "administrative.province", elementType: "geometry.stroke", stylers: [{ color: "#d9cba0" }] },
-  { featureType: "administrative.province", elementType: "labels.text.fill", stylers: [{ color: "#8c8473" }] },
+  { featureType: "administrative.province", elementType: "labels.text.fill", stylers: [{ color: "var(--pb-muted)" }] },
   { featureType: "water", elementType: "geometry", stylers: [{ color: "#bcd3d6" }] },
   { featureType: "road", stylers: [{ visibility: "off" }] },
   { featureType: "poi", stylers: [{ visibility: "off" }] },
@@ -221,8 +221,8 @@ function TrailPhoto({ name, state }) {
 // they're computed, not authoritative trail-agency ratings. Shared with
 // /trail-status's route/elevation-chart client island — one implementation.
 
-const trailStatLabel = { fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#8c8473", marginBottom: 3 };
-const trailStatValue = { fontSize: ".92rem", color: "#163a2b" };
+const trailStatLabel = { fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 3 };
+const trailStatValue = { fontSize: ".92rem", color: "var(--pb-ink)" };
 
 function TrailStats({ tr }) {
   const [gainFt, setGainFt] = useState(undefined); // undefined = loading, null = unavailable
@@ -284,7 +284,7 @@ function StarRow({ value, onChange, size }) {
   return (
     <div style={{ display: "flex", gap: 2 }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? "#c79a4b" : "#d9d3c2", fontSize: size || "1.1rem", lineHeight: 1 }}>★</span>
+        <span key={n} onClick={onChange ? () => onChange(n) : undefined} style={{ cursor: onChange ? "pointer" : "default", color: n <= value ? "#c9a35f" : "rgba(217,183,121,.16)", fontSize: size || "1.1rem", lineHeight: 1 }}>★</span>
       ))}
     </div>
   );
@@ -348,27 +348,27 @@ function ReviewsSection({ tr }) {
   return (
     <div style={{ marginTop: 4 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473" }}>Reviews</span>
+        <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Reviews</span>
         {avg != null && (
-          <span style={{ fontSize: ".78rem", color: "#8c8473", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: ".78rem", color: "var(--pb-muted)", display: "flex", alignItems: "center", gap: 6 }}>
             <StarRow value={Math.round(avg)} size=".85rem" /> {avg.toFixed(1)} ({reviews.length})
           </span>
         )}
       </div>
 
-      {(!supa || reviews === null) && <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 10 }}>Loading reviews…</div>}
+      {(!supa || reviews === null) && <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 10 }}>Loading reviews…</div>}
 
       {supa && reviews && reviews.length === 0 && (
-        <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 10 }}>No reviews yet — be the first.</div>
+        <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 10 }}>No reviews yet — be the first.</div>
       )}
 
       {supa && reviews && reviews.map((r) => (
         <div key={r.id} style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-            <b style={{ fontSize: ".82rem", color: "#163a2b" }}>{r.author_name || "Explorer"}</b>
+            <b style={{ fontSize: ".82rem", color: "var(--pb-ink)" }}>{r.author_name || "Explorer"}</b>
             <StarRow value={r.rating} size=".8rem" />
           </div>
-          {r.review_text && <div style={{ fontSize: ".8rem", color: "#4c5443", lineHeight: 1.5 }}>{r.review_text}</div>}
+          {r.review_text && <div style={{ fontSize: ".8rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>{r.review_text}</div>}
         </div>
       ))}
 
@@ -381,7 +381,7 @@ function ReviewsSection({ tr }) {
           <div style={{ fontSize: ".76rem", fontWeight: 700, color: "#1d3941", marginBottom: 6 }}>{myRating ? "Your review" : "Rate this trail"}</div>
           <StarRow value={myRating} onChange={setMyRating} size="1.2rem" />
           <textarea value={myText} onChange={(e) => setMyText(e.target.value)} placeholder="Share tips, conditions, or highlights (optional)" rows={3} style={{ width: "100%", boxSizing: "border-box", marginTop: 8, padding: 8, borderRadius: 8, border: "1px solid rgba(140,132,115,.35)", fontFamily: "inherit", fontSize: ".8rem", resize: "vertical" }} />
-          <button onClick={submit} disabled={!myRating || saving} style={{ width: "100%", marginTop: 8, border: "none", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 700, cursor: myRating ? "pointer" : "default", fontFamily: "inherit", background: myRating ? "#1d4a37" : "#cfc7b4", color: "#fff" }}>{saving ? "Saving…" : "Submit review"}</button>
+          <button onClick={submit} disabled={!myRating || saving} style={{ width: "100%", marginTop: 8, border: "none", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 700, cursor: myRating ? "pointer" : "default", fontFamily: "inherit", background: myRating ? "#c9a35f" : "#cfc7b4", color: "#fff" }}>{saving ? "Saving…" : "Submit review"}</button>
         </div>
       )}
     </div>
@@ -679,12 +679,12 @@ export default function ExploreApp() {
       '<div style="font-family:\'Hanken Grotesk\',sans-serif;padding:2px 2px 4px;min-width:190px">' +
       '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">' +
       '<span style="font-size:1.1rem">' + meta.icon + "</span>" +
-      '<b style="font-family:\'Spectral\',serif;font-size:.98rem;color:#163a2b">' + p.name + "</b></div>" +
-      '<div style="font-size:.72rem;color:#8c8473;margin-bottom:8px">' + meta.label + " · " + p.state + "</div>" +
+      '<b style="font-family:\'Spectral\',serif;font-size:.98rem;color:var(--pb-ink)">' + p.name + "</b></div>" +
+      '<div style="font-size:.72rem;color:var(--pb-muted);margin-bottom:8px">' + meta.label + " · " + p.state + "</div>" +
       '<div style="display:inline-flex;align-items:center;gap:5px;background:' + v.dot + "18;color:" + v.dot + ';font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px;margin-bottom:10px">' +
       '<span style="width:6px;height:6px;border-radius:50%;background:' + v.dot + '"></span>' + v.label + "</div>" +
-      (access ? '<div style="display:flex;align-items:flex-start;gap:5px;background:rgba(199,154,75,.16);border-radius:8px;padding:6px 8px;margin-bottom:10px;font-size:.68rem;color:#7a5b1f;line-height:1.35"><span>✈️</span><span>' + (access.level === "none" ? "No road access" : "Limited road access") + "</span></div>" : "") +
-      '<button onclick="window.__pbExPreview()" style="display:block;width:100%;box-sizing:border-box;border:none;border-radius:9px;padding:8px;background:#1d4a37;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit">View details →</button>' +
+      (access ? '<div style="display:flex;align-items:flex-start;gap:5px;background:rgba(199,154,75,.16);border-radius:8px;padding:6px 8px;margin-bottom:10px;font-size:.68rem;color:#c9a35f;line-height:1.35"><span>✈️</span><span>' + (access.level === "none" ? "No road access" : "Limited road access") + "</span></div>" : "") +
+      '<button onclick="window.__pbExPreview()" style="display:block;width:100%;box-sizing:border-box;border:none;border-radius:9px;padding:8px;background:#c9a35f;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit">View details →</button>' +
       "</div>";
     infoWindowRef.current.setContent(html);
     infoWindowRef.current.open(mapObjRef.current, marker);
@@ -828,7 +828,7 @@ export default function ExploreApp() {
   function layerInfoHtml(title, sub, extra) {
     return (
       '<div style="font-family:\'Hanken Grotesk\',sans-serif;max-width:220px"><b style="color:#1d3941">' + title + "</b>" +
-      '<div style="font-size:12px;color:#5b6258;margin-top:3px">' + sub + "</div>" +
+      '<div style="font-size:12px;color:var(--pb-muted);margin-top:3px">' + sub + "</div>" +
       (extra ? '<div style="font-size:10px;color:#a79f8c;margin-top:6px">' + extra + "</div>" : "") + "</div>"
     );
   }
@@ -893,7 +893,7 @@ export default function ExploreApp() {
         });
         marker.addListener("click", () => {
           if (!infoWindowRef.current) infoWindowRef.current = new g.maps.InfoWindow();
-          const link = x.url ? '<a href="' + x.url + '" target="_blank" rel="noreferrer" style="font-size:12px;color:#2c5562;font-weight:700;display:inline-block;margin-top:6px">Recreation.gov →</a>' : "";
+          const link = x.url ? '<a href="' + x.url + '" target="_blank" rel="noreferrer" style="font-size:12px;color:var(--pb-gold);font-weight:700;display:inline-block;margin-top:6px">Recreation.gov →</a>' : "";
           infoWindowRef.current.setContent(layerInfoHtml(x.name, sub + (x.description ? "<br>" + x.description.slice(0, 140) : "")) .replace("</div></div>", "</div>" + link + "</div>"));
           infoWindowRef.current.open(map, marker);
         });
@@ -1092,7 +1092,7 @@ export default function ExploreApp() {
 
   /* ---------------- derived render values ---------------- */
 
-  const onTrack = "#c79a4b", offTrack = "#d9d3c2";
+  const onTrack = "#c9a35f", offTrack = "rgba(217,183,121,.16)";
   const activeFilterCount =
     [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.layerHiking, ui.layerOffroad, ui.layerSki].filter(Boolean).length + (ui.anchor ? 1 : 0);
 
@@ -1163,7 +1163,7 @@ export default function ExploreApp() {
     const href = statusHrefFor(p);
     const access = roadAccessNote(p.name);
     return (
-      <div key={p.name} onClick={() => selectPark(p.name)} style={{ background: "#fffdf7", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, overflow: "hidden", cursor: "pointer", boxShadow: "0 10px 26px -16px rgba(20,36,28,.45)" }}>
+      <div key={p.name} onClick={() => selectPark(p.name)} style={{ background: "var(--pb-surface)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, overflow: "hidden", cursor: "pointer", boxShadow: "0 10px 26px -16px rgba(20,36,28,.45)" }}>
         <div style={{ position: "relative", height: 78, background: `linear-gradient(135deg,${v.dot}cc,${v.dot}88)`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
           <span style={{ fontSize: "1.9rem", opacity: 0.5, filter: "drop-shadow(0 2px 3px rgba(0,0,0,.2))" }}>{meta.icon}</span>
           <CoverPhoto park={p} />
@@ -1171,24 +1171,24 @@ export default function ExploreApp() {
           <button
             title={inTrip ? "In your trip" : "Add to trip"}
             onClick={(e) => { e.stopPropagation(); toggleTripFor(p.name); }}
-            style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: "50%", border: "none", cursor: "pointer", background: "rgba(255,255,255,.9)", color: inTrip ? "#1d4a37" : "#8c8473", fontSize: ".85rem", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 8px rgba(0,0,0,.18)" }}
+            style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: "50%", border: "none", cursor: "pointer", background: "rgba(255,255,255,.9)", color: inTrip ? "#c9a35f" : "var(--pb-muted)", fontSize: ".85rem", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 8px rgba(0,0,0,.18)" }}
           >{inTrip ? "✓" : "+"}</button>
         </div>
         <div style={{ padding: "9px 11px 11px" }}>
-          <b style={{ fontFamily: serif, fontSize: ".94rem", color: "#163a2b", display: "block", lineHeight: 1.2 }}>{p.name}</b>
-          <div style={{ fontSize: ".71rem", color: "#8c8473", margin: "2px 0 7px" }}>{TYPE_META[p.type].label} · {p.state}</div>
+          <b style={{ fontFamily: serif, fontSize: ".94rem", color: "var(--pb-ink)", display: "block", lineHeight: 1.2 }}>{p.name}</b>
+          <div style={{ fontSize: ".71rem", color: "var(--pb-muted)", margin: "2px 0 7px" }}>{TYPE_META[p.type].label} · {p.state}</div>
           {access && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: ".68rem", fontWeight: 700, color: "#a8791f", margin: "0 0 7px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: ".68rem", fontWeight: 700, color: "#c9a35f", margin: "0 0 7px" }}>
               <span>✈️</span><span>{access.level === "none" ? "No road access" : "Limited road access"}</span>
             </div>
           )}
-          <div style={{ display: "flex", gap: 10, fontSize: ".68rem", color: "#5b6258", fontWeight: 600, alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", gap: 10, fontSize: ".68rem", color: "var(--pb-muted)", fontWeight: 600, alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ display: "flex", gap: 10 }}>
               <span>📍 {near} nearby</span>
               {ui.anchor && <span>{Math.round(milesBetween(ui.anchor, p))} mi from pin</span>}
             </span>
             {href && (
-              <a href={href} onClick={(e) => e.stopPropagation()} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>Live status →</a>
+              <a href={href} onClick={(e) => e.stopPropagation()} style={{ color: "var(--pb-gold)", fontWeight: 700, textDecoration: "none" }}>Live status →</a>
             )}
           </div>
         </div>
@@ -1219,7 +1219,7 @@ export default function ExploreApp() {
         @keyframes ex-loc { 0% { box-shadow: 0 0 0 0 rgba(228,190,120,.55); } 70% { box-shadow: 0 0 0 10px rgba(228,190,120,0); } 100% { box-shadow: 0 0 0 0 rgba(228,190,120,0); } }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
         .pbask-fab { display: none !important; } /* design's own button triggers the panel */
-        ::selection { background: #c79a4b; color: #15241c; }
+        ::selection { background: #c9a35f; color: #15241c; }
       `}</style>
 
       {/* map fills the whole viewport */}
@@ -1227,12 +1227,12 @@ export default function ExploreApp() {
 
       {/* key prompt overlay (design's dev fallback — production uses NEXT_PUBLIC_GMAPS_KEY) */}
       <div style={{ display: ui.keyOverlay ? "flex" : "none", position: "absolute", inset: 0, zIndex: 700, background: "rgba(14,42,29,.72)", backdropFilter: "blur(3px)", alignItems: "center", justifyContent: "center", padding: 30 }}>
-        <div style={{ background: "#fffdf7", border: "1px solid #e3d9c5", borderRadius: 16, padding: "24px 26px", maxWidth: 420, boxShadow: "0 16px 40px -16px rgba(0,0,0,.4)" }}>
-          <h3 style={{ fontFamily: serif, color: "#1d4a37", fontSize: "1.15rem", margin: "0 0 8px" }}>Load the live map</h3>
+        <div style={{ background: "var(--pb-surface)", border: "1px solid rgba(217,183,121,.16)", borderRadius: 16, padding: "24px 26px", maxWidth: 420, boxShadow: "0 16px 40px -16px rgba(0,0,0,.4)" }}>
+          <h3 style={{ fontFamily: serif, color: "#c9a35f", fontSize: "1.15rem", margin: "0 0 8px" }}>Load the live map</h3>
           <p style={{ color: "#666", fontSize: ".88rem", lineHeight: 1.55, margin: "0 0 12px" }}>{ui.keyMsg}</p>
-          <input ref={keyInputRef} placeholder="Your Maps JS API key" style={{ width: "100%", border: "1px solid #e3d9c5", borderRadius: 10, padding: "11px 12px", fontSize: ".86rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box" }} />
-          <button onClick={saveKey} style={{ width: "100%", marginTop: 10, border: "none", cursor: "pointer", borderRadius: 10, padding: 12, fontWeight: 800, color: "#fff", background: "#1d4a37", fontFamily: "inherit", boxShadow: "0 5px 0 #10271d" }}>Load map</button>
-          <p style={{ fontSize: ".72rem", color: "#a7a08c", margin: "11px 0 0", lineHeight: 1.45 }}>Use an unrestricted dev key for testing, or add this preview's URL to the key's allowed referrers in Google Cloud.</p>
+          <input ref={keyInputRef} placeholder="Your Maps JS API key" style={{ width: "100%", border: "1px solid rgba(217,183,121,.16)", borderRadius: 10, padding: "11px 12px", fontSize: ".86rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box" }} />
+          <button onClick={saveKey} style={{ width: "100%", marginTop: 10, border: "none", cursor: "pointer", borderRadius: 10, padding: 12, fontWeight: 800, color: "#fff", background: "#c9a35f", fontFamily: "inherit", boxShadow: "0 5px 0 #10271d" }}>Load map</button>
+          <p style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "11px 0 0", lineHeight: 1.45 }}>Use an unrestricted dev key for testing, or add this preview's URL to the key's allowed referrers in Google Cloud.</p>
         </div>
       </div>
 
@@ -1240,12 +1240,12 @@ export default function ExploreApp() {
       <header style={{ position: "absolute", top: 16, left: 16, right: 16, zIndex: 600, border: "1px solid rgba(255,255,255,.12)", borderRadius: 18, background: "rgba(16,32,23,.42)", WebkitBackdropFilter: "blur(20px) saturate(1.5)", backdropFilter: "blur(20px) saturate(1.5)", boxShadow: "0 16px 40px -18px rgba(8,18,12,.6)", overflow: "visible" }}>
         <div style={{ position: "absolute", top: 0, left: "-30%", width: "42%", height: "340%", pointerEvents: "none", background: "linear-gradient(100deg,transparent,rgba(255,255,255,.2),transparent)", transform: "translateY(-30%) rotate(8deg)", animation: "ex-sheen 7.5s ease-in-out infinite 1s", borderRadius: 18, overflow: "hidden" }} />
         <div style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", gap: 16, height: 58, padding: "0 14px" }}>
-          <a href="/" style={{ display: "flex", alignItems: "center", gap: 11, color: "#f3ede0", textDecoration: "none", flex: "none" }}>
-            <span style={{ width: 34, height: 34, flex: "none", borderRadius: 10, background: "linear-gradient(145deg,#e4be78,#c79a4b)", display: "flex", alignItems: "center", justifyContent: "center", color: "#15241c", boxShadow: "0 6px 16px -6px rgba(0,0,0,.5)" }}>
+          <a href="/" style={{ display: "flex", alignItems: "center", gap: 11, color: "var(--pb-ink)", textDecoration: "none", flex: "none" }}>
+            <span style={{ width: 34, height: 34, flex: "none", borderRadius: 10, background: "linear-gradient(145deg,#e8cf9a,#c9a35f)", display: "flex", alignItems: "center", justifyContent: "center", color: "#15241c", boxShadow: "0 6px 16px -6px rgba(0,0,0,.5)" }}>
               <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path><rect x="11" y="18" width="2" height="4"></rect></svg>
             </span>
             <span style={{ lineHeight: 1.05, display: "none" }}>
-              <b style={{ fontFamily: serif, fontSize: "1.18rem", fontWeight: 700, color: "#fbf6ea", display: "block" }}>ParkBuddy</b>
+              <b style={{ fontFamily: serif, fontSize: "1.18rem", fontWeight: 700, color: "var(--pb-ink)", display: "block" }}>ParkBuddy</b>
             </span>
           </a>
 
@@ -1256,16 +1256,16 @@ export default function ExploreApp() {
               value={ui.searchQuery}
               onChange={(e) => patch({ searchQuery: e.target.value })}
               placeholder="Search parks, forests…"
-              style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px 10px 34px", border: "1px solid rgba(255,255,255,.22)", borderRadius: 12, fontSize: ".86rem", fontFamily: "inherit", color: "#fbf6ea", background: "rgba(255,255,255,.12)", outline: "none" }}
+              style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px 10px 34px", border: "1px solid rgba(255,255,255,.22)", borderRadius: 12, fontSize: ".86rem", fontFamily: "inherit", color: "var(--pb-ink)", background: "rgba(255,255,255,.12)", outline: "none" }}
             />
             {searchResults.length > 0 && (
-              <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, background: "#fffdf7", border: "1px solid #e3d9c5", borderRadius: 13, boxShadow: "0 20px 44px -16px rgba(8,18,12,.5)", maxHeight: 320, overflowY: "auto", zIndex: 50 }}>
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, background: "var(--pb-surface)", border: "1px solid rgba(217,183,121,.16)", borderRadius: 13, boxShadow: "0 20px 44px -16px rgba(8,18,12,.5)", maxHeight: 320, overflowY: "auto", zIndex: 50 }}>
                 {searchResults.map((r) => (
                   <button key={r.name} onClick={() => selectPark(r.name)} style={{ width: "100%", boxSizing: "border-box", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "10px 13px", border: "none", borderBottom: "1px solid #f1ead9", background: "none", cursor: "pointer", fontFamily: "inherit" }}>
                     <span style={{ fontSize: "1rem" }}>{TYPE_META[r.type].icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <b style={{ fontSize: ".85rem", color: "#1d3941", display: "block" }}>{r.name}</b>
-                      <span style={{ fontSize: ".7rem", color: "#8c8473" }}>{TYPE_META[r.type].label} · {r.state}</span>
+                      <span style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{TYPE_META[r.type].label} · {r.state}</span>
                     </div>
                   </button>
                 ))}
@@ -1274,7 +1274,7 @@ export default function ExploreApp() {
           </div>
 
           <nav style={{ display: "flex", gap: 6, alignItems: "center", flex: "none" }}>
-            <a href="/explore" style={{ color: "#15241c", background: "#fbf6ea", textDecoration: "none", fontSize: ".84rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Map</a>
+            <a href="/explore" style={{ color: "#15241c", background: "var(--pb-ink)", textDecoration: "none", fontSize: ".84rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Map</a>
             <a href="/plan" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".84rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Plan a Trip</a>
             <a href="/build-trip" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".84rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Build a Trip</a>
             {/* auth.js mounts the real account UI here (falls back to a plain circle pre-load) */}
@@ -1286,7 +1286,7 @@ export default function ExploreApp() {
       </header>
 
       {/* ---- show-panel trigger ---- */}
-      <button onClick={() => patch({ panelOpen: true })} style={{ display: ui.panelOpen ? "none" : "flex", position: "absolute", top: 86, left: 18, zIndex: 560, border: "1px solid rgba(228,190,120,.5)", background: "linear-gradient(150deg,rgba(35,72,82,.95),rgba(16,38,44,.96))", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", color: "#fbf6ea", fontFamily: "inherit", fontWeight: 700, fontSize: ".82rem", padding: "11px 16px", borderRadius: 13, cursor: "pointer", boxShadow: "0 14px 34px -14px rgba(8,18,12,.7)" }}>☰ Filters &amp; browse</button>
+      <button onClick={() => patch({ panelOpen: true })} style={{ display: ui.panelOpen ? "none" : "flex", position: "absolute", top: 86, left: 18, zIndex: 560, border: "1px solid rgba(228,190,120,.5)", background: "linear-gradient(150deg,rgba(35,72,82,.95),rgba(16,38,44,.96))", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", color: "var(--pb-ink)", fontFamily: "inherit", fontWeight: 700, fontSize: ".82rem", padding: "11px 16px", borderRadius: 13, cursor: "pointer", boxShadow: "0 14px 34px -14px rgba(8,18,12,.7)" }}>☰ Filters &amp; browse</button>
 
       {/* ============ CONTROL-CENTER PANEL ============ */}
       <aside style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 392, zIndex: 530, overflow: "hidden", background: "linear-gradient(168deg,rgba(243,246,240,.94),rgba(230,238,231,.9))", WebkitBackdropFilter: "blur(26px) saturate(1.5)", backdropFilter: "blur(26px) saturate(1.5)", borderRight: "1px solid rgba(255,255,255,.45)", boxShadow: "1px 0 0 rgba(255,255,255,.6) inset, 0 2px 0 rgba(228,190,120,.5) inset, 18px 0 60px -34px rgba(20,36,28,.5)", display: "flex", flexDirection: "column", transform: ui.panelOpen ? "translateX(0)" : "translateX(-100%)" }}>
@@ -1298,24 +1298,24 @@ export default function ExploreApp() {
           {ui.view === "browse" && (
             <>
               <button onClick={toggle("filtersOpen")} style={{ width: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", gap: 9, padding: "10px 4px", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-                <span style={{ color: "#8c8473", fontSize: ".95rem" }}>⚙</span>
+                <span style={{ color: "var(--pb-muted)", fontSize: ".95rem" }}>⚙</span>
                 <span style={{ fontSize: ".74rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "#1d3941", flex: 1 }}>Filters</span>
-                <span style={{ minWidth: 20, height: 20, padding: "0 5px", borderRadius: 999, background: "#c79a4b", color: "#163a2b", fontSize: ".68rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeFilterCount}</span>
-                <span style={{ color: "#8c8473", fontSize: ".8rem", transform: ui.filtersOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+                <span style={{ minWidth: 20, height: 20, padding: "0 5px", borderRadius: 999, background: "#c9a35f", color: "var(--pb-ink)", fontSize: ".68rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeFilterCount}</span>
+                <span style={{ color: "var(--pb-muted)", fontSize: ".8rem", transform: ui.filtersOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
               </button>
 
               <div style={{ display: ui.filtersOpen ? "block" : "none" }}>
-                <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#b07d3a", margin: "8px 0" }}>Search radius</div>
+                <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c9a35f", margin: "8px 0" }}>Search radius</div>
                 <div style={{ background: "rgba(255,255,255,.6)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: "12px 14px", marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <b style={{ fontSize: ".88rem", color: "#1a2b21" }}>Within {ui.radius} mi</b>
-                    <button onClick={useNearMe} style={{ display: "flex", alignItems: "center", gap: 5, background: ui.anchor && ui.anchor.isUser ? "#1d4a37" : "#f0e8d5", color: ui.anchor && ui.anchor.isUser ? "#fbf6ea" : "#7a6a3c", border: "none", borderRadius: 999, padding: "6px 13px", fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📍 Near me</button>
+                    <button onClick={useNearMe} style={{ display: "flex", alignItems: "center", gap: 5, background: ui.anchor && ui.anchor.isUser ? "#c9a35f" : "#f0e8d5", color: ui.anchor && ui.anchor.isUser ? "var(--pb-ink)" : "#7a6a3c", border: "none", borderRadius: 999, padding: "6px 13px", fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📍 Near me</button>
                   </div>
-                  <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ width: "100%", accentColor: "#c79a4b" }} />
-                  <div style={{ fontSize: ".72rem", color: "#8c8473", marginTop: 6, lineHeight: 1.4 }}>Tap &quot;Near me&quot; or pick a place, then set the distance.</div>
+                  <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ width: "100%", accentColor: "#c9a35f" }} />
+                  <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 6, lineHeight: 1.4 }}>Tap &quot;Near me&quot; or pick a place, then set the distance.</div>
                 </div>
 
-                <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#b07d3a", marginBottom: 8 }}>Destination types</div>
+                <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c9a35f", marginBottom: 8 }}>Destination types</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#2f7d4f" }} />
@@ -1323,7 +1323,7 @@ export default function ExploreApp() {
                     <Switch on={ui.destNational} onClick={toggle("destNational")} />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ width: 8, height: 8, background: "#c79a4b", transform: "rotate(45deg)", display: "inline-block" }} />
+                    <span style={{ width: 8, height: 8, background: "#c9a35f", transform: "rotate(45deg)", display: "inline-block" }} />
                     <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>State Parks</span>
                     <Switch on={ui.destState} onClick={toggle("destState")} />
                   </div>
@@ -1334,7 +1334,7 @@ export default function ExploreApp() {
                   </div>
                 </div>
 
-                <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#b07d3a", marginBottom: 8 }}>On the map</div>
+                <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c9a35f", marginBottom: 8 }}>On the map</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "9px solid #d2843a", display: "inline-block" }} />
@@ -1361,7 +1361,7 @@ export default function ExploreApp() {
                     <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: "#1a2b21" }}>Ski routes</span>
                     <Switch on={ui.layerSki} onClick={toggle("layerSki")} />
                   </div>
-                  <div style={{ fontSize: ".68rem", color: "#8c8473", lineHeight: 1.4 }}>Trail, campground &amp; lake layers draw around the park you select.</div>
+                  <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", lineHeight: 1.4 }}>Trail, campground &amp; lake layers draw around the park you select.</div>
                 </div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
                   <button onClick={() => patch({ destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true, layerHiking: true, layerOffroad: true, layerSki: true })} style={{ flex: 1, border: "1px solid rgba(140,132,115,.35)", borderRadius: 9, padding: 7, fontSize: ".76rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.6)", color: "#1d3941" }}>All</button>
@@ -1371,24 +1371,24 @@ export default function ExploreApp() {
               </div>
 
               <div style={{ display: "flex", gap: 6, margin: "16px 0 12px", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 4 }}>
-                <button onClick={() => patch({ listMode: false })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: !ui.listMode ? "#1d4a37" : "transparent", color: !ui.listMode ? "#fff" : "#5b6258" }}>🗺 Map</button>
-                <button onClick={() => patch({ listMode: true })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.listMode ? "#1d4a37" : "transparent", color: ui.listMode ? "#fff" : "#5b6258" }}>☰ List</button>
+                <button onClick={() => patch({ listMode: false })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: !ui.listMode ? "#c9a35f" : "transparent", color: !ui.listMode ? "#fff" : "var(--pb-muted)" }}>🗺 Map</button>
+                <button onClick={() => patch({ listMode: true })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.listMode ? "#c9a35f" : "transparent", color: ui.listMode ? "#fff" : "var(--pb-muted)" }}>☰ List</button>
               </div>
 
               {ui.anchor && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(199,154,75,.16)", border: "1px solid rgba(199,154,75,.35)", borderRadius: 11, padding: "8px 11px", marginBottom: 10 }}>
-                  <span style={{ color: "#a8791f" }}>📍</span>
-                  <span style={{ flex: 1, fontSize: ".78rem", fontWeight: 700, color: "#7a5b1f" }}>Around {ui.anchor.label}</span>
-                  <button onClick={clearAnchor} style={{ background: "none", border: "none", color: "#a8791f", fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                  <span style={{ color: "#c9a35f" }}>📍</span>
+                  <span style={{ flex: 1, fontSize: ".78rem", fontWeight: 700, color: "#c9a35f" }}>Around {ui.anchor.label}</span>
+                  <button onClick={clearAnchor} style={{ background: "none", border: "none", color: "#c9a35f", fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
                 </div>
               )}
 
-              <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473", marginBottom: 10 }}>{visible.length} of {parks.length} destinations match your filters</div>
+              <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 10 }}>{visible.length} of {parks.length} destinations match your filters</div>
 
               {!ui.listMode && (
                 <>
                   {anchoredPark && <div style={{ marginBottom: 11 }}>{renderParkCard(anchoredPark)}</div>}
-                  <div style={{ textAlign: "center", color: "#8c8473", fontSize: ".85rem", lineHeight: 1.6, padding: "18px 10px", background: "rgba(255,255,255,.45)", border: "1px dashed rgba(140,132,115,.4)", borderRadius: 14 }}>
+                  <div style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".85rem", lineHeight: 1.6, padding: "18px 10px", background: "rgba(255,255,255,.45)", border: "1px dashed rgba(140,132,115,.4)", borderRadius: 14 }}>
                     Tap any pin on the map to explore that place — conditions, details, and what&apos;s nearby.
                   </div>
                 </>
@@ -1396,7 +1396,7 @@ export default function ExploreApp() {
               {ui.listMode && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
                   {sortedVisible.length === 0 && (
-                    <div style={{ textAlign: "center", color: "#8c8473", padding: "26px 10px", fontSize: ".85rem" }}>No destinations match this filter right now.</div>
+                    <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "26px 10px", fontSize: ".85rem" }}>No destinations match this filter right now.</div>
                   )}
                   {sortedVisible.map((p) => renderParkCard(p))}
                 </div>
@@ -1411,42 +1411,42 @@ export default function ExploreApp() {
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: "1.3rem" }}>{selMeta.icon}</span>
-                <span style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "#163a2b" }}>{sel.name}</span>
+                <span style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)" }}>{sel.name}</span>
               </div>
-              <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 12 }}>{selMeta.label} · {sel.state}</div>
+              <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 12 }}>{selMeta.label} · {sel.state}</div>
 
               {selAccess && (
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: selAccess.level === "none" ? "rgba(191,70,58,.1)" : "rgba(199,154,75,.16)", border: "1px solid " + (selAccess.level === "none" ? "rgba(191,70,58,.25)" : "rgba(199,154,75,.3)"), borderRadius: 12, padding: "11px 13px", marginBottom: 14 }}>
                   <span style={{ fontSize: "1rem" }}>✈️</span>
                   <div>
-                    <b style={{ fontSize: ".8rem", color: selAccess.level === "none" ? "#a8473c" : "#a8791f", display: "block", marginBottom: 2 }}>{selAccess.level === "none" ? "No road access" : "Limited road access"}</b>
-                    <span style={{ fontSize: ".76rem", color: "#6b6046", lineHeight: 1.4 }}>{selAccess.text}</span>
+                    <b style={{ fontSize: ".8rem", color: selAccess.level === "none" ? "var(--pb-hold)" : "#c9a35f", display: "block", marginBottom: 2 }}>{selAccess.level === "none" ? "No road access" : "Limited road access"}</b>
+                    <span style={{ fontSize: ".76rem", color: "var(--pb-muted)", lineHeight: 1.4 }}>{selAccess.text}</span>
                   </div>
                 </div>
               )}
 
               {gateway && (
                 <div style={{ background: "rgba(199,154,75,.14)", border: "1px solid rgba(199,154,75,.3)", borderRadius: 12, padding: "11px 13px", marginBottom: 14 }}>
-                  <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#a8791f", marginBottom: 3 }}>🏘 Gateway town</div>
-                  <b style={{ fontSize: ".86rem", color: "#163a2b", display: "block" }}>{gateway.town}</b>
-                  <div style={{ fontSize: ".76rem", color: "#6b6046", marginTop: 3, lineHeight: 1.4 }}>{gateway.blurb}</div>
+                  <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c9a35f", marginBottom: 3 }}>🏘 Gateway town</div>
+                  <b style={{ fontSize: ".86rem", color: "var(--pb-ink)", display: "block" }}>{gateway.town}</b>
+                  <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 3, lineHeight: 1.4 }}>{gateway.blurb}</div>
                 </div>
               )}
 
               <div style={{ display: "flex", gap: 6, marginBottom: 14, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 4 }}>
-                <button onClick={() => patch({ detailTab: "live" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "live" ? "#1d4a37" : "transparent", color: ui.detailTab === "live" ? "#fff" : "#5b6258" }}>📡 Live</button>
-                <button onClick={() => patch({ detailTab: "about" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "about" ? "#1d4a37" : "transparent", color: ui.detailTab === "about" ? "#fff" : "#5b6258" }}>ℹ️ About</button>
-                <button onClick={() => patch({ detailTab: "trails" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "trails" ? "#1d4a37" : "transparent", color: ui.detailTab === "trails" ? "#fff" : "#5b6258" }}>🥾 Trails</button>
+                <button onClick={() => patch({ detailTab: "live" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "live" ? "#c9a35f" : "transparent", color: ui.detailTab === "live" ? "#fff" : "var(--pb-muted)" }}>📡 Live</button>
+                <button onClick={() => patch({ detailTab: "about" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "about" ? "#c9a35f" : "transparent", color: ui.detailTab === "about" ? "#fff" : "var(--pb-muted)" }}>ℹ️ About</button>
+                <button onClick={() => patch({ detailTab: "trails" })} style={{ flex: 1, border: "none", borderRadius: 9, padding: 8, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: ui.detailTab === "trails" ? "#c9a35f" : "transparent", color: ui.detailTab === "trails" ? "#fff" : "var(--pb-muted)" }}>🥾 Trails</button>
               </div>
 
               {trailStatus && trailStatus.park === sel.name && trailStatus.state !== "done" && (
-                <div style={{ fontSize: ".7rem", color: "#8c8473", margin: "-6px 0 12px", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
+                <div style={{ fontSize: ".7rem", color: "var(--pb-muted)", margin: "-6px 0 12px", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
                   {trailStatus.state === "loading" && <span>⏳ Loading trails around {sel.name}…</span>}
                   {trailStatus.state === "empty" && <span>No mapped trails within 25 mi of the park center yet.</span>}
                   {trailStatus.state === "error" && (
                     <>
                       <span>Couldn't load trails just now.</span>
-                      <button onClick={() => loadTrailsFor(sel)} style={{ border: "none", background: "none", color: "#2c5562", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", padding: 0, textDecoration: "underline" }}>Retry</button>
+                      <button onClick={() => loadTrailsFor(sel)} style={{ border: "none", background: "none", color: "var(--pb-gold)", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", padding: 0, textDecoration: "underline" }}>Retry</button>
                     </>
                   )}
                 </div>
@@ -1459,7 +1459,7 @@ export default function ExploreApp() {
                       <span style={{ width: 10, height: 10, borderRadius: "50%", background: selVf ? selVf.c : selV.dot }} />
                       <b style={{ fontSize: "1rem", color: selVf ? selVf.c : selV.dot }}>{selVf ? selVf.word : selV.label}</b>
                     </div>
-                    <div style={{ fontSize: ".84rem", color: "#4c5443", lineHeight: 1.5 }}>{selVf ? selVf.sub : selV.note}</div>
+                    <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>{selVf ? selVf.sub : selV.note}</div>
                     {selVf && (typeof selVf.temp === "number" || selVf.sky) && (
                       <div style={{ fontSize: ".8rem", fontWeight: 700, color: "#1d3941", marginTop: 9 }}>
                         {[typeof selVf.temp === "number" ? Math.round(selVf.temp) + "°F" : null, selVf.sky || null, typeof selVf.wind === "number" && selVf.wind ? "wind " + Math.round(selVf.wind) + " mph" : null].filter(Boolean).join(" · ")}
@@ -1468,16 +1468,16 @@ export default function ExploreApp() {
                     {selVf && selVf.chips && selVf.chips.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
                         {selVf.chips.slice(0, 4).map((c, i) => (
-                          <span key={i} style={{ fontSize: ".7rem", fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: c.pos ? "rgba(47,125,79,.12)" : "rgba(191,70,58,.1)", color: c.pos ? "#2f7d4f" : "#a8473c" }}>{c.t}</span>
+                          <span key={i} style={{ fontSize: ".7rem", fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: c.pos ? "rgba(47,125,79,.12)" : "rgba(191,70,58,.1)", color: c.pos ? "#2f7d4f" : "var(--pb-hold)" }}>{c.t}</span>
                         ))}
                       </div>
                     )}
                   </div>
                   {selCond && (
-                    <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: "13px 15px", marginBottom: 14, fontSize: ".8rem", color: "#4c5443", lineHeight: 1.55 }}>
+                    <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: "13px 15px", marginBottom: 14, fontSize: ".8rem", color: "var(--pb-ink-2)", lineHeight: 1.55 }}>
                       {(selCond.weatherAlerts || []).length > 0 ? (
                         <>
-                          <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#a8473c", marginBottom: 5 }}>⚠ {selCond.weatherAlerts.length} active weather alert{selCond.weatherAlerts.length === 1 ? "" : "s"}</div>
+                          <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--pb-hold)", marginBottom: 5 }}>⚠ {selCond.weatherAlerts.length} active weather alert{selCond.weatherAlerts.length === 1 ? "" : "s"}</div>
                           {selCond.weatherAlerts.slice(0, 3).map((a, i) => (
                             <div key={i} style={{ fontWeight: 700, color: "#7a3d34" }}>{a.event}</div>
                           ))}
@@ -1494,21 +1494,21 @@ export default function ExploreApp() {
                     </div>
                   )}
                   {statusHrefFor(sel) && (
-                    <a href={statusHrefFor(sel)} style={{ display: "block", textAlign: "center", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginBottom: 14 }}>View full live status →</a>
+                    <a href={statusHrefFor(sel)} style={{ display: "block", textAlign: "center", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "var(--pb-gold)", textDecoration: "none", marginBottom: 14 }}>View full live status →</a>
                   )}
                 </>
               )}
               {ui.detailTab === "about" && (
-                <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: 16, marginBottom: 14, fontSize: ".84rem", color: "#4c5443", lineHeight: 1.6 }}>
+                <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 14, padding: 16, marginBottom: 14, fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6 }}>
                   {selNps && selNps.park ? (
                     <>
                       {selNps.park.description && <p style={{ margin: "0 0 10px" }}>{selNps.park.description}</p>}
                       {(selNps.park.activities || []).length > 0 && (
                         <>
-                          <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#b07d3a", margin: "10px 0 7px" }}>Things to do</div>
+                          <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c9a35f", margin: "10px 0 7px" }}>Things to do</div>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                             {selNps.park.activities.slice(0, 6).map((a) => (
-                              <span key={a} style={{ background: "#eef3e6", color: "#1d4a37", borderRadius: 999, padding: "3px 10px", fontSize: ".72rem", fontWeight: 600 }}>{a}</span>
+                              <span key={a} style={{ background: "#eef3e6", color: "#c9a35f", borderRadius: 999, padding: "3px 10px", fontSize: ".72rem", fontWeight: 600 }}>{a}</span>
                             ))}
                           </div>
                         </>
@@ -1521,16 +1521,16 @@ export default function ExploreApp() {
                         </div>
                       )}
                       {selNps.park.url && (
-                        <a href={selNps.park.url} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: ".78rem", fontWeight: 700, color: "#2c5562", textDecoration: "none" }}>More on NPS.gov →</a>
+                        <a href={selNps.park.url} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: 10, fontSize: ".78rem", fontWeight: 700, color: "var(--pb-gold)", textDecoration: "none" }}>More on NPS.gov →</a>
                       )}
                     </>
                   ) : sel.type === "national_park" ? (
-                    <div style={{ color: "#8c8473", fontSize: ".8rem" }}>Loading park info from NPS.gov…</div>
+                    <div style={{ color: "var(--pb-muted)", fontSize: ".8rem" }}>Loading park info from NPS.gov…</div>
                   ) : (
                     <>
                       <div style={{ marginBottom: 8 }}><b style={{ color: "#1d3941" }}>Type:</b> {selMeta.label}</div>
                       <div style={{ marginBottom: 8 }}><b style={{ color: "#1d3941" }}>State:</b> {sel.state}</div>
-                      <div style={{ color: "#8c8473", fontSize: ".78rem" }}>Live conditions on the Live tab · nearby places below.</div>
+                      <div style={{ color: "var(--pb-muted)", fontSize: ".78rem" }}>Live conditions on the Live tab · nearby places below.</div>
                     </>
                   )}
                 </div>
@@ -1541,14 +1541,14 @@ export default function ExploreApp() {
                 return (
                   <div style={{ marginBottom: 14 }}>
                     {!td && (
-                      <div style={{ textAlign: "center", color: "#8c8473", padding: "16px 10px", fontSize: ".82rem" }}>⏳ Loading trails…</div>
+                      <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "16px 10px", fontSize: ".82rem" }}>⏳ Loading trails…</div>
                     )}
                     {td && cats.length === 0 && (
-                      <div style={{ textAlign: "center", color: "#8c8473", padding: "16px 10px", fontSize: ".82rem" }}>No mapped trails within 25 mi of the park center yet.</div>
+                      <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "16px 10px", fontSize: ".82rem" }}>No mapped trails within 25 mi of the park center yet.</div>
                     )}
                     {cats.map((cat) => (
                       <div key={cat} style={{ marginBottom: 14 }}>
-                        <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
                           <span>{TRAIL_CAT_META[cat].icon}</span> {TRAIL_CAT_META[cat].label}s ({td[cat].length})
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1556,11 +1556,11 @@ export default function ExploreApp() {
                             <div key={t.name} onClick={() => selectTrail(sel, cat, t)} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px", cursor: "pointer" }}>
                               <span style={{ width: 4, height: 30, borderRadius: 2, background: TRAIL_STYLE[cat], flex: "none" }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <b style={{ fontSize: ".85rem", color: "#163a2b", display: "block" }}>{t.name}</b>
-                                {t.trailClass && <span style={{ fontSize: ".7rem", color: "#8c8473" }}>{t.trailClass}</span>}
+                                <b style={{ fontSize: ".85rem", color: "var(--pb-ink)", display: "block" }}>{t.name}</b>
+                                {t.trailClass && <span style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{t.trailClass}</span>}
                               </div>
                               <div style={{ textAlign: "right", flex: "none" }}>
-                                <div style={{ fontSize: ".72rem", fontWeight: 700, color: "#8c8473" }}>{t.lengthMi > 0 ? t.lengthMi + " mi" : "—"}</div>
+                                <div style={{ fontSize: ".72rem", fontWeight: 700, color: "var(--pb-muted)" }}>{t.lengthMi > 0 ? t.lengthMi + " mi" : "—"}</div>
                               </div>
                             </div>
                           ))}
@@ -1571,16 +1571,16 @@ export default function ExploreApp() {
                 );
               })()}
 
-              <button onClick={() => toggleTripFor(ui.selectedName)} style={{ width: "100%", boxSizing: "border-box", border: "none", borderRadius: 12, padding: 13, fontWeight: 800, fontSize: ".88rem", cursor: "pointer", fontFamily: "inherit", marginBottom: 18, background: tripHas ? "#eef4e6" : "#1d4a37", color: tripHas ? "#1d4a37" : "#fff" }}>
+              <button onClick={() => toggleTripFor(ui.selectedName)} style={{ width: "100%", boxSizing: "border-box", border: "none", borderRadius: 12, padding: 13, fontWeight: 800, fontSize: ".88rem", cursor: "pointer", fontFamily: "inherit", marginBottom: 18, background: tripHas ? "rgba(79,217,138,.14)" : "#c9a35f", color: tripHas ? "#c9a35f" : "#fff" }}>
                 {tripHas ? "✓ In your trip — tap to remove" : "+ Add to trip"}
               </button>
 
               {ui.detailTab !== "trails" && (
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#8c8473" }}>Nearby — within {ui.radius} mi (~{driveTimeLabel(ui.radius)} drive)</span>
+                    <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Nearby — within {ui.radius} mi (~{driveTimeLabel(ui.radius)} drive)</span>
                   </div>
-                  <div style={{ fontSize: ".72rem", color: "#8c8473", margin: "-4px 0 10px", lineHeight: 1.4 }}>
+                  <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "-4px 0 10px", lineHeight: 1.4 }}>
                     {!selPlaces
                       ? "⏳ Loading campgrounds & recreation areas…"
                       : ((selPlaces.facilities || []).length + (selPlaces.recAreas || []).length) === 0
@@ -1590,12 +1590,12 @@ export default function ExploreApp() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                     <button onClick={() => setRadius(ui.radius - 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>−</button>
-                    <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ flex: 1, accentColor: "#c79a4b" }} />
+                    <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ flex: 1, accentColor: "#c9a35f" }} />
                     <button onClick={() => setRadius(ui.radius + 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(140,132,115,.35)", background: "rgba(255,255,255,.6)", color: "#1d3941", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+</button>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {nearbyItems.length === 0 && (
-                      <div style={{ textAlign: "center", color: "#8c8473", padding: "16px 10px", fontSize: ".82rem" }}>Nothing within {ui.radius} mi — try widening the radius above.</div>
+                      <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "16px 10px", fontSize: ".82rem" }}>Nothing within {ui.radius} mi — try widening the radius above.</div>
                     )}
                     {nearbyItems.map((o) => {
                       const meta = TYPE_META[o.type];
@@ -1604,12 +1604,12 @@ export default function ExploreApp() {
                         <div key={o.name} onClick={handleClick} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px", cursor: handleClick ? "pointer" : "default" }}>
                           <span style={{ fontSize: "1rem" }}>{meta.icon}</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <b style={{ fontSize: ".85rem", color: "#163a2b", display: "block" }}>{o.name}</b>
-                            <span style={{ fontSize: ".7rem", color: "#8c8473" }}>{meta.label}</span>
+                            <b style={{ fontSize: ".85rem", color: "var(--pb-ink)", display: "block" }}>{o.name}</b>
+                            <span style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{meta.label}</span>
                           </div>
                           <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: ".72rem", fontWeight: 700, color: "#8c8473" }}>{Math.round(o.dist)} mi</div>
-                            <div style={{ fontSize: ".64rem", color: "#a7a08c" }}>~{driveTimeLabel(o.dist)} drive</div>
+                            <div style={{ fontSize: ".72rem", fontWeight: 700, color: "var(--pb-muted)" }}>{Math.round(o.dist)} mi</div>
+                            <div style={{ fontSize: ".64rem", color: "var(--pb-muted)" }}>~{driveTimeLabel(o.dist)} drive</div>
                           </div>
                         </div>
                       );
@@ -1630,9 +1630,9 @@ export default function ExploreApp() {
 
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: "1.3rem" }}>{catMeta.icon}</span>
-                  <span style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "#163a2b" }}>{tr.name}</span>
+                  <span style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)" }}>{tr.name}</span>
                 </div>
-                <div style={{ fontSize: ".78rem", color: "#8c8473", marginBottom: 14 }}>{catMeta.label} · {tr.parkName}</div>
+                <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 14 }}>{catMeta.label} · {tr.parkName}</div>
 
                 <TrailPhoto name={tr.name} state={parks.find((p) => p.name === tr.parkName)?.state} />
 
@@ -1657,20 +1657,20 @@ export default function ExploreApp() {
                     )}
                   </div>
                   {tr.seasonal && tr.seasonNote && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(140,132,115,.2)", fontSize: ".8rem", color: "#4c5443" }}>
-                      <b style={{ color: "#a8791f" }}>Seasonal:</b> {tr.seasonNote}
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(140,132,115,.2)", fontSize: ".8rem", color: "var(--pb-ink-2)" }}>
+                      <b style={{ color: "#c9a35f" }}>Seasonal:</b> {tr.seasonNote}
                     </div>
                   )}
                   {tr.notes && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(140,132,115,.2)", fontSize: ".8rem", color: "#4c5443", lineHeight: 1.5 }}>{tr.notes}</div>
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(140,132,115,.2)", fontSize: ".8rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>{tr.notes}</div>
                   )}
                 </div>
 
                 {tr.id != null && tr.parkCode && (
-                  <a href={"/trail-status?trail=" + tr.id + "&park=" + encodeURIComponent(tr.parkCode)} style={{ display: "block", textAlign: "center", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginBottom: 14 }}>View full details →</a>
+                  <a href={"/trail-status?trail=" + tr.id + "&park=" + encodeURIComponent(tr.parkCode)} style={{ display: "block", textAlign: "center", background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.8)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "var(--pb-gold)", textDecoration: "none", marginBottom: 14 }}>View full details →</a>
                 )}
 
-                <div style={{ fontSize: ".7rem", color: "#a7a08c", lineHeight: 1.4, marginBottom: 18 }}>
+                <div style={{ fontSize: ".7rem", color: "var(--pb-muted)", lineHeight: 1.4, marginBottom: 18 }}>
                   Live per-trail conditions (closures, washouts) aren&apos;t published in a public feed — check the park&apos;s Live tab for general weather &amp; alerts, or the park&apos;s official site before heading out.
                   <div style={{ marginTop: 6 }}>Source: National Park Service (public domain).</div>
                 </div>
@@ -1684,22 +1684,22 @@ export default function ExploreApp() {
           {ui.view === "trip" && (
             <>
               <button onClick={backToBrowse} style={{ background: "none", border: "none", color: "#1d3941", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "inherit", padding: "4px 4px 12px", display: "flex", alignItems: "center", gap: 5 }}>‹ Back to browse</button>
-              <div style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "#163a2b", marginBottom: 4 }}>My Trip</div>
-              <div style={{ fontSize: ".8rem", color: "#8c8473", marginBottom: 14 }}>
+              <div style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)", marginBottom: 4 }}>My Trip</div>
+              <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", marginBottom: 14 }}>
                 {ui.trip.length ? ui.trip.length + " place" + (ui.trip.length === 1 ? "" : "s") + " added" : "No places yet"}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 14 }}>
                 {tripItems.length === 0 && (
-                  <div style={{ textAlign: "center", color: "#8c8473", padding: "24px 10px", fontSize: ".85rem", lineHeight: 1.5 }}>Nothing added yet. Select a place and tap &quot;Add to trip.&quot;</div>
+                  <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "24px 10px", fontSize: ".85rem", lineHeight: 1.5 }}>Nothing added yet. Select a place and tap &quot;Add to trip.&quot;</div>
                 )}
                 {tripItems.map((p, i) => {
                   const meta = TYPE_META[p.type];
                   return (
                     <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 11px" }}>
-                      <span style={{ width: 24, height: 24, flex: "none", borderRadius: "50%", background: "#1d4a37", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".76rem", fontWeight: 700, border: "2px solid #c79a4b" }}>{i + 1}</span>
+                      <span style={{ width: 24, height: 24, flex: "none", borderRadius: "50%", background: "#c9a35f", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".76rem", fontWeight: 700, border: "2px solid #c9a35f" }}>{i + 1}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <b style={{ fontSize: ".86rem", color: "#163a2b", display: "block" }}>{p.name}</b>
-                        <span style={{ fontSize: ".7rem", color: "#8c8473" }}>{meta.label} · {p.state}</span>
+                        <b style={{ fontSize: ".86rem", color: "var(--pb-ink)", display: "block" }}>{p.name}</b>
+                        <span style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{meta.label} · {p.state}</span>
                       </div>
                       <button onClick={() => patch((s) => ({ trip: s.trip.filter((n) => n !== p.name) }))} style={{ background: "none", border: "none", color: "#b06a4a", cursor: "pointer", fontSize: "1.15rem", lineHeight: 1 }}>×</button>
                     </div>
@@ -1707,7 +1707,7 @@ export default function ExploreApp() {
                 })}
               </div>
               {ui.trip.length > 0 && (
-                <a href="/build-trip" style={{ display: "block", textAlign: "center", background: "#c79a4b", color: "#163a2b", padding: 13, borderRadius: 11, fontWeight: 700, fontSize: ".9rem", textDecoration: "none", boxShadow: "0 5px 0 #9c7330" }}>Build this trip →</a>
+                <a href="/build-trip" style={{ display: "block", textAlign: "center", background: "#c9a35f", color: "var(--pb-ink)", padding: 13, borderRadius: 11, fontWeight: 700, fontSize: ".9rem", textDecoration: "none", boxShadow: "0 5px 0 #9c7330" }}>Build this trip →</a>
               )}
             </>
           )}
@@ -1722,26 +1722,26 @@ export default function ExploreApp() {
       {/* ---- bottom-left: Home + verdict legend ---- */}
       <div style={{ position: "absolute", left: 16, bottom: 16, zIndex: 500, display: "flex", alignItems: "center", gap: 9 }}>
         <button onClick={() => { window.location.href = "/"; }} style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,253,247,.9)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,.7)", borderRadius: 999, padding: "9px 15px", fontFamily: "inherit", fontWeight: 700, fontSize: ".82rem", color: "#1d3941", cursor: "pointer", boxShadow: "0 12px 28px -14px rgba(28,46,34,.5)" }}>
-          <span style={{ color: "#c79a4b" }}>▲</span>Home
+          <span style={{ color: "#c9a35f" }}>▲</span>Home
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 11, background: "rgba(255,253,247,.86)", WebkitBackdropFilter: "blur(14px) saturate(1.3)", backdropFilter: "blur(14px) saturate(1.3)", border: "1px solid rgba(255,255,255,.6)", borderRadius: 999, padding: "9px 14px", boxShadow: "0 12px 28px -14px rgba(28,46,34,.5)" }}>
-          <span style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#b07d3a" }}>Today&apos;s call</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".74rem", fontWeight: 700, color: "#3c4a3a" }}><i style={{ width: 9, height: 9, borderRadius: "50%", background: "#2f7d4f", border: "1.5px solid #fffdf7" }} />Go</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".74rem", fontWeight: 700, color: "#3c4a3a" }}><i style={{ width: 9, height: 9, borderRadius: "50%", background: "#b9802a", border: "1.5px solid #fffdf7" }} />Prepare</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".74rem", fontWeight: 700, color: "#3c4a3a" }}><i style={{ width: 9, height: 9, borderRadius: "50%", background: "#bf463a", border: "1.5px solid #fffdf7" }} />Hold off</span>
+          <span style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c9a35f" }}>Today&apos;s call</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".74rem", fontWeight: 700, color: "#3c4a3a" }}><i style={{ width: 9, height: 9, borderRadius: "50%", background: "#2f7d4f", border: "1.5px solid var(--pb-surface)" }} />Go</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".74rem", fontWeight: 700, color: "#3c4a3a" }}><i style={{ width: 9, height: 9, borderRadius: "50%", background: "#c9a35f", border: "1.5px solid var(--pb-surface)" }} />Prepare</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: ".74rem", fontWeight: 700, color: "#3c4a3a" }}><i style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--pb-hold)", border: "1.5px solid var(--pb-surface)" }} />Hold off</span>
         </div>
       </div>
 
       {/* ---- bottom-right: expand + zoom + Ask Park Buddy ---- */}
       <div style={{ position: "absolute", right: 16, bottom: 78, zIndex: 500, display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
-        <button title="Fullscreen" onClick={() => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen(); else if (document.exitFullscreen) document.exitFullscreen(); }} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,253,247,.92)", border: "1px solid rgba(255,255,255,.7)", boxShadow: "0 8px 20px -10px rgba(28,46,34,.5)", color: "#1d4a37", fontSize: "1rem", cursor: "pointer" }}>⤢</button>
+        <button title="Fullscreen" onClick={() => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen(); else if (document.exitFullscreen) document.exitFullscreen(); }} style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,253,247,.92)", border: "1px solid rgba(255,255,255,.7)", boxShadow: "0 8px 20px -10px rgba(28,46,34,.5)", color: "#c9a35f", fontSize: "1rem", cursor: "pointer" }}>⤢</button>
         <div style={{ display: "flex", flexDirection: "column", borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 20px -10px rgba(28,46,34,.5)", border: "1px solid rgba(255,255,255,.7)" }}>
-          <button onClick={zoomIn} style={{ width: 38, height: 36, background: "rgba(255,253,247,.95)", border: "none", borderBottom: "1px solid #e3d9c5", color: "#1d4a37", fontSize: "1.15rem", fontWeight: 700, cursor: "pointer" }}>+</button>
-          <button onClick={zoomOut} style={{ width: 38, height: 36, background: "rgba(255,253,247,.95)", border: "none", color: "#1d4a37", fontSize: "1.3rem", fontWeight: 700, cursor: "pointer" }}>−</button>
+          <button onClick={zoomIn} style={{ width: 38, height: 36, background: "rgba(255,253,247,.95)", border: "none", borderBottom: "1px solid rgba(217,183,121,.16)", color: "#c9a35f", fontSize: "1.15rem", fontWeight: 700, cursor: "pointer" }}>+</button>
+          <button onClick={zoomOut} style={{ width: 38, height: 36, background: "rgba(255,253,247,.95)", border: "none", color: "#c9a35f", fontSize: "1.3rem", fontWeight: 700, cursor: "pointer" }}>−</button>
         </div>
       </div>
-      <button onClick={askParkBuddy} style={{ position: "absolute", right: 16, bottom: 16, zIndex: 500, display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(150deg,#33555f,#1d3941)", color: "#fbf6ea", border: "1px solid rgba(228,190,120,.45)", borderRadius: 999, padding: "12px 18px", fontFamily: "inherit", fontWeight: 700, fontSize: ".84rem", cursor: "pointer", boxShadow: "0 14px 32px -14px rgba(8,18,12,.65)" }}>
-        <span style={{ color: "#e4be78" }}>✦</span>Ask Park Buddy
+      <button onClick={askParkBuddy} style={{ position: "absolute", right: 16, bottom: 16, zIndex: 500, display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(150deg,#33555f,#1d3941)", color: "var(--pb-ink)", border: "1px solid rgba(228,190,120,.45)", borderRadius: 999, padding: "12px 18px", fontFamily: "inherit", fontWeight: 700, fontSize: ".84rem", cursor: "pointer", boxShadow: "0 14px 32px -14px rgba(8,18,12,.65)" }}>
+        <span style={{ color: "#e8cf9a" }}>✦</span>Ask Park Buddy
       </button>
     </div>
   );

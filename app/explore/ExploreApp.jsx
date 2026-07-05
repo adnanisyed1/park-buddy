@@ -13,6 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
+import SiteHeader from "../components/SiteHeader";
 import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
 import { fetchElevationProfile } from "../lib/elevationClient";
 // Lakes and trails come live from /api/water (USGS GNIS) and /api/trails (NPS
@@ -1211,7 +1212,7 @@ export default function ExploreApp() {
   /* ================================ render ================================ */
 
   return (
-    <div style={{ fontFamily: sans, color: "#2c281f", position: "fixed", inset: 0, background: "#dbe6ea", overflow: "hidden" }}>
+    <div style={{ fontFamily: sans, color: "var(--pb-ink)", position: "fixed", inset: 0, background: "var(--pb-bg)", overflow: "hidden" }}>
       <style>{`
         .ex-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
         .ex-scroll::-webkit-scrollbar-thumb { background: #cdd3c0; border-radius: 9px; }
@@ -1221,6 +1222,9 @@ export default function ExploreApp() {
         .pbask-fab { display: none !important; } /* design's own button triggers the panel */
         ::selection { background: #c9a35f; color: #15241c; }
       `}</style>
+
+      {/* Shared platform header (same nav as every other page) */}
+      <SiteHeader active="explore" />
 
       {/* map fills the whole viewport */}
       <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
@@ -1237,7 +1241,7 @@ export default function ExploreApp() {
       </div>
 
       {/* ============ GLASS HEADER (nav + search) ============ */}
-      <header style={{ position: "absolute", top: 16, left: 16, right: 16, zIndex: 600, border: "1px solid rgba(255,255,255,.12)", borderRadius: 18, background: "rgba(16,32,23,.42)", WebkitBackdropFilter: "blur(20px) saturate(1.5)", backdropFilter: "blur(20px) saturate(1.5)", boxShadow: "0 16px 40px -18px rgba(8,18,12,.6)", overflow: "visible" }}>
+      <header style={{ position: "absolute", top: 74, left: 16, right: 16, zIndex: 90, border: "1px solid rgba(255,255,255,.12)", borderRadius: 18, background: "rgba(16,32,23,.42)", WebkitBackdropFilter: "blur(20px) saturate(1.5)", backdropFilter: "blur(20px) saturate(1.5)", boxShadow: "0 16px 40px -18px rgba(8,18,12,.6)", overflow: "visible" }}>
         <div style={{ position: "absolute", top: 0, left: "-30%", width: "42%", height: "340%", pointerEvents: "none", background: "linear-gradient(100deg,transparent,rgba(255,255,255,.2),transparent)", transform: "translateY(-30%) rotate(8deg)", animation: "ex-sheen 7.5s ease-in-out infinite 1s", borderRadius: 18, overflow: "hidden" }} />
         <div style={{ position: "relative", zIndex: 1, maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", gap: 16, height: 58, padding: "0 14px" }}>
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 11, color: "var(--pb-ink)", textDecoration: "none", flex: "none" }}>
@@ -1273,10 +1277,11 @@ export default function ExploreApp() {
             )}
           </div>
 
-          <nav style={{ display: "flex", gap: 6, alignItems: "center", flex: "none" }}>
-            <a href="/explore" style={{ color: "#15241c", background: "var(--pb-ink)", textDecoration: "none", fontSize: ".84rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Map</a>
-            <a href="/plan" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".84rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Plan a Trip</a>
-            <a href="/build-trip" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".84rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Build a Trip</a>
+          {/* Nav now lives in the shared SiteHeader above. This toolbar keeps only
+              the map-specific controls: Build a Trip + the account slot. "Plan a
+              Trip" is retired — Ask Park Buddy is the planner. */}
+          <nav style={{ display: "flex", gap: 8, alignItems: "center", flex: "none" }}>
+            <a href="/build-trip" style={{ color: "var(--pb-ink)", textDecoration: "none", fontSize: ".82rem", fontWeight: 600, border: "1px solid rgba(217,183,121,.3)", padding: "7px 13px", borderRadius: 999 }}>Build a Trip</a>
             {/* auth.js mounts the real account UI here (falls back to a plain circle pre-load) */}
             <span id="pp-acct-slot" style={{ display: "inline-flex", alignItems: "center" }}>
               <span style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(145deg,#33555f,#1d3941)", border: "1px solid rgba(228,190,120,.4)" }} />

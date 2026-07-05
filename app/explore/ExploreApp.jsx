@@ -109,6 +109,14 @@ const MAP_STYLE = [
   { featureType: "transit", stylers: [{ visibility: "off" }] },
 ];
 
+// Two map looks the user can switch between (remembered in localStorage):
+//   dark     — the futuristic-royal forest style above (matches the panels)
+//   standard — the familiar Google terrain map, for anyone who prefers it
+const MAP_STYLES = {
+  dark: { mapTypeId: "roadmap", styles: MAP_STYLE, backgroundColor: "#0a1712" },
+  standard: { mapTypeId: "terrain", styles: null, backgroundColor: "#dbe6ea" },
+};
+
 // TRIP_PARKS carries full state names; the design displays postal codes.
 const STATE_ABBR = {
   Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA", Colorado: "CO",
@@ -424,7 +432,7 @@ export default function ExploreApp() {
   const [trailsData, setTrailsData] = useState({}); // name -> /api/trails payload ({hiking,offroad,ski}) — feeds the Trails tab list
   const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
   const [ui, setUi] = useState({
-    panelOpen: true, filtersOpen: true, radius: 150,
+    panelOpen: true, filtersOpen: true, radius: 150, mapStyle: "dark",
     destNational: true, destState: true, destForest: true,
     // Off by default: these fetch per-park data (campgrounds via RIDB, trails via
     // NPS, lakes via USGS GNIS) — no reason to hit those services until the user
@@ -457,6 +465,7 @@ export default function ExploreApp() {
   const trailsLoadedRef = useRef(false); // trails fetched for the CURRENT focus?
   const nearCircleRef = useRef(null);
   const nearMarkerRef = useRef(null);
+  const mapStyleRef = useRef("dark"); // 'dark' | 'standard' — read from localStorage at boot, used by draw()
   const gatewayMarkerRef = useRef(null);
   const infoWindowRef = useRef(null);
   const seenDestRef = useRef(new Set()); // dedupe live destinations across pans
@@ -515,6 +524,9 @@ export default function ExploreApp() {
       }));
       setParks(all);
       parksRef.current = all;
+
+      // Remembered map appearance (dark vs. standard terrain).
+      try { const ms = localStorage.getItem("pb_map_style"); if (ms === "standard") { mapStyleRef.current = "standard"; patch({ mapStyle: "standard" }); } } catch {}
 
       // Maps key: env-injected (Netlify) → localStorage (design's paste flow) → legacy global.
       let key = "";
@@ -590,10 +602,11 @@ export default function ExploreApp() {
     const el = mapDivRef.current;
     if (!el || !window.google) return;
     const g = window.google;
+    const ms = MAP_STYLES[mapStyleRef.current] || MAP_STYLES.dark;
     const map = new g.maps.Map(el, {
       center: { lat: 39.5, lng: -98.5 }, zoom: 4, minZoom: 3, maxZoom: 14,
-      mapTypeId: "roadmap", disableDefaultUI: true, gestureHandling: "cooperative",
-      backgroundColor: "#0a1712", styles: MAP_STYLE,
+      mapTypeId: ms.mapTypeId, disableDefaultUI: true, gestureHandling: "cooperative",
+      backgroundColor: ms.backgroundColor, styles: ms.styles,
     });
     mapObjRef.current = map;
     markersRef.current = new Map();
@@ -1133,6 +1146,15 @@ export default function ExploreApp() {
       setAnchor({ lat: f.near.lat, lng: f.near.lng, label: "your location", isUser: true }, true);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function setMapStyle(s) {
+    if (s !== "dark" && s !== "standard") return;
+    mapStyleRef.current = s;
+    patch({ mapStyle: s });
+    try { localStorage.setItem("pb_map_style", s); } catch {}
+    const m = mapObjRef.current, ms = MAP_STYLES[s];
+    if (m && ms) m.setOptions({ mapTypeId: ms.mapTypeId, styles: ms.styles, backgroundColor: ms.backgroundColor });
+  }
 
   const zoomIn = () => { const m = mapObjRef.current; if (m) m.setZoom(m.getZoom() + 1); };
   const zoomOut = () => { const m = mapObjRef.current; if (m) m.setZoom(m.getZoom() - 1); };
@@ -1730,6 +1752,15 @@ export default function ExploreApp() {
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: mono, fontSize: ".58rem", fontWeight: 700, color: "#4fd98a" }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: "#4fd98a" }} />GO</span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: mono, fontSize: ".58rem", fontWeight: 700, color: "#e8cf9a" }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: "#e8cf9a" }} />PREPARE</span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: mono, fontSize: ".58rem", fontWeight: 700, color: "#e0906a" }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: "#e0906a" }} />HOLD</span>
+        </div>
+        {/* map appearance: dark (default) vs. familiar Google terrain */}
+        <div style={{ display: "flex", alignItems: "center", gap: 2, ...panelGlass, borderRadius: 999, padding: 3 }} title="Map appearance">
+          {[["dark", "◐ Dark"], ["standard", "◑ Map"]].map(([k, lbl]) => {
+            const on = ui.mapStyle === k;
+            return (
+              <button key={k} onClick={() => setMapStyle(k)} style={{ cursor: "pointer", fontFamily: mono, fontSize: ".54rem", letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 700, border: "none", borderRadius: 999, padding: "6px 11px", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent", color: on ? "#0b1710" : "#c3c8d0" }}>{lbl}</button>
+            );
+          })}
         </div>
       </div>
 

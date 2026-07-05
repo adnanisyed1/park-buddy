@@ -1,21 +1,20 @@
 import EmbeddedSite from "./components/EmbeddedSite";
 
-// Homepage = the ParkBuddy bento launcher sitting over the live verdict map
-// (public/embed/index — confirmed against the user's own explore-preview.html,
-// which points at this exact embed + script list). The bento (explore-intro.js)
-// is the home: tiles either reveal the map in-place or expand into their own
-// pages. This is richer than public/embed/landing (a simpler hero-only page,
-// wrongly used here initially) — index is the one actually being asked for.
-// The full interactive map ALSO lives at /explore (see app/explore/page.js)
-// for direct/bookmarked access; every nav link across the app already
-// targets /explore for "Map"/"Live Status" and / for the logo/brand.
+// Homepage = the futuristic-royal LANDING page (public/embed/home), ported 1:1
+// from the user's Claude-design spec (~/Downloads/parkbuddy-landing-preview.html).
+// Forest-green + champagne-gold, animated topographic hero canvas, live-conditions
+// ticker, persona spotlight, AI-agent + plan/pack, alerts, Stay/Cars/Gear booking,
+// scrollytelling "Learn", Pro tiers, "List with us" intake, and a pre-flight filter
+// modal that writes pb_map_filters → /explore. Photos come from our /api/photo.
+// The full interactive map lives at /explore; the older bento launcher is retained
+// at public/embed/index (unrouted) as a fallback reference.
 export const metadata = {
-  title: "ParkBuddy — Discover, plan & collect the outdoors",
+  title: "Park Buddy — See every park like never before",
   description:
-    "Your home for the outdoors: discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
+    "One living map for all 63 U.S. national parks — and every trail, scenic drive, lake and campground between them. Real conditions, charted in real time.",
   alternates: { canonical: "/" },
 };
 
 export default function HomePage() {
-  return <EmbeddedSite page="index" />;
+  return <EmbeddedSite page="home" />;
 }

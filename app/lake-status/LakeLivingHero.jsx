@@ -26,7 +26,7 @@ function Chip({ k, v }) {
   return (
     <span style={{ background: "rgba(10,26,18,.55)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(251,246,234,.18)", borderRadius: 14, padding: "9px 14px" }}>
       <span style={{ display: "block", fontFamily: mono, fontSize: ".54rem", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(243,237,224,.65)" }}>{k}</span>
-      <span style={{ display: "block", fontFamily: serif, fontWeight: 700, fontSize: "1.1rem", color: "#fbf6ea", marginTop: 3, lineHeight: 1 }}>{v}</span>
+      <span style={{ display: "block", fontFamily: serif, fontWeight: 700, fontSize: "1.1rem", color: "#f4f1ea", marginTop: 3, lineHeight: 1 }}>{v}</span>
     </span>
   );
 }
@@ -43,7 +43,7 @@ function Scene({ palette }) {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg,${sky1} 0%,${sky2} 58%)` }} />
-      <div className="lk-anim" style={{ position: "absolute", top: "9%", right: "14%", width: 76, height: 76, borderRadius: "50%", background: "radial-gradient(circle,#f2dda6 0%,rgba(242,221,166,.4) 45%,transparent 70%)", animation: "lk-glint 6s ease-in-out infinite" }} />
+      <div className="lk-anim" style={{ position: "absolute", top: "9%", right: "14%", width: 76, height: 76, borderRadius: "50%", background: "radial-gradient(circle,#e8cf9a 0%,rgba(242,221,166,.4) 45%,transparent 70%)", animation: "lk-glint 6s ease-in-out infinite" }} />
       <svg viewBox="0 0 700 120" preserveAspectRatio="none" style={{ position: "absolute", left: 0, right: 0, bottom: "41%", width: "100%", height: "24%" }}>
         <path d="M0 120 L0 74 L90 34 L150 66 L230 18 L300 58 L370 30 L450 70 L520 40 L610 78 L700 48 L700 120 Z" fill={ridge} />
       </svg>
@@ -78,17 +78,17 @@ export default function LakeLivingHero({ name, typeLabel, palette, weather, area
       {photoUrl && photoBadge && (
         <span style={{ position: "absolute", top: 14, left: 16, zIndex: 3, background: "rgba(12,26,18,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.22)", color: "rgba(243,237,224,.9)", fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>{photoBadge}</span>
       )}
-      <div style={{ position: "absolute", top: 14, right: 16, zIndex: 3, display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(120deg,#e4be78,#c79a4b)", color: "#15241c", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: 999, padding: "5px 12px" }}>● Live weather</div>
+      <div style={{ position: "absolute", top: 14, right: 16, zIndex: 3, display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#15241c", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", borderRadius: 999, padding: "5px 12px" }}>● Live weather</div>
       <div style={{ position: "relative", zIndex: 2, maxWidth: 1180, margin: "0 auto", width: "100%" }}>
-        <div className="lk-anim" style={{ fontFamily: mono, fontSize: ".66rem", fontWeight: 700, letterSpacing: ".22em", textTransform: "uppercase", color: "#e4be78", animation: "lk-fadeup .5s ease both" }}>{typeLabel}</div>
-        <h1 className="lk-anim" style={{ fontFamily: serif, fontWeight: 800, color: "#fbf6ea", fontSize: "clamp(2.4rem,6.5vw,4.4rem)", lineHeight: ".96", letterSpacing: "-.02em", textShadow: "0 4px 30px rgba(0,0,0,.45)", marginTop: 10, animation: "lk-fadeup .55s .05s ease both" }}>{name}</h1>
+        <div className="lk-anim" style={{ fontFamily: mono, fontSize: ".66rem", fontWeight: 700, letterSpacing: ".22em", textTransform: "uppercase", color: "#e8cf9a", animation: "lk-fadeup .5s ease both" }}>{typeLabel}</div>
+        <h1 className="lk-anim" style={{ fontFamily: serif, fontWeight: 800, color: "#f4f1ea", fontSize: "clamp(2.4rem,6.5vw,4.4rem)", lineHeight: ".96", letterSpacing: "-.02em", textShadow: "0 4px 30px rgba(0,0,0,.45)", marginTop: 10, animation: "lk-fadeup .55s .05s ease both" }}>{name}</h1>
         <div className="lk-anim" style={{ display: "flex", alignItems: "stretch", gap: 11, flexWrap: "wrap", marginTop: 18, animation: "lk-fadeup .6s .1s ease both" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 13, background: "rgba(10,26,18,.55)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(251,246,234,.18)", borderRadius: 18, padding: "13px 18px" }}>
-            <span className="lk-anim" style={{ width: 12, height: 12, borderRadius: "50%", background: "#e4be78", boxShadow: "0 0 10px 1px rgba(228,190,120,.7)", animation: "lk-pulse 2s infinite", flex: "none" }} />
+            <span className="lk-anim" style={{ width: 12, height: 12, borderRadius: "50%", background: "#e8cf9a", boxShadow: "0 0 10px 1px rgba(228,190,120,.7)", animation: "lk-pulse 2s infinite", flex: "none" }} />
             {weather ? (
               <>
                 <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
-                  <b style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.05rem", color: "#fbf6ea" }}>Air {weather.tempF}°F</b>
+                  <b style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.05rem", color: "#f4f1ea" }}>Air {weather.tempF}°F</b>
                   <span style={{ color: "rgba(243,237,224,.75)", fontSize: ".7rem", fontWeight: 600 }}>{weather.short}{weather.wind ? " · wind " + weather.wind : ""}</span>
                 </span>
               </>

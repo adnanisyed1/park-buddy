@@ -54,18 +54,18 @@ export default async function CampgroundStatusPage({ searchParams }) {
       backLabel={park ? "Back to " + park.name : "Back to map"}
       hero={<HeroBand photoUrl={photoUrl} photoAlt={name} photoBadge={photoBadge} breadcrumb={park ? park.name : type} title={name} pills={reservable ? [{ label: "Reservable via Recreation.gov" }] : []} />}
     >
-      <div style={{ fontSize: ".85rem", color: "#8a8471", marginBottom: 18 }}>{type}{park ? " · near " + park.name : ""}</div>
+      <div style={{ fontSize: ".85rem", color: "var(--pb-muted)", marginBottom: 18 }}>{type}{park ? " · near " + park.name : ""}</div>
 
       <StatGrid>
         <BigStat label="Type" value={type} />
         {park && <BigStat label="Nearest park" value={park.name} unit={Math.round(park.dist) + " mi away"} />}
       </StatGrid>
 
-      {detail && <div style={{ fontSize: ".84rem", color: "#4c5443", lineHeight: 1.55, marginBottom: 18 }}>{detail}</div>}
-      {phone && <div style={{ fontSize: ".8rem", color: "#6d7263", marginBottom: 18 }}>Phone: {phone}</div>}
+      {detail && <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.55, marginBottom: 18 }}>{detail}</div>}
+      {phone && <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", marginBottom: 18 }}>Phone: {phone}</div>}
 
       {/* Leaf-endpoint info: raw coordinates + the park's phone for details. */}
-      <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: ".74rem", color: "#4c5443", lineHeight: 1.8, marginBottom: 18 }}>
+      <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: ".74rem", color: "var(--pb-ink-2)", lineHeight: 1.8, marginBottom: 18 }}>
         Coordinates: {lat.toFixed(4)}, {lng.toFixed(4)}
         {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{formatPhone(contact.phone)}</a>{park ? " (" + park.name + ")" : ""}</>}
       </div>

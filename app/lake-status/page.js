@@ -7,7 +7,7 @@ import ThingsToDo from "../components/ThingsToDo";
 
 const serif = "'Spectral', Georgia, serif";
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const CARD = "#fffdf7", LINE = "#e7ddca", INK = "#1d4a37", BODY = "#525a46", MUTED = "#8c8473";
+const CARD = "var(--pb-surface)", LINE = "rgba(217,183,121,.16)", INK = "#1d4a37", BODY = "#525a46", MUTED = "#8c8473";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
@@ -22,10 +22,10 @@ function SectionHead({ children, right }) {
 function Card({ label, title, children, dark, muted }) {
   return (
     <div style={dark
-      ? { background: "linear-gradient(135deg,#1d4a37,#163a2b)", borderRadius: 20, padding: "15px 16px", boxShadow: "0 18px 44px -22px rgba(28,46,34,.5)" }
+      ? { background: "linear-gradient(135deg,#1d4a37,var(--pb-ink))", borderRadius: 20, padding: "15px 16px", boxShadow: "0 18px 44px -22px rgba(28,46,34,.5)" }
       : { background: CARD, border: "1px solid " + LINE, borderRadius: 20, padding: "15px 16px", boxShadow: "0 18px 44px -22px rgba(28,46,34,.35)" }}>
       {label && <div style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", color: dark ? "rgba(243,237,224,.6)" : MUTED }}>{label}</div>}
-      {title && <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.35rem", color: dark ? "#fbf6ea" : (muted ? MUTED : INK), marginTop: 6, lineHeight: 1.05 }}>{title}</div>}
+      {title && <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.35rem", color: dark ? "var(--pb-surface)" : (muted ? MUTED : INK), marginTop: 6, lineHeight: 1.05 }}>{title}</div>}
       {children && <div style={{ fontSize: ".76rem", color: dark ? "rgba(243,237,224,.85)" : BODY, lineHeight: 1.5, marginTop: 5 }}>{children}</div>}
     </div>
   );
@@ -148,7 +148,7 @@ export default async function LakeStatusPage({ searchParams }) {
           </p>
           {/* This page is the leaf endpoint — it carries the raw coordinates
               and the park's phone so a visitor can get authoritative details. */}
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #efe8d8", fontFamily: mono, fontSize: ".72rem", color: "#4c5443", lineHeight: 1.8 }}>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(217,183,121,.16)", fontFamily: mono, fontSize: ".72rem", color: "var(--pb-ink-2)", lineHeight: 1.8 }}>
             Coordinates: {lat.toFixed(4)}, {lng.toFixed(4)}
             {contact && contact.phone && <><br />Park info: <a href={"tel:" + contact.phone.replace(/[^0-9+]/g, "")} style={{ color: "#2c5562", fontWeight: 700, textDecoration: "none" }}>{formatPhone(contact.phone)}</a></>}
           </div>

@@ -136,35 +136,24 @@ function driveTimeLabel(miles) {
   return Math.round(hrs * 10) / 10 + " hr";
 }
 
-// National parks get the design's signature verdict-colored TEARDROP pin with the
-// live temperature baked inside (empty until the verdict lands). Other destination
-// types keep a small distinct shape so they read apart at a glance. All fills are
-// literal hex — Google Maps can't resolve CSS vars in an icon URL.
-function markerIconUrl(type, color, temp) {
-  if (type === "national_park") {
-    const t = typeof temp === "number" ? String(Math.round(temp)) : "";
-    const svg =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38">' +
-      '<path d="M15 1.5 C7.5 1.5 1.5 7.3 1.5 14.8 C1.5 24 15 36.5 15 36.5 C15 36.5 28.5 24 28.5 14.8 C28.5 7.3 22.5 1.5 15 1.5 Z" fill="' + color + '" stroke="#0a1712" stroke-width="2"/>' +
-      (t ? '<text x="15" y="18.5" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10.5" font-weight="800" fill="#0a1712">' + t + "</text>" : "") +
-      "</svg>";
-    return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
-  }
+// A distinct SHAPE per type (not just color) so they read apart at a glance, each
+// on a light outline so it pops on the dark map. National parks are a round dot in
+// the live-verdict color; state parks a diamond, forests a triangle, lakes a
+// droplet. All fills are literal hex — Google Maps can't resolve CSS vars here.
+function markerIconUrl(type, color) {
   const shapes = {
-    state_park: '<polygon points="9,2 16,9 9,16 2,9" fill="' + color + '" stroke="#0a1712" stroke-width="1.5"/>',
-    national_forest: '<polygon points="9,2 16,16 2,16" fill="' + color + '" stroke="#0a1712" stroke-width="1.5"/>',
-    lake: '<path d="M9,2 C5,8 3,11 3,13.2 A6,5.6 0 0,0 15,13.2 C15,11 13,8 9,2 Z" fill="' + color + '" stroke="#0a1712" stroke-width="1.5"/>',
+    national_park: '<circle cx="9" cy="9" r="6" fill="' + color + '" stroke="#fffdf7" stroke-width="2"/>',
+    state_park: '<polygon points="9,2 16,9 9,16 2,9" fill="' + color + '" stroke="#fffdf7" stroke-width="1.5"/>',
+    national_forest: '<polygon points="9,2 16,16 2,16" fill="' + color + '" stroke="#fffdf7" stroke-width="1.5"/>',
+    lake: '<path d="M9,2 C5,8 3,11 3,13.2 A6,5.6 0 0,0 15,13.2 C15,11 13,8 9,2 Z" fill="' + color + '" stroke="#fffdf7" stroke-width="1.5"/>',
   };
-  const svg = shapes[type] || shapes.state_park;
+  const svg = shapes[type] || shapes.national_park;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">' + svg + "</svg>");
 }
 
-// Icon object for a marker of a given type (national parks use the larger teardrop
-// with a bottom-tip anchor; others a small centered glyph).
-function markerIcon(g, type, color, temp) {
-  return type === "national_park"
-    ? { url: markerIconUrl(type, color, temp), scaledSize: new g.maps.Size(30, 38), anchor: new g.maps.Point(15, 37) }
-    : { url: markerIconUrl(type, color), scaledSize: new g.maps.Size(18, 18), anchor: new g.maps.Point(9, 9) };
+// Icon object for a marker of a given type — small (18px), centered.
+function markerIcon(g, type, color) {
+  return { url: markerIconUrl(type, color), scaledSize: new g.maps.Size(18, 18), anchor: new g.maps.Point(9, 9) };
 }
 
 function photoTitleFor(p) {
@@ -685,7 +674,7 @@ export default function ExploreApp() {
               setVerdictFull((v) => ({ ...v, [p.name]: r })); // word/sub/temp/sky/wind/chips for the Live tab
               const m = markersRef.current.get(p.name);
               if (m && window.google) {
-                m.setIcon(markerIcon(window.google, "national_park", V[bucket].dot, r.temp));
+                m.setIcon(markerIcon(window.google, "national_park", V[bucket].dot));
               }
             }
             next();
@@ -1287,8 +1276,9 @@ export default function ExploreApp() {
         ::selection { background: #c9a35f; color: #15241c; }
       `}</style>
 
-      {/* Shared platform header (same nav as every other page) */}
-      <SiteHeader active="explore" />
+      {/* Shared platform header — with My Trip + the real account/Sign-in slot in it
+          (matches the prototype banner; nothing floats below the header for those). */}
+      <SiteHeader active="explore" tripCount={ui.trip.length} onTripClick={() => patch({ view: "trip", panelOpen: true })} acctSlot />
 
       {/* map fills the whole viewport */}
       <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
@@ -1305,7 +1295,7 @@ export default function ExploreApp() {
       </div>
 
       {/* ============ FLOATING SEARCH (over the map, clears the left panel) ============ */}
-      <div style={{ position: "absolute", top: 74, left: 452, right: 214, zIndex: 88, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+      <div style={{ position: "absolute", top: 74, left: 452, right: 24, zIndex: 88, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
         <div style={{ position: "relative", width: "100%", maxWidth: 460, pointerEvents: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, ...panelGlass, borderRadius: 999, padding: "11px 18px" }}>
             <span style={{ color: "#9aa7a0", fontSize: ".95rem" }}>⌕</span>
@@ -1327,15 +1317,6 @@ export default function ExploreApp() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* My Trip + account (top-right, over the map — the design's banner slot) */}
-      <div style={{ position: "absolute", top: 74, right: 16, zIndex: 90, display: "flex", alignItems: "center", gap: 10 }}>
-        <button onClick={() => patch({ view: "trip", panelOpen: true })} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, fontFamily: "inherit", background: "rgba(11,23,16,.82)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", border: "1px solid rgba(217,183,121,.3)", borderRadius: 999, padding: "8px 15px" }}>🎒 My Trip <span style={{ fontFamily: mono, fontSize: ".58rem", color: "#0b1710", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", borderRadius: 999, padding: "2px 7px" }}>{ui.trip.length}</span></button>
-        {/* auth.js mounts the real account UI here (falls back to a plain circle pre-load) */}
-        <span id="pp-acct-slot" style={{ display: "inline-flex", alignItems: "center" }}>
-          <span style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(145deg,#33555f,#1d3941)", border: "1px solid rgba(228,190,120,.4)" }} />
-        </span>
       </div>
 
       {/* reopen pill when the panel is collapsed */}

@@ -9,8 +9,12 @@ import Link from "next/link";
 // top of any page for instant cross-platform consistency.
 //
 // Props:
-//   active   — optional key to highlight the current section ("explore" | "drives" | ...)
-//   solid    — if true, use a solid bar (for pages that scroll under it); default glass.
+//   active     — optional key to highlight the current section ("explore" | "drives" | ...)
+//   solid      — if true, use a solid bar (for pages that scroll under it); default glass.
+//   tripCount  — if a number, show a "My Trip" pill with the count (explore uses this).
+//   onTripClick— click handler for the My Trip pill.
+//   acctSlot   — if true, render the #pp-acct-slot that auth.js mounts the real
+//                account / Sign-in UI into (explore), instead of the static button.
 
 const LINKS = [
   { key: "explore", label: "Explore", href: "/explore" },
@@ -31,7 +35,7 @@ function Logo() {
   );
 }
 
-export default function SiteHeader({ active, solid = false }) {
+export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false }) {
   const askBuddy = () => {
     // Trigger the global Ask Park Buddy assistant if it's mounted; otherwise send
     // the visitor to the home hero where the assistant lives.
@@ -66,12 +70,30 @@ export default function SiteHeader({ active, solid = false }) {
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button
-          type="button"
-          style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}
-        >
-          Sign in
-        </button>
+        {tripCount != null && (
+          <button
+            type="button"
+            onClick={onTripClick}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 15px" }}
+          >
+            🎒 My Trip
+            <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".58rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{tripCount}</span>
+          </button>
+        )}
+        {acctSlot ? (
+          // auth.js mounts the real account / Sign-in UI here (falls back to a plain
+          // circle pre-load), so sign-in lives in the header — not floating below it.
+          <span id="pp-acct-slot" style={{ display: "inline-flex", alignItems: "center" }}>
+            <span style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(145deg,#33555f,#1d3941)", border: "1px solid rgba(228,190,120,.4)" }} />
+          </span>
+        ) : (
+          <button
+            type="button"
+            style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}
+          >
+            Sign in
+          </button>
+        )}
         <button
           type="button"
           onClick={askBuddy}

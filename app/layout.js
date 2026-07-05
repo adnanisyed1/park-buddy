@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./ui.css";
 import { Spectral, Hanken_Grotesk, Space_Grotesk, Cormorant_Garamond, Inter, Space_Mono } from "next/font/google";
 
 const spectral = Spectral({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--font-spectral" });

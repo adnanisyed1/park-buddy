@@ -1,0 +1,66 @@
+/* ============================================================================
+   Park Buddy UI KIT — the shared component styles, ported 1:1 from the approved
+   Claude-design component sheet (parkbuddy-uikit-preview.html). Every class reads
+   the --pb-* tokens (globals.css), so the whole platform stays consistent and a
+   token change updates every component. Interactive states (hover/focus/disabled)
+   live here because inline styles can't express pseudo-classes. React wrappers in
+   app/components/ui/index.jsx compose these.
+   ============================================================================ */
+
+/* ---- Buttons ---- */
+.pb-btn {
+  font-family: var(--pb-sans); font-size: .86rem; font-weight: 600;
+  border-radius: 999px; padding: 12px 22px; cursor: pointer;
+  border: 1px solid transparent; transition: transform .25s cubic-bezier(.16,.8,.24,1), box-shadow .25s, background .25s, color .25s, border-color .25s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;
+}
+.pb-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(217,183,121,.45), 0 0 0 5px var(--pb-bg); }
+.pb-btn[disabled], .pb-btn:disabled { opacity: .35; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+.pb-btn--primary { color: var(--pb-surface); background: var(--pb-grad-gold); box-shadow: 0 10px 30px -14px rgba(217,183,121,.6); }
+.pb-btn--primary:hover:not(:disabled) { background: linear-gradient(120deg,#f0dcae,#d4ac63); transform: translateY(-1px); box-shadow: 0 16px 40px -14px rgba(217,183,121,.85); }
+
+.pb-btn--ghost { color: var(--pb-ink); background: transparent; border-color: var(--pb-line-strong); }
+.pb-btn--ghost:hover:not(:disabled) { background: rgba(217,183,121,.1); border-color: rgba(217,183,121,.5); }
+
+.pb-btn--icon { width: 44px; height: 44px; padding: 0; border-radius: 50%; color: var(--pb-gold); background: transparent; border-color: var(--pb-line-strong); font-size: 1.1rem; }
+.pb-btn--icon:hover:not(:disabled) { background: rgba(217,183,121,.12); border-color: rgba(217,183,121,.5); color: #f0dcae; }
+
+.pb-link { text-decoration: none; font-weight: 600; color: var(--pb-gold); border-bottom: 1px solid rgba(217,183,121,.4); padding-bottom: 2px; transition: color .25s, border-color .25s; }
+.pb-link:hover { color: #f0dcae; border-color: var(--pb-gold); }
+
+/* ---- Inputs ---- */
+.pb-input, .pb-select, .pb-textarea {
+  width: 100%; font-family: var(--pb-sans); font-size: .9rem; color: var(--pb-ink);
+  background: rgba(255,255,255,.04); border: 1px solid var(--pb-line-strong);
+  border-radius: 12px; padding: 12px 14px; outline: none; transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.pb-input::placeholder, .pb-textarea::placeholder { color: var(--pb-muted); }
+.pb-input:focus, .pb-select:focus, .pb-textarea:focus { border-color: var(--pb-gold-2); background: rgba(255,255,255,.05); box-shadow: 0 0 0 3px rgba(217,183,121,.28); }
+.pb-input:disabled, .pb-select:disabled, .pb-textarea:disabled { color: var(--pb-muted); background: rgba(255,255,255,.02); border-color: var(--pb-line); cursor: not-allowed; }
+.pb-input--error { border-color: var(--pb-hold); background: rgba(224,144,106,.06); }
+.pb-select { color: var(--pb-ink-2); appearance: none; color-scheme: dark; }
+.pb-textarea { resize: vertical; }
+.pb-searchwrap { display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,.04); border: 1px solid var(--pb-line-strong); border-radius: 999px; padding: 11px 15px; transition: border-color .2s, box-shadow .2s; }
+.pb-searchwrap:focus-within { border-color: var(--pb-gold-2); box-shadow: 0 0 0 3px rgba(217,183,121,.24); }
+.pb-searchwrap input { flex: 1; background: transparent; border: none; color: var(--pb-ink); font-size: .9rem; outline: none; font-family: var(--pb-sans); }
+
+/* ---- Cards ---- */
+.pb-card { background: var(--pb-surface); border: 1px solid var(--pb-line); border-radius: var(--pb-radius); padding: 22px; transition: transform .3s cubic-bezier(.16,.8,.24,1), box-shadow .3s, border-color .3s; }
+.pb-card--hover:hover { transform: translateY(-4px); border-color: var(--pb-line-strong); box-shadow: var(--pb-shadow); }
+
+/* ---- Chips / badges ---- */
+.pb-chip { font-family: var(--pb-sans); font-size: .82rem; font-weight: 500; color: var(--pb-ink-2); background: rgba(255,255,255,.03); border: 1px solid var(--pb-line-strong); border-radius: 999px; padding: 8px 14px; cursor: pointer; transition: all .3s cubic-bezier(.16,.8,.24,1); }
+.pb-chip:hover { border-color: rgba(217,183,121,.4); color: var(--pb-ink); }
+.pb-chip--on { color: var(--pb-surface); background: var(--pb-grad-gold); border-color: transparent; box-shadow: 0 6px 20px -8px rgba(217,183,121,.7); }
+.pb-tag { font-family: var(--pb-mono); font-size: .56rem; letter-spacing: .12em; text-transform: uppercase; color: var(--pb-gold-soft); border: 1px solid var(--pb-line-strong); border-radius: 999px; padding: 5px 11px; }
+
+/* ---- Spinner / skeleton ---- */
+.pb-spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(217,183,121,.2); border-top-color: var(--pb-gold); animation: pbui-spin .9s linear infinite; display: inline-block; }
+.pb-skel { height: 12px; border-radius: 6px; background: linear-gradient(90deg,#12241a,#1c3325,#12241a); background-size: 200% 100%; animation: pbui-shim 1.4s linear infinite; display: block; }
+@keyframes pbui-spin { to { transform: rotate(360deg); } }
+@keyframes pbui-shim { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { .pb-spinner, .pb-skel { animation: none; } }
+
+/* ---- Micro-label ---- */
+.pb-micro { font-family: var(--pb-mono); font-size: .56rem; letter-spacing: .14em; text-transform: uppercase; color: var(--pb-ink-2); }

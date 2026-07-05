@@ -1064,6 +1064,28 @@ export default function ExploreApp() {
     } else apply(USER_LOC.lat, USER_LOC.lng);
   }
 
+  // Consume the pre-flight filters the landing page's map modal wrote to
+  // pb_map_filters, so "Design your adventure → Enter the map" actually carries
+  // the selection into /explore. One-shot: we clear it after applying so a normal
+  // later visit to /explore isn't silently re-filtered.
+  useEffect(() => {
+    let raw;
+    try { raw = localStorage.getItem("pb_map_filters"); } catch { return; }
+    if (!raw) return;
+    try { localStorage.removeItem("pb_map_filters"); } catch {}
+    let f;
+    try { f = JSON.parse(raw); } catch { return; }
+    if (!f || !f.types) return;
+    const MAP = { np: "destNational", sp: "destState", nf: "destForest", camp: "campgrounds", lakes: "destLake", hike: "layerHiking", ohv: "layerOffroad", ski: "layerSki" };
+    const next = {};
+    Object.keys(MAP).forEach((k) => { if (k in f.types) next[MAP[k]] = !!f.types[k]; });
+    if (f.radius) next.radius = f.radius;
+    patch(next);
+    if (f.near && typeof f.near.lat === "number") {
+      setAnchor({ lat: f.near.lat, lng: f.near.lng, label: "your location", isUser: true }, true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const zoomIn = () => { const m = mapObjRef.current; if (m) m.setZoom(m.getZoom() + 1); };
   const zoomOut = () => { const m = mapObjRef.current; if (m) m.setZoom(m.getZoom() - 1); };
   const askParkBuddy = () => { const fab = document.querySelector(".pbask-fab"); if (fab) fab.click(); };

@@ -8,8 +8,8 @@ export const revalidate = 900; // cache responses for 15 min at the edge
 
 export async function GET(request) {
   // Same key policy as /api/webcams: DEMO_KEY keeps local dev working (low
-  // shared rate limit); the real deployment (NETLIFY env) requires the real key.
-  const key = process.env.NPS_API_KEY || (process.env.NETLIFY ? "" : "DEMO_KEY");
+  // shared rate limit); the real deployment (NETLIFY/VERCEL env) requires the real key.
+  const key = process.env.NPS_API_KEY || ((process.env.NETLIFY || process.env.VERCEL) ? "" : "DEMO_KEY");
   const { searchParams } = new URL(request.url);
   const headers = { "X-Api-Key": key || "", "User-Agent": "ParkPulse" };
 

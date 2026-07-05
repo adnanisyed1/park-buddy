@@ -15,8 +15,8 @@ export async function GET(request) {
   if (!parkCode) return Response.json({ error: "parkCode required" }, { status: 400 });
 
   // Same key policy as /api/webcams: DEMO_KEY locally; the real deployment
-  // (NETLIFY env var) without NPS_API_KEY fails loudly and uncached.
-  const key = process.env.NPS_API_KEY || (process.env.NETLIFY ? "" : "DEMO_KEY");
+  // (NETLIFY/VERCEL env var) without NPS_API_KEY fails loudly and uncached.
+  const key = process.env.NPS_API_KEY || ((process.env.NETLIFY || process.env.VERCEL) ? "" : "DEMO_KEY");
   if (!key) {
     console.error("[thingstodo] NPS_API_KEY missing in production");
     return Response.json({ items: [], degraded: true }, { status: 503 });

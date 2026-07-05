@@ -16,7 +16,7 @@ export async function GET(request) {
   const road = (searchParams.get("road") || "").trim();
   if (!parkCode) return Response.json({ state: "unknown", alerts: [] });
 
-  const key = process.env.NPS_API_KEY || (process.env.NETLIFY ? "" : "DEMO_KEY");
+  const key = process.env.NPS_API_KEY || ((process.env.NETLIFY || process.env.VERCEL) ? "" : "DEMO_KEY");
   if (!key) return Response.json({ state: "unknown", alerts: [], degraded: true }, { status: 503 });
 
   try {

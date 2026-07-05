@@ -6,10 +6,11 @@ const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600"
 // Stat numbers on the /trail-status, /lake-status, /campground-status pages.
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-space-grotesk" });
 
-// Set NEXT_PUBLIC_SITE_URL to your production domain (Netlify env var) so canonical
-// URLs, Open Graph images and the sitemap resolve to absolute URLs. Falls back to
-// the default Netlify subdomain for local/dev builds.
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://parkbuddy.netlify.app";
+// Set NEXT_PUBLIC_SITE_URL to whatever domain is CURRENTLY serving (the Vercel
+// preview URL until launch, then https://theparkbuddy.com) so canonical URLs,
+// Open Graph images and the sitemap resolve to absolute URLs. The fallback is the
+// long-term production domain, used only when the env var is unset.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://theparkbuddy.com";
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),

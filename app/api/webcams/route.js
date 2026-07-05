@@ -18,11 +18,11 @@ export async function GET(request) {
   if (!parkCode) return Response.json({ error: "parkCode required" }, { status: 400 });
 
   // DEMO_KEY is a LOCAL convenience only (30 req/hr shared quota) — on the
-  // real deployment (NETLIFY env var present) a missing NPS_API_KEY fails
-  // loudly (503, uncached, logged) instead of silently degrading every park
-  // page to a rate-limited shared key. NODE_ENV can't tell local `npm start`
-  // apart from Netlify, so gate on the platform var instead.
-  const key = process.env.NPS_API_KEY || (process.env.NETLIFY ? "" : "DEMO_KEY");
+  // real deployment a missing NPS_API_KEY fails loudly (503, uncached, logged)
+  // instead of silently degrading every park page to a rate-limited shared key.
+  // NODE_ENV can't tell local `npm start` apart from a host build, so gate on the
+  // host platform vars (NETLIFY or VERCEL) instead.
+  const key = process.env.NPS_API_KEY || ((process.env.NETLIFY || process.env.VERCEL) ? "" : "DEMO_KEY");
   if (!key) {
     console.error("[webcams] NPS_API_KEY missing in production");
     return Response.json({ webcams: [], degraded: true }, { status: 503 });

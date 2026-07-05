@@ -4,8 +4,8 @@
 // shared across concurrent function instances, so on Netlify it barely limited
 // anything and gave NO protection against a runaway Anthropic bill.
 //
-// This version persists counters in Netlify Blobs (durable + shared across
-// instances) and falls back to an in-memory store for local dev, where Blobs
+// This version persists counters in Supabase (durable + shared across
+// instances) and falls back to an in-memory store for local dev, where Supabase
 // isn't configured. It adds two protections the old one lacked:
 //   1. A GLOBAL daily request cap (across all IPs).
 //   2. A GLOBAL daily USD spend cap, computed from real token usage.
@@ -14,7 +14,7 @@
 // slightly, but the ceiling holds within a few requests.
 // ----------------------------------------------------------------------------
 
-// --- Tunable knobs (override via env in the Netlify dashboard) ---------------
+// --- Tunable knobs (override via env in the host dashboard) ------------------
 export const PER_IP_LIMIT = Number(process.env.AGENT_RATE_LIMIT || 8); // requests / window / IP
 export const PER_IP_WINDOW_MS = Number(process.env.AGENT_RATE_WINDOW_MS || 60_000);
 export const DAILY_REQUEST_CAP = Number(process.env.AGENT_DAILY_REQUESTS || 5_000);
@@ -37,31 +37,61 @@ export function usageCostUsd(usage) {
   );
 }
 
-// --- Storage backend: Netlify Blobs, or in-memory for local dev --------------
+// --- Storage backend: Supabase (pb_kv table), or in-memory for local dev -----
+// Reuses the Supabase project the app already uses (service-role key, server
+// only). Counters live in a tiny key/value table:
+//   create table pb_kv (key text primary key, val jsonb, updated_at timestamptz default now());
+// See supabase-kv.sql. If Supabase env isn't configured OR the table is missing,
+// we transparently fall back to an in-memory Map (fine for local dev).
 const memory = new Map();
-let storePromise; // memoized getStore() so we import once
+let storePromise; // memoized backend probe so we set up once
+
+const SB_URL = process.env.SUPABASE_URL;
+const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 async function getBackend() {
   if (storePromise !== undefined) return storePromise;
   storePromise = (async () => {
+    if (!SB_URL || !SB_KEY) return null; // local dev → in-memory
+    const headers = {
+      apikey: SB_KEY,
+      Authorization: "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+    };
     try {
-      // Dynamic import so local dev without the package still runs.
-      const { getStore } = await import("@netlify/blobs");
-      const store = getStore("agent-limits");
-      // getJSON exists on the Blobs store; probe it so we fail over cleanly
-      // when Blobs isn't configured (e.g. `next dev` outside Netlify).
-      await store.get("__probe__");
-      return {
-        async get(key) {
-          return (await store.get(key, { type: "json" })) || null;
-        },
-        async set(key, val) {
-          await store.setJSON(key, val);
-        },
-      };
+      // Probe the table so we fail over cleanly if pb_kv hasn't been created yet.
+      const probe = await fetch(`${SB_URL}/rest/v1/pb_kv?select=key&limit=1`, { headers });
+      if (!probe.ok) return null;
     } catch {
       return null; // signal: use in-memory fallback
     }
+    return {
+      async get(key) {
+        try {
+          const r = await fetch(
+            `${SB_URL}/rest/v1/pb_kv?key=eq.${encodeURIComponent(key)}&select=val`,
+            { headers, cache: "no-store" }
+          );
+          if (!r.ok) return null;
+          const rows = await r.json();
+          return rows && rows[0] ? rows[0].val : null;
+        } catch {
+          return null;
+        }
+      },
+      async set(key, val) {
+        try {
+          // Upsert on the primary key (merge-duplicates), don't return the row.
+          await fetch(`${SB_URL}/rest/v1/pb_kv`, {
+            method: "POST",
+            headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
+            body: JSON.stringify({ key, val, updated_at: new Date().toISOString() }),
+          });
+        } catch {
+          /* soft-fail: cost caps degrade to best-effort rather than erroring the agent */
+        }
+      },
+    };
   })();
   return storePromise;
 }

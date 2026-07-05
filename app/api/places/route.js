@@ -2,7 +2,7 @@
 // GET /api/places?lat=..&lng=..&q=..&radius=..  → nearby recreation areas, federal
 // campgrounds & facilities (RIDB), PLUS state-park / private / dispersed campgrounds (OSM).
 //
-// A daily scheduled job (netlify/functions/scheduled-ingest.mjs → /api/ingest)
+// A daily scheduled job (Vercel Cron → /api/cron/ingest → /api/ingest)
 // already refreshes a Supabase cache (pb_places) for all 63 national parks. This
 // route checks that cache FIRST — instant, no live API calls — and only falls
 // back to live RIDB+OSM for areas not yet cached (uncached parks, or a random

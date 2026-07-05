@@ -7,7 +7,7 @@
 // call a real NPS search tool, and we feed the results back until it produces a
 // final text answer — so trip advice is grounded in live park data, not guesses.
 //
-// Env vars (set in the Netlify dashboard, NOT in code):
+// Env vars (set in the host dashboard, NOT in code):
 //   ANTHROPIC_API_KEY  — your Anthropic API key (console.anthropic.com)
 //   NPS_API_KEY        — your NPS key (developer.nps.gov) — already used by /api/nps
 // ----------------------------------------------------------------------------
@@ -16,9 +16,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { checkLimits, recordSpend, usageCostUsd } from "./limiter";
 
 // Force the Node.js runtime (the SDK needs Node, not the Edge runtime) and never
-// cache agent responses.
+// cache agent responses. maxDuration gives the multi-round tool-use loop headroom
+// (replaces the old netlify.toml 26s function timeout; needs Vercel Pro for >60s).
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // --- Easy-to-change knobs ----------------------------------------------------
 // Swap to "claude-sonnet-4-6" if Haiku's answers feel too thin. Haiku is ~1¢/turn.

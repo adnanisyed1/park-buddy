@@ -250,6 +250,7 @@ class Component extends DCLogic {
     ];
     if(!this.mapSel) this.mapSel={np:true,sp:true,nf:true,camp:false,lakes:false,hike:false,ohv:false,ski:false};
     if(!this.radius) this.radius=150;
+    if(this.nearMe===undefined){ this.nearMe=false; this.userLoc=null; }
     this.renderMapFilters();
     this._pinPts=[];
     for(var i=0;i<48;i++){ this._pinPts.push({x:Math.random(),y:Math.random(),k:Math.floor(Math.random()*4)}); }
@@ -258,7 +259,7 @@ class Component extends DCLogic {
     var launch=document.getElementById('launchBtn'); if(launch) launch.addEventListener('click',open);
     var close=document.getElementById('mapModalClose'); if(close) close.onclick=function(){ self.closeMapModal(); };
     var bd=document.getElementById('mapModalBackdrop'); if(bd) bd.onclick=function(){ self.closeMapModal(); };
-    var enter=document.getElementById('enterMapBtn'); if(enter) enter.addEventListener('click',function(){ try{ localStorage.setItem('pb_map_filters',JSON.stringify({types:self.mapSel,radius:self.radius})); }catch(e){} });
+    var enter=document.getElementById('enterMapBtn'); if(enter) enter.addEventListener('click',function(){ try{ localStorage.setItem('pb_map_filters',JSON.stringify({types:self.mapSel,near:self.nearMe?self.userLoc:null,radius:self.nearMe?self.radius:null,ts:Date.now()})); }catch(e){} });
     document.addEventListener('keydown',function(e){ if(e.key==='Escape') self.closeMapModal(); });
     window.addEventListener('resize',function(){ self.renderResults(); });
   }
@@ -287,8 +288,15 @@ class Component extends DCLogic {
     mf.innerHTML=
       head('Search radius')
       +'<div style="background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.16);border-radius:14px;padding:12px 14px;margin-bottom:6px">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-size:.92rem;font-weight:600;color:#f4f1ea">Within <span id="radVal">'+self.radius+'</span> mi</span><span style="font-family:\'Space Mono\',monospace;font-size:.6rem;color:#d9b779;border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:4px 10px">◎ Near me</span></div>'
-        +'<input id="radSlider" type="range" min="25" max="500" step="25" value="'+self.radius+'" style="width:100%;margin-top:11px;accent-color:#c9a35f">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
+          +'<span style="font-size:.92rem;font-weight:600;color:'+(self.nearMe?'#f4f1ea':'#7f8a82')+'">'+(self.nearMe?('Within <span id="radVal">'+self.radius+'</span> mi of you'):'Search everywhere')+'</span>'
+          +'<button id="nearMeBtn" style="cursor:pointer;font-family:\'Space Mono\',monospace;font-size:.6rem;font-weight:700;color:'+(self.nearMe?'#0b1710':'#d9b779')+';background:'+(self.nearMe?'linear-gradient(120deg,#e8cf9a,#c9a35f)':'transparent')+';border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:5px 11px;white-space:nowrap">'+(self.nearMe?'✓ Located':'◎ Near me')+'</button>'
+        +'</div>'
+        // The distance slider only means something once we know WHERE "you" are.
+        // Until "Near me" is tapped it stays disabled with a clear message, so the
+        // radius can't be set to a meaningless value with no location behind it.
+        +'<input id="radSlider" type="range" min="25" max="500" step="25" value="'+self.radius+'"'+(self.nearMe?'':' disabled')+' style="width:100%;margin-top:11px;accent-color:#c9a35f;'+(self.nearMe?'':'opacity:.3;cursor:not-allowed;pointer-events:none')+'">'
+        +(self.nearMe?'':'<div id="nearMeMsg" style="font-size:.72rem;color:#7f8a82;line-height:1.45;margin-top:9px">Tap <b style="color:#d9b779">Near me</b> to search by distance from your location — otherwise we\'ll show every destination that matches.</div>')
       +'</div>'
       +head('Destination types')
       +self.MAP_TYPES.map(row).join('')
@@ -298,9 +306,26 @@ class Component extends DCLogic {
       +'<div style="display:flex;gap:8px;margin-top:12px"><button id="mfAll" style="flex:1;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:600;color:#e7e3d8;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.22);border-radius:10px;padding:9px">All</button><button id="mfNone" style="flex:1;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:600;color:#e7e3d8;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.22);border-radius:10px;padding:9px">None</button></div>'
       +'<div id="mfMatch" style="font-family:\'Space Mono\',monospace;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:#9aa7a0;margin-top:12px">'+X+' of '+Y+' destinations match your filters</div>';
     mf.querySelectorAll('.pb-tog').forEach(function(rw){ rw.onclick=function(){ var id=rw.getAttribute('data-id'); self.mapSel[id]=!self.mapSel[id]; self.renderMapFilters(); self.recountMap(); }; });
-    var rs=document.getElementById('radSlider'); if(rs) rs.oninput=function(){ self.radius=+rs.value; var rv=document.getElementById('radVal'); if(rv)rv.textContent=self.radius; };
+    var nm=document.getElementById('nearMeBtn'); if(nm) nm.onclick=function(){ self.requestNearMe(); };
+    var rs=document.getElementById('radSlider'); if(rs && self.nearMe) rs.oninput=function(){ self.radius=+rs.value; var rv=document.getElementById('radVal'); if(rv)rv.textContent=self.radius; };
     var all=document.getElementById('mfAll'); if(all) all.onclick=function(){ self.MAP_TYPES.concat(self.MAP_LAYERS).forEach(function(x){ self.mapSel[x.id]=true; }); self.renderMapFilters(); self.recountMap(); };
     var none=document.getElementById('mfNone'); if(none) none.onclick=function(){ Object.keys(self.mapSel).forEach(function(k){ self.mapSel[k]=false; }); self.renderMapFilters(); self.recountMap(); };
+  }
+  requestNearMe(){
+    var self=this;
+    var nm=document.getElementById('nearMeBtn'); if(nm){ nm.textContent='Locating…'; nm.disabled=true; }
+    if(!navigator.geolocation){ this.nearMeError('Location isn’t available on this device.'); return; }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      self.userLoc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+      self.nearMe=true;
+      self.renderMapFilters(); self.recountMap();
+    }, function(err){
+      self.nearMeError(err&&err.code===1?'Location permission denied — allow it to search by distance.':'Couldn’t get your location. Try again.');
+    }, {enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+  }
+  nearMeError(msg){
+    var box=document.getElementById('nearMeMsg'); if(box) box.innerHTML='<span style="color:#e0906a">'+msg+'</span>';
+    var nm=document.getElementById('nearMeBtn'); if(nm){ nm.textContent='◎ Near me'; nm.disabled=false; }
   }
   recountMap(){
     var self=this;

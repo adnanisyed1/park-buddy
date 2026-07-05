@@ -15,9 +15,9 @@ function Chip({ label, value, unit }) {
   if (value == null || value === "") return null;
   return (
     <div style={{ background: "rgba(251,246,234,.07)", border: "1px solid rgba(228,190,120,.24)", borderRadius: 14, padding: "12px 14px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
-      <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "#c9bf9f" }}>{label}</div>
-      <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.55rem", color: "#fbf6ea", marginTop: 3, lineHeight: 1 }}>
-        {value}{unit && <span style={{ fontSize: ".5em", color: "#c9bf9f" }}> {unit}</span>}
+      <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-ink-2)" }}>{label}</div>
+      <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.55rem", color: "var(--pb-surface)", marginTop: 3, lineHeight: 1 }}>
+        {value}{unit && <span style={{ fontSize: ".5em", color: "var(--pb-ink-2)" }}> {unit}</span>}
       </div>
     </div>
   );

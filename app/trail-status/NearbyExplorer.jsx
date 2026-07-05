@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
-const CARD = "#fffdf8", LINE = "#e2dac8", INK = "#22261f", MUTED = "#8a8471", GREEN = "#163a2b", GOLD = "#b3862d";
+const CARD = "var(--pb-surface)", LINE = "rgba(217,183,121,.16)", INK = "var(--pb-ink)", MUTED = "var(--pb-muted)", GREEN = "var(--pb-ink)", GOLD = "#c9a35f";
 
 const SECTIONS = [
   { key: "trails", title: "Trails nearby", sub: "Same trailhead corridor" },
@@ -32,12 +32,12 @@ function Tile({ item }) {
   const badge = item.badge || (item.distMi != null ? Math.round(item.distMi) + " MI" : null);
   const inner = (
     <>
-      <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,#ece5d4 0 12px,#e6dfcd 12px 24px)" }}>
+      <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,var(--pb-surface-2) 0 12px,var(--pb-surface) 12px 24px)" }}>
         {url && <img src={url} alt={item.name} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
         {!url && (
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="#c9bf9f" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}><path d="M12 3l5 9h-3l5 9H5l5-9H7z" /></svg>
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="var(--pb-ink-2)" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}><path d="M12 3l5 9h-3l5 9H5l5-9H7z" /></svg>
         )}
-        {badge && <span style={{ position: "absolute", left: 9, top: 9, background: "rgba(21,36,28,.85)", color: "#f3ede0", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".08em", borderRadius: 999, padding: "3px 9px" }}>{badge}</span>}
+        {badge && <span style={{ position: "absolute", left: 9, top: 9, background: "rgba(21,36,28,.85)", color: "var(--pb-ink)", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".08em", borderRadius: 999, padding: "3px 9px" }}>{badge}</span>}
         {photo && photo.geo && (
           <span style={{ position: "absolute", right: 8, bottom: 8, background: "rgba(21,36,28,.75)", color: "rgba(243,237,224,.85)", fontFamily: mono, fontSize: ".52rem", fontWeight: 700, letterSpacing: ".06em", borderRadius: 999, padding: "2px 7px" }}>
             {photo.date ? "NEARBY · " + photo.date.toUpperCase() : "NEARBY PHOTO"}
@@ -90,7 +90,7 @@ export default function NearbyExplorer({ nearby, refName, refLat, refLng, state 
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 14, flexWrap: "wrap", margin: "0 2px 14px" }}>
         <div>
           <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", margin: 0, color: INK }}>Near this trailhead</h2>
-          <div style={{ fontSize: ".82rem", color: "#6d7263", marginTop: 3 }}>
+          <div style={{ fontSize: ".82rem", color: "var(--pb-muted)", marginTop: 3 }}>
             {radius >= 9999 ? "Everything around " : "Everything within " + radius + " miles of "}{refName || "the trailhead"}. {total} place{total === 1 ? "" : "s"}.
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function NearbyExplorer({ nearby, refName, refLat, refLng, state 
             {RADII.map((o) => {
               const on = o.v === radius;
               return (
-                <button key={o.v} onClick={() => setRadius(o.v)} style={{ border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: ".76rem", fontWeight: 800, padding: "7px 14px", borderRadius: 999, transition: "background .2s,color .2s", background: on ? "#15241c" : "transparent", color: on ? "#f3ede0" : "#6d7263" }}>{o.l}</button>
+                <button key={o.v} onClick={() => setRadius(o.v)} style={{ border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: ".76rem", fontWeight: 800, padding: "7px 14px", borderRadius: 999, transition: "background .2s,color .2s", background: on ? "var(--pb-bg)" : "transparent", color: on ? "var(--pb-ink)" : "var(--pb-muted)" }}>{o.l}</button>
               );
             })}
           </div>
@@ -118,9 +118,9 @@ export default function NearbyExplorer({ nearby, refName, refLat, refLng, state 
                 <span style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".12em", textTransform: "uppercase", color: MUTED }}>{loading ? "finding…" : items.length + " within " + label} · {sec.sub}</span>
               </div>
               {loading ? (
-                <div style={{ background: CARD, border: "1px dashed #d8d0bc", borderRadius: 16, padding: "16px 18px", fontSize: ".84rem", color: MUTED }}>Finding nearby towns…</div>
+                <div style={{ background: CARD, border: "1px dashed rgba(217,183,121,.16)", borderRadius: 16, padding: "16px 18px", fontSize: ".84rem", color: MUTED }}>Finding nearby towns…</div>
               ) : items.length === 0 ? (
-                <div style={{ background: CARD, border: "1px dashed #d8d0bc", borderRadius: 16, padding: "16px 18px", fontSize: ".84rem", color: MUTED }}>Nothing within {label} — widen the radius to see more.</div>
+                <div style={{ background: CARD, border: "1px dashed rgba(217,183,121,.16)", borderRadius: 16, padding: "16px 18px", fontSize: ".84rem", color: MUTED }}>Nothing within {label} — widen the radius to see more.</div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: 10 }}>
                   {/* Name-keyed (not index) so radius refilters remount tiles

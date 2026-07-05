@@ -54,6 +54,9 @@ function badFile(u) {
   // (".../Foo.svg/500px-Foo.svg.png") — vector sources are locator maps and
   // logos, never photographs. Caught live: Gem Lake rendering a county map.
   return /\.(gif|svg)(\?|$)/i.test(s) || /\.svg(\/|\.)/i.test(s)
+    // .tif(f) anywhere = aerial/satellite imagery tiles (e.g. NAIP
+    // "M_4510954_..._20210611.tif.png"), never a scenic photograph.
+    || /\.tiff?(\/|\.|\?|$)/i.test(s)
     // Highway/route shields & markers are graphics, not photos (caught live:
     // "Blue_Ridge_Parkway_shield.png").
     || /map|locator|logo|diagram|seal|flag|icon|shield|highlighted|boundar|incorporated/i.test(f);

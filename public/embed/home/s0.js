@@ -520,14 +520,24 @@ class Component extends DCLogic {
   /* ---------------- BOOKING ---------------- */
   buildBooking(){
     var stays=document.getElementById('bookStays'), cars=document.getElementById('bookCars'), self=this;
-    var field=function(label,val,ph){ return '<div style="flex:1;min-width:150px"><div style="font-family:\'Space Mono\',monospace;font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:#9aa0ab;margin-bottom:7px">'+label+'</div><input value="'+(val||'')+'" placeholder="'+(ph||'')+'" style="width:100%;font-family:inherit;font-size:.9rem;color:#f4f1ea;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.2);border-radius:12px;padding:12px 14px;outline:none"></div>'; };
-    var cta=function(label){ return '<a href="#" class="pb-mag" style="align-self:flex-end;text-decoration:none;font-size:.88rem;font-weight:600;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f);padding:13px 24px;border-radius:12px;white-space:nowrap">'+label+'</a>'; };
+    // Affiliate hand-off: the Search buttons open the PARTNER's real search in a
+    // new tab (we never take payment — same pattern as the Recreation.gov popup).
+    // Commission tracking turns on once these ids are filled in; get them from the
+    // partner programs (Booking.com / Travelpayouts for stays, Discover Cars for
+    // cars). Empty = a plain, still-working partner link with no commission yet.
+    var AID_STAYS = '';
+    var AID_CARS  = '';
+    var field=function(label,val,ph,id){ return '<div style="flex:1;min-width:150px"><div style="font-family:\'Space Mono\',monospace;font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:#9aa0ab;margin-bottom:7px">'+label+'</div><input'+(id?' id="'+id+'"':'')+' value="'+(val||'')+'" placeholder="'+(ph||'')+'" style="width:100%;font-family:inherit;font-size:.9rem;color:#f4f1ea;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.2);border-radius:12px;padding:12px 14px;outline:none"></div>'; };
+    var cta=function(label,id){ return '<button id="'+id+'" class="pb-mag" style="cursor:pointer;font-family:inherit;align-self:flex-end;font-size:.88rem;font-weight:600;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;padding:13px 24px;border-radius:12px;white-space:nowrap">'+label+'</button>'; };
     if(stays) stays.innerHTML='<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">'
-      +field('Destination','Springdale, UT — Zion gateway')+field('Check in','','Add dates')+field('Check out','','Add dates')+field('Guests','2 guests','')
-      +cta('Search stays →')+'</div>';
+      +field('Destination','Springdale, UT — Zion gateway','','bkStayDest')+field('Check in','','Add dates')+field('Check out','','Add dates')+field('Guests','2 guests','')
+      +cta('Search stays →','bkStaySearch')+'</div>';
     if(cars) cars.innerHTML='<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">'
-      +field('Pick-up','Las Vegas Airport (LAS) — near Zion')+field('Pick-up date','','Add date')+field('Return date','','Add date')+field('Driver age','25+','')
-      +cta('Search cars →')+'</div>';
+      +field('Pick-up','Las Vegas Airport (LAS) — near Zion','','bkCarLoc')+field('Pick-up date','','Add date')+field('Return date','','Add date')+field('Driver age','25+','')
+      +cta('Search cars →','bkCarSearch')+'</div>';
+    var openPartner=function(url){ try{ window.open(url,'_blank','noopener,noreferrer'); }catch(e){ location.href=url; } };
+    var ss2=document.getElementById('bkStaySearch'); if(ss2) ss2.onclick=function(){ var d=((document.getElementById('bkStayDest')||{}).value||'').trim(); openPartner('https://www.booking.com/searchresults.html?ss='+encodeURIComponent(d)+(AID_STAYS?'&aid='+encodeURIComponent(AID_STAYS):'')); };
+    var cs2=document.getElementById('bkCarSearch'); if(cs2) cs2.onclick=function(){ openPartner('https://www.discovercars.com/'+(AID_CARS?'?a_aid='+encodeURIComponent(AID_CARS):'')); };
     var ts=document.getElementById('tabStays'), tc=document.getElementById('tabCars'), tg=document.getElementById('tabGear');
     var gear=document.getElementById('bookGear');
     function setTab(which){

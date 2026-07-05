@@ -299,14 +299,16 @@
       var pic = meta.avatar_url || meta.picture || "";
       var btn = document.createElement("button");
       btn.setAttribute("aria-label", "Open account");
-      btn.style.cssText = "width:36px;height:36px;border-radius:999px;border:2px solid " + CREAM + ";cursor:pointer;overflow:hidden;background:" + GREEN + ";color:#fff;font-weight:700;font-size:14px;box-shadow:0 1px 5px rgba(0,0,0,.25);padding:0;display:flex;align-items:center;justify-content:center";
+      btn.style.cssText = "width:34px;height:34px;border-radius:999px;border:1px solid rgba(217,183,121,.5);cursor:pointer;overflow:hidden;background:linear-gradient(145deg,#33555f,#1d3941);color:#fff;font-weight:700;font-size:14px;box-shadow:0 1px 5px rgba(0,0,0,.3);padding:0;display:flex;align-items:center;justify-content:center";
       btn.innerHTML = pic ? '<img src="' + esc(pic) + '" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover" alt="">' : (name[0] || "U").toUpperCase();
       btn.onclick = openAccount;
       return btn;
     }
+    // Dark-royal "Sign in" pill matching the platform header (no Google logo — the
+    // provider choice happens in the account panel openAccount() shows).
     var pill = document.createElement("button");
-    pill.style.cssText = "display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:" + CREAM + ";color:" + INK + ";font-family:" + FONT + ";font-weight:600;font-size:.8rem;cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.18);white-space:nowrap";
-    pill.innerHTML = GOOGLE_SVG + "Sign in";
+    pill.style.cssText = "display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:999px;border:1px solid rgba(217,183,121,.35);background:transparent;color:#e7e3d8;font-family:var(--pb-sans),'Hanken Grotesk',system-ui,sans-serif;font-weight:600;font-size:.82rem;cursor:pointer;white-space:nowrap";
+    pill.innerHTML = "Sign in";
     pill.onclick = openAccount;
     return pill;
   }

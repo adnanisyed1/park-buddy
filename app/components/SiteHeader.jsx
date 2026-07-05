@@ -19,7 +19,6 @@ import Link from "next/link";
 const LINKS = [
   { key: "explore", label: "Explore", href: "/explore" },
   { key: "drives", label: "Scenic Drives", href: "/scenic-drives" },
-  { key: "cruises", label: "Cruises", href: "/cruises" },
   { key: "stay", label: "Stay & Gear", href: "/#stay" },
   { key: "pro", label: "Pro", href: "/#pro" },
   { key: "learn", label: "Learn", href: "/#learn" },
@@ -82,11 +81,10 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           </button>
         )}
         {acctSlot ? (
-          // auth.js mounts the real account / Sign-in UI here (falls back to a plain
-          // circle pre-load), so sign-in lives in the header — not floating below it.
-          <span id="pp-acct-slot" style={{ display: "inline-flex", alignItems: "center" }}>
-            <span style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(145deg,#33555f,#1d3941)", border: "1px solid rgba(228,190,120,.4)" }} />
-          </span>
+          // auth.js mounts the real account / Sign-in control here (dark-royal pill
+          // when signed out, avatar when signed in). Left empty so there's no
+          // duplicate placeholder alongside the mounted control.
+          <span id="pp-acct-slot" style={{ display: "inline-flex", alignItems: "center", minHeight: 34 }} />
         ) : (
           <button
             type="button"

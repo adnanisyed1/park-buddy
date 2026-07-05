@@ -175,16 +175,19 @@ function photoTitleFor(p) {
 
 /* ---------------- photo pipeline (server-side; no browser-stored key) ---------------- */
 
-// v2 key: v1 cached permanent `false` failures caused by the double-suffix bug
-// above, so returning visitors would never retry those photos.
+// v3 key: v2 still cached a permanent `false` on TRANSIENT failures (a rate-limited
+// 503 or a network blip cached as "no photo forever"), which poisoned dozens of
+// parks. v3 both starts fresh AND the fetchers below only cache `false` on a
+// DEFINITIVE found:false — transient failures return null without caching, so they
+// retry on the next visit.
 let photoCache = null;
 function getPhotoCache() {
   if (photoCache) return photoCache;
-  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v2") || "{}"); } catch { photoCache = {}; }
+  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v3") || "{}"); } catch { photoCache = {}; }
   return photoCache;
 }
 function savePhotoCache() {
-  try { localStorage.setItem("pb_photo_cache_v2", JSON.stringify(photoCache)); } catch {}
+  try { localStorage.setItem("pb_photo_cache_v3", JSON.stringify(photoCache)); } catch {}
 }
 
 // Photos resolve SERVER-SIDE via /api/photo (Wikipedia/Wikimedia + the NPS lookup
@@ -195,11 +198,14 @@ function fetchPhoto(p) {
   const cached = cache[p.name];
   if (cached) return Promise.resolve(cached);
   if (cached === false) return Promise.resolve(null);
-  const apply = (url) => { cache[p.name] = url || false; savePhotoCache(); return url || null; };
   return fetch("/api/photo?name=" + encodeURIComponent(photoTitleFor(p)) + "&state=" + encodeURIComponent(p.state || ""))
     .then((r) => (r.ok ? r.json() : null))
-    .then((d) => apply(d && d.found ? (d.thumb || d.image) : null))
-    .catch(() => apply(null));
+    .then((d) => {
+      if (d && d.found) { const url = d.thumb || d.image || null; if (url) { cache[p.name] = url; savePhotoCache(); } return url; }
+      if (d && d.found === false) { cache[p.name] = false; savePhotoCache(); return null; } // definitive: no photo exists
+      return null; // transient (bad/failed response) — don't poison the cache; retry next time
+    })
+    .catch(() => null);
 }
 
 function CoverPhoto({ park }) {
@@ -224,11 +230,14 @@ function fetchTrailPhoto(name, state) {
   const cached = cache[key];
   if (cached) return Promise.resolve(cached);
   if (cached === false) return Promise.resolve(null);
-  const apply = (url) => { cache[key] = url || false; savePhotoCache(); return url || null; };
   return fetch("/api/photo?name=" + encodeURIComponent(name) + "&state=" + encodeURIComponent(state || ""))
     .then((r) => (r.ok ? r.json() : null))
-    .then((d) => apply(d && d.found ? (d.thumb || d.image) : null))
-    .catch(() => apply(null));
+    .then((d) => {
+      if (d && d.found) { const url = d.thumb || d.image || null; if (url) { cache[key] = url; savePhotoCache(); } return url; }
+      if (d && d.found === false) { cache[key] = false; savePhotoCache(); return null; }
+      return null; // transient — don't cache
+    })
+    .catch(() => null);
 }
 
 function TrailPhoto({ name, state }) {
@@ -394,7 +403,7 @@ function ReviewsSection({ tr }) {
       )}
 
       {supa && reviews && reviews.map((r) => (
-        <div key={r.id} style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
+        <div key={r.id} style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
             <b style={{ fontSize: ".82rem", color: "var(--pb-ink)" }}>{r.author_name || "Explorer"}</b>
             <StarRow value={r.rating} size=".8rem" />
@@ -404,15 +413,15 @@ function ReviewsSection({ tr }) {
       ))}
 
       {supa && !user && (
-        <button onClick={() => window.__ppAuth.openAccount()} style={{ width: "100%", border: "1px solid rgba(140,132,115,.35)", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.6)", color: "#1d3941", marginTop: 4 }}>Sign in to write a review</button>
+        <button onClick={() => window.__ppAuth.openAccount()} style={{ width: "100%", border: "1px solid rgba(217,183,121,.3)", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.04)", color: "#e7e3d8", marginTop: 4 }}>Sign in to write a review</button>
       )}
 
       {supa && user && (
-        <div style={{ background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.75)", borderRadius: 12, padding: 12, marginTop: 4 }}>
-          <div style={{ fontSize: ".76rem", fontWeight: 700, color: "#1d3941", marginBottom: 6 }}>{myRating ? "Your review" : "Rate this trail"}</div>
+        <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: 12, marginTop: 4 }}>
+          <div style={{ fontSize: ".76rem", fontWeight: 600, color: "#e7e3d8", marginBottom: 6 }}>{myRating ? "Your review" : "Rate this trail"}</div>
           <StarRow value={myRating} onChange={setMyRating} size="1.2rem" />
-          <textarea value={myText} onChange={(e) => setMyText(e.target.value)} placeholder="Share tips, conditions, or highlights (optional)" rows={3} style={{ width: "100%", boxSizing: "border-box", marginTop: 8, padding: 8, borderRadius: 8, border: "1px solid rgba(140,132,115,.35)", fontFamily: "inherit", fontSize: ".8rem", resize: "vertical" }} />
-          <button onClick={submit} disabled={!myRating || saving} style={{ width: "100%", marginTop: 8, border: "none", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 700, cursor: myRating ? "pointer" : "default", fontFamily: "inherit", background: myRating ? "#c9a35f" : "#cfc7b4", color: "#fff" }}>{saving ? "Saving…" : "Submit review"}</button>
+          <textarea value={myText} onChange={(e) => setMyText(e.target.value)} placeholder="Share tips, conditions, or highlights (optional)" rows={3} style={{ width: "100%", boxSizing: "border-box", marginTop: 8, padding: 8, borderRadius: 8, border: "1px solid rgba(217,183,121,.2)", background: "rgba(255,255,255,.04)", color: "#f4f1ea", fontFamily: "inherit", fontSize: ".8rem", resize: "vertical", outline: "none" }} />
+          <button onClick={submit} disabled={!myRating || saving} style={{ width: "100%", marginTop: 8, border: "none", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 600, cursor: myRating ? "pointer" : "default", fontFamily: "inherit", background: myRating ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.06)", color: myRating ? "#0b1710" : "#7f8a82" }}>{saving ? "Saving…" : "Submit review"}</button>
         </div>
       )}
     </div>
@@ -1414,6 +1423,9 @@ export default function ExploreApp() {
           {/* ========== BROWSE VIEW ========== */}
           {ui.view === "browse" && (
             <>
+              {/* Filters show in Map mode; List mode is a clean "All parks" grid. */}
+              {!ui.listMode && (
+              <>
               <button onClick={toggle("filtersOpen")} style={{ width: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", gap: 9, padding: "4px 2px 12px", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
                 <span style={{ ...monoLabel, color: "#d9b779", flex: 1 }}>Filters</span>
                 <span style={{ minWidth: 20, height: 18, padding: "0 6px", borderRadius: 999, background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0b1710", fontFamily: mono, fontSize: ".56rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{activeFilterCount}</span>
@@ -1468,6 +1480,12 @@ export default function ExploreApp() {
                   <button onClick={() => patch({ destNational: false, destState: false, destForest: false, destLake: false, campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false })} style={{ flex: 1, cursor: "pointer", fontSize: ".78rem", fontWeight: 600, color: "#e7e3d8", background: "rgba(255,255,255,.04)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 10, padding: 8, fontFamily: "inherit" }}>None</button>
                 </div>
               </div>
+              </>
+              )}
+
+              {ui.listMode && (
+                <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "#f4f1ea", margin: "2px 0 12px" }}>All parks</h2>
+              )}
 
               <div style={{ display: "flex", gap: 8, margin: "6px 0 14px" }}>
                 <button onClick={() => patch({ listMode: false })} style={{ flex: 1, cursor: "pointer", fontSize: ".8rem", fontWeight: 600, borderRadius: 10, padding: 9, fontFamily: "inherit", border: !ui.listMode ? "none" : "1px solid rgba(217,183,121,.2)", background: !ui.listMode ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.04)", color: !ui.listMode ? "#0b1710" : "#c3c8d0" }}>◉ Map</button>

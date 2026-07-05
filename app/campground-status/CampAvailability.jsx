@@ -8,8 +8,8 @@ import { useEffect, useState } from "react";
 // booking page in a separate window (deep-linking is explicitly encouraged in
 // their data-use terms). Booking always completes on recreation.gov.
 
-const serif = "'Spectral', Georgia, serif";
-const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
+const serif = "var(--pb-serif)";
+const mono = "var(--pb-mono)";
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 
@@ -86,20 +86,27 @@ export default function CampAvailability({ campgroundId, bookUrl, name }) {
               if (!c) return <div key={i} />;
               const open = c.open;
               const ratio = open != null && data.total ? open / data.total : 0;
-              const bg = open == null ? "var(--pb-bg)" : open === 0 ? "rgba(224,144,106,.12)" : ratio > 0.3 ? "rgba(79,217,138,.14)" : "rgba(232,207,154,.12)";
-              const fg = open == null ? "var(--pb-ink-2)" : open === 0 ? "var(--pb-hold)" : "#3a5a3a";
+              // Clear, legible verdict coding on dark: green=open, gold=few left,
+              // red=full. Stronger tint + a matching border + the SAME color for
+              // the day number so availability reads at a glance (the old dark
+              // "#3a5a3a" text was invisible on the dark cell).
+              const status = open == null ? "none" : open === 0 ? "full" : ratio > 0.3 ? "open" : "few";
+              const C = { open: "79,217,138", few: "232,207,154", full: "224,144,106" }[status];
+              const bg = status === "none" ? "var(--pb-bg)" : `rgba(${C},.16)`;
+              const border = status === "none" ? "1px solid rgba(217,183,121,.1)" : `1px solid rgba(${C},.4)`;
+              const fg = status === "none" ? "var(--pb-muted)" : `rgb(${C})`;
               return (
-                <div key={i} title={open == null ? "" : open + " of " + data.total + " open"} style={{ aspectRatio: "1/1", borderRadius: 7, background: bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                <div key={i} title={open == null ? "" : open + " of " + data.total + " open"} style={{ aspectRatio: "1/1", borderRadius: 7, background: bg, border, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
                   <span style={{ fontSize: ".64rem", fontWeight: 700, color: fg }}>{c.d}</span>
                   {open != null && open > 0 && <span style={{ fontFamily: mono, fontSize: ".46rem", color: fg }}>{open}</span>}
                 </div>
               );
             })}
           </div>
-          <div style={{ display: "flex", gap: 12, marginTop: 8, fontFamily: mono, fontSize: ".54rem", color: "var(--pb-muted)" }}>
-            <span><i style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "rgba(79,217,138,.14)", marginRight: 4 }} />open</span>
-            <span><i style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "rgba(232,207,154,.12)", marginRight: 4 }} />few left</span>
-            <span><i style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "rgba(224,144,106,.12)", marginRight: 4 }} />full</span>
+          <div style={{ display: "flex", gap: 12, marginTop: 10, fontFamily: mono, fontSize: ".54rem", color: "var(--pb-muted)" }}>
+            <span><i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: "rgba(79,217,138,.16)", border: "1px solid rgba(79,217,138,.4)", marginRight: 5, verticalAlign: "middle" }} />open</span>
+            <span><i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: "rgba(232,207,154,.16)", border: "1px solid rgba(232,207,154,.4)", marginRight: 5, verticalAlign: "middle" }} />few left</span>
+            <span><i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 2, background: "rgba(224,144,106,.16)", border: "1px solid rgba(224,144,106,.4)", marginRight: 5, verticalAlign: "middle" }} />full</span>
           </div>
         </div>
       )}

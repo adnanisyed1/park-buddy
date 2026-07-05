@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "../components/PhotoThumb";
 
@@ -13,7 +13,8 @@ const serif = "'Spectral', Georgia, serif";
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 function DriveTile({ d }) {
-  const photo = usePhoto([...(d.wiki || []), d.name].join("|"), d.lat, d.lng);
+  const tileRef = useRef(null);
+  const photo = usePhoto([...(d.wiki || []), d.name].join("|"), d.lat, d.lng, tileRef);
   const bm = d.tier === "all-american"
     ? { bg: "linear-gradient(135deg,#f0d38a,#c79a4b)", ink: "#4a3410", label: "All-American Road" }
     : d.tier === "landmark"
@@ -21,7 +22,7 @@ function DriveTile({ d }) {
     : { bg: "linear-gradient(135deg,#e6e8ea,#a9b0b6)", ink: "#2c3338", label: "National Scenic Byway" };
   const bg = bm.bg, ink = bm.ink, badge = bm.label;
   return (
-    <Link href={"/scenic-drives/" + d.id} style={{ display: "block", textDecoration: "none", cursor: "pointer", background: "#12291a", border: "1px solid rgba(251,246,234,.12)", borderRadius: 22, overflow: "hidden", boxShadow: "0 26px 60px -40px rgba(0,0,0,.9)" }}>
+    <Link ref={tileRef} href={"/scenic-drives/" + d.id} style={{ display: "block", textDecoration: "none", cursor: "pointer", background: "#12291a", border: "1px solid rgba(251,246,234,.12)", borderRadius: 22, overflow: "hidden", boxShadow: "0 26px 60px -40px rgba(0,0,0,.9)" }}>
       <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,#16321f 0 14px,#12291a 14px 28px)" }}>
         {photo && photo.url && <img src={photo.url} alt={d.name} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.15) 40%,rgba(9,24,16,.8) 100%)" }} />

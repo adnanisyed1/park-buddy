@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PhotoThumb from "./PhotoThumb";
+import SiteHeader from "./SiteHeader";
 
 // Shared look for the new /trail-status, /lake-status, /campground-status
 // pages — standalone deep-linkable content pages (SEO + shareable), separate
@@ -8,30 +9,26 @@ import PhotoThumb from "./PhotoThumb";
 // glass header, monospace micro-labels, Space Grotesk stat numbers, cream
 // content area below the hero.
 
+// Migrated to the platform design tokens (dark futuristic-royal). `ink`/`green`
+// are TEXT colors (now light); `cream`/`card`/`dark`/`heroDark` are BACKGROUNDS
+// (now dark). The one place COLORS.cream was used as light TEXT (the dark
+// ConditionCard) is fixed inline below to a literal light value.
 export const COLORS = {
-  ink: "#22261f", green: "#163a2b", gold: "#c79a4b", goldDark: "#b3862d",
-  muted: "#8a8471", cream: "#f3efe7", card: "#fffdf8", line: "#e2dac8",
-  dark: "#22261f", heroDark: "#11281d",
+  ink: "#f4f1ea", green: "#f4f1ea", gold: "#e8cf9a", goldDark: "#c9a35f",
+  muted: "#7f8a82", cream: "#0a1712", card: "#0b1710", line: "rgba(217,183,121,.16)",
+  dark: "#0e2016", heroDark: "#0a1712",
 };
-const sans = "var(--font-hanken), 'Hanken Grotesk', system-ui, sans-serif";
-const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
-const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const numeric = "var(--font-space-grotesk), 'Space Grotesk', sans-serif";
+const sans = "var(--pb-sans)";
+const serif = "var(--pb-serif)";
+const mono = "var(--pb-mono)";
+const numeric = "var(--pb-serif)";
 const microLabel = { fontFamily: mono, fontSize: ".6rem", letterSpacing: ".16em", textTransform: "uppercase", color: COLORS.muted };
 
 export function StatusShell({ children, hero, backHref, backLabel, headerRight, wide, bare }) {
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.cream, fontFamily: sans, color: COLORS.ink }}>
-      <header style={{ position: "sticky", top: 0, zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px clamp(16px,4vw,40px)", background: "rgba(16,32,23,.7)", backdropFilter: "blur(16px) saturate(1.4)", WebkitBackdropFilter: "blur(16px) saturate(1.4)", borderBottom: "1px solid rgba(228,190,120,.28)" }}>
-        <Link href={backHref || "/explore"} style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", color: "rgba(243,237,224,.92)", fontSize: ".84rem", fontWeight: 700 }}>‹ <span>{backLabel || "Back to map"}</span></Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 9, color: "#fbf6ea" }}>
-          <span style={{ width: 26, height: 26, borderRadius: 8, background: "linear-gradient(145deg,#e4be78,#c79a4b)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#15241c"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
-          </span>
-          <b style={{ fontFamily: serif, fontWeight: 700, fontSize: ".95rem" }}>ParkBuddy</b>
-        </div>
-        {headerRight || <span />}
-      </header>
+    <div style={{ minHeight: "100vh", paddingTop: 62, background: COLORS.cream, fontFamily: sans, color: COLORS.ink }}>
+      <SiteHeader active="explore" />
+      {headerRight && <div style={{ position: "fixed", top: 11, right: "clamp(16px,4vw,54px)", zIndex: 101 }}>{headerRight}</div>}
       {hero}
       <div style={{ position: "relative", zIndex: 3, background: COLORS.cream, borderRadius: hero ? "24px 24px 0 0" : 0, marginTop: hero ? -20 : 0 }}>
         {bare ? children : (
@@ -61,11 +58,11 @@ export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pill
           photo with its capture date) — never passes an archive photo off as
           a live view. */}
       {photoUrl && photoBadge && (
-        <span style={{ position: "absolute", top: 14, right: 16, zIndex: 3, background: "rgba(12,26,18,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.22)", color: "rgba(243,237,224,.9)", fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>{photoBadge}</span>
+        <span style={{ position: "absolute", top: 14, right: 16, zIndex: 3, background: "rgba(12,26,18,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.22)", color: "rgba(244,241,234,.9)", fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>{photoBadge}</span>
       )}
       <div style={{ position: "relative", zIndex: 2, maxWidth: tall ? 1180 : 900, margin: "0 auto", width: "100%", padding: "clamp(50px,10vh,90px) clamp(16px,4vw,40px) 36px", boxSizing: "border-box" }}>
         {breadcrumb && <div style={{ ...microLabel, color: COLORS.gold, textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>{breadcrumb}</div>}
-        <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#fbf6ea", fontSize: tall ? "clamp(2.4rem,6vw,4.2rem)" : "clamp(2rem,5.4vw,3.4rem)", lineHeight: 1, letterSpacing: "-.02em", margin: "10px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.55)" }}>
+        <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#f4f1ea", fontSize: tall ? "clamp(2.4rem,6vw,4.2rem)" : "clamp(2rem,5.4vw,3.4rem)", lineHeight: 1, letterSpacing: "-.02em", margin: "10px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.55)" }}>
           {title}{titleSub && <span style={{ fontStyle: "italic", color: "rgba(251,246,234,.72)", fontWeight: 500, fontSize: ".42em", letterSpacing: 0, display: "block", marginTop: 6 }}>{titleSub}</span>}
         </h1>
         {pills && pills.length > 0 && (
@@ -76,9 +73,9 @@ export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pill
         {statsSlot ? <div style={{ marginTop: 22 }}>{statsSlot}</div> : tall && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 8, marginTop: 22 }}>
             {stats.filter((s) => s && s.value != null && s.value !== "").map((s, i) => (
-              <div key={i} style={{ background: "rgba(251,246,234,.07)", border: "1px solid rgba(228,190,120,.24)", borderRadius: 14, padding: "12px 14px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
+              <div key={i} style={{ background: "rgba(251,246,234,.07)", border: "1px solid rgba(217,183,121,.24)", borderRadius: 14, padding: "12px 14px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
                 <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "#c9bf9f" }}>{s.label}</div>
-                <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "#fbf6ea", marginTop: 3, lineHeight: 1 }}>{s.value}{s.unit && <span style={{ fontSize: ".5em", color: "#c9bf9f" }}> {s.unit}</span>}</div>
+                <div style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "#f4f1ea", marginTop: 3, lineHeight: 1 }}>{s.value}{s.unit && <span style={{ fontSize: ".5em", color: "#c9bf9f" }}> {s.unit}</span>}</div>
               </div>
             ))}
           </div>
@@ -90,12 +87,12 @@ export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pill
 
 export function HeroPill({ label, dot, dots }) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(15,32,23,.72)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(228,190,120,.35)", borderRadius: 999, padding: dot || dots ? "7px 15px 7px 11px" : "7px 14px", fontSize: ".8rem", fontWeight: 700, color: "#f3ede0", textShadow: "0 1px 3px rgba(0,0,0,.4)" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(15,32,23,.72)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(217,183,121,.35)", borderRadius: 999, padding: dot || dots ? "7px 15px 7px 11px" : "7px 14px", fontSize: ".8rem", fontWeight: 700, color: "#f4f1ea", textShadow: "0 1px 3px rgba(0,0,0,.4)" }}>
       {dot && <i style={{ width: 9, height: 9, borderRadius: "50%", background: dot, flex: "none" }} />}
       {dots && (
         <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
           {Array.from({ length: dots.total }).map((_, i) => (
-            <i key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: i < dots.filled ? "#e4be78" : "rgba(228,190,120,.25)" }} />
+            <i key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: i < dots.filled ? "#e8cf9a" : "rgba(217,183,121,.25)" }} />
           ))}
         </span>
       )}
@@ -134,7 +131,7 @@ export function TipCard({ title, children }) {
   return (
     <div style={{ background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 16, padding: "14px 16px" }}>
       <b style={{ fontSize: ".88rem", color: COLORS.ink }}>{title}</b>
-      {children && <div style={{ fontSize: ".78rem", color: "#6d7263", marginTop: 3, lineHeight: 1.5 }}>{children}</div>}
+      {children && <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 3, lineHeight: 1.5 }}>{children}</div>}
     </div>
   );
 }
@@ -144,18 +141,18 @@ export function TipCard({ title, children }) {
 export function ConditionCard({ label, title, children, dark, cta }) {
   return (
     <div style={dark
-      ? { background: COLORS.dark, color: COLORS.cream, borderRadius: 20, padding: 18 }
+      ? { background: COLORS.dark, color: "#f4f1ea", border: "1px solid " + COLORS.line, borderRadius: 20, padding: 18 }
       : { background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 20, padding: 18 }}>
-      {label && <div style={{ ...microLabel, color: dark ? "#b8b19b" : COLORS.muted, marginBottom: 12 }}>{label}</div>}
+      {label && <div style={{ ...microLabel, color: dark ? "var(--pb-gold-soft)" : COLORS.muted, marginBottom: 12 }}>{label}</div>}
       {title && <div style={{ fontFamily: numeric, fontWeight: 700, fontSize: "1.2rem" }}>{title}</div>}
-      {children && <div style={{ fontSize: ".84rem", color: dark ? "#cfc9b6" : "#4c5443", lineHeight: 1.55, marginTop: title ? 8 : 0 }}>{children}</div>}
+      {children && <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.55, marginTop: title ? 8 : 0 }}>{children}</div>}
       {cta && <div style={{ marginTop: 14 }}>{cta}</div>}
     </div>
   );
 }
 
 export function GoldButton({ href, children, onClick }) {
-  const style = { textDecoration: "none", display: "inline-block", background: "linear-gradient(120deg,#e4be78,#c79a4b)", color: "#15241c", fontSize: ".78rem", fontWeight: 800, padding: "9px 16px", borderRadius: 999, border: "none", cursor: "pointer", fontFamily: "inherit" };
+  const style = { textDecoration: "none", display: "inline-block", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontSize: ".78rem", fontWeight: 800, padding: "9px 16px", borderRadius: 999, border: "none", cursor: "pointer", fontFamily: "inherit" };
   return href
     ? <a href={href} target="_blank" rel="noreferrer" style={style}>{children}</a>
     : <button onClick={onClick} style={style}>{children}</button>;
@@ -206,7 +203,7 @@ export function Stars({ value, size }) {
   return (
     <span style={{ display: "inline-flex", gap: 1 }}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <span key={n} style={{ color: n <= Math.round(value) ? COLORS.gold : "#d9d3c2", fontSize: size || "1rem", lineHeight: 1 }}>★</span>
+        <span key={n} style={{ color: n <= Math.round(value) ? COLORS.gold : "rgba(255,255,255,.15)", fontSize: size || "1rem", lineHeight: 1 }}>★</span>
       ))}
     </span>
   );
@@ -231,11 +228,11 @@ export function ReviewsBlock({ reviews, avg, writeHref }) {
             <b style={{ fontSize: ".85rem", color: COLORS.green }}>{r.author_name || "Explorer"}</b>
             <Stars value={r.rating} size=".8rem" />
           </div>
-          {r.review_text && <div style={{ fontSize: ".84rem", color: "#4c5443", lineHeight: 1.55 }}>{r.review_text}</div>}
+          {r.review_text && <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.55 }}>{r.review_text}</div>}
         </div>
       ))}
       {writeHref && (
-        <a href={writeHref} style={{ display: "block", textAlign: "center", background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "#2c5562", textDecoration: "none", marginTop: 4 }}>Write a review on the map →</a>
+        <a href={writeHref} style={{ display: "block", textAlign: "center", background: COLORS.card, border: "1px solid " + COLORS.line, borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".84rem", color: "var(--pb-gold)", textDecoration: "none", marginTop: 4 }}>Write a review on the map →</a>
       )}
     </div>
   );

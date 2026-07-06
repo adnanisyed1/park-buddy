@@ -61,9 +61,10 @@ plan and `DESIGN.md` for the design system.
       the design system (Claude-Design → port workflow).
 - [ ] **`/about`** legacy embed still has an old "Plan a Trip" header — update to the
       shared banner or fold into the landing redesign.
-- [ ] **`/build-trip` redesign** — still cream/legacy (reverted working original),
-      pending a Claude-Design pass. (The cart carry-over is DONE — it now seeds from
-      the shared trip store; see below.)
+- [x] ~~**`/build-trip` redesign**~~ — rebuilt on the dark design system (shared
+      SiteHeader, dusk-dark scene, dark panels + dark Google map, gold accents, mobile
+      stacking). Edits now persist across a refresh (write back to the shared store,
+      preserving non-park stops). ✅ shipped
 - [x] ~~**Unified trip + add-to-trip modal**~~ — one store (`app/lib/trip.js`) backs
       Explore, park/forest pages and Build My Trip; every add pops an inline-planner
       `TripModal` (reorder, nights, dates) and Build My Trip seeds from it. ✅ shipped

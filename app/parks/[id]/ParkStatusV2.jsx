@@ -13,7 +13,6 @@ import SiteHeader from "../../components/SiteHeader";
 import { usePhoto } from "../../components/PhotoThumb";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
-import CampAvailability from "../../campground-status/CampAvailability";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const VC = { go: "#4fd98a", prepare: "#e8cf9a", hold: "#e0906a", loading: "#b3ab97" };
@@ -453,7 +452,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
           <span style={{ ...microLabel, letterSpacing: ".12em" }}>NPS &amp; partner cams</span>
         </div>
         {webcams && webcams.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
             {webcams.slice(0, 8).map((w, i) => <Webcam key={i} cam={w} park={park} />)}
           </div>
         ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>{webcams ? "No public webcams published for this park." : "Loading webcams…"}</div>}
@@ -585,6 +584,64 @@ function SubscribeCard({ park, alertsRef }) {
 }
 
 /* ---------------- TRAILS & PERMITS ---------------- */
+// A compact trail row with a small photo (famous trails have one; others fall
+// back to a geotagged photo at the trailhead, or the tasteful hatch placeholder).
+function TrailRow({ t, park, diff }) {
+  const pt = (t.path && t.path[0]) || null;
+  const photo = usePhoto(t.name + " " + (park ? park.name : "") + "|" + t.name, pt ? pt[0] : null, pt ? pt[1] : null);
+  const href = t.id != null && park && park.npsCode ? "/trail-status?trail=" + t.id + "&park=" + park.npsCode : null;
+  const inner = (
+    <div style={{ display: "flex", alignItems: "center", gap: 11, ...card, padding: 8 }}>
+      <span style={{ position: "relative", width: 74, height: 56, flex: "none", borderRadius: 10, overflow: "hidden", background: hatch, display: "block" }}>
+        {photo && photo.url && <img alt="" src={photo.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <b style={{ fontSize: ".9rem", color: "#f4f1ea", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</b>
+        <span style={{ ...microLabel, letterSpacing: ".08em" }}>{diff}{t.lengthMi > 0 ? " · " + t.lengthMi + " mi" : ""}</span>
+      </div>
+      {href && <span style={{ color: "var(--pb-gold-soft)", flex: "none" }}>→</span>}
+    </div>
+  );
+  return href ? <a href={href} style={{ textDecoration: "none", display: "block" }}>{inner}</a> : inner;
+}
+
+// Compact campground card — photo + a one-line live availability SUMMARY (soonest
+// opening / sites open) + Book. Replaces the full 6-month calendar per campground,
+// which ate the whole tab; the deep calendar still lives on Recreation.gov.
+function CompactCamp({ c, park, recId }) {
+  const photo = usePhoto(c.name + "|" + c.name + " campground|" + (park ? park.name : ""), c.lat, c.lng);
+  const [avail, setAvail] = useState(recId ? undefined : null);
+  useEffect(() => {
+    if (!recId) return;
+    const now = new Date();
+    const mp = now.getUTCFullYear() + "-" + String(now.getUTCMonth() + 1).padStart(2, "0");
+    let on = true;
+    fetch("/api/availability?id=" + encodeURIComponent(recId) + "&month=" + mp)
+      .then((r) => (r.ok ? r.json() : null)).then((d) => { if (on) setAvail(d && d.available ? d : null); }).catch(() => on && setAvail(null));
+    return () => { on = false; };
+  }, [recId]);
+  const soon = avail && avail.soonest ? new Date(avail.soonest.date + "T00:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }) : null;
+  const open = avail && avail.openDayCount > 0;
+  const summary = avail === undefined ? "Checking availability…"
+    : !avail ? "Availability on Recreation.gov"
+    : avail.total === 0 ? "No bookable sites this month"
+    : open ? "Up to " + (avail.peakOpen || 0) + " of " + avail.total + " open" + (soon ? " · soonest " + soon : "")
+    : "No open nights this month";
+  return (
+    <div style={{ ...card, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <figure style={{ position: "relative", margin: 0, aspectRatio: "16 / 9", background: hatch }}>
+        {photo && photo.url && <img alt="" src={photo.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,19,13,.05) 45%,rgba(8,19,13,.9))" }} />
+        <figcaption style={{ position: "absolute", left: 12, right: 12, bottom: 8, fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "#f7f4ec", textShadow: "0 2px 10px rgba(0,0,0,.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</figcaption>
+      </figure>
+      <div style={{ padding: "10px 12px" }}>
+        <div style={{ fontSize: ".78rem", color: open ? "#7fe3a6" : "var(--pb-ink-2)", lineHeight: 1.4, minHeight: 32 }}>{summary}</div>
+        {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 6, fontSize: ".76rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "7px 13px", textDecoration: "none" }}>{recId ? "Book ↗" : "Details ↗"}</a>}
+      </div>
+    </div>
+  );
+}
+
 function TrailsPermits({ park, trails }) {
   const [filter, setFilter] = useState("all");
   const list = trails ? [].concat(trails.hiking || [], trails.offroad || [], trails.ski || []) : null;
@@ -603,17 +660,8 @@ function TrailsPermits({ park, trails }) {
         })}
       </div>
       {shown && shown.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 10 }}>
-          {shown.slice(0, 24).map((t, i) => (
-            <a key={i} href={t.id != null && park && park.npsCode ? "/trail-status?trail=" + t.id + "&park=" + park.npsCode : "#"} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 12, ...card, padding: "14px 16px" }}>
-              <span style={{ width: 5, height: 34, borderRadius: 3, background: "#4f9e6a", flex: "none" }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: ".92rem", color: "#f4f1ea", display: "block" }}>{t.name}</b>
-                <span style={{ ...microLabel, letterSpacing: ".08em" }}>{diffOf(t)}{t.lengthMi > 0 ? " · " + t.lengthMi + " mi" : ""}</span>
-              </div>
-              <span style={{ color: "var(--pb-gold-soft)" }}>→</span>
-            </a>
-          ))}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 10 }}>
+          {shown.slice(0, 30).map((t, i) => <TrailRow key={i} t={t} park={park} diff={diffOf(t)} />)}
         </div>
       ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>{trails ? "No mapped trails within range yet." : "Loading trails…"}</div>}
 
@@ -655,28 +703,10 @@ function Plan({ park, nps, places }) {
         <span style={{ ...microLabel, letterSpacing: ".12em" }}>Recreation.gov</span>
       </div>
       {camps && camps.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {camps.slice(0, 6).map((c, i) => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
+          {camps.slice(0, 9).map((c, i) => {
             const recId = (c.url && (c.url.match(/campgrounds\/(\d+)/) || [])[1]) || null;
-            if (recId) {
-              // Real Recreation.gov campground → show the live 6-month availability
-              // strip + booking (shared CampAvailability component).
-              return (
-                <div key={i}>
-                  <div style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 600, margin: "6px 0 2px" }}>🏕 {c.name}</div>
-                  <CampAvailability campgroundId={recId} bookUrl={c.url} name={c.name} />
-                </div>
-              );
-            }
-            return (
-              <div key={i} style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <div>
-                  <b style={{ fontFamily: serif, fontSize: "1.15rem" }}>{c.name}</b>
-                  <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", marginTop: 2 }}>{c.reservable ? "Reservable" : "First-come / not on Recreation.gov"} · {c.type || "Campground"}</div>
-                </div>
-                {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>Details ↗</a>}
-              </div>
-            );
+            return <CompactCamp key={i} c={c} park={park} recId={recId} />;
           })}
         </div>
       ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>{places ? "No campgrounds found within range." : "Loading campgrounds…"}</div>}
@@ -750,7 +780,7 @@ function Nearby({ park, nearby, radius, setRadius }) {
           <div key={title} style={{ marginBottom: 24 }}>
             <div style={{ ...microLabel, letterSpacing: ".12em", marginBottom: 12 }}>{icon} {title}</div>
             {within.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 10 }}>
                 {within.map((o, i) => <NearbyTile key={i} o={o} href={href(o)} pq={pqFn(o)} />)}
               </div>
             ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)", padding: "14px" }}>{nearby ? "Nothing within " + radius + " mi." : "Loading…"}</div>}

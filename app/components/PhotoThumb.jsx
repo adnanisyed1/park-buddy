@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Small photo thumbnail for list rows (nearby trails/lakes/campgrounds etc):
 // name-candidate lookup first, then the geotagged-Commons fallback when coords
@@ -43,16 +43,27 @@ function gatedPhotoFetch(url) {
   });
 }
 
+function cacheLookup(key, q) {
+  if (!q) return null;
+  const c = readPhotoCache();
+  if (!(key in c)) return undefined; // never fetched → let the effect fetch
+  const v = c[key];
+  return v ? { url: v.u, geo: !!v.g, date: v.d || null } : null;
+}
+
 export function usePhoto(q, lat, lng, ref) {
-  const key = q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "");
-  const [photo, setPhoto] = useState(() => {
-    if (!q) return null;
-    const c = readPhotoCache();
-    if (!(key in c)) return undefined;
-    const v = c[key];
-    if (!v) return null;
-    return { url: v.u, geo: !!v.g, date: v.d || null };
-  });
+  const key = q ? q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "") : "";
+  const [photo, setPhoto] = useState(() => cacheLookup(key, q));
+  // Re-sync from cache when the KEY changes — e.g. q went from null → a real
+  // query once the parent's data loaded (the park-status hero photo case). Without
+  // this the fetch effect below (which only runs when photo === undefined) would
+  // never fire for that case, leaving the photo blank forever.
+  const keyRef = useRef(key);
+  useEffect(() => {
+    if (keyRef.current === key) return;
+    keyRef.current = key;
+    setPhoto(cacheLookup(key, q));
+  }, [key, q]);
   // Optional viewport gate: when the caller passes an element ref, defer the
   // fetch until that element scrolls near the screen. On a page with many tiles
   // (e.g. the 141 scenic drives) this spreads requests out as the user scrolls

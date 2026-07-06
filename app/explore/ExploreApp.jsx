@@ -1196,6 +1196,21 @@ export default function ExploreApp() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Persist My Trip across reloads (was in-memory, reset on refresh). Load once on
+  // mount; then save on every change. The first save is skipped so the mount's
+  // empty [] can't clobber the stored trip before the load populates it.
+  const tripSaveSkipRef = useRef(true);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("pb_trip");
+      if (raw) { const t = JSON.parse(raw); if (Array.isArray(t) && t.length) patch({ trip: t }); }
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (tripSaveSkipRef.current) { tripSaveSkipRef.current = false; return; }
+    try { localStorage.setItem("pb_trip", JSON.stringify(ui.trip)); } catch {}
+  }, [ui.trip]);
+
   function setMapStyle(s) {
     if (s !== "dark" && s !== "standard") return;
     mapStyleRef.current = s;

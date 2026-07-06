@@ -17,22 +17,6 @@ import SiteHeader from "../components/SiteHeader";
 
 /* ---------------- constants (verbatim from the design) ---------------- */
 
-// Dark map style — matches the futuristic-royal panels (same family as /explore).
-const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#0f1c15" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8fa39a" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0a1410" }] },
-  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#12271c" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#16321f" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0a1a20" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#26352b" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3a4a3a" }] },
-  { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative", elementType: "geometry", stylers: [{ visibility: "off" }] },
-];
-
 // Ready-made itineraries (design rail). Park names match trip-data.js exactly.
 const ROUTES = [
   { id: "mighty5", emoji: "🏜️", name: "Utah's Mighty 5", desc: "All five Utah parks on one desert loop — canyons, arches and hoodoos.", stops: ["Zion", "Bryce Canyon", "Capitol Reef", "Arches", "Canyonlands"], nights: [2, 2, 1, 2, 1], days: 8, miles: 720 },
@@ -311,7 +295,7 @@ export default function BuildTripApp() {
     mapObjRef.current = new g.maps.Map(el, {
       center: { lat: 38.05, lng: -111.3 }, zoom: 7,
       disableDefaultUI: true, zoomControl: true, gestureHandling: "cooperative",
-      backgroundColor: "#0f1c15", styles: MAP_STYLE,
+      backgroundColor: "#e8eae4", // standard light Google Maps (no custom style)
     });
     mapReadyRef.current = true;
     setMapReady(true); // re-runs the marker-draw effects with fresh data closures
@@ -711,7 +695,7 @@ export default function BuildTripApp() {
             </div>
 
             {/* MAP (sticky) */}
-            <div style={{ position: "sticky", top: 90, borderRadius: 22, overflow: "hidden", border: "1px solid var(--pb-line)", boxShadow: "0 22px 50px -26px rgba(28,46,34,.5)", background: "#0f1c15" }}>
+            <div style={{ position: "sticky", top: 90, borderRadius: 22, overflow: "hidden", border: "1px solid var(--pb-line)", boxShadow: "0 22px 50px -26px rgba(28,46,34,.5)", background: "#e8eae4" }}>
               <div style={{ position: "relative", height: "76vh", minHeight: 480 }}>
                 <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
                 <div style={{ display: keyOverlay ? "flex" : "none", position: "absolute", inset: 0, zIndex: 5, background: "rgba(16,32,23,.72)", backdropFilter: "blur(3px)", alignItems: "center", justifyContent: "center", padding: 24 }}>

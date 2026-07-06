@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { getStops, getMeta, setMeta, removeStop, setNights, moveStop, subscribeTrip } from "../lib/trip";
 import loadScript from "./load-script";
+import { ensureMapsLoaded } from "../lib/googleMapsLoader";
+
+// Cache the driving route geometry per trip signature so re-opening the modal
+// doesn't re-hit Directions. Plain {lat,lng} arrays → reusable across map instances.
+const modalRouteCache = {};
 
 // The platform-wide trip planner, in a dialog. It opens automatically whenever
 // anything is added to the trip (the `pb:trip` event with detail.added), and on
@@ -43,6 +48,12 @@ export default function TripModal() {
   const [meta, setMetaState] = useState({ tripName: "", startDate: "", travelers: 2 });
   const [justAdded, setJustAdded] = useState(null);
   const [coordMap, setCoordMap] = useState(null); // name → {lat,lng} for the mini map
+  const [mapFail, setMapFail] = useState(false); // true → fall back to the SVG sketch
+  const mapDivRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const mapMarkersRef = useRef([]);
+  const mapLinesRef = useRef([]);
+  const dirServiceRef = useRef(null);
 
   // Portal to <body> so the fixed overlay isn't trapped by an ancestor's
   // backdrop-filter / transform (SiteHeader's <nav> creates such a containing
@@ -90,6 +101,65 @@ export default function TripModal() {
     return () => { on = false; };
   }, [open, coordMap]);
 
+  // Real Google map of the trip (view-only — adding locations happens on /build-trip).
+  // Numbered stop pins + the driving route; falls back to the SVG sketch if Maps can't
+  // load (no key). Standard light theme; no browse/add markers here by design.
+  useEffect(() => {
+    if (!open || !coordMap) return;
+    const pts = stops.map((s) => { const c = coordMap[s.name]; return c ? { name: s.name, lat: c.lat, lng: c.lng } : null; }).filter(Boolean);
+    if (!pts.length) return;
+    let cancelled = false;
+    ensureMapsLoaded().then((loaded) => {
+      if (cancelled) return;
+      if (!loaded || typeof window === "undefined" || !window.google || !mapDivRef.current) { setMapFail(true); return; }
+      setMapFail(false);
+      const g = window.google;
+      let map = mapInstanceRef.current;
+      if (!map || map.getDiv() !== mapDivRef.current) {
+        map = new g.maps.Map(mapDivRef.current, { disableDefaultUI: true, zoomControl: true, gestureHandling: "cooperative", clickableIcons: false, backgroundColor: "#e8eae4" });
+        mapInstanceRef.current = map;
+      }
+      mapMarkersRef.current.forEach((m) => m.setMap(null)); mapMarkersRef.current = [];
+      mapLinesRef.current.forEach((l) => l.setMap(null)); mapLinesRef.current = [];
+      const bounds = new g.maps.LatLngBounds();
+      pts.forEach((p, i) => {
+        bounds.extend({ lat: p.lat, lng: p.lng });
+        mapMarkersRef.current.push(new g.maps.Marker({
+          position: { lat: p.lat, lng: p.lng }, map, title: p.name,
+          icon: { url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34"><circle cx="17" cy="17" r="12" fill="#1d3941" stroke="#e4be78" stroke-width="2.5"/><text x="17" y="21.5" font-family="sans-serif" font-size="13" font-weight="800" fill="#ffffff" text-anchor="middle">' + (i + 1) + "</text></svg>"), scaledSize: new g.maps.Size(34, 34), anchor: new g.maps.Point(17, 17) },
+        }));
+      });
+      if (pts.length > 1) map.fitBounds(bounds, 34); else { map.setCenter({ lat: pts[0].lat, lng: pts[0].lng }); map.setZoom(8); }
+      if (pts.length < 2) return;
+      const sig = pts.map((p) => p.name).join(">");
+      const drawLegs = (legs) => {
+        legs.forEach((path, i) => {
+          const a = pts[i], b = pts[i + 1];
+          if (path && path.length) mapLinesRef.current.push(new g.maps.Polyline({ path, map, strokeColor: "#c79a4b", strokeOpacity: 0.95, strokeWeight: 4 }));
+          else mapLinesRef.current.push(new g.maps.Polyline({ path: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }], map, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#c79a4b", scale: 3 }, offset: "0", repeat: "12px" }] }));
+        });
+      };
+      if (modalRouteCache[sig]) { drawLegs(modalRouteCache[sig]); return; }
+      if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
+      (async () => {
+        const legs = [];
+        for (let i = 0; i < pts.length - 1; i++) {
+          const a = pts[i], b = pts[i + 1];
+          const path = await new Promise((resolve) => {
+            dirServiceRef.current.route({ origin: { lat: a.lat, lng: a.lng }, destination: { lat: b.lat, lng: b.lng }, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
+              resolve(status === "OK" && res.routes && res.routes[0] ? res.routes[0].overview_path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() })) : null);
+            });
+          });
+          if (cancelled) return;
+          legs.push(path);
+        }
+        modalRouteCache[sig] = legs;
+        if (!cancelled && mapInstanceRef.current === map) drawLegs(legs);
+      })();
+    });
+    return () => { cancelled = true; };
+  }, [open, coordMap, stops]);
+
   // Lock body scroll + close on Escape while open.
   useEffect(() => {
     if (!open) return;
@@ -132,31 +202,26 @@ export default function TripModal() {
           <button onClick={() => setOpen(false)} aria-label="Close" style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,22,15,.7)", color: "#c3c8d0", fontSize: "1.1rem", lineHeight: 1, cursor: "pointer" }}>×</button>
         </div>
 
-        {/* mini route map — the selected stops + a dashed route between them */}
+        {/* route map — the selected stops on a real map (view-only; add locations on
+            Build My Trip). Falls back to an SVG sketch if Google Maps can't load. */}
         {mapPts.length > 0 && (
-          <div style={{ margin: "14px 16px 0", borderRadius: 14, overflow: "hidden", border: "1px solid var(--pb-line)", background: "radial-gradient(120% 100% at 50% 0%,#12271c,#0a1710)", position: "relative" }}>
-            <svg viewBox={"0 0 " + MAP_W + " " + MAP_H} style={{ display: "block", width: "100%", height: "auto" }} role="img" aria-label="Map of your trip route">
-              {/* faint grid for a map feel */}
-              {[0.25, 0.5, 0.75].map((f) => (
-                <line key={"h" + f} x1="0" y1={MAP_H * f} x2={MAP_W} y2={MAP_H * f} stroke="#ffffff" strokeOpacity="0.05" strokeWidth="1" />
-              ))}
-              {[0.2, 0.4, 0.6, 0.8].map((f) => (
-                <line key={"v" + f} x1={MAP_W * f} y1="0" x2={MAP_W * f} y2={MAP_H} stroke="#ffffff" strokeOpacity="0.05" strokeWidth="1" />
-              ))}
-              {/* dashed route between consecutive stops */}
-              {mapPts.length > 1 && (
-                <polyline points={mapPts.map((p) => p.x + "," + p.y).join(" ")} fill="none" stroke="#e4be78" strokeWidth="2.2" strokeDasharray="5 5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-              )}
-              {/* numbered stop markers (numbers match the list below) */}
-              {mapPts.map((p) => (
-                <g key={p.i}>
-                  <circle cx={p.x} cy={p.y} r="11" fill="#e4be78" stroke="#0a1710" strokeWidth="2" />
-                  <text x={p.x} y={p.y + 3.6} textAnchor="middle" fontFamily="var(--pb-mono)" fontSize="10.5" fontWeight="800" fill="#0a1710">{p.i + 1}</text>
-                </g>
-              ))}
-            </svg>
+          <div style={{ margin: "14px 16px 0", borderRadius: 14, overflow: "hidden", border: "1px solid var(--pb-line)", position: "relative", height: 190, background: "#e8eae4" }}>
+            <div ref={mapDivRef} style={{ position: "absolute", inset: 0, display: mapFail ? "none" : "block" }} />
+            {mapFail && (
+              <svg viewBox={"0 0 " + MAP_W + " " + MAP_H} style={{ display: "block", width: "100%", height: "100%", background: "radial-gradient(120% 100% at 50% 0%,#12271c,#0a1710)" }} role="img" aria-label="Map of your trip route" preserveAspectRatio="xMidYMid slice">
+                {[0.25, 0.5, 0.75].map((f) => (<line key={"h" + f} x1="0" y1={MAP_H * f} x2={MAP_W} y2={MAP_H * f} stroke="#ffffff" strokeOpacity="0.05" strokeWidth="1" />))}
+                {[0.2, 0.4, 0.6, 0.8].map((f) => (<line key={"v" + f} x1={MAP_W * f} y1="0" x2={MAP_W * f} y2={MAP_H} stroke="#ffffff" strokeOpacity="0.05" strokeWidth="1" />))}
+                {mapPts.length > 1 && (<polyline points={mapPts.map((p) => p.x + "," + p.y).join(" ")} fill="none" stroke="#e4be78" strokeWidth="2.2" strokeDasharray="5 5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />)}
+                {mapPts.map((p) => (
+                  <g key={p.i}>
+                    <circle cx={p.x} cy={p.y} r="11" fill="#e4be78" stroke="#0a1710" strokeWidth="2" />
+                    <text x={p.x} y={p.y + 3.6} textAnchor="middle" fontFamily="var(--pb-mono)" fontSize="10.5" fontWeight="800" fill="#0a1710">{p.i + 1}</text>
+                  </g>
+                ))}
+              </svg>
+            )}
             {mapSource.length < stops.length && (
-              <div style={{ position: "absolute", bottom: 6, right: 9, fontFamily: mono, fontSize: ".52rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{mapSource.length} of {stops.length} mapped</div>
+              <div style={{ position: "absolute", bottom: 6, right: 9, zIndex: 2, fontFamily: mono, fontSize: ".52rem", letterSpacing: ".08em", textTransform: "uppercase", color: "#5a6b62", background: "rgba(255,255,255,.75)", borderRadius: 6, padding: "2px 6px" }}>{mapSource.length} of {stops.length} mapped</div>
             )}
           </div>
         )}

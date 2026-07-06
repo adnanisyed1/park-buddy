@@ -85,7 +85,10 @@ export default function BuildTripApp() {
   const [parksDb, setParksDb] = useState([]); // real 63 parks from trip-data.js
   const [tripName, setTripName] = useState("Utah's Mighty 5");
   const [startDate, setStartDate] = useState("2026-09-12");
-  const [travelers, setTravelers] = useState(2);
+  const [adults, setAdults] = useState(2);
+  const [infants, setInfants] = useState(0);
+  const [arrivalMode, setArrivalMode] = useState("drive"); // how they reach the region: "drive" | "fly"
+  const [tripScope, setTripScope] = useState("regional"); // "regional" (loop near the destination) | "crosscountry"
   const [car, setCar] = useState("Midsize SUV");
   const [stops, setStops] = useState([]); // {name, state, lat, lng, nights, legMi}
   const [totalMilesOverride, setTotalMilesOverride] = useState(720); // design preset; null = sum legs
@@ -94,7 +97,8 @@ export default function BuildTripApp() {
   const [addSel, setAddSel] = useState("");
   const [addrInput, setAddrInput] = useState("");
   const [addrMsg, setAddrMsg] = useState("");
-  const [budgetOverride, setBudgetOverride] = useState({ fuel: 168, lodging: 1040, food: 560, passes: 72 }); // design preset seeds
+  const [budgetOverride, setBudgetOverride] = useState({ fuel: 168, lodging: 1040, food: 560, passes: 72, flights: null }); // design preset seeds
+  const travelers = adults + infants; // party size (for lodging/food/per-person)
   const [editingBudget, setEditingBudget] = useState(null); // key being edited
   const [verdicts, setVerdicts] = useState({}); // name -> {status, note}
   const [keyOverlay, setKeyOverlay] = useState(false);
@@ -144,12 +148,13 @@ export default function BuildTripApp() {
   })();
 
   const budget = {
+    flights: budgetOverride.flights ?? (arrivalMode === "fly" ? adults * 320 : 0), // rough domestic RT/adult; tap to enter real cost
     fuel: budgetOverride.fuel ?? Math.round(totalMiles * FUEL_PER_MI),
     lodging: budgetOverride.lodging ?? totalNights * LODGING_PER_NIGHT,
-    food: budgetOverride.food ?? travelers * totalNights * FOOD_PER_PERSON_DAY,
+    food: budgetOverride.food ?? adults * totalNights * FOOD_PER_PERSON_DAY, // infants ~ free
     passes: budgetOverride.passes ?? Math.min(stops.length * 35, 80),
   };
-  const totalCost = budget.fuel + budget.lodging + budget.food + budget.passes;
+  const totalCost = budget.flights + budget.fuel + budget.lodging + budget.food + budget.passes;
 
   // day ranges per stop ("Days 1–2", "Day 5") + arrive dates
   const dayRanges = (() => {
@@ -226,6 +231,13 @@ export default function BuildTripApp() {
     } catch { setAddrMsg("Geocoding is unavailable right now."); }
   }
 
+  // Reset the trip-setup answers to sensible defaults (the "use defaults" escape hatch).
+  function useDefaults() {
+    userEditedRef.current = true;
+    setAdults(2); setInfants(0); setArrivalMode("drive"); setTripScope("regional"); setCar("Midsize SUV");
+    setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null });
+  }
+
   // drag-to-reorder (⠿ handle rows are draggable)
   const onDragStart = (i) => () => { dragIdxRef.current = i; };
   const onDragOver = (e) => e.preventDefault();
@@ -266,7 +278,10 @@ export default function BuildTripApp() {
         const m = tripMeta();
         setTripName(m.tripName || "My national-parks trip");
         if (m.startDate) setStartDate(m.startDate);
-        if (m.travelers) setTravelers(m.travelers);
+        if (m.adults) setAdults(m.adults); else if (m.travelers) setAdults(m.travelers);
+        if (m.infants != null) setInfants(m.infants);
+        if (m.arrivalMode) setArrivalMode(m.arrivalMode);
+        if (m.tripScope) setTripScope(m.tripScope);
         setLoadedRoute(null);
         setTotalMilesOverride(null);
         setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null });
@@ -295,8 +310,8 @@ export default function BuildTripApp() {
     const managed = new Set(stops.map((s) => s.name));
     const preserved = tripStops().filter((s) => !managed.has(s.name));
     tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom })), ...preserved]);
-    tripSetMeta({ tripName, startDate, travelers });
-  }, [stops, tripName, startDate, travelers]); // eslint-disable-line react-hooks/exhaustive-deps
+    tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate });
+  }, [stops, tripName, startDate, adults, infants, arrivalMode, tripScope, endDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadGoogle(key) {
     window.gm_authFailure = () => {
@@ -761,27 +776,46 @@ export default function BuildTripApp() {
               <div style={panel}>
                 <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
                   <span style={stepNum}>1</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center" }}>Trip details</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "0 0 14px", minHeight: 38 }}>
+                    <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)" }}>Trip details</div>
+                    <button onClick={useDefaults} title="Reset these to sensible defaults" style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".64rem", fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--pb-gold-soft)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 8, padding: "5px 9px" }}>Use defaults</button>
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       <label style={fieldLabel}>Start date</label>
                       <input type="date" value={startDate} onChange={(e) => { if (e.target.value) { userEditedRef.current = true; setStartDate(e.target.value); } }} style={fieldBox} />
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>Travelers</label>
-                      <select value={travelers} onChange={(e) => { userEditedRef.current = true; setTravelers(+e.target.value); setBudgetOverride((o) => ({ ...o, food: null })); }} style={fieldBox}>
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{n} adult{n === 1 ? "" : "s"}</option>)}
+                      <label style={fieldLabel}>End date (from nights)</label>
+                      <div style={{ ...fieldBox, color: "var(--pb-muted)", display: "flex", alignItems: "center" }}>{fmtDate(endDate)}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      <label style={fieldLabel}>Adults</label>
+                      <input type="number" min="1" max="12" value={adults} onChange={(e) => { userEditedRef.current = true; setAdults(Math.max(1, +e.target.value || 1)); setBudgetOverride((o) => ({ ...o, food: null, flights: null })); }} style={fieldBox} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      <label style={fieldLabel}>Infants / kids</label>
+                      <input type="number" min="0" max="12" value={infants} onChange={(e) => { userEditedRef.current = true; setInfants(Math.max(0, +e.target.value || 0)); }} style={fieldBox} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      <label style={fieldLabel}>Getting to the region</label>
+                      <select value={arrivalMode} onChange={(e) => { userEditedRef.current = true; setArrivalMode(e.target.value); setBudgetOverride((o) => ({ ...o, flights: null })); }} style={fieldBox}>
+                        <option value="drive">Drive the whole way</option>
+                        <option value="fly">Fly in, then rent a car</option>
                       </select>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       <label style={fieldLabel}>Rental car</label>
-                      <select value={car} onChange={(e) => setCar(e.target.value)} style={fieldBox}>
+                      <select value={car} onChange={(e) => { userEditedRef.current = true; setCar(e.target.value); }} style={fieldBox}>
                         {CARS.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>End date (auto)</label>
-                      <div style={{ ...fieldBox, color: "var(--pb-muted)" }}>{fmtDate(endDate)}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5, gridColumn: "1 / -1" }}>
+                      <label style={fieldLabel}>Trip scope</label>
+                      <select value={tripScope} onChange={(e) => { userEditedRef.current = true; setTripScope(e.target.value); }} style={fieldBox}>
+                        <option value="regional">A loop around the destination (nearby states)</option>
+                        <option value="crosscountry">A cross-country route (all over the U.S.)</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -860,9 +894,10 @@ export default function BuildTripApp() {
                   <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 4px", minHeight: 38, display: "flex", alignItems: "center" }}>Budget</div>
                   <div style={{ fontSize: ".74rem", color: "var(--pb-muted)", marginBottom: 12 }}>Tap any amount to enter your real price.</div>
                   <div>
-                    <div style={budgetRow}><span style={{ color: "var(--pb-ink-2)" }}>⛽ Fuel</span><BudgetAmount k="fuel" /></div>
+                    <div style={budgetRow}><span style={{ color: "var(--pb-ink-2)" }}>✈️ Flights · {adults} adult{adults === 1 ? "" : "s"}{arrivalMode === "drive" ? " (driving)" : ""}</span><BudgetAmount k="flights" /></div>
+                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>⛽ Fuel</span><BudgetAmount k="fuel" /></div>
                     <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🏨 Lodging · {totalNights} nights</span><BudgetAmount k="lodging" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🍔 Food · {travelers} traveler{travelers === 1 ? "" : "s"}</span><BudgetAmount k="food" /></div>
+                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🍔 Food · {adults} adult{adults === 1 ? "" : "s"}{infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : ""}</span><BudgetAmount k="food" /></div>
                     <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🎟️ Park passes</span><BudgetAmount k="passes" /></div>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 12, paddingTop: 13, borderTop: "2px solid #c79a4b" }}>

@@ -65,7 +65,7 @@ export function tripCount() { return read().length; }
 export function inTrip(name) { return read().some((s) => s.name === name); }
 
 export function getMeta() {
-  const d = { tripName: "My national-parks trip", startDate: "", travelers: 2 };
+  const d = { tripName: "My national-parks trip", startDate: "", endDate: "", travelers: 2, adults: 2, infants: 0, arrivalMode: "drive", tripScope: "regional" };
   if (typeof window === "undefined") return d;
   try { return { ...d, ...(JSON.parse(localStorage.getItem(META_KEY) || "{}") || {}) }; } catch { return d; }
 }

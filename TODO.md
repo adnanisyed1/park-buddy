@@ -28,8 +28,12 @@ plan and `DESIGN.md` for the design system.
       emails when the verdict flips / permit drops / road opens / flash-flood watch
       / first snow — via Resend or SendGrid. Right now we only STORE the
       subscription; the card honestly says "email delivery is rolling out."
-- [ ] **Hero photo** wasn't rendering on `/parks/zion` in local test (verdict,
-      webcams, forecast all did). Check the hero `usePhoto` query.
+- [x] ~~**Hero photo** wasn't rendering on `/parks/zion`~~ — fixed the usePhoto
+      null→valid re-sync (keyRef effect); hero now renders crisp (full original). ✅
+- [x] ~~**Blurry / broken photos**~~ — Wikimedia 400s any non-pre-generated thumbnail
+      width, so the earlier width-rewrite (upsize) both fixed blur AND silently broke
+      images (Bryce panorama, Zion tiles). Now serves the summary's own original
+      (heroes) / ~330px thumb (tiles); cache bumped v5→v6. ✅ shipped (a4a1881)
 - [x] ~~USGS river-flow + flash-flood card~~ — `/api/riverflow` shows the nearest
       active streamgage's live cfs + gauge height; sun/forecast times fixed to the
       park's timezone. ✅ shipped (470afff)

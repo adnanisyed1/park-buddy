@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import loadScript from "./load-script";
 
 // The one header for the whole platform (Phase A of the design-system rollout).
 // Extracted from the approved landing page's glass nav so it matches exactly, and
@@ -50,6 +51,25 @@ function Logo() {
 export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false }) {
   const [exOpen, setExOpen] = useState(false);
   const exActive = EXPLORE_KEYS.includes(active);
+
+  // When a page opts into the real account slot, make sure the auth chain is
+  // loaded so #pp-acct-slot mounts the Sign-in / account control — otherwise the
+  // banner would be missing Sign in on pages that don't load auth themselves
+  // (Book, Shop, …). loadScript dedupes per src, so this never double-loads with
+  // pages (like /explore) that already load it.
+  useEffect(() => {
+    if (!acctSlot || typeof window === "undefined") return;
+    if (window.__ppAuth) { try { window.__ppAuth.render(); } catch (e) {} return; }
+    let on = true;
+    (async () => {
+      await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
+      await loadScript("/supabase-config.js");
+      await loadScript("/auth.js");
+      if (on && window.__ppAuth) { try { window.__ppAuth.render(); } catch (e) {} }
+    })();
+    return () => { on = false; };
+  }, [acctSlot]);
+
   const askBuddy = () => {
     // Trigger the global Ask Park Buddy assistant if it's mounted; otherwise send
     // the visitor to the home hero where the assistant lives.

@@ -30,7 +30,7 @@ class Component extends DCLogic {
   buildStatic(){
     var nav=document.getElementById('navLinks');
     if(nav){
-      var links=[['Explore','/explore'],['Plan','/build-trip'],['Stay & Gear','#stay'],['Pro','#pro'],['Learn','#learn']];
+      var links=[['Explore','/explore'],['Book','/book'],['Shop','/shop'],['Pro','#pro'],['Learn','#learn']];
       nav.innerHTML=links.map(function(l){ return '<a href="'+l[1]+'" style="text-decoration:none;color:inherit;position:relative;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+l[0]+'</a>'; }).join('');
     }
     var done=function(form,label){ if(!form)return; form.onsubmit=function(e){ e.preventDefault(); var b=form.querySelector('button'); if(b){ b.textContent=label; b.style.background='linear-gradient(120deg,#7fce9a,#4f9e6a)'; b.style.color='#0b1710'; } }; };

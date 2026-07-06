@@ -105,6 +105,16 @@ export function moveStop(name, dir) {
   return stops;
 }
 
+// Replace the whole itinerary at once (Build My Trip writes its edits back here so
+// they survive a refresh). Coerces to the {name,nights} shape.
+export function setStops(list) {
+  const stops = (Array.isArray(list) ? list : [])
+    .map((s) => (s && s.name ? { name: String(s.name), nights: Number(s.nights) > 0 ? Number(s.nights) : DEFAULT_NIGHTS } : null))
+    .filter(Boolean);
+  write(stops);
+  return stops;
+}
+
 export function clearTrip() { write([]); }
 
 // Subscribe to any change (same tab). Returns an unsubscribe fn. Also picks up

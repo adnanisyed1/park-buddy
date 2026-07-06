@@ -12,19 +12,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
-import { getStops as tripStops, getMeta as tripMeta } from "../lib/trip";
+import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
+import SiteHeader from "../components/SiteHeader";
 
 /* ---------------- constants (verbatim from the design) ---------------- */
 
+// Dark map style — matches the futuristic-royal panels (same family as /explore).
 const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#e7e2d0" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#5a6b4c" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#f3ede0" }] },
-  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#dbe2c4" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#cdd7b0" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#dbe6ea" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#f3ede0" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#e4d9bf" }] },
+  { elementType: "geometry", stylers: [{ color: "#0f1c15" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8fa39a" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0a1410" }] },
+  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#12271c" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#16321f" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0a1a20" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#26352b" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3a4a3a" }] },
   { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
   { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
@@ -68,11 +70,11 @@ function milesBetween(a, b) {
 
 // Live verdict → design's stop-status row (GO / CAUTION / HEAT / HOLD OFF)
 const STOP_STATUS = {
-  go:      { label: "GO",       dot: "#2f7d4f", text: "#2f7d4f", note: "#5a6b4c", bg: "rgba(46,85,98,.08)" },
-  caution: { label: "CAUTION",  dot: "#c79a4b", text: "#a8791f", note: "#7a6a3c", bg: "rgba(199,154,75,.14)" },
-  heat:    { label: "HEAT",     dot: "#b9823f", text: "#a05f28", note: "#7a5b34", bg: "rgba(185,130,63,.16)" },
-  hold:    { label: "HOLD OFF", dot: "#bf463a", text: "#bf463a", note: "#7a4a42", bg: "rgba(191,70,58,.12)" },
-  loading: { label: "CHECKING", dot: "#b3ab97", text: "#8c8473", note: "#8c8473", bg: "rgba(179,171,151,.14)" },
+  go:      { label: "GO",       dot: "#4fd98a", text: "#7fe3a6", note: "#9fbfa8", bg: "rgba(79,217,138,.1)" },
+  caution: { label: "CAUTION",  dot: "#e8cf9a", text: "#e8cf9a", note: "#c3b98f", bg: "rgba(232,207,154,.12)" },
+  heat:    { label: "HEAT",     dot: "#e0a56a", text: "#e0a56a", note: "#c39a78", bg: "rgba(224,144,106,.14)" },
+  hold:    { label: "HOLD OFF", dot: "#e0906a", text: "#e0906a", note: "#c99a86", bg: "rgba(224,144,106,.12)" },
+  loading: { label: "CHECKING", dot: "#9aa7a0", text: "#9aa7a0", note: "var(--pb-muted)", bg: "rgba(255,255,255,.05)" },
 };
 
 /* ================================ component ================================ */
@@ -101,6 +103,9 @@ export default function BuildTripApp() {
   const routeLineRef = useRef(null);
   const dragIdxRef = useRef(null);
   const mapReadyRef = useRef(false);
+  // True once the user edits the trip here — gates writing back to the shared store
+  // (so the initial seed / auto-loaded preset isn't saved as "the user's trip").
+  const userEditedRef = useRef(false);
 
   /* ---------------- derived trip math ---------------- */
 
@@ -144,6 +149,7 @@ export default function BuildTripApp() {
   }
 
   function commitStops(list, { keepPreset = false } = {}) {
+    userEditedRef.current = true; // a real edit — start persisting to the shared store
     const next = keepPreset ? list : recomputeLegs(list);
     setStops(next);
     if (!keepPreset) {
@@ -212,7 +218,10 @@ export default function BuildTripApp() {
         .filter(Boolean);
       if (matched.length) {
         setStops(recomputeLegs(matched));
-        setTripName(tripMeta().tripName || "My national-parks trip");
+        const m = tripMeta();
+        setTripName(m.tripName || "My national-parks trip");
+        if (m.startDate) setStartDate(m.startDate);
+        if (m.travelers) setTravelers(m.travelers);
         setLoadedRoute(null);
         setTotalMilesOverride(null);
         setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null });
@@ -229,6 +238,18 @@ export default function BuildTripApp() {
     })();
     return () => { disposed = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist edits back to the shared trip store so they survive a refresh (and show
+  // in the header modal). Only after a real user edit — never the seed/auto-preset.
+  // Build My Trip only manages PARKS (forests etc. have no road-trip coords), so we
+  // must NOT drop the store's non-park stops — keep them alongside our park list.
+  useEffect(() => {
+    if (!userEditedRef.current) return;
+    const parkNames = new Set(parksDb.map((p) => p.name));
+    const nonParkStops = tripStops().filter((s) => !parkNames.has(s.name));
+    tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights })), ...nonParkStops]);
+    tripSetMeta({ tripName, startDate, travelers });
+  }, [stops, tripName, startDate, travelers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadGoogle(key) {
     window.gm_authFailure = () => {
@@ -253,7 +274,7 @@ export default function BuildTripApp() {
     mapObjRef.current = new g.maps.Map(el, {
       center: { lat: 38.05, lng: -111.3 }, zoom: 7,
       disableDefaultUI: true, zoomControl: true, gestureHandling: "greedy",
-      backgroundColor: "#dbe6ea", styles: MAP_STYLE,
+      backgroundColor: "#0f1c15", styles: MAP_STYLE,
     });
     mapReadyRef.current = true;
     setKeyOverlay(false);
@@ -284,7 +305,7 @@ export default function BuildTripApp() {
     });
     routeLineRef.current = new g.maps.Polyline({
       path, map, geodesic: true, strokeOpacity: 0,
-      icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#2c5562", scale: 3 }, offset: "0", repeat: "12px" }],
+      icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#e4be78", scale: 3 }, offset: "0", repeat: "12px" }],
     });
     map.fitBounds(bounds, 52);
   }
@@ -335,22 +356,22 @@ export default function BuildTripApp() {
 
   const sans = "var(--font-hanken), 'Hanken Grotesk', system-ui, sans-serif";
   const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
-  const panel = { position: "relative", background: "#fffdf7", border: "1px solid #e7ddca", borderRadius: 22, boxShadow: "0 22px 50px -30px rgba(28,46,34,.4),0 2px 6px rgba(28,46,34,.05)" };
+  const panel = { position: "relative", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 22, boxShadow: "0 22px 50px -30px rgba(0,0,0,.7)" };
   const stepNum = { position: "absolute", left: 10, top: 20, width: 37, height: 37, borderRadius: 12, background: "linear-gradient(150deg,#33555f,#1d3941)", color: "#e4be78", border: "1px solid rgba(228,190,120,.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: "1.06rem", fontWeight: 800, boxShadow: "0 8px 18px -8px rgba(8,18,12,.6)" };
-  const fieldLabel = { fontSize: ".66rem", fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: "#8c8473" };
-  const fieldBox = { padding: "11px 13px", border: "1.5px solid #e7ddca", borderRadius: 12, fontSize: ".88rem", fontWeight: 600, color: "#1a2b21", background: "#fff", fontFamily: "inherit", boxSizing: "border-box", width: "100%" };
-  const statCell = { flex: 1, background: "rgba(251,246,234,.1)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 13, padding: "9px 6px", textAlign: "center", backdropFilter: "blur(6px)" };
+  const fieldLabel = { fontSize: ".66rem", fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--pb-muted)" };
+  const fieldBox = { padding: "11px 13px", border: "1.5px solid var(--pb-line-strong)", borderRadius: 12, fontSize: ".88rem", fontWeight: 600, color: "var(--pb-ink)", background: "rgba(255,255,255,.04)", fontFamily: "inherit", boxSizing: "border-box", width: "100%", colorScheme: "dark" };
+  const statCell = { flex: 1, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 13, padding: "9px 6px", textAlign: "center", backdropFilter: "blur(6px)" };
   const statB = { display: "block", fontFamily: serif, fontSize: "1.22rem", fontWeight: 700, color: "#e4be78", lineHeight: 1 };
   const statS = { fontSize: ".56rem", color: "rgba(251,246,234,.72)", textTransform: "uppercase", letterSpacing: ".06em", marginTop: 4, display: "block", fontWeight: 700 };
   const budgetRow = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", fontSize: ".88rem" };
-  const budgetVal = { fontWeight: 700, color: "#2c5562", fontFamily: serif, cursor: "pointer" };
+  const budgetVal = { fontWeight: 700, color: "var(--pb-gold-soft)", fontFamily: serif, cursor: "pointer" };
 
   const BudgetAmount = ({ k }) => editingBudget === k ? (
     <input
       type="number" autoFocus defaultValue={budget[k]}
       onBlur={(e) => { const v = Math.max(0, Math.round(+e.target.value || 0)); setBudgetOverride((o) => ({ ...o, [k]: v })); setEditingBudget(null); }}
       onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
-      style={{ width: 90, textAlign: "right", fontWeight: 700, color: "#2c5562", fontFamily: serif, fontSize: ".88rem", border: "1.5px solid #c79a4b", borderRadius: 8, padding: "3px 7px", outline: "none" }}
+      style={{ width: 90, textAlign: "right", fontWeight: 700, color: "var(--pb-gold-soft)", fontFamily: serif, fontSize: ".88rem", border: "1.5px solid #c79a4b", borderRadius: 8, padding: "3px 7px", outline: "none", background: "rgba(255,255,255,.04)", colorScheme: "dark" }}
     />
   ) : (
     <span style={budgetVal} title="Tap to enter your real price" onClick={() => setEditingBudget(k)}>{fmtUsd(budget[k])}</span>
@@ -359,7 +380,7 @@ export default function BuildTripApp() {
   /* ================================ render ================================ */
 
   return (
-    <div style={{ fontFamily: sans, color: "#1a2b21", position: "relative", minHeight: "100vh", background: "#16303a" }}>
+    <div style={{ fontFamily: sans, color: "var(--pb-ink)", position: "relative", minHeight: "100vh", background: "var(--pb-bg)" }}>
       <style>{`
         ::selection { background: #c79a4b; color: #15241c; }
         .bt-scroller::-webkit-scrollbar { height: 9px; }
@@ -370,45 +391,31 @@ export default function BuildTripApp() {
         @keyframes bt-pulse { 0% { box-shadow: 0 0 0 0 rgba(70,217,127,.5); } 70% { box-shadow: 0 0 0 8px rgba(70,217,127,0); } 100% { box-shadow: 0 0 0 0 rgba(70,217,127,0); } }
         @keyframes bt-birds { 0% { transform: translate(0,0); } 50% { transform: translate(26px,-12px); } 100% { transform: translate(54px,4px); } }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+        /* stack the map + planner columns on narrow screens; map isn't sticky there */
+        @media (max-width: 900px) {
+          .bt-sheet-grid { grid-template-columns: 1fr !important; }
+          .bt-sheet-grid > div:first-child { position: static !important; }
+        }
       `}</style>
 
-      {/* ============ LIVING SCENE ============ */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "linear-gradient(180deg,#3a5f6e 0%,#6f8f86 55%,#cfd9c2 100%)" }}>
-        <div style={{ position: "absolute", top: "-8%", right: "6%", width: 340, height: 340, borderRadius: "50%", background: "radial-gradient(circle at 50% 50%,rgba(255,238,190,.95),rgba(228,190,120,.5) 38%,transparent 70%)", filter: "blur(4px)", animation: "bt-sun 6s ease-in-out infinite" }} />
-        <div style={{ position: "absolute", top: "14%", width: 240, height: 70, borderRadius: "50%", background: "radial-gradient(circle at 40% 40%,rgba(255,253,247,.5),rgba(255,253,247,.12) 60%,transparent 75%)", filter: "blur(8px)", opacity: 0.7, animation: "bt-drift 46s linear infinite" }} />
-        <div style={{ position: "absolute", top: "24%", width: 170, height: 54, borderRadius: "50%", background: "radial-gradient(circle at 40% 40%,rgba(255,253,247,.5),rgba(255,253,247,.12) 60%,transparent 75%)", filter: "blur(8px)", opacity: 0.5, animation: "bt-drift 64s linear infinite", animationDelay: "-20s" }} />
-        <div style={{ position: "absolute", top: "8%", width: 300, height: 84, borderRadius: "50%", background: "radial-gradient(circle at 40% 40%,rgba(255,253,247,.5),rgba(255,253,247,.12) 60%,transparent 75%)", filter: "blur(8px)", opacity: 0.4, animation: "bt-drift 82s linear infinite", animationDelay: "-50s" }} />
-        <div style={{ position: "absolute", top: "20%", left: "30%", color: "rgba(251,246,234,.5)", fontSize: ".9rem", letterSpacing: 4, animation: "bt-birds 9s ease-in-out infinite" }}>˅ ˅ ˅</div>
-        <div style={{ position: "absolute", left: "-5%", right: "-5%", bottom: 0, height: "54vh", background: "linear-gradient(180deg,#86a59c,#789a90)", opacity: 0.42, clipPath: "polygon(0 64%,18% 40%,34% 56%,52% 30%,68% 52%,84% 34%,100% 50%,100% 100%,0 100%)" }} />
-        <div style={{ position: "absolute", left: "-5%", right: "-5%", bottom: 0, height: "44vh", background: "linear-gradient(180deg,#557d73,#456b61)", opacity: 0.7, clipPath: "polygon(0 72%,14% 54%,30% 68%,46% 44%,62% 64%,80% 46%,100% 62%,100% 100%,0 100%)" }} />
-        <div style={{ position: "absolute", left: "-5%", right: "-5%", bottom: 0, height: "36vh", background: "linear-gradient(180deg,#2f574c,#1d3a31)", clipPath: "polygon(0 78%,12% 62%,28% 76%,44% 56%,60% 74%,78% 58%,100% 72%,100% 100%,0 100%)" }} />
+      {/* ============ LIVING SCENE (dusk-dark) ============ */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "linear-gradient(180deg,#0a1017 0%,#0c1712 52%,#0e1f16 100%)" }}>
+        {/* soft gold moon glow */}
+        <div style={{ position: "absolute", top: "-10%", right: "8%", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle at 50% 50%,rgba(232,207,154,.5),rgba(217,183,121,.16) 42%,transparent 70%)", filter: "blur(6px)", animation: "bt-sun 7s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", top: "12%", width: 260, height: 70, borderRadius: "50%", background: "radial-gradient(circle at 40% 40%,rgba(180,200,210,.12),transparent 72%)", filter: "blur(10px)", opacity: 0.6, animation: "bt-drift 56s linear infinite" }} />
+        <div style={{ position: "absolute", top: "22%", width: 180, height: 54, borderRadius: "50%", background: "radial-gradient(circle at 40% 40%,rgba(180,200,210,.1),transparent 72%)", filter: "blur(10px)", opacity: 0.5, animation: "bt-drift 74s linear infinite", animationDelay: "-20s" }} />
+        {/* layered mountain silhouettes, dark greens */}
+        <div style={{ position: "absolute", left: "-5%", right: "-5%", bottom: 0, height: "54vh", background: "linear-gradient(180deg,#16352a,#122b22)", opacity: 0.5, clipPath: "polygon(0 64%,18% 40%,34% 56%,52% 30%,68% 52%,84% 34%,100% 50%,100% 100%,0 100%)" }} />
+        <div style={{ position: "absolute", left: "-5%", right: "-5%", bottom: 0, height: "44vh", background: "linear-gradient(180deg,#102820,#0d2019)", opacity: 0.8, clipPath: "polygon(0 72%,14% 54%,30% 68%,46% 44%,62% 64%,80% 46%,100% 62%,100% 100%,0 100%)" }} />
+        <div style={{ position: "absolute", left: "-5%", right: "-5%", bottom: 0, height: "36vh", background: "linear-gradient(180deg,#0b1a14,#08120d)", clipPath: "polygon(0 78%,12% 62%,28% 76%,44% 56%,60% 74%,78% 58%,100% 72%,100% 100%,0 100%)" }} />
       </div>
-      <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", background: "radial-gradient(130% 92% at 50% 6%,transparent 44%,rgba(8,18,12,.42) 100%),linear-gradient(100deg,rgba(7,18,12,.5) 0%,rgba(8,20,14,.2) 48%,transparent 74%)" }} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", background: "radial-gradient(130% 92% at 50% 6%,transparent 40%,rgba(5,9,7,.55) 100%)" }} />
+
+      {/* shared platform header (fixed) */}
+      <SiteHeader acctSlot />
 
       {/* ============ SHELL ============ */}
-      <div style={{ position: "relative", zIndex: 4, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-
-        {/* glass header */}
-        <header style={{ position: "sticky", top: 14, zIndex: 1200, margin: "14px clamp(12px,3vw,28px) 0", borderRadius: 20, background: "rgba(16,32,23,.34)", WebkitBackdropFilter: "blur(20px) saturate(1.5)", backdropFilter: "blur(20px) saturate(1.5)", border: "1px solid rgba(255,255,255,.16)", boxShadow: "0 14px 36px -18px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.14)" }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60, gap: 12, padding: "0 15px" }}>
-            <a href="/" style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0, color: "#fbf6ea", textDecoration: "none" }}>
-              <span style={{ width: 36, height: 36, flex: "none", borderRadius: 11, background: "linear-gradient(145deg,#e4be78,#c79a4b)", display: "flex", alignItems: "center", justifyContent: "center", color: "#15241c", boxShadow: "0 6px 18px rgba(0,0,0,.3)" }}>
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path><rect x="11" y="18" width="2" height="4"></rect></svg>
-              </span>
-              <span style={{ lineHeight: 1.05 }}>
-                <b style={{ fontFamily: serif, fontSize: "1.22rem", fontWeight: 700, display: "block" }}>ParkBuddy</b>
-                <small style={{ display: "block", color: "rgba(243,237,224,.6)", fontSize: ".68rem", marginTop: 1, letterSpacing: ".04em" }}>live status · every U.S. national park</small>
-              </span>
-            </a>
-            <nav style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <a href="/explore" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".85rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Map</a>
-              <a href="/plan" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".85rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Plan a Trip</a>
-              <a href="/build-trip" style={{ color: "#15241c", background: "#fbf6ea", textDecoration: "none", fontSize: ".85rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Build a Trip</a>
-              <a href="/shop.html" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".85rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Gear &amp; Stays</a>
-              <a href="/pro.html" style={{ color: "rgba(243,237,224,.9)", textDecoration: "none", fontSize: ".85rem", fontWeight: 600, padding: "8px 14px", borderRadius: 999 }}>Pro</a>
-            </nav>
-          </div>
-        </header>
+      <div style={{ position: "relative", zIndex: 4, display: "flex", flexDirection: "column", minHeight: "100vh", paddingTop: 64 }}>
 
         {/* hero */}
         <section style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(28px,5vw,52px) clamp(16px,3vw,28px) 10px", boxSizing: "border-box" }}>
@@ -434,14 +441,14 @@ export default function BuildTripApp() {
             {ROUTES.map((r) => {
               const isLoaded = loadedRoute === r.id;
               return (
-                <div key={r.id} onClick={() => loadRoute(r)} style={{ flex: "none", width: 248, background: isLoaded ? "rgba(251,246,234,.92)" : "rgba(251,246,234,.9)", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: isLoaded ? "2px solid #c79a4b" : "1px solid rgba(255,255,255,.55)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: "0 16px 40px rgba(8,16,12,.34)" }}>
-                  <div style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "#c79a4b" }}>{isLoaded ? "Loaded" : "Route"} {r.emoji}</div>
-                  <h3 style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "#1d3941", lineHeight: 1.1, margin: "4px 0 7px" }}>{r.name}</h3>
-                  <p style={{ fontSize: ".81rem", color: "#5e6557", lineHeight: 1.45, margin: 0 }}>{r.desc}</p>
-                  <div style={{ display: "flex", gap: 8, marginTop: 12, fontSize: ".72rem", color: "#2c5562", fontWeight: 700 }}>
-                    <span style={{ background: "rgba(29,74,55,.08)", border: "1px solid rgba(29,74,55,.16)", borderRadius: 999, padding: "3px 10px" }}>{r.stops.length} stops</span>
-                    <span style={{ background: "rgba(29,74,55,.08)", border: "1px solid rgba(29,74,55,.16)", borderRadius: 999, padding: "3px 10px" }}>{r.days} days</span>
-                    <span style={{ background: "rgba(29,74,55,.08)", border: "1px solid rgba(29,74,55,.16)", borderRadius: 999, padding: "3px 10px" }}>{r.miles} mi</span>
+                <div key={r.id} onClick={() => { userEditedRef.current = true; loadRoute(r); }} style={{ flex: "none", width: 248, background: "linear-gradient(180deg,rgba(16,34,24,.9),rgba(9,20,14,.9))", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: isLoaded ? "1.5px solid var(--pb-gold)" : "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: isLoaded ? "0 0 0 1px rgba(217,183,121,.3),0 16px 40px -20px rgba(0,0,0,.7)" : "0 16px 40px -20px rgba(0,0,0,.7)" }}>
+                  <div style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold)" }}>{isLoaded ? "Loaded" : "Route"} {r.emoji}</div>
+                  <h3 style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.1, margin: "4px 0 7px" }}>{r.name}</h3>
+                  <p style={{ fontSize: ".81rem", color: "var(--pb-ink-2)", lineHeight: 1.45, margin: 0 }}>{r.desc}</p>
+                  <div style={{ display: "flex", gap: 8, marginTop: 12, fontSize: ".72rem", color: "var(--pb-gold-soft)", fontWeight: 700 }}>
+                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{r.stops.length} stops</span>
+                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{r.days} days</span>
+                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{r.miles} mi</span>
                   </div>
                 </div>
               );
@@ -449,27 +456,27 @@ export default function BuildTripApp() {
           </div>
         </section>
 
-        {/* ============ CREAM SHEET ============ */}
-        <div style={{ position: "relative", background: "#fbf6ea", borderRadius: "34px 34px 0 0", marginTop: "clamp(18px,3vh,30px)", boxShadow: "0 -26px 70px -34px rgba(8,18,12,.7)", paddingTop: 8 }}>
-          <div style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(20px,3vw,34px) clamp(16px,3vw,28px) 44px", display: "grid", gridTemplateColumns: "1fr 480px", gap: 22, alignItems: "start", boxSizing: "border-box" }}>
+        {/* ============ SHEET ============ */}
+        <div style={{ position: "relative", background: "linear-gradient(180deg,rgba(9,18,13,.92),var(--pb-bg))", borderTop: "1px solid var(--pb-line)", borderRadius: "34px 34px 0 0", marginTop: "clamp(18px,3vh,30px)", boxShadow: "0 -26px 70px -34px rgba(0,0,0,.85)", paddingTop: 8 }}>
+          <div className="bt-sheet-grid" style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(20px,3vw,34px) clamp(16px,3vw,28px) 44px", display: "grid", gridTemplateColumns: "1fr 480px", gap: 22, alignItems: "start", boxSizing: "border-box" }}>
 
             {/* MAP (sticky) */}
-            <div style={{ position: "sticky", top: 90, borderRadius: 22, overflow: "hidden", border: "1px solid #e7ddca", boxShadow: "0 22px 50px -26px rgba(28,46,34,.5)", background: "#dbe6ea" }}>
+            <div style={{ position: "sticky", top: 90, borderRadius: 22, overflow: "hidden", border: "1px solid var(--pb-line)", boxShadow: "0 22px 50px -26px rgba(28,46,34,.5)", background: "#0f1c15" }}>
               <div style={{ position: "relative", height: "76vh", minHeight: 480 }}>
                 <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
                 <div style={{ display: keyOverlay ? "flex" : "none", position: "absolute", inset: 0, zIndex: 5, background: "rgba(16,32,23,.72)", backdropFilter: "blur(3px)", alignItems: "center", justifyContent: "center", padding: 24 }}>
-                  <div style={{ background: "#fffdf7", borderRadius: 16, padding: 22, maxWidth: 340, boxShadow: "0 20px 50px rgba(0,0,0,.35)" }}>
-                    <b style={{ fontFamily: serif, fontSize: "1.1rem", color: "#1d3941", display: "block", marginBottom: 6 }}>Load the live Google Map</b>
-                    <p style={{ fontSize: ".82rem", color: "#8c8473", lineHeight: 1.5, margin: "0 0 12px" }}>{keyMsg}</p>
-                    <input ref={keyInputRef} placeholder="AIza…" style={{ width: "100%", border: "1px solid #e7ddca", borderRadius: 10, padding: "11px 12px", fontSize: ".86rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box" }} />
-                    <button onClick={saveKey} style={{ width: "100%", marginTop: 10, border: "none", cursor: "pointer", borderRadius: 10, padding: 12, fontWeight: 800, color: "#fbf6ea", background: "#2c5562", fontFamily: "inherit" }}>Load map</button>
-                    <p style={{ fontSize: ".7rem", color: "#b0a894", margin: "10px 0 0", lineHeight: 1.45 }}>Stored only in your browser. Use an unrestricted dev key, or add this URL to the key&apos;s allowed referrers.</p>
+                  <div style={{ background: "var(--pb-surface)", borderRadius: 16, padding: 22, maxWidth: 340, boxShadow: "0 20px 50px rgba(0,0,0,.35)" }}>
+                    <b style={{ fontFamily: serif, fontSize: "1.1rem", color: "var(--pb-ink)", display: "block", marginBottom: 6 }}>Load the live Google Map</b>
+                    <p style={{ fontSize: ".82rem", color: "var(--pb-muted)", lineHeight: 1.5, margin: "0 0 12px" }}>{keyMsg}</p>
+                    <input ref={keyInputRef} placeholder="AIza…" style={{ width: "100%", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 12px", fontSize: ".86rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box", background: "rgba(255,255,255,.04)", color: "var(--pb-ink)", colorScheme: "dark" }} />
+                    <button onClick={saveKey} style={{ width: "100%", marginTop: 10, border: "none", cursor: "pointer", borderRadius: 10, padding: 12, fontWeight: 800, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", fontFamily: "inherit" }}>Load map</button>
+                    <p style={{ fontSize: ".7rem", color: "var(--pb-muted)", margin: "10px 0 0", lineHeight: 1.45 }}>Stored only in your browser. Use an unrestricted dev key, or add this URL to the key&apos;s allowed referrers.</p>
                   </div>
                 </div>
                 <div style={{ position: "absolute", top: 14, left: 14, zIndex: 3, display: "flex", alignItems: "center", gap: 7, background: "rgba(16,32,23,.86)", color: "#e4be78", padding: "7px 13px", borderRadius: 999, fontSize: ".72rem", fontWeight: 700, letterSpacing: ".03em" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#46d97f", boxShadow: "0 0 0 3px rgba(70,217,127,.3)" }} />LIVE ROUTE
                 </div>
-                <div style={{ position: "absolute", bottom: 14, right: 14, zIndex: 3, background: "#fffdf7", color: "#1d3941", padding: "7px 13px", borderRadius: 999, fontSize: ".76rem", fontWeight: 700, boxShadow: "0 6px 16px rgba(0,0,0,.14)" }}>{totalMiles} mi · {driveHrs} h drive</div>
+                <div style={{ position: "absolute", bottom: 14, right: 14, zIndex: 3, background: "var(--pb-surface)", color: "var(--pb-ink)", padding: "7px 13px", borderRadius: 999, fontSize: ".76rem", fontWeight: 700, boxShadow: "0 6px 16px rgba(0,0,0,.14)" }}>{totalMiles} mi · {driveHrs} h drive</div>
               </div>
             </div>
 
@@ -479,7 +486,7 @@ export default function BuildTripApp() {
               {/* header panel: trip name + stats */}
               <div style={{ ...panel, overflow: "hidden" }}>
                 <div style={{ background: "linear-gradient(135deg,#33555f,#1d3941)", padding: 18, color: "#fbf6ea" }}>
-                  <input value={tripName} onChange={(e) => setTripName(e.target.value)} style={{ width: "100%", fontFamily: serif, fontSize: "1.4rem", fontWeight: 700, color: "#fbf6ea", background: "transparent", border: "none", outline: "none", boxSizing: "border-box" }} />
+                  <input value={tripName} onChange={(e) => { userEditedRef.current = true; setTripName(e.target.value); }} style={{ width: "100%", fontFamily: serif, fontSize: "1.4rem", fontWeight: 700, color: "var(--pb-ink)", background: "transparent", border: "none", outline: "none", boxSizing: "border-box" }} />
                   <div style={{ display: "flex", gap: 9, marginTop: 13 }}>
                     <div style={statCell}><b style={statB}>{stops.length}</b><span style={statS}>Stops</span></div>
                     <div style={statCell}><b style={statB}>{totalNights}</b><span style={statS}>Days</span></div>
@@ -493,15 +500,15 @@ export default function BuildTripApp() {
               <div style={panel}>
                 <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
                   <span style={stepNum}>1</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "#1d3941", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center" }}>Trip details</div>
+                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center" }}>Trip details</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       <label style={fieldLabel}>Start date</label>
-                      <input type="date" value={startDate} onChange={(e) => e.target.value && setStartDate(e.target.value)} style={fieldBox} />
+                      <input type="date" value={startDate} onChange={(e) => { if (e.target.value) { userEditedRef.current = true; setStartDate(e.target.value); } }} style={fieldBox} />
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       <label style={fieldLabel}>Travelers</label>
-                      <select value={travelers} onChange={(e) => { setTravelers(+e.target.value); setBudgetOverride((o) => ({ ...o, food: null })); }} style={fieldBox}>
+                      <select value={travelers} onChange={(e) => { userEditedRef.current = true; setTravelers(+e.target.value); setBudgetOverride((o) => ({ ...o, food: null })); }} style={fieldBox}>
                         {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{n} adult{n === 1 ? "" : "s"}</option>)}
                       </select>
                     </div>
@@ -513,7 +520,7 @@ export default function BuildTripApp() {
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       <label style={fieldLabel}>End date (auto)</label>
-                      <div style={{ ...fieldBox, color: "#8c8473" }}>{fmtDate(endDate)}</div>
+                      <div style={{ ...fieldBox, color: "var(--pb-muted)" }}>{fmtDate(endDate)}</div>
                     </div>
                   </div>
                 </div>
@@ -523,11 +530,11 @@ export default function BuildTripApp() {
               <div style={panel}>
                 <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
                   <span style={stepNum}>2</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "#1d3941", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span>Your itinerary</span>
-                    <label onClick={() => setShowOnMap(!showOnMap)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".78rem", fontWeight: 700, color: "#8c8473", cursor: "pointer" }}>
-                      <span style={{ width: 32, height: 18, borderRadius: 999, background: showOnMap ? "#2c5562" : "#d9d3c2", position: "relative" }}>
-                        <span style={{ position: "absolute", top: 2, right: showOnMap ? 2 : 16, width: 14, height: 14, borderRadius: "50%", background: "#fffdf7" }} />
+                    <label onClick={() => setShowOnMap(!showOnMap)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".78rem", fontWeight: 700, color: "var(--pb-muted)", cursor: "pointer" }}>
+                      <span style={{ width: 32, height: 18, borderRadius: 999, background: showOnMap ? "var(--pb-grad-gold)" : "rgba(255,255,255,.14)", position: "relative" }}>
+                        <span style={{ position: "absolute", top: 2, right: showOnMap ? 2 : 16, width: 14, height: 14, borderRadius: "50%", background: showOnMap ? "var(--pb-bg)" : "#e7e3d8" }} />
                       </span>Show on map
                     </label>
                   </div>
@@ -537,14 +544,14 @@ export default function BuildTripApp() {
                       const v = verdicts[s.name];
                       const st = STOP_STATUS[v ? v.status : "loading"];
                       return (
-                        <div key={s.name} draggable onDragStart={onDragStart(i)} onDragOver={onDragOver} onDrop={onDrop(i)} style={{ background: "#fff", border: "1px solid #e7ddca", borderRadius: 16, padding: 13, boxShadow: "0 12px 30px -22px rgba(28,46,34,.55)" }}>
+                        <div key={s.name} draggable onDragStart={onDragStart(i)} onDragOver={onDragOver} onDrop={onDrop(i)} style={{ background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: 13, boxShadow: "0 12px 30px -22px rgba(28,46,34,.55)" }}>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
-                            <span style={{ color: "#cdbf9f", fontSize: "1rem", marginTop: 4, cursor: "grab" }}>⠿</span>
+                            <span style={{ color: "var(--pb-muted)", fontSize: "1rem", marginTop: 4, cursor: "grab" }}>⠿</span>
                             <span style={{ width: 30, height: 30, flex: "none", borderRadius: "50%", background: "linear-gradient(150deg,#33555f,#1d3941)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: ".86rem", border: "2px solid #e4be78", boxShadow: "0 4px 12px -4px rgba(0,0,0,.4)" }}>{i + 1}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c79a4b" }}>{dayRanges[i] ? dayRanges[i].label : ""}</div>
-                              <b style={{ fontFamily: serif, fontSize: "1.02rem", fontWeight: 700, color: "#1d3941", display: "block", lineHeight: 1.15 }}>{s.name}</b>
-                              <div style={{ fontSize: ".72rem", color: "#8c8473", marginTop: 1 }}>
+                              <b style={{ fontFamily: serif, fontSize: "1.02rem", fontWeight: 700, color: "var(--pb-ink)", display: "block", lineHeight: 1.15 }}>{s.name}</b>
+                              <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>
                                 {s.state} · {s.nights} night{s.nights === 1 ? "" : "s"} · {i === 0 ? "arrive " + fmtShort(dayRanges[0] ? dayRanges[0].arrive : startDate) : (s.legMi != null ? s.legMi + " mi from " + stops[i - 1].name : "")}
                               </div>
                             </div>
@@ -560,18 +567,18 @@ export default function BuildTripApp() {
                     })}
                   </div>
 
-                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8c8473", margin: "16px 0 8px" }}>Add national parks</div>
+                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Add national parks</div>
                   <div style={{ display: "flex", gap: 9 }}>
-                    <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "#8c8473" }}>
+                    <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "var(--pb-muted)" }}>
                       <option value="">Choose a park…</option>
                       {parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => (
                         <option key={p.id} value={p.name}>{p.name} — {p.state}</option>
                       ))}
                     </select>
-                    <button onClick={addPark} style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "#2c5562", color: "#fbf6ea", fontSize: "1.2rem", cursor: "pointer", boxShadow: "0 4px 0 #16303a" }}>＋</button>
+                    <button onClick={addPark} style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
                   </div>
-                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#8c8473", margin: "16px 0 8px" }}>Or search a place — home, hotel, town…</div>
-                  <div style={{ padding: "11px 13px", border: "1.5px solid #e7ddca", borderRadius: 12, fontSize: ".88rem", color: "#b0a894", background: "#fff" }}>Type a full address or place name</div>
+                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Or search a place — home, hotel, town…</div>
+                  <div style={{ padding: "11px 13px", border: "1.5px solid var(--pb-line)", borderRadius: 12, fontSize: ".88rem", color: "var(--pb-muted)", background: "rgba(255,255,255,.04)" }}>Type a full address or place name</div>
                 </div>
               </div>
 
@@ -579,19 +586,19 @@ export default function BuildTripApp() {
               <div style={panel}>
                 <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
                   <span style={stepNum}>3</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "#1d3941", margin: "0 0 4px", minHeight: 38, display: "flex", alignItems: "center" }}>Budget</div>
-                  <div style={{ fontSize: ".74rem", color: "#8c8473", marginBottom: 12 }}>Tap any amount to enter your real price.</div>
+                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 4px", minHeight: 38, display: "flex", alignItems: "center" }}>Budget</div>
+                  <div style={{ fontSize: ".74rem", color: "var(--pb-muted)", marginBottom: 12 }}>Tap any amount to enter your real price.</div>
                   <div>
-                    <div style={budgetRow}><span style={{ color: "#4c5443" }}>⛽ Fuel</span><BudgetAmount k="fuel" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid #e7ddca" }}><span style={{ color: "#4c5443" }}>🏨 Lodging · {totalNights} nights</span><BudgetAmount k="lodging" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid #e7ddca" }}><span style={{ color: "#4c5443" }}>🍔 Food · {travelers} traveler{travelers === 1 ? "" : "s"}</span><BudgetAmount k="food" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid #e7ddca" }}><span style={{ color: "#4c5443" }}>🎟️ Park passes</span><BudgetAmount k="passes" /></div>
+                    <div style={budgetRow}><span style={{ color: "var(--pb-ink-2)" }}>⛽ Fuel</span><BudgetAmount k="fuel" /></div>
+                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🏨 Lodging · {totalNights} nights</span><BudgetAmount k="lodging" /></div>
+                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🍔 Food · {travelers} traveler{travelers === 1 ? "" : "s"}</span><BudgetAmount k="food" /></div>
+                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🎟️ Park passes</span><BudgetAmount k="passes" /></div>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 12, paddingTop: 13, borderTop: "2px solid #c79a4b" }}>
-                    <span style={{ fontFamily: serif, fontSize: "1.08rem", color: "#1d3941", fontWeight: 700 }}>Estimated total</span>
-                    <span style={{ fontFamily: serif, fontSize: "1.7rem", color: "#2c5562", fontWeight: 800 }}>{fmtUsd(totalCost)}</span>
+                    <span style={{ fontFamily: serif, fontSize: "1.08rem", color: "var(--pb-ink)", fontWeight: 700 }}>Estimated total</span>
+                    <span style={{ fontFamily: serif, fontSize: "1.7rem", color: "var(--pb-gold-soft)", fontWeight: 800 }}>{fmtUsd(totalCost)}</span>
                   </div>
-                  <div style={{ textAlign: "right", fontSize: ".72rem", color: "#8c8473", marginTop: 3 }}>≈ {fmtUsd(totalCost / Math.max(1, travelers))} per person</div>
+                  <div style={{ textAlign: "right", fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 3 }}>≈ {fmtUsd(totalCost / Math.max(1, travelers))} per person</div>
                 </div>
               </div>
 
@@ -599,14 +606,14 @@ export default function BuildTripApp() {
               <div style={panel}>
                 <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
                   <span style={stepNum}>4</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "#1d3941", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center" }}>Navigate &amp; share</div>
+                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center" }}>Navigate &amp; share</div>
                   <div style={{ display: "flex", gap: 9, marginBottom: 11 }}>
-                    <a href={gmapsUrl} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "#2c5562", color: "#fff", borderRadius: 12, padding: "11px 15px", fontWeight: 700, fontSize: ".85rem", boxShadow: "0 4px 0 #16303a" }}>Google Maps ↗</a>
-                    <a href={appleUrl} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "#fff", border: "1.5px solid #e7ddca", color: "#2c5562", borderRadius: 12, padding: "11px 15px", fontWeight: 700, fontSize: ".85rem" }}>Apple Maps ↗</a>
+                    <a href={gmapsUrl} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", borderRadius: 12, padding: "11px 15px", fontWeight: 700, fontSize: ".85rem" }}>Google Maps ↗</a>
+                    <a href={appleUrl} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "rgba(255,255,255,.04)", border: "1.5px solid var(--pb-line)", color: "var(--pb-gold-soft)", borderRadius: 12, padding: "11px 15px", fontWeight: 700, fontSize: ".85rem" }}>Apple Maps ↗</a>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <a href={waUrl} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 88, textAlign: "center", textDecoration: "none", background: "#1faa55", color: "#fff", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".85rem" }}>WhatsApp</a>
-                    <button onClick={copyLink} style={{ flex: 1, minWidth: 88, border: "1.5px solid #e7ddca", background: "#fff", color: "#2c5562", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "inherit" }}>Copy link</button>
+                    <button onClick={copyLink} style={{ flex: 1, minWidth: 88, border: "1.5px solid var(--pb-line)", background: "rgba(255,255,255,.04)", color: "var(--pb-gold-soft)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "inherit" }}>Copy link</button>
                   </div>
                   <button style={{ marginTop: 14, width: "100%", background: "linear-gradient(135deg,#33555f,#1d3941)", color: "#fbf6ea", border: "1px solid rgba(199,154,75,.45)", borderRadius: 13, padding: 13, fontSize: ".88rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>🛂 Trip Passport · download PDF</button>
                 </div>
@@ -614,21 +621,21 @@ export default function BuildTripApp() {
 
               {/* coming soon */}
               <div style={{ ...panel, padding: 20, boxShadow: "0 22px 50px -30px rgba(28,46,34,.4)" }}>
-                <div style={{ border: "1px dashed #e7ddca", borderRadius: 16, padding: 16, background: "repeating-linear-gradient(135deg,#f6f1e6,#f6f1e6 12px,#f1ebde 12px,#f1ebde 24px)" }}>
+                <div style={{ border: "1px dashed var(--pb-line-strong)", borderRadius: 16, padding: 16, background: "repeating-linear-gradient(135deg,rgba(255,255,255,.02),rgba(255,255,255,.02) 12px,rgba(255,255,255,.04) 12px,rgba(255,255,255,.04) 24px)" }}>
                   <span style={{ display: "inline-block", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", background: "linear-gradient(120deg,#e4be78,#c79a4b)", color: "#3a2e08", padding: "3px 10px", borderRadius: 999, marginBottom: 9 }}>Coming soon</span>
-                  <h4 style={{ fontFamily: serif, fontSize: "1.05rem", fontWeight: 700, color: "#1d3941", margin: "0 0 5px" }}>📎 Reservations &amp; live trip tracking</h4>
-                  <p style={{ fontSize: ".8rem", color: "#8c8473", lineHeight: 1.5, margin: 0 }}>Upload your campground, park and rental-car confirmations and we&apos;ll keep everything in one place — with live updates on weather, closures and check-in reminders as you travel.</p>
+                  <h4 style={{ fontFamily: serif, fontSize: "1.05rem", fontWeight: 700, color: "var(--pb-ink)", margin: "0 0 5px" }}>📎 Reservations &amp; live trip tracking</h4>
+                  <p style={{ fontSize: ".8rem", color: "var(--pb-muted)", lineHeight: 1.5, margin: 0 }}>Upload your campground, park and rental-car confirmations and we&apos;ll keep everything in one place — with live updates on weather, closures and check-in reminders as you travel.</p>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 11 }}>
-                    <span style={{ fontSize: ".68rem", background: "#fff", border: "1px solid #e7ddca", color: "#6a6553", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Confirmations</span>
-                    <span style={{ fontSize: ".68rem", background: "#fff", border: "1px solid #e7ddca", color: "#6a6553", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Weather alerts</span>
-                    <span style={{ fontSize: ".68rem", background: "#fff", border: "1px solid #e7ddca", color: "#6a6553", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Check-in reminders</span>
+                    <span style={{ fontSize: ".68rem", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Confirmations</span>
+                    <span style={{ fontSize: ".68rem", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Weather alerts</span>
+                    <span style={{ fontSize: ".68rem", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Check-in reminders</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <footer style={{ textAlign: "center", color: "rgba(28,46,34,.6)", fontSize: ".72rem", padding: 24, borderTop: "1px solid #e7ddca" }}>
+          <footer style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".72rem", padding: 24, borderTop: "1px solid var(--pb-line)" }}>
             Drive times &amp; costs are planning estimates · live weather &amp; official info on each park&apos;s status page · ParkBuddy
           </footer>
         </div>

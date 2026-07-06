@@ -30,8 +30,9 @@ plan and `DESIGN.md` for the design system.
       subscription; the card honestly says "email delivery is rolling out."
 - [ ] **Hero photo** wasn't rendering on `/parks/zion` in local test (verdict,
       webcams, forecast all did). Check the hero `usePhoto` query.
-- [ ] **USGS river-flow + flash-flood gauge** card (Conditions) — real nearest
-      streamgage via USGS water services. Currently an honest placeholder.
+- [x] ~~USGS river-flow + flash-flood card~~ — `/api/riverflow` shows the nearest
+      active streamgage's live cfs + gauge height; sun/forecast times fixed to the
+      park's timezone. ✅ shipped (470afff)
 - [ ] Enrich the honest-omitted editorial where real data exists: seasonal "when to
       go", real park trip reports, crowds/parking (needs a data source).
 - [x] ~~Elaborate NWS alerts~~ — every active alert now renders in full (severity,

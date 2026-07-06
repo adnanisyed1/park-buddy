@@ -62,8 +62,14 @@ plan and `DESIGN.md` for the design system.
 - [ ] **`/about`** legacy embed still has an old "Plan a Trip" header — update to the
       shared banner or fold into the landing redesign.
 - [ ] **`/build-trip` redesign** — still cream/legacy (reverted working original),
-      pending a Claude-Design pass. Also: have "Build this trip →" pre-fill from
-      `localStorage.pb_trip` so the Explore cart carries over.
+      pending a Claude-Design pass. (The cart carry-over is DONE — it now seeds from
+      the shared trip store; see below.)
+- [x] ~~**Unified trip + add-to-trip modal**~~ — one store (`app/lib/trip.js`) backs
+      Explore, park/forest pages and Build My Trip; every add pops an inline-planner
+      `TripModal` (reorder, nights, dates) and Build My Trip seeds from it. ✅ shipped
+- [x] ~~**National forest dark status page**~~ — forests now open the deep dark
+      `/forests/:slug` page (ParkStatusV2 in `kind="forest"` mode) instead of the
+      legacy cream embed. ✅ shipped
 - [x] ~~**Responsive header**~~ — the shared nav now collapses to a hamburger ≤860px;
       the panel carries Explore items + Book/Shop/Pro/Learn + My Trip + Sign in +
       Ask Park Buddy. ✅ shipped

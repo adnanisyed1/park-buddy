@@ -13,6 +13,7 @@ import SiteHeader from "../../components/SiteHeader";
 import { usePhoto } from "../../components/PhotoThumb";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
+import CampAvailability from "../../campground-status/CampAvailability";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const VC = { go: "#4fd98a", prepare: "#e8cf9a", hold: "#e0906a", loading: "#b3ab97" };
@@ -26,6 +27,17 @@ function milesBetween(a, b) {
   const dLat = (b.lat - a.lat) * toRad, dLng = (b.lng - a.lng) * toRad;
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+function sevColor(sev = "") {
+  const s = sev.toLowerCase();
+  if (/extreme|severe/.test(s)) return "#e0906a";
+  if (/moderate/.test(s)) return "#e8cf9a";
+  return "#9aa7a0";
+}
+function fmtDateTime(iso) {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); }
+  catch { return ""; }
 }
 function wxEmoji(text = "") {
   const t = text.toLowerCase();
@@ -335,6 +347,33 @@ function Conditions({ park, cond, road, hourly, daily, webcams, alertsRef }) {
         <StatCard label="Roads · NPS" value={roadText ? "See note" : (road ? "Open" : "…")} valueColor="#e8cf9a" note={roadText || "No road closures reported. Always check NPS.gov before you go."} />
       </div>
 
+      {/* FULL alerts — every active NWS alert, in detail */}
+      {alerts.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ ...microLabel, letterSpacing: ".14em", color: "#e0906a", marginBottom: 10 }}>⚠ {alerts.length} active weather alert{alerts.length === 1 ? "" : "s"} · National Weather Service</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {alerts.map((a, i) => <AlertCard key={i} a={a} />)}
+          </div>
+        </div>
+      )}
+      {fires.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ ...microLabel, letterSpacing: ".14em", marginBottom: 10 }}>🔥 {fires.length} wildfire{fires.length === 1 ? "" : "s"} within ~80 mi</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 10 }}>
+            {fires.map((f, i) => (
+              <div key={i} style={{ ...card, padding: "14px 16px" }}>
+                <b style={{ fontFamily: serif, fontSize: "1.1rem" }}>{f.name}</b>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 8, fontSize: ".8rem", color: "var(--pb-ink-2)" }}>
+                  {f.distanceMi != null && <span>📍 {f.distanceMi} mi away</span>}
+                  {f.acres != null && <span>🔥 {f.acres.toLocaleString()} acres</span>}
+                  {f.percentContained != null && <span>🧯 {f.percentContained}% contained</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 12h forecast */}
       <div style={{ ...card, marginTop: 12 }}>
         <div style={{ ...microLabel, marginBottom: 14 }}>Next 12 hours · NWS forecast</div>
@@ -420,6 +459,38 @@ function StatCard({ label, value, note, valueColor, tint }) {
   );
 }
 function Row({ k, v }) { return <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}><span style={{ fontSize: ".84rem", color: "var(--pb-ink-2)" }}>{k}</span><b style={{ fontSize: ".9rem", color: "#f4f1ea" }}>{v}</b></div>; }
+
+function AlertCard({ a }) {
+  const [open, setOpen] = useState(false);
+  const c = sevColor(a.severity);
+  const longDesc = (a.description || "").length > 260;
+  return (
+    <div style={{ background: c + "12", border: "1px solid " + c + "55", borderRadius: 16, padding: "16px 18px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.2rem", color: c }}>{a.event}</span>
+          {a.severity && <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: c, border: "1px solid " + c + "66", borderRadius: 999, padding: "2px 8px" }}>{a.severity}</span>}
+        </div>
+        {a.expires && <span style={{ ...microLabel, letterSpacing: ".06em" }}>Until {fmtDateTime(a.expires)}</span>}
+      </div>
+      {a.area && <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 5 }}>{a.area}</div>}
+      {a.effective && <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".06em", textTransform: "uppercase", color: "#7f8a82", marginTop: 6 }}>In effect {fmtDateTime(a.effective)}{a.expires ? " → " + fmtDateTime(a.expires) : ""}</div>}
+      {a.headline && <p style={{ fontSize: ".9rem", color: "#e7e3d8", fontWeight: 500, lineHeight: 1.5, marginTop: 10 }}>{a.headline}</p>}
+      {a.description && (
+        <p style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6, fontWeight: 300, marginTop: 8, whiteSpace: "pre-line" }}>
+          {open || !longDesc ? a.description : a.description.slice(0, 260).trim() + "…"}
+        </p>
+      )}
+      {a.instruction && (open || !longDesc) && (
+        <div style={{ marginTop: 10, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "10px 12px" }}>
+          <div style={{ ...microLabel, fontSize: ".5rem", marginBottom: 4 }}>What to do</div>
+          <div style={{ fontSize: ".82rem", color: "#e7e3d8", lineHeight: 1.55, whiteSpace: "pre-line" }}>{a.instruction}</div>
+        </div>
+      )}
+      {longDesc && <button onClick={() => setOpen((o) => !o)} style={{ marginTop: 10, background: "none", border: "none", color: c, fontFamily: "inherit", fontSize: ".78rem", fontWeight: 600, cursor: "pointer", padding: 0 }}>{open ? "Show less" : "Read full alert →"}</button>}
+    </div>
+  );
+}
 function Loading({ text }) { return <div style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".84rem", padding: "10px 0" }}>{text}</div>; }
 
 function Webcam({ cam, park }) {
@@ -565,16 +636,29 @@ function Plan({ park, nps, places }) {
         <span style={{ ...microLabel, letterSpacing: ".12em" }}>Recreation.gov</span>
       </div>
       {camps && camps.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {camps.slice(0, 6).map((c, i) => (
-            <div key={i} style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div>
-                <b style={{ fontFamily: serif, fontSize: "1.15rem" }}>{c.name}</b>
-                <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", marginTop: 2 }}>{c.reservable ? "Reservable" : "First-come / check"} · {c.type || "Campground"}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {camps.slice(0, 6).map((c, i) => {
+            const recId = (c.url && (c.url.match(/campgrounds\/(\d+)/) || [])[1]) || null;
+            if (recId) {
+              // Real Recreation.gov campground → show the live 6-month availability
+              // strip + booking (shared CampAvailability component).
+              return (
+                <div key={i}>
+                  <div style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 600, margin: "6px 0 2px" }}>🏕 {c.name}</div>
+                  <CampAvailability campgroundId={recId} bookUrl={c.url} name={c.name} />
+                </div>
+              );
+            }
+            return (
+              <div key={i} style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <b style={{ fontFamily: serif, fontSize: "1.15rem" }}>{c.name}</b>
+                  <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", marginTop: 2 }}>{c.reservable ? "Reservable" : "First-come / not on Recreation.gov"} · {c.type || "Campground"}</div>
+                </div>
+                {c.url && <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>Details ↗</a>}
               </div>
-              <a href={c.url || ("/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat || "", lng: c.lng || "", url: c.url || "", reservable: c.reservable ? "1" : "0" }))} target={c.url ? "_blank" : "_self"} rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>{c.url ? "Book on Recreation.gov ↗" : "Availability →"}</a>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>{places ? "No campgrounds found within range." : "Loading campgrounds…"}</div>}
 

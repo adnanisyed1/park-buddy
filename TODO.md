@@ -20,10 +20,12 @@ plan and `DESIGN.md` for the design system.
       webcams, forecast all did). Check the hero `usePhoto` query.
 - [ ] **USGS river-flow + flash-flood gauge** card (Conditions) — real nearest
       streamgage via USGS water services. Currently an honest placeholder.
-- [ ] **Campground availability strips** on the Plan tab — wire the existing
-      `CampAvailability` component per campground (6-month open/few/full).
 - [ ] Enrich the honest-omitted editorial where real data exists: seasonal "when to
       go", real park trip reports, crowds/parking (needs a data source).
+- [x] ~~Elaborate NWS alerts~~ — every active alert now renders in full (severity,
+      area, timing, description, what-to-do). ✅ shipped
+- [x] ~~Campground availability~~ — Plan tab renders the live 6-month CampAvailability
+      strip per Recreation.gov campground (populates in prod w/ RIDB key). ✅ shipped
 
 ## 🔷 Commerce (Book / Shop)
 - [ ] **Affiliate program setup** — real affiliate IDs for Booking / Rentalcars /

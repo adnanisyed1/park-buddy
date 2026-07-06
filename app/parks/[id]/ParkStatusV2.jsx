@@ -714,11 +714,25 @@ function Plan({ park, nps, places }) {
 }
 
 /* ---------------- NEARBY ---------------- */
+function NearbyTile({ o, href, pq }) {
+  const photo = usePhoto(pq, o.lat, o.lng);
+  const tile = (
+    <figure style={{ position: "relative", margin: 0, aspectRatio: "16 / 10", borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line)", background: hatch }}>
+      {photo && photo.url && <img alt={o.name} src={photo.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,19,13,.08) 40%,rgba(8,19,13,.9))" }} />
+      <span style={{ position: "absolute", right: 10, top: 10, fontFamily: mono, fontSize: ".56rem", fontWeight: 700, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "3px 9px" }}>{o.distMi} mi</span>
+      <figcaption style={{ position: "absolute", left: 12, right: 12, bottom: 10, fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "#f7f4ec", textShadow: "0 2px 10px rgba(0,0,0,.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</figcaption>
+    </figure>
+  );
+  return href ? <a href={href} style={{ textDecoration: "none", display: "block" }}>{tile}</a> : tile;
+}
+
 function Nearby({ park, nearby, radius, setRadius }) {
+  const st = park ? park.state : "";
   const secs = [
-    ["Other parks", (nearby && nearby.parks) || [], (o) => "/parks/" + o.id, "🏔"],
-    ["Lakes", (nearby && nearby.lakes) || [], (o) => "/lake-status?" + new URLSearchParams({ name: o.name, lat: o.lat || "", lng: o.lng || "" }), "💧"],
-    ["Gateway towns", (nearby && nearby.towns) || [], () => null, "🏘"],
+    ["Other parks", (nearby && nearby.parks) || [], (o) => "/parks/" + o.id, "🏔", (o) => o.name + " National Park|" + o.name],
+    ["Lakes", (nearby && nearby.lakes) || [], (o) => "/lake-status?" + new URLSearchParams({ name: o.name, lat: o.lat || "", lng: o.lng || "" }), "💧", (o) => o.name],
+    ["Gateway towns", (nearby && nearby.towns) || [], () => null, "🏘", (o) => o.name + (o.state || st ? ", " + (o.state || st) : "")],
   ];
   return (
     <>
@@ -730,24 +744,14 @@ function Nearby({ park, nearby, radius, setRadius }) {
           <span style={{ fontFamily: serif, fontSize: "1.15rem", color: "var(--pb-gold)", minWidth: 56 }}>{radius} mi</span>
         </div>
       </div>
-      {secs.map(([title, items, href, icon]) => {
+      {secs.map(([title, items, href, icon, pqFn]) => {
         const within = items.map((o) => ({ ...o, distMi: o.distMi != null ? o.distMi : (park && o.lat != null ? Math.round(milesBetween(park, o)) : null) })).filter((o) => o.distMi != null && o.distMi <= radius).sort((a, b) => a.distMi - b.distMi).slice(0, 8);
         return (
-          <div key={title} style={{ marginBottom: 22 }}>
-            <div style={{ ...microLabel, letterSpacing: ".12em", marginBottom: 10 }}>{icon} {title}</div>
+          <div key={title} style={{ marginBottom: 24 }}>
+            <div style={{ ...microLabel, letterSpacing: ".12em", marginBottom: 12 }}>{icon} {title}</div>
             {within.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-                {within.map((o, i) => {
-                  const h = href(o);
-                  const inner = (
-                    <>
-                      <div style={{ flex: 1, minWidth: 0 }}><b style={{ fontSize: ".9rem", color: "#f4f1ea", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</b></div>
-                      <span style={{ fontFamily: serif, fontSize: "1.05rem", color: "#e7e3d8", flex: "none" }}>{o.distMi} mi</span>
-                    </>
-                  );
-                  return h ? <a key={i} href={h} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, ...card, padding: "12px 14px" }}>{inner}</a>
-                    : <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, ...card, padding: "12px 14px" }}>{inner}</div>;
-                })}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: 12 }}>
+                {within.map((o, i) => <NearbyTile key={i} o={o} href={href(o)} pq={pqFn(o)} />)}
               </div>
             ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)", padding: "14px" }}>{nearby ? "Nothing within " + radius + " mi." : "Loading…"}</div>}
           </div>

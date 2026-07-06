@@ -16,6 +16,7 @@ import loadScript from "../components/load-script";
 import SiteHeader from "../components/SiteHeader";
 import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
 import { fetchElevationProfile } from "../lib/elevationClient";
+import { getStops as tripStops, addStop as tripAdd, removeStop as tripRemove, subscribeTrip } from "../lib/trip";
 // Lakes and trails come live from /api/water (USGS GNIS) and /api/trails (NPS
 // Public Trails) — government ArcGIS REST services, no auth/rate-limiting/
 // seeding needed (unlike OpenStreetMap/Overpass, which blocks datacenter IPs).
@@ -1117,12 +1118,10 @@ export default function ExploreApp() {
 
   function toggleTripFor(name) {
     if (!name) return;
-    patch((s) => {
-      const trip = s.trip.slice();
-      const i = trip.indexOf(name);
-      if (i === -1) trip.push(name); else trip.splice(i, 1);
-      return { trip };
-    });
+    // The shared trip store (app/lib/trip.js) is the source of truth; our ui.trip
+    // is a derived mirror kept in sync by the subscription below. Adding fires the
+    // platform-wide trip modal (via the store's `pb:trip` event).
+    if (ui.trip.indexOf(name) === -1) tripAdd(name); else tripRemove(name);
   }
 
   // Real browser geolocation (legacy behavior), falling back to the US center
@@ -1196,20 +1195,14 @@ export default function ExploreApp() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Persist My Trip across reloads (was in-memory, reset on refresh). Load once on
-  // mount; then save on every change. The first save is skipped so the mount's
-  // empty [] can't clobber the stored trip before the load populates it.
-  const tripSaveSkipRef = useRef(true);
+  // My Trip mirrors the shared trip store (app/lib/trip.js), which owns
+  // persistence. Seed ui.trip from it on mount and keep it in sync — so a stop
+  // added or removed anywhere (park page, the trip modal) reflects here too.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("pb_trip");
-      if (raw) { const t = JSON.parse(raw); if (Array.isArray(t) && t.length) patch({ trip: t }); }
-    } catch {}
+    const sync = () => patch({ trip: tripStops().map((s) => s.name) });
+    sync();
+    return subscribeTrip(sync);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (tripSaveSkipRef.current) { tripSaveSkipRef.current = false; return; }
-    try { localStorage.setItem("pb_trip", JSON.stringify(ui.trip)); } catch {}
-  }, [ui.trip]);
 
   function setMapStyle(s) {
     if (s !== "dark" && s !== "standard") return;

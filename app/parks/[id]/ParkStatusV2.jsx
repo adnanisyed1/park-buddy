@@ -13,6 +13,7 @@ import SiteHeader from "../../components/SiteHeader";
 import { usePhoto } from "../../components/PhotoThumb";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
+import { addStop, inTrip } from "../../lib/trip";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const VC = { go: "#4fd98a", prepare: "#e8cf9a", hold: "#e0906a", loading: "#b3ab97" };
@@ -80,7 +81,7 @@ export default function ParkStatusV2({ id }) {
   const [tz, setTz] = useState(null); // park's IANA timezone (from weather.gov points)
   const [nearby, setNearby] = useState(null);
   const [radius, setRadius] = useState(60);
-  const [tripCount, setTripCount] = useState(0);
+  const [added, setAdded] = useState(false);
   const alertsRef = useRef(null);
 
   const hero = usePhoto(park ? park.name + " National Park|" + park.name : null, null, null, undefined, 1600);
@@ -152,10 +153,11 @@ export default function ParkStatusV2({ id }) {
       j("/api/water?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=161").then((d) => on && setNearby((prev) => ({ ...(prev || {}), lakes: (d && d.lakes) || [] })));
       j("/api/gateway?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&state=" + encodeURIComponent(p.state || "")).then((d) => on && setNearby((prev) => ({ ...(prev || {}), towns: (d && (d.towns || d)) || [] })));
     })();
-    // trip count for the banner
-    try { const t = JSON.parse(localStorage.getItem("pb_trip") || "[]"); if (Array.isArray(t)) setTripCount(t.length); } catch {}
     return () => { on = false; };
   }, [id]);
+
+  // Reflect whether this park is already in the trip.
+  useEffect(() => { if (park) setAdded(inTrip(park.name)); }, [park]);
 
   const scrollToTabs = () => { const el = document.getElementById("ps-tabnav"); if (el) window.scrollTo({ top: el.offsetTop - 64, behavior: "smooth" }); };
   const goAlerts = () => { setTab("conditions"); setTimeout(() => { const el = alertsRef.current; if (el) { window.scrollTo({ top: el.getBoundingClientRect().top + window.pageYOffset - 80, behavior: "smooth" }); el.style.transition = "box-shadow .4s"; el.style.boxShadow = "0 0 0 2px #e8cf9a,0 30px 70px -40px rgba(0,0,0,.9)"; setTimeout(() => { el.style.boxShadow = ""; }, 1600); } }, 60); };
@@ -163,7 +165,7 @@ export default function ParkStatusV2({ id }) {
   if (park === null) {
     return (
       <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
-        <SiteHeader tripCount={tripCount} onTripClick={() => { window.location.href = "/explore"; }} acctSlot />
+        <SiteHeader acctSlot />
         <div style={{ maxWidth: 640, margin: "0 auto", padding: "140px 20px", textAlign: "center" }}>
           <h1 style={{ fontFamily: serif, fontSize: "2.4rem", fontWeight: 600 }}>Park not found</h1>
           <p style={{ color: "var(--pb-ink-2)", marginTop: 10 }}>We couldn&apos;t find a national park with that id.</p>
@@ -190,7 +192,7 @@ export default function ParkStatusV2({ id }) {
         @media (max-width: 640px) { .ps-hero { min-height: auto !important; } }
       `}</style>
 
-      <SiteHeader tripCount={tripCount} onTripClick={() => { window.location.href = "/explore"; }} acctSlot />
+      <SiteHeader acctSlot />
 
       {/* HERO + VERDICT */}
       <section className="ps-hero" style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,700px)", display: "flex", alignItems: "flex-end", padding: "clamp(96px,13vh,150px) clamp(16px,4vw,40px) clamp(30px,5vh,54px)" }}>
@@ -203,7 +205,7 @@ export default function ParkStatusV2({ id }) {
             </div>
             <h1 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(3rem,8vw,6rem)", lineHeight: 0.92, letterSpacing: "-.02em", textShadow: "0 6px 40px rgba(0,0,0,.5)", marginTop: 10 }}>{park ? park.name : "…"}</h1>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
-              <button onClick={addToTrip} style={{ cursor: "pointer", fontSize: ".86rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "12px 22px", boxShadow: "0 10px 30px -14px rgba(217,183,121,.6)" }}>+ Add to trip</button>
+              <button onClick={addToTrip} style={{ cursor: "pointer", fontSize: ".86rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "12px 22px", boxShadow: "0 10px 30px -14px rgba(217,183,121,.6)" }}>{added ? "✓ In your trip" : "+ Add to trip"}</button>
               <a href="/#ask" style={{ textDecoration: "none", cursor: "pointer", fontSize: ".86rem", fontWeight: 600, color: "#f4f1ea", background: "rgba(10,23,18,.5)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "12px 22px" }}>✦ Ask Park Buddy</a>
             </div>
           </div>
@@ -271,13 +273,9 @@ export default function ParkStatusV2({ id }) {
   );
 
   function addToTrip() {
-    try {
-      const t = JSON.parse(localStorage.getItem("pb_trip") || "[]");
-      const arr = Array.isArray(t) ? t : [];
-      if (!arr.includes(park.name)) arr.push(park.name);
-      localStorage.setItem("pb_trip", JSON.stringify(arr));
-      setTripCount(arr.length);
-    } catch {}
+    if (!park) return;
+    addStop(park.name); // → shared trip store; SiteHeader's TripModal pops open
+    setAdded(true);
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { addStop } from "../lib/trip";
 
 // Writes to the SAME pp_trip2 localStorage schema the legacy park-status/
 // build-trip embed pages already use ({ s: [{ pid, ni, lo }] }), cloud-synced
@@ -28,6 +29,10 @@ export default function AddToTripButton({ pid, label, itemName }) {
       <button
         onClick={() => {
           const { exists } = addToTrip(pid, label);
+          // Also feed the shared trip store so it reaches Build My Trip and pops
+          // the platform-wide trip modal (keeps the legacy pp_trip2 write above for
+          // the cloud-synced schema auth.js still reads).
+          if (!exists) addStop(itemName || label);
           setMsg(exists ? (itemName || "This") + " is already in your trip" : "Added " + (itemName || "it") + " to your trip ✓");
           clearTimeout(window.__pbTripMsgT);
           window.__pbTripMsgT = setTimeout(() => setMsg(null), 2400);

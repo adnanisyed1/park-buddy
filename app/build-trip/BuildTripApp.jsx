@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
+import { getStops as tripStops, getMeta as tripMeta } from "../lib/trip";
 
 /* ---------------- constants (verbatim from the design) ---------------- */
 
@@ -202,7 +203,22 @@ export default function BuildTripApp() {
       if (disposed) return;
       const db = window.TRIP_PARKS || [];
       setParksDb(db);
-      loadRoute(ROUTES[0], db); // design loads Utah's Mighty 5
+      // Seed from the shared trip store (what the user actually added across the
+      // site). Match each saved stop to a real park for its coords; keep the saved
+      // nights. Only if the trip is empty do we fall back to the design preset.
+      const saved = tripStops();
+      const matched = saved
+        .map((s) => { const p = db.find((x) => x.name === s.name); return p ? { name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: s.nights > 0 ? s.nights : 2, legMi: null } : null; })
+        .filter(Boolean);
+      if (matched.length) {
+        setStops(recomputeLegs(matched));
+        setTripName(tripMeta().tripName || "My national-parks trip");
+        setLoadedRoute(null);
+        setTotalMilesOverride(null);
+        setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null });
+      } else {
+        loadRoute(ROUTES[0], db); // design preset — Utah's Mighty 5
+      }
 
       let key = "";
       try { key = localStorage.getItem("pb_gmaps_key") || ""; } catch {}

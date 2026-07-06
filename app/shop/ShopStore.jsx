@@ -86,11 +86,7 @@ function DeptCard({ c, i }) {
 
 export default function ShopStore() {
   const rootRef = useRef(null);
-  const [tripCount, setTripCount] = useState(0);
   useReveal(rootRef);
-  useEffect(() => {
-    try { const t = JSON.parse(localStorage.getItem("pb_trip") || "[]"); if (Array.isArray(t)) setTripCount(t.length); } catch {}
-  }, []);
 
   return (
     <div ref={rootRef} style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
@@ -100,7 +96,7 @@ export default function ShopStore() {
         @media (prefers-reduced-motion: reduce) { .pb-rise { opacity: 1; transform: none; } }
       `}</style>
 
-      <SiteHeader active="shop" tripCount={tripCount} onTripClick={() => { window.location.href = "/explore"; }} acctSlot />
+      <SiteHeader active="shop" acctSlot />
 
       {/* HERO */}
       <section style={{ position: "relative", overflow: "hidden", padding: "clamp(90px,12vh,130px) clamp(16px,4vw,40px) clamp(28px,4vh,44px)", background: "radial-gradient(1100px 420px at 74% -10%,rgba(217,183,121,.12),transparent 60%)" }}>

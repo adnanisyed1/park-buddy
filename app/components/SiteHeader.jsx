@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import loadScript from "./load-script";
+import TripModal from "./TripModal";
+import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 
 // The one header for the whole platform (Phase A of the design-system rollout).
 // Extracted from the approved landing page's glass nav so it matches exactly, and
@@ -52,6 +54,21 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   const [exOpen, setExOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const exActive = EXPLORE_KEYS.includes(active);
+
+  // The header owns the trip badge for every page: it reads the shared trip store
+  // and re-renders on any change. A page can still pass an explicit `tripCount`
+  // (Explore drives its own live count); otherwise we show the store's count.
+  const [storeCount, setStoreCount] = useState(0);
+  useEffect(() => {
+    const sync = () => setStoreCount(storeTripCount());
+    sync();
+    return subscribeTrip(sync);
+  }, []);
+  const count = tripCount != null ? tripCount : storeCount;
+  const showTrip = tripCount != null || storeCount > 0;
+  // My Trip pill: pages with their own trip UI (Explore) pass onTripClick; every
+  // other page opens the shared trip planner modal.
+  const openTrip = () => { if (onTripClick) onTripClick(); else if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("pb:trip-open")); };
 
   // Lock body scroll while the mobile menu is open so the page behind it doesn't
   // scroll under the panel. Cleaned up on close/unmount.
@@ -156,14 +173,14 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         ))}
       </div>
       <div className="pb-nav-actions" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        {tripCount != null && (
+        {showTrip && (
           <button
             type="button"
-            onClick={onTripClick}
+            onClick={openTrip}
             style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 15px" }}
           >
             🎒 My Trip
-            <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".58rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{tripCount}</span>
+            <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".58rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
           </button>
         )}
         {acctSlot ? (
@@ -229,10 +246,10 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           ))}
           <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
-            {tripCount != null && (
-              <button type="button" onClick={() => { setMenuOpen(false); onTripClick && onTripClick(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px" }}>
+            {showTrip && (
+              <button type="button" onClick={() => { setMenuOpen(false); openTrip(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px" }}>
                 🎒 My Trip
-                <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{tripCount}</span>
+                <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
               </button>
             )}
             <button type="button" onClick={openAccount} style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 16px" }}>
@@ -252,6 +269,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           .pb-hamburger { display: inline-flex !important; }
         }
       `}</style>
+
+      {/* Platform-wide trip planner dialog — auto-opens on any add-to-trip. */}
+      <TripModal />
     </nav>
   );
 }

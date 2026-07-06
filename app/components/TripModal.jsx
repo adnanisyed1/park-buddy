@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { getStops, getMeta, setMeta, removeStop, setNights, moveStop, subscribeTrip } from "../lib/trip";
+import loadScript from "./load-script";
 
 // The platform-wide trip planner, in a dialog. It opens automatically whenever
 // anything is added to the trip (the `pb:trip` event with detail.added), and on
@@ -17,12 +18,31 @@ const mono = "var(--pb-mono)";
 
 function nightsLabel(n) { return n === 1 ? "1 night" : n + " nights"; }
 
+// Fit a set of {lat,lng} points into a W×H box (aspect-preserving, mid-latitude
+// longitude correction) for the mini route map. Returns each point with x,y added.
+function fitProject(pts, W, H, pad) {
+  if (!pts.length) return [];
+  if (pts.length === 1) return [{ ...pts[0], x: W / 2, y: H / 2 }];
+  const lats = pts.map((p) => p.lat);
+  const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+  const k = Math.cos((midLat * Math.PI) / 180) || 1; // squash longitude toward real proportions
+  const X = pts.map((p) => p.lng * k);
+  const Y = pts.map((p) => -p.lat);
+  const minX = Math.min(...X), maxX = Math.max(...X), minY = Math.min(...Y), maxY = Math.max(...Y);
+  const spanX = maxX - minX || 1e-6, spanY = maxY - minY || 1e-6;
+  const scale = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
+  const offX = (W - scale * spanX) / 2 - scale * minX;
+  const offY = (H - scale * spanY) / 2 - scale * minY;
+  return pts.map((p) => ({ ...p, x: scale * (p.lng * k) + offX, y: scale * (-p.lat) + offY }));
+}
+
 export default function TripModal() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [stops, setStops] = useState([]);
   const [meta, setMetaState] = useState({ tripName: "", startDate: "", travelers: 2 });
   const [justAdded, setJustAdded] = useState(null);
+  const [coordMap, setCoordMap] = useState(null); // name → {lat,lng} for the mini map
 
   // Portal to <body> so the fixed overlay isn't trapped by an ancestor's
   // backdrop-filter / transform (SiteHeader's <nav> creates such a containing
@@ -49,6 +69,27 @@ export default function TripModal() {
     return () => { window.removeEventListener("pb:trip", onTrip); window.removeEventListener("pb:trip-open", onOpen); };
   }, []);
 
+  // Load coordinates for the mini route map the first time the modal opens:
+  // the 63 parks from trip-data.js + the national forests from the curated JSON,
+  // keyed by the exact name we store stops under.
+  useEffect(() => {
+    if (!open || coordMap) return;
+    let on = true;
+    (async () => {
+      const map = {};
+      try {
+        await loadScript("/trip-data.js");
+        (typeof window !== "undefined" && window.TRIP_PARKS || []).forEach((p) => { if (p && p.name) map[p.name] = { lat: p.lat, lng: p.lng }; });
+      } catch {}
+      try {
+        const fd = await fetch("/national-forests.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        ((fd && fd.forests) || []).forEach((f) => { if (f && f.name) map[f.name] = { lat: f.lat, lng: f.lng }; });
+      } catch {}
+      if (on) setCoordMap(map);
+    })();
+    return () => { on = false; };
+  }, [open, coordMap]);
+
   // Lock body scroll + close on Escape while open.
   useEffect(() => {
     if (!open) return;
@@ -65,6 +106,13 @@ export default function TripModal() {
   const days = totalNights; // match Build My Trip's day count (nights-based)
 
   const patchMeta = (p) => { setMeta(p); setMetaState(getMeta()); };
+
+  // Project the stops that have known coordinates for the mini route map.
+  const MAP_W = 320, MAP_H = 168;
+  const mapSource = coordMap
+    ? stops.map((s, i) => { const c = coordMap[s.name]; return c ? { name: s.name, lat: c.lat, lng: c.lng, i } : null; }).filter(Boolean)
+    : [];
+  const mapPts = fitProject(mapSource, MAP_W, MAP_H, 26);
 
   return createPortal(
     <div
@@ -83,6 +131,35 @@ export default function TripModal() {
           />
           <button onClick={() => setOpen(false)} aria-label="Close" style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,22,15,.7)", color: "#c3c8d0", fontSize: "1.1rem", lineHeight: 1, cursor: "pointer" }}>×</button>
         </div>
+
+        {/* mini route map — the selected stops + a dashed route between them */}
+        {mapPts.length > 0 && (
+          <div style={{ margin: "14px 16px 0", borderRadius: 14, overflow: "hidden", border: "1px solid var(--pb-line)", background: "radial-gradient(120% 100% at 50% 0%,#12271c,#0a1710)", position: "relative" }}>
+            <svg viewBox={"0 0 " + MAP_W + " " + MAP_H} style={{ display: "block", width: "100%", height: "auto" }} role="img" aria-label="Map of your trip route">
+              {/* faint grid for a map feel */}
+              {[0.25, 0.5, 0.75].map((f) => (
+                <line key={"h" + f} x1="0" y1={MAP_H * f} x2={MAP_W} y2={MAP_H * f} stroke="#ffffff" strokeOpacity="0.05" strokeWidth="1" />
+              ))}
+              {[0.2, 0.4, 0.6, 0.8].map((f) => (
+                <line key={"v" + f} x1={MAP_W * f} y1="0" x2={MAP_W * f} y2={MAP_H} stroke="#ffffff" strokeOpacity="0.05" strokeWidth="1" />
+              ))}
+              {/* dashed route between consecutive stops */}
+              {mapPts.length > 1 && (
+                <polyline points={mapPts.map((p) => p.x + "," + p.y).join(" ")} fill="none" stroke="#e4be78" strokeWidth="2.2" strokeDasharray="5 5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+              )}
+              {/* numbered stop markers (numbers match the list below) */}
+              {mapPts.map((p) => (
+                <g key={p.i}>
+                  <circle cx={p.x} cy={p.y} r="11" fill="#e4be78" stroke="#0a1710" strokeWidth="2" />
+                  <text x={p.x} y={p.y + 3.6} textAnchor="middle" fontFamily="var(--pb-mono)" fontSize="10.5" fontWeight="800" fill="#0a1710">{p.i + 1}</text>
+                </g>
+              ))}
+            </svg>
+            {mapSource.length < stops.length && (
+              <div style={{ position: "absolute", bottom: 6, right: 9, fontFamily: mono, fontSize: ".52rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{mapSource.length} of {stops.length} mapped</div>
+            )}
+          </div>
+        )}
 
         {justAdded && (
           <div style={{ margin: "12px 16px 0", padding: "9px 13px", borderRadius: 12, background: "rgba(79,217,138,.1)", border: "1px solid rgba(79,217,138,.3)", color: "#7fe3a6", fontSize: ".82rem", fontWeight: 600 }}>Added {justAdded} to your trip ✓</div>

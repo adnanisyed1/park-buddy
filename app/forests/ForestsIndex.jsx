@@ -28,8 +28,9 @@ const REGION_ORDER = ["West", "Pacific", "Rockies", "Southwest", "Midwest", "Sou
 function ForestTile({ f }) {
   const ref = useRef(null);
   const photo = usePhoto(f.name, null, null, ref);
+  const slug = f.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return (
-    <Link ref={ref} href={"/explore"} prefetch={false}
+    <Link ref={ref} href={"/forests/" + slug} prefetch={false}
       style={{ display: "block", textDecoration: "none", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 22, overflow: "hidden", boxShadow: "0 26px 60px -40px rgba(0,0,0,.9)" }}>
       <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,var(--pb-surface-2) 0 14px,var(--pb-surface) 14px 28px)" }}>
         {photo && photo.url && <img src={photo.url} alt={f.name} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
@@ -40,7 +41,7 @@ function ForestTile({ f }) {
         </div>
       </figure>
       <div style={{ padding: "13px 16px 15px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>See on the map</span>
+        <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Live forest status</span>
         <span style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".9rem", fontWeight: 800 }}>→</span>
       </div>
     </Link>

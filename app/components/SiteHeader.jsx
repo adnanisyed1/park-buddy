@@ -26,6 +26,7 @@ import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 const EXPLORE_MENU = [
   { icon: "🗺", label: "The Live Map", desc: "Parks, forests & state parks — live", href: "/explore" },
   { icon: "🛣", label: "Scenic Drives", desc: "Byways & road trips", href: "/scenic-drives" },
+  { icon: "◉", label: "Trip Mode", desc: "Live on-trip: photos, checklist, alerts", href: "/trip-mode" },
   { icon: "🚢", label: "Cruises", desc: "Reach the parks by sea", href: "/cruises" },
   { icon: "🤿", label: "Diving the Parks", desc: "Dry Tortugas · Channel Islands", href: "/diving", soon: true },
   { icon: "🧗", label: "Climbing the Parks", desc: "Yosemite · Zion · Joshua Tree", href: "/climbing", soon: true },

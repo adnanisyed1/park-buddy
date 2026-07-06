@@ -922,6 +922,10 @@ export default function BuildTripApp() {
                     <button onClick={copyLink} style={{ flex: 1, minWidth: 88, border: "1.5px solid var(--pb-line)", background: "rgba(255,255,255,.04)", color: "var(--pb-gold-soft)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "inherit" }}>Copy link</button>
                   </div>
                   <a href="/trip-print" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 14, width: "100%", boxSizing: "border-box", background: "linear-gradient(135deg,#33555f,#1d3941)", color: "#fbf6ea", border: "1px solid rgba(199,154,75,.45)", borderRadius: 13, padding: 13, fontSize: ".88rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>🖨 Print itinerary · save as PDF</a>
+                  <div style={{ display: "flex", gap: 9, marginTop: 9 }}>
+                    <a href="/trip-mode" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", borderRadius: 12, padding: "11px 12px", fontWeight: 800, fontSize: ".82rem" }}>◉ Start Trip Mode</a>
+                    <a href="/trip-book" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "rgba(255,255,255,.04)", border: "1.5px solid var(--pb-line-strong)", color: "var(--pb-gold-soft)", borderRadius: 12, padding: "11px 12px", fontWeight: 800, fontSize: ".82rem" }}>📖 Trip Book</a>
+                  </div>
                 </div>
               </div>
 

@@ -183,11 +183,11 @@ function photoTitleFor(p) {
 let photoCache = null;
 function getPhotoCache() {
   if (photoCache) return photoCache;
-  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v4") || "{}"); } catch { photoCache = {}; }
+  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v5") || "{}"); } catch { photoCache = {}; }
   return photoCache;
 }
 function savePhotoCache() {
-  try { localStorage.setItem("pb_photo_cache_v4", JSON.stringify(photoCache)); } catch {}
+  try { localStorage.setItem("pb_photo_cache_v5", JSON.stringify(photoCache)); } catch {}
 }
 
 // Photos resolve SERVER-SIDE via /api/photo (Wikipedia/Wikimedia + the NPS lookup

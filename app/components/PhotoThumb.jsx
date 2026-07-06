@@ -10,7 +10,9 @@ import { useEffect, useRef, useState } from "react";
 // a 200 `found:false` on a rate-limited (429) upstream instead of a 503 — the
 // client cached that as a permanent no-photo. Bumping the key flushes it; the API
 // now returns 503 on transient failures so it can't recur.
-export const PHOTO_CACHE_KEY = "pb_photo_cache_v4";
+// v5: bump so returning visitors re-fetch at the new crisp resolution (v4 held
+// the old 320px thumbs that looked blurry stretched across heroes/tiles).
+export const PHOTO_CACHE_KEY = "pb_photo_cache_v5";
 let cache = null;
 export function readPhotoCache() {
   if (cache) return cache;
@@ -51,8 +53,8 @@ function cacheLookup(key, q) {
   return v ? { url: v.u, geo: !!v.g, date: v.d || null } : null;
 }
 
-export function usePhoto(q, lat, lng, ref) {
-  const key = q ? q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "") : "";
+export function usePhoto(q, lat, lng, ref, w) {
+  const key = q ? q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "") + (w ? "~" + w : "") : "";
   const [photo, setPhoto] = useState(() => cacheLookup(key, q));
   // Re-sync from cache when the KEY changes — e.g. q went from null → a real
   // query once the parent's data loaded (the park-status hero photo case). Without
@@ -83,7 +85,7 @@ export function usePhoto(q, lat, lng, ref) {
   useEffect(() => {
     if (photo !== undefined || !q || !inView) return;
     let on = true;
-    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + "&v=5")
+    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + (w ? "&w=" + w : "") + "&v=5")
       .then(async (r) => {
         // A transient upstream failure (503) or a network error must NOT be
         // cached — otherwise a momentary blip poisons this tile's localStorage

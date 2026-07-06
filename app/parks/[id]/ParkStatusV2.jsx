@@ -83,7 +83,7 @@ export default function ParkStatusV2({ id }) {
   const [tripCount, setTripCount] = useState(0);
   const alertsRef = useRef(null);
 
-  const hero = usePhoto(park ? park.name + " National Park|" + park.name : null, null, null);
+  const hero = usePhoto(park ? park.name + " National Park|" + park.name : null, null, null, undefined, 1600);
 
   // ---- boot: resolve park + fetch everything ----
   useEffect(() => {
@@ -184,15 +184,19 @@ export default function ParkStatusV2({ id }) {
         @keyframes ps-ken { 0% { transform: scale(1.04);} 100% { transform: scale(1.12);} }
         .ps-tab-panel { display: none; }
         .ps-tab-panel.on { display: block; }
+        /* two-column layouts (hero, about, subscribe) — stack on mobile */
+        .ps-grid { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); }
+        @media (max-width: 860px) { .ps-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 640px) { .ps-hero { min-height: auto !important; } }
       `}</style>
 
       <SiteHeader tripCount={tripCount} onTripClick={() => { window.location.href = "/explore"; }} acctSlot />
 
       {/* HERO + VERDICT */}
-      <section style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,700px)", display: "flex", alignItems: "flex-end", padding: "clamp(96px,13vh,150px) clamp(16px,4vw,40px) clamp(30px,5vh,54px)" }}>
+      <section className="ps-hero" style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,700px)", display: "flex", alignItems: "flex-end", padding: "clamp(96px,13vh,150px) clamp(16px,4vw,40px) clamp(30px,5vh,54px)" }}>
         {park && hero && hero.url && <img alt="" src={hero.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", animation: "ps-ken 24s ease-out both" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,19,13,.4) 0%,rgba(8,19,13,.12) 38%,rgba(8,19,13,.85) 100%)" }} />
-        <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", width: "100%", display: "grid", gridTemplateColumns: "minmax(0,1.3fr) minmax(0,1fr)", gap: "clamp(20px,4vw,44px)", alignItems: "end" }}>
+        <div className="ps-grid" style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", width: "100%", display: "grid", gap: "clamp(20px,4vw,44px)", alignItems: "end" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontFamily: mono, fontSize: ".64rem", letterSpacing: ".24em", textTransform: "uppercase", color: "var(--pb-gold)" }}>National Park · {park ? park.state : ""}</span>
@@ -290,7 +294,7 @@ function Overview({ park, nps }) {
   const p = nps && nps.park;
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr)", gap: "clamp(20px,4vw,40px)" }} className="ps-grid">
+      <div style={{ display: "grid", gap: "clamp(20px,4vw,40px)" }} className="ps-grid">
         <div>
           <h2 style={{ ...H2, fontSize: "clamp(1.6rem,3.4vw,2.3rem)" }}>About the park</h2>
           <p style={{ color: "var(--pb-ink-2)", fontSize: "1rem", lineHeight: 1.75, fontWeight: 300, marginTop: 12 }}>
@@ -513,7 +517,7 @@ function Loading({ text }) { return <div style={{ textAlign: "center", color: "v
 
 function Webcam({ cam, park }) {
   const q = (cam && (cam.title || cam.name)) ? (cam.title || cam.name) + "|" + (park ? park.name : "") : (park ? park.name + " National Park" : null);
-  const photo = usePhoto(q, null, null);
+  const photo = usePhoto(q, null, null, undefined, 700);
   const img = cam && (cam.thumbnail || cam.image || cam.url);
   const src = img && /^https?:/.test(img) ? img : photo && photo.url;
   return (
@@ -553,7 +557,7 @@ function SubscribeCard({ park, alertsRef }) {
   return (
     <div ref={alertsRef} style={{ position: "relative", overflow: "hidden", borderRadius: 22, border: "1px solid var(--pb-line-strong)", background: "linear-gradient(120deg,rgba(31,94,70,.18),rgba(9,22,15,.8))", padding: "clamp(22px,4vw,38px)" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(217,183,121,.7),transparent)" }} />
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1.1fr)", gap: "clamp(20px,4vw,44px)", alignItems: "center" }} className="ps-grid">
+      <div style={{ display: "grid", gap: "clamp(20px,4vw,44px)", alignItems: "center" }} className="ps-grid">
         <div>
           <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".24em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>Stay in the loop</div>
           <h2 style={{ ...H2, fontSize: "clamp(1.7rem,3.6vw,2.6rem)", lineHeight: 1.04, marginTop: 10 }}>Subscribe to {park ? park.name : "park"} alerts.</h2>
@@ -588,7 +592,7 @@ function SubscribeCard({ park, alertsRef }) {
 // back to a geotagged photo at the trailhead, or the tasteful hatch placeholder).
 function TrailRow({ t, park, diff }) {
   const pt = (t.path && t.path[0]) || null;
-  const photo = usePhoto(t.name + " " + (park ? park.name : "") + "|" + t.name, pt ? pt[0] : null, pt ? pt[1] : null);
+  const photo = usePhoto(t.name + " " + (park ? park.name : "") + "|" + t.name, pt ? pt[0] : null, pt ? pt[1] : null, undefined, 360);
   const href = t.id != null && park && park.npsCode ? "/trail-status?trail=" + t.id + "&park=" + park.npsCode : null;
   const inner = (
     <div style={{ display: "flex", alignItems: "center", gap: 11, ...card, padding: 8 }}>
@@ -609,7 +613,7 @@ function TrailRow({ t, park, diff }) {
 // opening / sites open) + Book. Replaces the full 6-month calendar per campground,
 // which ate the whole tab; the deep calendar still lives on Recreation.gov.
 function CompactCamp({ c, park, recId }) {
-  const photo = usePhoto(c.name + "|" + c.name + " campground|" + (park ? park.name : ""), c.lat, c.lng);
+  const photo = usePhoto(c.name + "|" + c.name + " campground|" + (park ? park.name : ""), c.lat, c.lng, undefined, 700);
   const [avail, setAvail] = useState(recId ? undefined : null);
   useEffect(() => {
     if (!recId) return;
@@ -745,7 +749,7 @@ function Plan({ park, nps, places }) {
 
 /* ---------------- NEARBY ---------------- */
 function NearbyTile({ o, href, pq }) {
-  const photo = usePhoto(pq, o.lat, o.lng);
+  const photo = usePhoto(pq, o.lat, o.lng, undefined, 600);
   const tile = (
     <figure style={{ position: "relative", margin: 0, aspectRatio: "16 / 10", borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line)", background: hatch }}>
       {photo && photo.url && <img alt={o.name} src={photo.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}

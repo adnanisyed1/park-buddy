@@ -82,6 +82,15 @@ function badFile(u) {
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
+// Wikimedia thumbnail URLs embed the width ("…/thumb/a/ab/Name.jpg/330px-Name.jpg").
+// The summary API hands back a small ~320px thumb, which looks blurry stretched
+// across a full-bleed hero or a large tile — bump it to a crisp width. Non-thumb
+// URLs (already full-res) are returned unchanged.
+function upsize(url, w) {
+  if (!url) return url;
+  return url.replace(/\/(\d{2,4})px-/, "/" + w + "px-");
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 // "2012-08-29 11:59:27" (or richer HTML-wrapped forms) -> "Aug 2012"; null if unparseable.
 function captureDate(extmetadata) {
@@ -179,6 +188,9 @@ async function geoPhotoList(lat, lng, n) {
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const name = (searchParams.get("name") || "").trim();
+  // Optional target width for the thumb — crisp by default, but callers rendering
+  // tiny thumbnails can request a smaller size to save bandwidth.
+  const w = Math.min(2000, Math.max(200, parseInt(searchParams.get("w") || "1200", 10) || 1200));
   // Filmstrip mode: several geotagged photos near a point.
   if (searchParams.get("geolist")) {
     const glat = num(searchParams.get("lat")), glng = num(searchParams.get("lng"));
@@ -246,10 +258,16 @@ export async function GET(request) {
     return Response.json({ found: false });
   }
 
+  // Wikimedia ERRORS if you request a thumb wider than the source — so never
+  // upscale past the original width. If the original is already ≤ the target,
+  // serve it directly; otherwise generate a crisp thumb at the target width.
+  const ow = (d.originalimage && d.originalimage.width) || 0;
+  const rawThumb = (d.thumbnail && d.thumbnail.source) || image;
+  const thumb = ow ? (ow <= w ? image : upsize(rawThumb, w)) : upsize(rawThumb, Math.min(w, 1000));
   return Response.json({
     found: true,
     image,
-    thumb: (d.thumbnail && d.thumbnail.source) || image,
+    thumb,
     extract: (d.extract || "").slice(0, 600),
     pageUrl: (d.content_urls && d.content_urls.desktop && d.content_urls.desktop.page) || "",
     title: d.title || name,

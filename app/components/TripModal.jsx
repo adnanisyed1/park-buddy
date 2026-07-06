@@ -106,7 +106,7 @@ export default function TripModal() {
   // load (no key). Standard light theme; no browse/add markers here by design.
   useEffect(() => {
     if (!open || !coordMap) return;
-    const pts = stops.map((s) => { const c = coordMap[s.name]; return c ? { name: s.name, lat: c.lat, lng: c.lng } : null; }).filter(Boolean);
+    const pts = stops.map((s) => { const c = (s.lat != null && s.lng != null) ? s : coordMap[s.name]; return c ? { name: s.name, lat: c.lat, lng: c.lng } : null; }).filter(Boolean);
     if (!pts.length) return;
     let cancelled = false;
     ensureMapsLoaded().then((loaded) => {
@@ -180,7 +180,7 @@ export default function TripModal() {
   // Project the stops that have known coordinates for the mini route map.
   const MAP_W = 320, MAP_H = 168;
   const mapSource = coordMap
-    ? stops.map((s, i) => { const c = coordMap[s.name]; return c ? { name: s.name, lat: c.lat, lng: c.lng, i } : null; }).filter(Boolean)
+    ? stops.map((s, i) => { const c = (s.lat != null && s.lng != null) ? s : coordMap[s.name]; return c ? { name: s.name, lat: c.lat, lng: c.lng, i } : null; }).filter(Boolean)
     : [];
   const mapPts = fitProject(mapSource, MAP_W, MAP_H, 26);
 

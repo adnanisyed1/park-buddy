@@ -31,9 +31,18 @@ function read() {
   let raw;
   try { raw = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
   if (!Array.isArray(raw)) return [];
-  // Migrate legacy array-of-strings and coerce shapes.
+  // Migrate legacy array-of-strings and coerce shapes. Optional lat/lng/state/custom
+  // are preserved so custom (geocoded) stops re-hydrate without a name lookup.
   return raw
-    .map((s) => (typeof s === "string" ? { name: s, nights: DEFAULT_NIGHTS } : s && s.name ? { name: String(s.name), nights: Number(s.nights) > 0 ? Number(s.nights) : DEFAULT_NIGHTS } : null))
+    .map((s) => {
+      if (typeof s === "string") return { name: s, nights: DEFAULT_NIGHTS };
+      if (!s || !s.name) return null;
+      const o = { name: String(s.name), nights: Number(s.nights) >= 0 ? Number(s.nights) : DEFAULT_NIGHTS };
+      if (s.lat != null && s.lng != null) { o.lat = Number(s.lat); o.lng = Number(s.lng); }
+      if (s.state) o.state = String(s.state);
+      if (s.custom) o.custom = true;
+      return o;
+    })
     .filter(Boolean);
 }
 
@@ -109,7 +118,14 @@ export function moveStop(name, dir) {
 // they survive a refresh). Coerces to the {name,nights} shape.
 export function setStops(list) {
   const stops = (Array.isArray(list) ? list : [])
-    .map((s) => (s && s.name ? { name: String(s.name), nights: Number(s.nights) > 0 ? Number(s.nights) : DEFAULT_NIGHTS } : null))
+    .map((s) => {
+      if (!s || !s.name) return null;
+      const o = { name: String(s.name), nights: Number(s.nights) >= 0 ? Number(s.nights) : DEFAULT_NIGHTS };
+      if (s.lat != null && s.lng != null) { o.lat = Number(s.lat); o.lng = Number(s.lng); }
+      if (s.state) o.state = String(s.state);
+      if (s.custom) o.custom = true;
+      return o;
+    })
     .filter(Boolean);
   write(stops);
   return stops;

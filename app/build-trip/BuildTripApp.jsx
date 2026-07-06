@@ -92,6 +92,8 @@ export default function BuildTripApp() {
   const [showOnMap, setShowOnMap] = useState(true);
   const [loadedRoute, setLoadedRoute] = useState("mighty5");
   const [addSel, setAddSel] = useState("");
+  const [addrInput, setAddrInput] = useState("");
+  const [addrMsg, setAddrMsg] = useState("");
   const [budgetOverride, setBudgetOverride] = useState({ fuel: 168, lodging: 1040, food: 560, passes: 72 }); // design preset seeds
   const [editingBudget, setEditingBudget] = useState(null); // key being edited
   const [verdicts, setVerdicts] = useState({}); // name -> {status, note}
@@ -124,6 +126,7 @@ export default function BuildTripApp() {
   const routeLinesRef = useRef([]); // per-leg polylines (road or straight fallback)
   const dragIdxRef = useRef(null);
   const mapReadyRef = useRef(false);
+  const geocoderRef = useRef(null);
   // True once the user edits the trip here — gates writing back to the shared store
   // (so the initial seed / auto-loaded preset isn't saved as "the user's trip").
   const userEditedRef = useRef(false);
@@ -207,6 +210,22 @@ export default function BuildTripApp() {
     setAddSel("");
   };
 
+  // Geocode a typed address / hotel / town and add it as a stop (home → hotel →
+  // park all live in one itinerary). Server-side geocode so it works without the
+  // Google Geocoding API enabled.
+  async function addAddress() {
+    const q = addrInput.trim();
+    if (!q) return;
+    setAddrMsg("Finding…");
+    try {
+      const d = await fetch("/api/geocode?q=" + encodeURIComponent(q)).then((r) => (r.ok ? r.json() : null));
+      if (!d || !d.found) { setAddrMsg("Couldn't find that place — try a fuller address."); return; }
+      if (stops.some((s) => s.name === d.name)) { setAddrMsg(d.name + " is already in your trip."); return; }
+      commitStops(stops.concat([{ name: d.name, state: d.state || "", lat: d.lat, lng: d.lng, nights: 1, legMi: null, custom: true }]));
+      setAddrInput(""); setAddrMsg("");
+    } catch { setAddrMsg("Geocoding is unavailable right now."); }
+  }
+
   // drag-to-reorder (⠿ handle rows are draggable)
   const onDragStart = (i) => () => { dragIdxRef.current = i; };
   const onDragOver = (e) => e.preventDefault();
@@ -235,7 +254,12 @@ export default function BuildTripApp() {
       // nights. Only if the trip is empty do we fall back to the design preset.
       const saved = tripStops();
       const matched = saved
-        .map((s) => { const p = db.find((x) => x.name === s.name); return p ? { name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: s.nights > 0 ? s.nights : 2, legMi: null } : null; })
+        .map((s) => {
+          // Custom (geocoded) stops carry their own coords; parks match trip-data.
+          if (s.lat != null && s.lng != null) return { name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom };
+          const p = db.find((x) => x.name === s.name);
+          return p ? { name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: s.nights > 0 ? s.nights : 2, legMi: null } : null;
+        })
         .filter(Boolean);
       if (matched.length) {
         setStops(recomputeLegs(matched));
@@ -266,9 +290,11 @@ export default function BuildTripApp() {
   // must NOT drop the store's non-park stops — keep them alongside our park list.
   useEffect(() => {
     if (!userEditedRef.current) return;
-    const parkNames = new Set(parksDb.map((p) => p.name));
-    const nonParkStops = tripStops().filter((s) => !parkNames.has(s.name));
-    tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights })), ...nonParkStops]);
+    // Preserve store stops we don't manage here (e.g. forests added from the modal),
+    // but don't duplicate our own stops (parks + geocoded customs carry coords).
+    const managed = new Set(stops.map((s) => s.name));
+    const preserved = tripStops().filter((s) => !managed.has(s.name));
+    tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom })), ...preserved]);
     tripSetMeta({ tripName, startDate, travelers });
   }, [stops, tripName, startDate, travelers]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -812,8 +838,18 @@ export default function BuildTripApp() {
                     </select>
                     <button onClick={addPark} style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
                   </div>
-                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Or search a place — home, hotel, town…</div>
-                  <div style={{ padding: "11px 13px", border: "1.5px solid var(--pb-line)", borderRadius: 12, fontSize: ".88rem", color: "var(--pb-muted)", background: "rgba(255,255,255,.04)" }}>Type a full address or place name</div>
+                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Or add a place — home, hotel, town…</div>
+                  <div style={{ display: "flex", gap: 9 }}>
+                    <input
+                      value={addrInput}
+                      onChange={(e) => { setAddrInput(e.target.value); if (addrMsg) setAddrMsg(""); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") addAddress(); }}
+                      placeholder="123 Main St, or 'Zion Lodge', or a town…"
+                      style={{ ...fieldBox, flex: 1 }}
+                    />
+                    <button onClick={addAddress} title="Add this place" style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
+                  </div>
+                  {addrMsg && <div style={{ fontSize: ".74rem", color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
                 </div>
               </div>
 

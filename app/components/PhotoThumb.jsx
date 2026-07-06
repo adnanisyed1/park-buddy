@@ -6,7 +6,11 @@ import { useEffect, useState } from "react";
 // name-candidate lookup first, then the geotagged-Commons fallback when coords
 // are given — same pipeline as the big tiles, sized down. Shares one
 // localStorage cache (v3 — v2 held entries poisoned by the pre-503-fix window).
-export const PHOTO_CACHE_KEY = "pb_photo_cache_v3";
+// v4: v3 got poisoned in browsers by the pre-fix window where /api/photo returned
+// a 200 `found:false` on a rate-limited (429) upstream instead of a 503 — the
+// client cached that as a permanent no-photo. Bumping the key flushes it; the API
+// now returns 503 on transient failures so it can't recur.
+export const PHOTO_CACHE_KEY = "pb_photo_cache_v4";
 let cache = null;
 export function readPhotoCache() {
   if (cache) return cache;
@@ -68,7 +72,7 @@ export function usePhoto(q, lat, lng, ref) {
   useEffect(() => {
     if (photo !== undefined || !q || !inView) return;
     let on = true;
-    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + "&v=4")
+    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + "&v=5")
       .then(async (r) => {
         // A transient upstream failure (503) or a network error must NOT be
         // cached — otherwise a momentary blip poisons this tile's localStorage

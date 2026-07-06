@@ -10,16 +10,30 @@
 export const runtime = "nodejs";
 export const revalidate = 604800; // a week — lead images rarely change
 
+// Returns the Wikipedia summary JSON, or null when the page GENUINELY doesn't
+// exist (404 / disambiguation). A TRANSIENT failure — rate-limit (429), 5xx,
+// timeout, or network error — THROWS `{transient:true}` instead, so the caller
+// returns 503 rather than flattening it to a `found:false` the client would cache
+// as a permanent "no photo". This is the fix for "photos vanish under load": on
+// Vercel's shared IP, a concurrent burst gets 429'd, and the old code cached that
+// as false forever.
+function transientErr(msg) { const e = new Error(msg || "transient"); e.transient = true; return e; }
 async function summary(title) {
+  const url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(title) + "?redirect=true";
+  let r;
   try {
-    const url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(title) + "?redirect=true";
-    const r = await fetch(url, { headers: { accept: "application/json", "User-Agent": "ParkBuddy/1.0 (park status)" }, next: { revalidate: 604800 } });
-    if (!r.ok) return null;
+    r = await fetch(url, { headers: { accept: "application/json", "User-Agent": "ParkBuddy/1.0 (park status)" }, next: { revalidate: 604800 }, signal: AbortSignal.timeout(7000) });
+  } catch {
+    throw transientErr("network");
+  }
+  if (r.status === 404) return null;           // genuinely no such page
+  if (!r.ok) throw transientErr("http " + r.status); // 429 / 5xx → transient
+  try {
     const d = await r.json();
     if (d.type === "disambiguation") return null;
     return d;
   } catch {
-    return null;
+    throw transientErr("parse");
   }
 }
 
@@ -204,9 +218,11 @@ export async function GET(request) {
   const seenTry = new Set();
   const queue = tries.filter((t) => t && !seenTry.has(t.toLowerCase()) && seenTry.add(t.toLowerCase()));
 
-  let d = null, image = "";
+  let d = null, image = "", sawError = false;
   for (const t of queue) {
-    const s = await summary(t);
+    let s = null;
+    try { s = await summary(t); }
+    catch (e) { if (e && e.transient) sawError = true; continue; } // rate-limit/timeout — try next, don't give up as "no photo"
     const img = s ? (s.originalimage && s.originalimage.source) || (s.thumbnail && s.thumbnail.source) || "" : "";
     if (img && !badFile(img)) { d = s; image = img; break; }
   }
@@ -221,10 +237,12 @@ export async function GET(request) {
     if (lat != null && lng != null) {
       const gp = await geoPhoto(lat, lng);
       if (gp && gp.found) return Response.json(gp);
-      // Upstream failed (not "genuinely no photo here") — return 503 so Next's
-      // fetch cache does NOT pin this as a definitive not-found for 7 days.
-      if (gp && gp.error) return Response.json({ found: false, degraded: true }, { status: 503 });
+      if (gp && gp.error) sawError = true;
     }
+    // A TRANSIENT upstream failure (429/timeout) must NOT be returned as a 200
+    // `found:false` — the client would cache that as a permanent "no photo".
+    // Return 503 so both usePhoto and ExploreApp's fetcher skip caching and retry.
+    if (sawError) return Response.json({ found: false, degraded: true }, { status: 503 });
     return Response.json({ found: false });
   }
 

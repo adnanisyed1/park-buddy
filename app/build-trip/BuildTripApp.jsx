@@ -96,6 +96,20 @@ export default function BuildTripApp() {
   const [keyOverlay, setKeyOverlay] = useState(false);
   const [keyMsg, setKeyMsg] = useState("Paste a Google Maps JavaScript API key to load the live map.");
 
+  // Explore-style browse filters — control which destination markers show on the
+  // map (click a marker to add it to the trip). National parks come from trip-data;
+  // forests from the curated JSON; state parks live from /api/destinations by bbox.
+  const [layers, setLayers] = useState({ np: true, forest: false, statePark: false });
+  const [browseState, setBrowseState] = useState(""); // "" = all states
+  const [forestsDb, setForestsDb] = useState([]);
+  const [stateParksDb, setStateParksDb] = useState([]);
+  const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
+  const browseMarkersRef = useRef([]);
+  const layersRef = useRef(layers);
+  const browseStateRef = useRef("");
+  useEffect(() => { layersRef.current = layers; }, [layers]);
+  useEffect(() => { browseStateRef.current = browseState; }, [browseState]);
+
   const mapDivRef = useRef(null);
   const keyInputRef = useRef(null);
   const mapObjRef = useRef(null);
@@ -277,7 +291,10 @@ export default function BuildTripApp() {
       backgroundColor: "#0f1c15", styles: MAP_STYLE,
     });
     mapReadyRef.current = true;
+    setMapReady(true); // re-runs the marker-draw effects with fresh data closures
     setKeyOverlay(false);
+    // Stream state parks for the visible area as the user pans (when that layer's on).
+    mapObjRef.current.addListener("idle", () => { if (layersRef.current.statePark) fetchStateParks(); });
     drawRoute();
   }
 
@@ -310,6 +327,78 @@ export default function BuildTripApp() {
     map.fitBounds(bounds, 52);
   }
   useEffect(() => { drawRoute(); }, [stops, showOnMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---------------- browse markers (Explore-style filters) ---------------- */
+
+  // National forests dataset (for the "Forests" layer).
+  useEffect(() => {
+    fetch("/national-forests.json").then((r) => (r.ok ? r.json() : null)).then((d) => setForestsDb((d && d.forests) || [])).catch(() => {});
+  }, []);
+
+  function browseMarkerSvg(type, color) {
+    let shape;
+    if (type === "forest") shape = '<polygon points="11,3 19,18 3,18" fill="' + color + '" stroke="#0a1710" stroke-width="1.5"/>';
+    else if (type === "statePark") shape = '<g transform="rotate(45 11 11)"><rect x="4.5" y="4.5" width="13" height="13" rx="2" fill="' + color + '" stroke="#0a1710" stroke-width="1.5"/></g>';
+    else shape = '<circle cx="11" cy="11" r="8" fill="' + color + '" stroke="#0a1710" stroke-width="1.5"/>';
+    return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">' + shape + "</svg>");
+  }
+
+  function addDestination(d) {
+    if (!d || d.lat == null || stops.some((s) => s.name === d.name)) return;
+    commitStops(stops.concat([{ name: d.name, state: d.state || "", lat: d.lat, lng: d.lng, nights: 1, legMi: null }]));
+  }
+
+  function drawBrowse() {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map || !mapReadyRef.current) return;
+    browseMarkersRef.current.forEach((m) => m.setMap(null));
+    browseMarkersRef.current = [];
+    const inTrip = new Set(stops.map((s) => s.name));
+    const st = browseState;
+    const paint = (list, type, color) => {
+      list.forEach((d) => {
+        if (!d || d.lat == null || inTrip.has(d.name)) return;
+        if (st && d.state !== st) return;
+        const mk = new g.maps.Marker({
+          position: { lat: d.lat, lng: d.lng }, map, title: d.name + (d.state ? " · " + d.state : "") + " — tap to add",
+          icon: { url: browseMarkerSvg(type, color), scaledSize: new g.maps.Size(22, 22), anchor: new g.maps.Point(11, 11) },
+          zIndex: 1,
+        });
+        mk.addListener("click", () => addDestination({ name: d.name, state: d.state, lat: d.lat, lng: d.lng }));
+        browseMarkersRef.current.push(mk);
+      });
+    };
+    if (layers.np) paint(parksDb, "np", "#5fbf86");
+    if (layers.forest) paint(forestsDb, "forest", "#6f9e5a");
+    if (layers.statePark) paint(stateParksDb, "statePark", "#d9a441");
+  }
+  useEffect(() => { drawBrowse(); }, [layers, browseState, parksDb, forestsDb, stateParksDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // State parks stream in live by map bbox (empty if the destinations table isn't
+  // configured — honest, the rest of the map still works). Accumulate as you pan.
+  function fetchStateParks() {
+    const map = mapObjRef.current;
+    if (!map || !map.getBounds) return;
+    const b = map.getBounds();
+    if (!b) return;
+    const ne = b.getNorthEast(), sw = b.getSouthWest();
+    const bbox = [sw.lng(), sw.lat(), ne.lng(), ne.lat()].map((n) => n.toFixed(3)).join(",");
+    fetch("/api/destinations?bbox=" + bbox + "&type=state_park&limit=250").then((r) => (r.ok ? r.json() : null)).then((d) => {
+      const list = ((d && d.destinations) || []).filter((x) => x && x.lat != null).map((x) => ({ name: x.name, state: x.state, lat: x.lat, lng: x.lng }));
+      if (!list.length) return;
+      setStateParksDb((prev) => { const seen = new Set(prev.map((p) => p.name)); return prev.concat(list.filter((x) => !seen.has(x.name))); });
+    }).catch(() => {});
+  }
+  // Fetch when the State Parks layer is switched on.
+  useEffect(() => { if (layers.statePark) fetchStateParks(); }, [layers.statePark]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // States list for the browse filter (from the real datasets).
+  const browseStates = (() => {
+    const set = new Set();
+    parksDb.forEach((p) => p.state && set.add(p.state));
+    forestsDb.forEach((f) => f.state && set.add(f.state));
+    return [...set].sort();
+  })();
 
   // live per-stop verdicts (same engine as /explore; graceful if PBVerdict absent)
   useEffect(() => {
@@ -473,8 +562,20 @@ export default function BuildTripApp() {
                     <p style={{ fontSize: ".7rem", color: "var(--pb-muted)", margin: "10px 0 0", lineHeight: 1.45 }}>Stored only in your browser. Use an unrestricted dev key, or add this URL to the key&apos;s allowed referrers.</p>
                   </div>
                 </div>
-                <div style={{ position: "absolute", top: 14, left: 14, zIndex: 3, display: "flex", alignItems: "center", gap: 7, background: "rgba(16,32,23,.86)", color: "#e4be78", padding: "7px 13px", borderRadius: 999, fontSize: ".72rem", fontWeight: 700, letterSpacing: ".03em" }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#46d97f", boxShadow: "0 0 0 3px rgba(70,217,127,.3)" }} />LIVE ROUTE
+                {/* browse filter bar — toggle destination types + state to add from the map */}
+                <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 4, display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
+                  {[{ k: "np", label: "Parks", color: "#5fbf86", glyph: "●" }, { k: "forest", label: "Forests", color: "#6f9e5a", glyph: "▲" }, { k: "statePark", label: "State Parks", color: "#d9a441", glyph: "◆" }].map((t) => (
+                    <button key={t.k} onClick={() => setLayers((l) => ({ ...l, [t.k]: !l[t.k] }))} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 700, padding: "7px 12px", borderRadius: 999, background: layers[t.k] ? "rgba(12,26,18,.94)" : "rgba(12,26,18,.7)", border: "1px solid " + (layers[t.k] ? t.color : "rgba(255,255,255,.14)"), color: layers[t.k] ? "#f4f1ea" : "#9aa7a0", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)" }}>
+                      <span style={{ color: t.color, fontSize: ".7rem" }}>{t.glyph}</span>{t.label}
+                    </button>
+                  ))}
+                  <select value={browseState} onChange={(e) => setBrowseState(e.target.value)} title="Filter destinations by state" style={{ fontFamily: "inherit", fontSize: ".72rem", fontWeight: 700, color: "#e7e3d8", background: "rgba(12,26,18,.9)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "7px 10px", cursor: "pointer", colorScheme: "dark", maxWidth: 150 }}>
+                    <option value="">All states</option>
+                    {browseStates.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div style={{ position: "absolute", bottom: 14, left: 14, zIndex: 3, display: "flex", alignItems: "center", gap: 7, background: "rgba(16,32,23,.86)", color: "#e4be78", padding: "6px 12px", borderRadius: 999, fontSize: ".66rem", fontWeight: 700, letterSpacing: ".03em" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#46d97f", boxShadow: "0 0 0 3px rgba(70,217,127,.3)" }} />Tap a marker to add
                 </div>
                 <div style={{ position: "absolute", bottom: 14, right: 14, zIndex: 3, background: "var(--pb-surface)", color: "var(--pb-ink)", padding: "7px 13px", borderRadius: 999, fontSize: ".76rem", fontWeight: 700, boxShadow: "0 6px 16px rgba(0,0,0,.14)" }}>{totalMiles} mi · {driveHrs} h drive</div>
               </div>

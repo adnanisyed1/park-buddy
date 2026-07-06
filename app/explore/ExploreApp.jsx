@@ -183,11 +183,11 @@ function photoTitleFor(p) {
 let photoCache = null;
 function getPhotoCache() {
   if (photoCache) return photoCache;
-  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v5") || "{}"); } catch { photoCache = {}; }
+  try { photoCache = JSON.parse(localStorage.getItem("pb_photo_cache_v6") || "{}"); } catch { photoCache = {}; }
   return photoCache;
 }
 function savePhotoCache() {
-  try { localStorage.setItem("pb_photo_cache_v5", JSON.stringify(photoCache)); } catch {}
+  try { localStorage.setItem("pb_photo_cache_v6", JSON.stringify(photoCache)); } catch {}
 }
 
 // Photos resolve SERVER-SIDE via /api/photo (Wikipedia/Wikimedia + the NPS lookup
@@ -198,7 +198,7 @@ function fetchPhoto(p) {
   const cached = cache[p.name];
   if (cached) return Promise.resolve(cached);
   if (cached === false) return Promise.resolve(null);
-  return fetch("/api/photo?name=" + encodeURIComponent(photoTitleFor(p)) + "&state=" + encodeURIComponent(p.state || ""))
+  return fetch("/api/photo?name=" + encodeURIComponent(photoTitleFor(p)) + "&state=" + encodeURIComponent(p.state || "") + "&v=6")
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       if (d && d.found) { const url = d.thumb || d.image || null; if (url) { cache[p.name] = url; savePhotoCache(); } return url; }
@@ -230,7 +230,7 @@ function fetchTrailPhoto(name, state) {
   const cached = cache[key];
   if (cached) return Promise.resolve(cached);
   if (cached === false) return Promise.resolve(null);
-  return fetch("/api/photo?name=" + encodeURIComponent(name) + "&state=" + encodeURIComponent(state || ""))
+  return fetch("/api/photo?name=" + encodeURIComponent(name) + "&state=" + encodeURIComponent(state || "") + "&v=6")
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       if (d && d.found) { const url = d.thumb || d.image || null; if (url) { cache[key] = url; savePhotoCache(); } return url; }

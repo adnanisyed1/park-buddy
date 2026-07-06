@@ -12,7 +12,10 @@ import { useEffect, useRef, useState } from "react";
 // now returns 503 on transient failures so it can't recur.
 // v5: bump so returning visitors re-fetch at the new crisp resolution (v4 held
 // the old 320px thumbs that looked blurry stretched across heroes/tiles).
-export const PHOTO_CACHE_KEY = "pb_photo_cache_v5";
+// v6: flush URLs that pointed at an arbitrary-width thumb of a giant source (e.g.
+// Bryce Canyon's 10000×6000 panorama), which Wikimedia 400s — the API now serves a
+// pre-generated width for those, but the broken URLs were already cached at v5.
+export const PHOTO_CACHE_KEY = "pb_photo_cache_v6";
 let cache = null;
 export function readPhotoCache() {
   if (cache) return cache;
@@ -85,7 +88,7 @@ export function usePhoto(q, lat, lng, ref, w) {
   useEffect(() => {
     if (photo !== undefined || !q || !inView) return;
     let on = true;
-    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + (w ? "&w=" + w : "") + "&v=5")
+    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + (w ? "&w=" + w : "") + "&v=6")
       .then(async (r) => {
         // A transient upstream failure (503) or a network error must NOT be
         // cached — otherwise a momentary blip poisons this tile's localStorage

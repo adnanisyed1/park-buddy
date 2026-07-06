@@ -82,15 +82,6 @@ function badFile(u) {
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
-// Wikimedia thumbnail URLs embed the width ("…/thumb/a/ab/Name.jpg/330px-Name.jpg").
-// The summary API hands back a small ~320px thumb, which looks blurry stretched
-// across a full-bleed hero or a large tile — bump it to a crisp width. Non-thumb
-// URLs (already full-res) are returned unchanged.
-function upsize(url, w) {
-  if (!url) return url;
-  return url.replace(/\/(\d{2,4})px-/, "/" + w + "px-");
-}
-
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 // "2012-08-29 11:59:27" (or richer HTML-wrapped forms) -> "Aug 2012"; null if unparseable.
 function captureDate(extmetadata) {
@@ -258,12 +249,17 @@ export async function GET(request) {
     return Response.json({ found: false });
   }
 
-  // Wikimedia ERRORS if you request a thumb wider than the source — so never
-  // upscale past the original width. If the original is already ≤ the target,
-  // serve it directly; otherwise generate a crisp thumb at the target width.
-  const ow = (d.originalimage && d.originalimage.width) || 0;
+  // IMPORTANT: never rewrite the thumbnail width. Wikimedia only reliably serves
+  // widths it has PRE-GENERATED (fixed size "buckets"); requesting an arbitrary
+  // width returns HTTP 400 — a broken image — even for small files. Verified live:
+  // Zion's 1000px lead image serves at 330 and 500 but 400s at 320/360/400/512/
+  // 600/640/800/1000, and Bryce's 60 MP panorama 400s at every width but its two
+  // pre-generated ones. So we serve only the two URLs the summary GUARANTEES:
+  //   • the full-resolution original for a hero that must look crisp (w ≥ 1000);
+  //   • the ready-made ~330px summary thumbnail everywhere else — which is plenty,
+  //     since every tile/thumbnail on the site displays well under 330px wide.
   const rawThumb = (d.thumbnail && d.thumbnail.source) || image;
-  const thumb = ow ? (ow <= w ? image : upsize(rawThumb, w)) : upsize(rawThumb, Math.min(w, 1000));
+  const thumb = w >= 1000 ? (image || rawThumb) : (rawThumb || image);
   return Response.json({
     found: true,
     image,

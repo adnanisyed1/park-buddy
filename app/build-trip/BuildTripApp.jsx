@@ -45,6 +45,9 @@ const ROUTES = [
 // preset so the page matches the design at load; edits recompute via haversine.
 const MIGHTY5_LEGS = [null, 84, 118, 147, 32];
 
+// Trail line colors (match /explore).
+const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" };
+
 const CARS = ["Compact", "Midsize SUV", "Full-size SUV", "Minivan", "RV / Camper"];
 const FUEL_PER_MI = 0.2333; // ≈ design: 720 mi → $168
 const LODGING_PER_NIGHT = 130; // design: 8 nights → $1,040
@@ -77,6 +80,21 @@ const STOP_STATUS = {
   loading: { label: "CHECKING", dot: "#9aa7a0", text: "#9aa7a0", note: "var(--pb-muted)", bg: "rgba(255,255,255,.05)" },
 };
 
+// One filter toggle row (Explore-style: glyph + label + switch).
+function BtTog({ glyph, color, label, on, onClick }) {
+  return (
+    <button type="button" onClick={onClick} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "inherit", textAlign: "left", background: "transparent", border: "none", padding: "8px 2px" }}>
+      <span style={{ color, fontSize: ".82rem", width: 16, textAlign: "center", flex: "none" }}>{glyph}</span>
+      <span style={{ flex: 1, fontSize: ".86rem", fontWeight: 600, color: on ? "var(--pb-ink)" : "#9aa7a0" }}>{label}</span>
+      <span style={{ width: 34, height: 20, borderRadius: 999, background: on ? "var(--pb-grad-gold)" : "rgba(255,255,255,.12)", position: "relative", flex: "none", transition: "background .2s" }}>
+        <span style={{ position: "absolute", top: 2, left: on ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: on ? "var(--pb-bg)" : "#e7e3d8", transition: "left .2s" }} />
+      </span>
+    </button>
+  );
+}
+const btFilterMini = { cursor: "pointer", fontFamily: "inherit", fontSize: ".68rem", fontWeight: 700, color: "#e7e3d8", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 8, padding: "4px 10px" };
+const btStep = { width: 30, height: 30, flex: "none", borderRadius: 8, border: "1px solid var(--pb-line-strong)", background: "rgba(255,255,255,.04)", color: "var(--pb-ink)", fontSize: "1rem", cursor: "pointer", fontFamily: "inherit" };
+
 /* ================================ component ================================ */
 
 export default function BuildTripApp() {
@@ -96,25 +114,30 @@ export default function BuildTripApp() {
   const [keyOverlay, setKeyOverlay] = useState(false);
   const [keyMsg, setKeyMsg] = useState("Paste a Google Maps JavaScript API key to load the live map.");
 
-  // Explore-style browse filters — control which destination markers show on the
-  // map (click a marker to add it to the trip). National parks come from trip-data;
-  // forests from the curated JSON; state parks live from /api/destinations by bbox.
-  const [layers, setLayers] = useState({ np: true, forest: false, statePark: false });
+  // Explore-style filters — the full set. Destination types put clickable markers on
+  // the map (tap to add to the trip); the "on the map" layers draw campgrounds, lakes
+  // and trails around each stop within the radius.
+  const [layers, setLayers] = useState({ np: true, statePark: false, forest: false, camp: false, lake: false, hiking: false, offroad: false, ski: false });
   const [browseState, setBrowseState] = useState(""); // "" = all states
+  const [radius, setRadius] = useState(50); // miles — scopes the map layers around each stop
   const [forestsDb, setForestsDb] = useState([]);
   const [stateParksDb, setStateParksDb] = useState([]);
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
+  const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
+  const dirServiceRef = useRef(null);
+  const routeGenRef = useRef(0); // ignores stale Directions callbacks
   const browseMarkersRef = useRef([]);
+  const layerOverlaysRef = useRef([]); // campground/lake markers + trail polylines
+  const layerCacheRef = useRef({}); // `${stopName}|${kind}` → data (avoid refetching)
+  const layerGenRef = useRef(0); // cancels stale async layer draws
   const layersRef = useRef(layers);
-  const browseStateRef = useRef("");
   useEffect(() => { layersRef.current = layers; }, [layers]);
-  useEffect(() => { browseStateRef.current = browseState; }, [browseState]);
 
   const mapDivRef = useRef(null);
   const keyInputRef = useRef(null);
   const mapObjRef = useRef(null);
   const routeMarkersRef = useRef([]);
-  const routeLineRef = useRef(null);
+  const routeLinesRef = useRef([]); // per-leg polylines (road or straight fallback)
   const dragIdxRef = useRef(null);
   const mapReadyRef = useRef(false);
   // True once the user edits the trip here — gates writing back to the shared store
@@ -287,7 +310,7 @@ export default function BuildTripApp() {
     const g = window.google;
     mapObjRef.current = new g.maps.Map(el, {
       center: { lat: 38.05, lng: -111.3 }, zoom: 7,
-      disableDefaultUI: true, zoomControl: true, gestureHandling: "greedy",
+      disableDefaultUI: true, zoomControl: true, gestureHandling: "cooperative",
       backgroundColor: "#0f1c15", styles: MAP_STYLE,
     });
     mapReadyRef.current = true;
@@ -295,16 +318,18 @@ export default function BuildTripApp() {
     setKeyOverlay(false);
     // Stream state parks for the visible area as the user pans (when that layer's on).
     mapObjRef.current.addListener("idle", () => { if (layersRef.current.statePark) fetchStateParks(); });
-    drawRoute();
+    // drawRoute/drawBrowse/drawLayers run from their effects once mapReady flips.
   }
 
   function drawRoute() {
     const g = window.google;
     const map = mapObjRef.current;
     if (!g || !map || !mapReadyRef.current) return;
+    const gen = ++routeGenRef.current;
     routeMarkersRef.current.forEach((m) => m.setMap(null));
     routeMarkersRef.current = [];
-    if (routeLineRef.current) { routeLineRef.current.setMap(null); routeLineRef.current = null; }
+    routeLinesRef.current.forEach((l) => l.setMap(null));
+    routeLinesRef.current = [];
     if (!showOnMap || !stops.length) return;
 
     const path = [], bounds = new g.maps.LatLngBounds();
@@ -320,13 +345,45 @@ export default function BuildTripApp() {
         },
       }));
     });
-    routeLineRef.current = new g.maps.Polyline({
-      path, map, geodesic: true, strokeOpacity: 0,
-      icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#e4be78", scale: 3 }, offset: "0", repeat: "12px" }],
-    });
     map.fitBounds(bounds, 52);
+
+    if (stops.length < 2) { setRoadInfo(null); return; }
+    if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
+    const reqStops = stops.slice();
+    const mapObj = mapObjRef.current;
+    // Route each consecutive LEG on its own. A single multi-waypoint request fails
+    // entirely if any one park's centroid isn't reachable by road (e.g. Zion's
+    // canyon interior), so per-leg we draw the real road where it routes and a
+    // dashed straight line only for the leg that can't.
+    const routeLeg = (a, b, attempt) => new Promise((resolve) => {
+      dirServiceRef.current.route({ origin: { lat: a.lat, lng: a.lng }, destination: { lat: b.lat, lng: b.lng }, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
+        if (status === "OK" && res && res.routes && res.routes[0]) {
+          const lg = res.routes[0];
+          resolve({ ok: true, path: lg.overview_path, meters: lg.legs.reduce((s, l) => s + (l.distance ? l.distance.value : 0), 0), secs: lg.legs.reduce((s, l) => s + (l.duration ? l.duration.value : 0), 0) });
+        } else if (attempt < 2 && status !== "ZERO_RESULTS" && status !== "NOT_FOUND" && status !== "REQUEST_DENIED") {
+          setTimeout(() => routeLeg(a, b, attempt + 1).then(resolve), 500 * (attempt + 1));
+        } else resolve({ ok: false });
+      });
+    });
+    (async () => {
+      let meters = 0, secs = 0;
+      for (let i = 0; i < reqStops.length - 1; i++) {
+        const a = reqStops[i], b = reqStops[i + 1];
+        const r = await routeLeg(a, b, 0);
+        if (gen !== routeGenRef.current || !mapReadyRef.current) return; // stale — a newer draw superseded us
+        if (r.ok) {
+          routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#e4be78", strokeOpacity: 0.95, strokeWeight: 4 }));
+          meters += r.meters; secs += r.secs;
+        } else {
+          routeLinesRef.current.push(new g.maps.Polyline({ path: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }], map: mapObj, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#e4be78", scale: 3 }, offset: "0", repeat: "12px" }] }));
+          const mi = milesBetween(a, b) * 1.25; // straight-line → road estimate
+          meters += mi * 1609.34; secs += (mi / 55) * 3600;
+        }
+      }
+      if (gen === routeGenRef.current) setRoadInfo({ miles: Math.round(meters / 1609.34), mins: Math.round(secs / 60) });
+    })();
   }
-  useEffect(() => { drawRoute(); }, [stops, showOnMap]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------- browse markers (Explore-style filters) ---------------- */
 
@@ -373,6 +430,62 @@ export default function BuildTripApp() {
     if (layers.statePark) paint(stateParksDb, "statePark", "#d9a441");
   }
   useEffect(() => { drawBrowse(); }, [layers, browseState, parksDb, forestsDb, stateParksDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* -------- "on the map" layers: campgrounds / lakes / trails around each stop -------- */
+
+  async function ensureLayerData(stop, kind) {
+    const key = stop.name + "|" + kind;
+    if (layerCacheRef.current[key]) return layerCacheRef.current[key];
+    const la = stop.lat.toFixed(4), ln = stop.lng.toFixed(4);
+    let data = null;
+    try {
+      if (kind === "camp") {
+        const d = await fetch("/api/places?lat=" + la + "&lng=" + ln + "&radius=" + radius).then((r) => (r.ok ? r.json() : null));
+        data = ((d && d.facilities) || []).concat((d && d.recAreas) || []).filter((x) => x && x.lat != null);
+      } else if (kind === "lake") {
+        const d = await fetch("/api/water?lat=" + la + "&lng=" + ln + "&radius=" + Math.round(radius * 1.609)).then((r) => (r.ok ? r.json() : null));
+        data = ((d && d.lakes) || []).filter((x) => x && x.lat != null);
+      } else {
+        const d = await fetch("/api/trails?lat=" + la + "&lng=" + ln + "&radius=" + radius).then((r) => (r.ok ? r.json() : null));
+        data = d && (d.hiking || d.offroad || d.ski) ? d : { hiking: [], offroad: [], ski: [] };
+      }
+    } catch {}
+    layerCacheRef.current[key] = data || (kind === "trails" ? { hiking: [], offroad: [], ski: [] } : []);
+    return layerCacheRef.current[key];
+  }
+
+  async function drawLayers() {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map || !mapReadyRef.current) return;
+    layerOverlaysRef.current.forEach((o) => o.setMap(null));
+    layerOverlaysRef.current = [];
+    const L = layers;
+    const needTrails = L.hiking || L.offroad || L.ski;
+    if (!L.camp && !L.lake && !needTrails) return;
+    const gen = ++layerGenRef.current;
+    const dot = (color, r) => ({ url: browseMarkerSvg("np", color), scaledSize: new g.maps.Size(r, r), anchor: new g.maps.Point(r / 2, r / 2) });
+    for (const stop of stops) {
+      if (L.camp) {
+        const d = await ensureLayerData(stop, "camp"); if (gen !== layerGenRef.current) return;
+        d.forEach((c) => layerOverlaysRef.current.push(new g.maps.Marker({ position: { lat: c.lat, lng: c.lng }, map, title: (c.name || "Campground") + " · campground", icon: { ...dot("#d08a4b", 15) }, zIndex: 0 })));
+      }
+      if (L.lake) {
+        const d = await ensureLayerData(stop, "lake"); if (gen !== layerGenRef.current) return;
+        d.forEach((k) => layerOverlaysRef.current.push(new g.maps.Marker({ position: { lat: k.lat, lng: k.lng }, map, title: (k.name || "Lake") + " · lake", icon: { ...dot("#4f96c9", 14) }, zIndex: 0 })));
+      }
+      if (needTrails) {
+        const d = await ensureLayerData(stop, "trails"); if (gen !== layerGenRef.current) return;
+        ["hiking", "offroad", "ski"].forEach((cat) => {
+          if (!L[cat]) return;
+          (d[cat] || []).forEach((t) => {
+            if (!t.path || t.path.length < 2) return;
+            layerOverlaysRef.current.push(new g.maps.Polyline({ path: t.path.map((p) => ({ lat: p[0], lng: p[1] })), map, strokeColor: TRAIL_STYLE[cat], strokeOpacity: 0.85, strokeWeight: 3, zIndex: 0 }));
+          });
+        });
+      }
+    }
+  }
+  useEffect(() => { drawLayers(); }, [layers, radius, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // State parks stream in live by map bbox (empty if the destinations table isn't
   // configured — honest, the rest of the map still works). Accumulate as you pan.
@@ -445,6 +558,7 @@ export default function BuildTripApp() {
 
   const sans = "var(--font-hanken), 'Hanken Grotesk', system-ui, sans-serif";
   const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
+  const mono = "var(--pb-mono), ui-monospace, monospace";
   const panel = { position: "relative", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 22, boxShadow: "0 22px 50px -30px rgba(0,0,0,.7)" };
   const stepNum = { position: "absolute", left: 10, top: 20, width: 37, height: 37, borderRadius: 12, background: "linear-gradient(150deg,#33555f,#1d3941)", color: "#e4be78", border: "1px solid rgba(228,190,120,.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: "1.06rem", fontWeight: 800, boxShadow: "0 8px 18px -8px rgba(8,18,12,.6)" };
   const fieldLabel = { fontSize: ".66rem", fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--pb-muted)" };
@@ -549,6 +663,53 @@ export default function BuildTripApp() {
         <div style={{ position: "relative", background: "linear-gradient(180deg,rgba(9,18,13,.92),var(--pb-bg))", borderTop: "1px solid var(--pb-line)", borderRadius: "34px 34px 0 0", marginTop: "clamp(18px,3vh,30px)", boxShadow: "0 -26px 70px -34px rgba(0,0,0,.85)", paddingTop: 8 }}>
           <div className="bt-sheet-grid" style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(20px,3vw,34px) clamp(16px,3vw,28px) 44px", display: "grid", gridTemplateColumns: "1fr 480px", gap: 22, alignItems: "start", boxSizing: "border-box" }}>
 
+            {/* LEFT COLUMN — filters (off the map) + map */}
+            <div>
+            {/* ===== FILTER PANEL (Explore's full set) ===== */}
+            <div style={{ ...panel, padding: "16px 18px", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+                <div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Filters · tap a map marker to add</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => setLayers({ np: true, statePark: true, forest: true, camp: true, lake: true, hiking: true, offroad: true, ski: true })} style={btFilterMini}>All</button>
+                  <button onClick={() => setLayers({ np: false, statePark: false, forest: false, camp: false, lake: false, hiking: false, offroad: false, ski: false })} style={btFilterMini}>None</button>
+                </div>
+              </div>
+              {/* state + radius */}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+                <label style={{ flex: "1 1 150px", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={fieldLabel}>State</span>
+                  <select value={browseState} onChange={(e) => setBrowseState(e.target.value)} style={fieldBox}>
+                    <option value="">All states</option>
+                    {browseStates.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </label>
+                <div style={{ flex: "1 1 150px", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={fieldLabel}>Layers radius · {radius} mi</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, height: 38 }}>
+                    <button onClick={() => setRadius((r) => Math.max(10, r - 25))} style={btStep}>−</button>
+                    <input type="range" min="10" max="150" step="5" value={radius} onChange={(e) => setRadius(+e.target.value)} style={{ flex: 1, accentColor: "#d9b779" }} />
+                    <button onClick={() => setRadius((r) => Math.min(150, r + 25))} style={btStep}>+</button>
+                  </div>
+                </div>
+              </div>
+              {/* destination types */}
+              <div style={{ ...fieldLabel, marginBottom: 7 }}>Destination types</div>
+              <div style={{ marginBottom: 14 }}>
+                <BtTog glyph="●" color="#5fbf86" label="National Parks" on={layers.np} onClick={() => setLayers((l) => ({ ...l, np: !l.np }))} />
+                <BtTog glyph="◆" color="#d9a441" label="State Parks" on={layers.statePark} onClick={() => setLayers((l) => ({ ...l, statePark: !l.statePark }))} />
+                <BtTog glyph="▲" color="#6f9e5a" label="National Forests" on={layers.forest} onClick={() => setLayers((l) => ({ ...l, forest: !l.forest }))} />
+              </div>
+              {/* on-the-map layers */}
+              <div style={{ ...fieldLabel, marginBottom: 7 }}>On the map · around each stop</div>
+              <div>
+                <BtTog glyph="▲" color="#d08a4b" label="Campgrounds &amp; areas" on={layers.camp} onClick={() => setLayers((l) => ({ ...l, camp: !l.camp }))} />
+                <BtTog glyph="●" color="#4f96c9" label="Lakes" on={layers.lake} onClick={() => setLayers((l) => ({ ...l, lake: !l.lake }))} />
+                <BtTog glyph="▬" color={TRAIL_STYLE.hiking} label="Hiking trails" on={layers.hiking} onClick={() => setLayers((l) => ({ ...l, hiking: !l.hiking }))} />
+                <BtTog glyph="▬" color={TRAIL_STYLE.offroad} label="Off-road / 4×4" on={layers.offroad} onClick={() => setLayers((l) => ({ ...l, offroad: !l.offroad }))} />
+                <BtTog glyph="▬" color={TRAIL_STYLE.ski} label="Ski routes" on={layers.ski} onClick={() => setLayers((l) => ({ ...l, ski: !l.ski }))} />
+              </div>
+            </div>
+
             {/* MAP (sticky) */}
             <div style={{ position: "sticky", top: 90, borderRadius: 22, overflow: "hidden", border: "1px solid var(--pb-line)", boxShadow: "0 22px 50px -26px rgba(28,46,34,.5)", background: "#0f1c15" }}>
               <div style={{ position: "relative", height: "76vh", minHeight: 480 }}>
@@ -562,23 +723,12 @@ export default function BuildTripApp() {
                     <p style={{ fontSize: ".7rem", color: "var(--pb-muted)", margin: "10px 0 0", lineHeight: 1.45 }}>Stored only in your browser. Use an unrestricted dev key, or add this URL to the key&apos;s allowed referrers.</p>
                   </div>
                 </div>
-                {/* browse filter bar — toggle destination types + state to add from the map */}
-                <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 4, display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
-                  {[{ k: "np", label: "Parks", color: "#5fbf86", glyph: "●" }, { k: "forest", label: "Forests", color: "#6f9e5a", glyph: "▲" }, { k: "statePark", label: "State Parks", color: "#d9a441", glyph: "◆" }].map((t) => (
-                    <button key={t.k} onClick={() => setLayers((l) => ({ ...l, [t.k]: !l[t.k] }))} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 700, padding: "7px 12px", borderRadius: 999, background: layers[t.k] ? "rgba(12,26,18,.94)" : "rgba(12,26,18,.7)", border: "1px solid " + (layers[t.k] ? t.color : "rgba(255,255,255,.14)"), color: layers[t.k] ? "#f4f1ea" : "#9aa7a0", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)" }}>
-                      <span style={{ color: t.color, fontSize: ".7rem" }}>{t.glyph}</span>{t.label}
-                    </button>
-                  ))}
-                  <select value={browseState} onChange={(e) => setBrowseState(e.target.value)} title="Filter destinations by state" style={{ fontFamily: "inherit", fontSize: ".72rem", fontWeight: 700, color: "#e7e3d8", background: "rgba(12,26,18,.9)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "7px 10px", cursor: "pointer", colorScheme: "dark", maxWidth: 150 }}>
-                    <option value="">All states</option>
-                    {browseStates.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
                 <div style={{ position: "absolute", bottom: 14, left: 14, zIndex: 3, display: "flex", alignItems: "center", gap: 7, background: "rgba(16,32,23,.86)", color: "#e4be78", padding: "6px 12px", borderRadius: 999, fontSize: ".66rem", fontWeight: 700, letterSpacing: ".03em" }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#46d97f", boxShadow: "0 0 0 3px rgba(70,217,127,.3)" }} />Tap a marker to add
                 </div>
-                <div style={{ position: "absolute", bottom: 14, right: 14, zIndex: 3, background: "var(--pb-surface)", color: "var(--pb-ink)", padding: "7px 13px", borderRadius: 999, fontSize: ".76rem", fontWeight: 700, boxShadow: "0 6px 16px rgba(0,0,0,.14)" }}>{totalMiles} mi · {driveHrs} h drive</div>
+                <div style={{ position: "absolute", bottom: 14, right: 14, zIndex: 3, background: "var(--pb-surface)", color: "var(--pb-ink)", padding: "7px 13px", borderRadius: 999, fontSize: ".76rem", fontWeight: 700, boxShadow: "0 6px 16px rgba(0,0,0,.14)" }}>{roadInfo ? roadInfo.miles + " mi · " + (roadInfo.mins >= 60 ? Math.floor(roadInfo.mins / 60) + " h " + (roadInfo.mins % 60) + " m" : roadInfo.mins + " m") + " drive" : totalMiles + " mi · " + driveHrs + " h drive"}</div>
               </div>
+            </div>
             </div>
 
             {/* PANELS COLUMN */}

@@ -60,8 +60,9 @@ plan and `DESIGN.md` for the design system.
 - [ ] **`/build-trip` redesign** — still cream/legacy (reverted working original),
       pending a Claude-Design pass. Also: have "Build this trip →" pre-fill from
       `localStorage.pb_trip` so the Explore cart carries over.
-- [ ] **Responsive header** — the shared nav crowds on narrow (~≤900px) widths; add a
-      collapse/hamburger for mobile.
+- [x] ~~**Responsive header**~~ — the shared nav now collapses to a hamburger ≤860px;
+      the panel carries Explore items + Book/Shop/Pro/Learn + My Trip + Sign in +
+      Ask Park Buddy. ✅ shipped
 - [ ] **Campground/lake map popups** on `/explore` are still light-styled (Google
       InfoWindow — white bubble, hard to theme). Low priority.
 

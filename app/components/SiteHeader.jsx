@@ -50,7 +50,28 @@ function Logo() {
 
 export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false }) {
   const [exOpen, setExOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const exActive = EXPLORE_KEYS.includes(active);
+
+  // Lock body scroll while the mobile menu is open so the page behind it doesn't
+  // scroll under the panel. Cleaned up on close/unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (menuOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [menuOpen]);
+
+  // Open the account/sign-in panel auth.js mounts (used by the mobile menu, where
+  // the desktop #pp-acct-slot pill is hidden). Falls back to home if auth isn't
+  // loaded on this page (parity with the static desktop "Sign in").
+  const openAccount = () => {
+    setMenuOpen(false);
+    if (typeof window !== "undefined" && window.__ppAuth && window.__ppAuth.openAccount) window.__ppAuth.openAccount();
+    else if (typeof window !== "undefined") window.location.href = "/";
+  };
 
   // When a page opts into the real account slot, make sure the auth chain is
   // loaded so #pp-acct-slot mounts the Sign-in / account control — otherwise the
@@ -134,7 +155,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           </Link>
         ))}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="pb-nav-actions" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {tripCount != null && (
           <button
             type="button"
@@ -166,6 +187,71 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           Ask Park Buddy
         </button>
       </div>
+
+      {/* Hamburger — only shows ≤860px (CSS), where the links + actions above hide. */}
+      <button
+        type="button"
+        className="pb-hamburger"
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((v) => !v)}
+        style={{ display: "none", cursor: "pointer", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 11, width: 42, height: 40, alignItems: "center", justifyContent: "center", color: "var(--pb-ink)", flex: "none" }}
+      >
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          {menuOpen ? <><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></> : <><line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" /></>}
+        </svg>
+      </button>
+
+      {/* Full mobile menu panel — one column, everything the desktop bar carries. */}
+      {menuOpen && (
+        <div
+          className="pb-mobile-menu"
+          style={{ position: "absolute", top: "100%", left: 0, right: 0, maxHeight: "calc(100vh - 70px)", overflowY: "auto", background: "rgba(7,10,16,.98)", WebkitBackdropFilter: "blur(20px) saturate(1.3)", backdropFilter: "blur(20px) saturate(1.3)", borderBottom: "1px solid var(--pb-line)", padding: "10px clamp(16px,4vw,54px) 22px", display: "flex", flexDirection: "column", gap: 4 }}
+        >
+          <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", padding: "12px 4px 6px" }}>Explore</div>
+          {EXPLORE_MENU.map((m) => (
+            <Link key={m.href} href={m.href} onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 6px", borderRadius: 11, textDecoration: "none" }}>
+              <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".95rem", fontWeight: 600, color: "var(--pb-ink)" }}>
+                  {m.label}
+                  {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
+                </span>
+                <span style={{ display: "block", fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
+              </span>
+            </Link>
+          ))}
+          <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />
+          {LINKS.map((l) => (
+            <Link key={l.key} href={l.href} onClick={() => setMenuOpen(false)} style={{ padding: "12px 6px", textDecoration: "none", fontSize: "1rem", fontWeight: 600, color: active === l.key ? "var(--pb-gold)" : "var(--pb-ink)" }}>
+              {l.label}
+            </Link>
+          ))}
+          <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
+            {tripCount != null && (
+              <button type="button" onClick={() => { setMenuOpen(false); onTripClick && onTripClick(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px" }}>
+                🎒 My Trip
+                <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{tripCount}</span>
+              </button>
+            )}
+            <button type="button" onClick={openAccount} style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 16px" }}>
+              Sign in
+            </button>
+            <button type="button" onClick={() => { setMenuOpen(false); askBuddy(); }} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".9rem", fontWeight: 600, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", padding: "13px 17px", borderRadius: 12 }}>
+              ✦ Ask Park Buddy
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 860px) {
+          .pb-nav-links { display: none !important; }
+          .pb-nav-actions { display: none !important; }
+          .pb-hamburger { display: inline-flex !important; }
+        }
+      `}</style>
     </nav>
   );
 }

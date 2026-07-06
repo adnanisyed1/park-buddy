@@ -77,6 +77,8 @@ export default function ParkStatusV2({ id }) {
   const [places, setPlaces] = useState(null);
   const [hourly, setHourly] = useState(null);
   const [daily, setDaily] = useState(null);
+  const [river, setRiver] = useState(null);
+  const [tz, setTz] = useState(null); // park's IANA timezone (from weather.gov points)
   const [nearby, setNearby] = useState(null);
   const [radius, setRadius] = useState(60);
   const [tripCount, setTripCount] = useState(0);
@@ -120,12 +122,14 @@ export default function ParkStatusV2({ id }) {
       j("/api/webcams?name=" + encodeURIComponent(p.name) + (npsCode ? "&parkCode=" + npsCode : "")).then((d) => on && setWebcams((d && (d.webcams || d.cams)) || []));
       j("/api/trails?" + (npsCode ? "parkCode=" + npsCode : "lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=25")).then((d) => on && setTrails(d || { hiking: [], offroad: [], ski: [] }));
       j("/api/places?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=50").then((d) => on && setPlaces(d || { facilities: [], recAreas: [] }));
+      j("/api/riverflow?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4)).then((d) => on && setRiver(d || { found: false }));
 
       // weather.gov forecast (12h hourly + 7-day)
       (async () => {
         try {
           const pts = await j("https://api.weather.gov/points/" + p.lat.toFixed(4) + "," + p.lng.toFixed(4));
           if (!pts || !pts.properties) return;
+          if (on && pts.properties.timeZone) setTz(pts.properties.timeZone);
           const [h, d] = await Promise.all([j(pts.properties.forecastHourly), j(pts.properties.forecast)]);
           if (!on) return;
           if (h && h.properties) setHourly(h.properties.periods.slice(0, 13).filter((_, i) => i % 2 === 0).slice(0, 6));
@@ -247,7 +251,7 @@ export default function ParkStatusV2({ id }) {
       <main style={{ padding: "clamp(28px,4vh,48px) clamp(16px,4vw,40px) 8px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {tab === "overview" && <Overview park={park} nps={nps} />}
-          {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} alertsRef={alertsRef} />}
+          {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} river={river} tz={tz} alertsRef={alertsRef} />}
           {tab === "trails" && <TrailsPermits park={park} trails={trails} />}
           {tab === "plan" && <Plan park={park} nps={nps} places={places} />}
           {tab === "nearby" && <Nearby park={park} nearby={nearby} radius={radius} setRadius={setRadius} />}
@@ -327,10 +331,12 @@ function Overview({ park, nps }) {
 }
 
 /* ---------------- CONDITIONS ---------------- */
-function Conditions({ park, cond, road, hourly, daily, webcams, alertsRef }) {
+function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alertsRef }) {
   const alerts = (cond && cond.weatherAlerts) || [];
   const fires = (cond && cond.wildfires) || [];
   const aqi = cond && cond.airQuality;
+  const floodWatch = alerts.find((a) => /flood/i.test(a.event || ""));
+  const gauge = river && river.found ? river.gauge : null;
   const sun = park ? getSunTimes(new Date(), park.lat, park.lng) : null;
   const moon = getMoon(new Date());
   const roadText = road && (road.summary || road.status || (road.roads && road.roads[0] && road.roads[0].status));
@@ -381,7 +387,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, alertsRef }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(104px,1fr))", gap: 10 }}>
             {hourly.map((h, i) => (
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
-                <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", { hour: "numeric" })}</div>
+                <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", tz ? { hour: "numeric", timeZone: tz } : { hour: "numeric" })}</div>
                 <div style={{ fontSize: "1.4rem", margin: "6px 0" }}>{wxEmoji(h.shortForecast)}</div>
                 <div style={{ fontFamily: serif, fontSize: "1.3rem" }}>{h.temperature}°</div>
                 <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{h.shortForecast}</div>
@@ -411,19 +417,32 @@ function Conditions({ park, cond, road, hourly, daily, webcams, alertsRef }) {
       {/* Sun & sky */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 12, marginTop: 12 }}>
         <div style={card}>
-          <div style={microLabel}>Sun &amp; sky · computed</div>
-          <Row k="☀ Sunrise" v={fmtTime(sun && sun.sunrise)} />
-          <Row k="🌇 Sunset" v={fmtTime(sun && sun.sunset)} />
-          <Row k="📸 Golden hour" v={fmtTime(sun && sun.goldenHour)} />
+          <div style={microLabel}>Sun &amp; sky · computed{tz ? " · park time" : ""}</div>
+          <Row k="☀ Sunrise" v={fmtTime(sun && sun.sunrise, tz)} />
+          <Row k="🌇 Sunset" v={fmtTime(sun && sun.sunset, tz)} />
+          <Row k="📸 Golden hour" v={fmtTime(sun && sun.goldenHour, tz)} />
           <Row k="🌙 Moon" v={moon.name + " · " + Math.round(moon.fraction * 100) + "%"} />
           {moon.fraction < 0.35 && <div style={{ marginTop: 12, background: "rgba(90,134,201,.1)", border: "1px solid rgba(90,134,201,.3)", borderRadius: 10, padding: "9px 11px", fontSize: ".78rem", color: "#a9c2e0" }}>🔭 Dark-sky night — great for stargazing.</div>}
         </div>
         <div style={card}>
-          <div style={microLabel}>Flash-flood &amp; water safety</div>
-          <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 10 }}>
-            Always check the NWS flash-flood forecast before slot canyons or river hikes. Real-time USGS streamgage flow is coming to this card.
-          </div>
-          <a href="https://www.weather.gov/safety/flood" target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, fontSize: ".8rem", fontWeight: 600, color: "var(--pb-gold)", textDecoration: "none" }}>NWS flood safety →</a>
+          <div style={microLabel}>{gauge ? gauge.name + " · USGS" : "River flow · USGS"}</div>
+          {gauge ? (
+            <>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 12 }}>
+                <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.9rem", lineHeight: 1, color: "#7fe3a6" }}>{gauge.cfs.toLocaleString()}</span>
+                <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink-2)" }}>cfs</span>
+                {gauge.gaugeFt != null && <span style={{ fontSize: ".78rem", color: "var(--pb-muted)" }}>· {gauge.gaugeFt} ft stage</span>}
+              </div>
+              <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 6 }}>Nearest active streamgage · {gauge.distanceMi} mi away</div>
+            </>
+          ) : (
+            <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 10 }}>{river ? "No active USGS streamgage within ~28 mi of the park center." : "Checking USGS streamgages…"}</div>
+          )}
+          {floodWatch ? (
+            <div style={{ marginTop: 12, background: "rgba(224,144,106,.1)", border: "1px solid rgba(224,144,106,.35)", borderRadius: 10, padding: "9px 11px", fontSize: ".8rem", color: "#e0906a", fontWeight: 600 }}>⚠ {floodWatch.event} in effect — see the alert above before any canyon or river hike.</div>
+          ) : (
+            <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 10, lineHeight: 1.5 }}>No flash-flood watch active. Always check the NWS forecast before slot canyons or river hikes. <a href="https://www.weather.gov/safety/flood" target="_blank" rel="noopener noreferrer" style={{ color: "var(--pb-gold)", textDecoration: "none", fontWeight: 600 }}>Flood safety →</a></div>
+          )}
         </div>
       </div>
 

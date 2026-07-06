@@ -1368,6 +1368,16 @@ export default function ExploreApp() {
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
         .pbask-fab { display: none !important; } /* design's own button triggers the panel */
         ::selection { background: #c9a35f; color: #15241c; }
+        /* --- Mobile: the 400px filter/detail panel is wider than a phone, so it
+           covered the whole map with its collapse button off-screen. Make it
+           full-width (still dismissable via the now-visible ‹ button) and pull the
+           floating search out from behind it so it's reachable. --- */
+        @media (max-width: 640px) {
+          .ex-panel { width: 100vw !important; }
+          .ex-search { left: 12px !important; right: 12px !important; }
+          .ex-hide-mobile { display: none !important; }
+          .ex-reopen { top: 126px !important; }
+        }
       `}</style>
 
       {/* Shared platform header — with My Trip + the real account/Sign-in slot in it
@@ -1389,7 +1399,7 @@ export default function ExploreApp() {
       </div>
 
       {/* ============ FLOATING SEARCH (over the map, clears the left panel) ============ */}
-      <div style={{ position: "absolute", top: 74, left: 452, right: 24, zIndex: 88, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+      <div className={"ex-search" + (ui.panelOpen ? " ex-hide-mobile" : "")} style={{ position: "absolute", top: 74, left: 452, right: 24, zIndex: 88, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
         <div style={{ position: "relative", width: "100%", maxWidth: 460, pointerEvents: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, ...panelGlass, borderRadius: 999, padding: "11px 18px" }}>
             <span style={{ color: "#9aa7a0", fontSize: ".95rem" }}>⌕</span>
@@ -1426,11 +1436,11 @@ export default function ExploreApp() {
 
       {/* reopen pill when the panel is collapsed */}
       {!ui.panelOpen && (
-        <button onClick={() => patch({ panelOpen: true })} style={{ position: "absolute", top: 74, left: 16, zIndex: 25, cursor: "pointer", ...panelGlass, borderRadius: 999, padding: "11px 16px", color: "#e8cf9a", fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase" }}>☰ Filters &amp; browse</button>
+        <button onClick={() => patch({ panelOpen: true })} className="ex-reopen" style={{ position: "absolute", top: 74, left: 16, zIndex: 25, cursor: "pointer", ...panelGlass, borderRadius: 999, padding: "11px 16px", color: "#e8cf9a", fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase" }}>☰ Filters &amp; browse</button>
       )}
 
       {/* ============ ONE LEFT PANEL — Filters · List · Detail · Trip ============ */}
-      <aside style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 400, zIndex: 40, background: "linear-gradient(180deg,rgba(14,32,22,.96),rgba(9,20,14,.96))", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", borderRight: "1px solid rgba(217,183,121,.2)", boxShadow: "18px 0 70px -40px rgba(0,0,0,.9)", display: "flex", flexDirection: "column", transform: ui.panelOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform .45s cubic-bezier(.16,.8,.24,1)" }}>
+      <aside className="ex-panel" style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 400, zIndex: 40, background: "linear-gradient(180deg,rgba(14,32,22,.96),rgba(9,20,14,.96))", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", borderRight: "1px solid rgba(217,183,121,.2)", boxShadow: "18px 0 70px -40px rgba(0,0,0,.9)", display: "flex", flexDirection: "column", transform: ui.panelOpen ? "translateX(0)" : "translateX(-100%)", transition: "transform .45s cubic-bezier(.16,.8,.24,1)" }}>
         <button onClick={() => patch({ panelOpen: false })} title="Hide panel" style={{ position: "absolute", top: 72, right: 10, zIndex: 3, width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(217,183,121,.3)", background: "rgba(9,22,15,.85)", color: "#9aa7a0", fontSize: "1rem", lineHeight: 1, cursor: "pointer" }}>‹</button>
 
         <div className="ex-scroll" style={{ flex: 1, overflowY: "auto", padding: "72px 16px 16px", boxSizing: "border-box" }}>

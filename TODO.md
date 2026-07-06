@@ -6,6 +6,18 @@ plan and `DESIGN.md` for the design system.
 
 ---
 
+## 🔺 Now — infrastructure
+- [ ] **`theparkbuddy.com` is broken** (needs YOUR action in Vercel/DNS, I can't do
+      it). It resolves to non-Vercel IPs; HTTPS fails (no valid cert) and HTTP
+      returns a Vercel **404** — so the custom domain isn't bound to the park-buddy
+      production deployment. The working URL is **park-buddy-gamma.vercel.app**.
+      Fix: in Vercel → Project → Settings → Domains, (re)add `theparkbuddy.com`,
+      then set the DNS records Vercel shows (A `76.76.21.21` or CNAME
+      `cname.vercel-dns.com`) at your registrar; wait for the cert to provision.
+- [x] ~~Photos vanishing under load~~ — /api/photo returned 200 `found:false` when
+      Wikipedia rate-limited Vercel; client cached it as permanent no-photo. Now
+      returns 503 on transient failures + cache key bumped v3→v4. ✅ shipped (222ba4f)
+
 ## 🔺 Now — park-status v2 (`/parks/:id`) follow-ups
 - [ ] **Verify the alert subscribe writes in production.** `/api/park-alert` needs
       `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` (present in Vercel, absent in local

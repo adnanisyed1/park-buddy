@@ -11,7 +11,7 @@ import EmbeddedSite from "./components/EmbeddedSite";
 export const metadata = {
   title: "Park Buddy — See every park like never before",
   description:
-    "One living map for all 63 U.S. national parks — and every trail, scenic drive, lake and campground between them. Real conditions, charted in real time.",
+    "One living map for every U.S. national park — plus the national forests, state parks, trails, scenic drives, lakes and campgrounds around them. Real conditions, charted in real time.",
   alternates: { canonical: "/" },
 };
 

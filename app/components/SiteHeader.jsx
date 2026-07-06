@@ -21,7 +21,7 @@ import Link from "next/link";
 // park-ANCHORED (dive/climb the parks) so they lean on the real park data spine
 // rather than trying to be a standalone dive/climbing app.
 const EXPLORE_MENU = [
-  { icon: "🗺", label: "The Live Map", desc: "All 63 parks, live conditions", href: "/explore" },
+  { icon: "🗺", label: "The Live Map", desc: "Parks, forests & state parks — live", href: "/explore" },
   { icon: "🛣", label: "Scenic Drives", desc: "Byways & road trips", href: "/scenic-drives" },
   { icon: "🚢", label: "Cruises", desc: "Reach the parks by sea", href: "/cruises" },
   { icon: "🤿", label: "Diving the Parks", desc: "Dry Tortugas · Channel Islands", href: "/diving", soon: true },
@@ -30,7 +30,8 @@ const EXPLORE_MENU = [
 const EXPLORE_KEYS = ["explore", "drives", "cruises", "diving", "climbing"];
 
 const LINKS = [
-  { key: "stay", label: "Stay & Gear", href: "/#stay" },
+  { key: "book", label: "Book", href: "/book" },
+  { key: "shop", label: "Shop", href: "/shop" },
   { key: "pro", label: "Pro", href: "/#pro" },
   { key: "learn", label: "Learn", href: "/#learn" },
 ];

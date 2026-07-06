@@ -38,7 +38,7 @@ export default async function TodoStatusPage({ searchParams }) {
     getParkContact(pc || park?.npsCode),
     lat != null && lng != null ? getNearby(lat, lng, {}) : Promise.resolve({ trails: [], lakes: [], camps: [] }),
   ]);
-  const parkHref = park ? "/park-status?park=" + park.id : null;
+  const parkHref = park ? "/parks/" + park.id : null;
 
   const pills = [];
   if (duration) pills.push({ label: "⏱ " + duration });

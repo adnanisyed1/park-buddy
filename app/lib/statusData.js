@@ -297,7 +297,7 @@ export async function getTrailNearby(ref, opts = {}) {
       return {
         name: full,
         distMi: milesBetween(lat, lng, p.lat, p.lng),
-        href: "/park-status?park=" + p.id,
+        href: "/parks/" + p.id,
         q: [full, p.name].join("|"),
         lat: p.lat, lng: p.lng,
         badge: opts.currentParkId && p.id === opts.currentParkId ? "YOU'RE HERE" : null,

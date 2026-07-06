@@ -42,7 +42,7 @@ export default async function CampgroundStatusPage({ searchParams }) {
     getPhotoInfo(name, null, { lat, lng }), // geotagged fallback when the campground has no article
   ]);
   const park = nearestPark(parks, lat, lng);
-  const parkHref = park ? "/park-status?park=" + park.id : null;
+  const parkHref = park ? "/parks/" + park.id : null;
   const contact = park && park.dist <= 60 ? await getParkContact(park.npsCode) : null;
   const photoUrl = photoInfo?.url || null;
   // A geotagged archive photo must carry its provenance label, same as the trail hero.

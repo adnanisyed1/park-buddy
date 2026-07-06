@@ -1290,7 +1290,7 @@ export default function ExploreApp() {
 
   // Deep link to the full live-status page (same targets the legacy map used).
   const statusHrefFor = (p) =>
-    p ? (p.type === "national_park" && p.id ? "/park-status?park=" + p.id : p.destId ? "/park-status?dest=" + encodeURIComponent(p.destId) : null) : null;
+    p ? (p.type === "national_park" && p.id ? "/parks/" + p.id : p.destId ? "/park-status?dest=" + encodeURIComponent(p.destId) : null) : null;
 
   // The pinned destination, shown as a card in Map mode (pin tap → card in the panel).
   const anchoredPark = ui.anchor && !ui.anchor.isUser ? parks.find((p) => p.name === ui.anchor.label) || null : null;

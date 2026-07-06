@@ -19,7 +19,7 @@ function ParkTile({ p }) {
   const ref = useRef(null);
   const photo = usePhoto([p.name + " National Park", p.name].join("|"), p.lat, p.lng, ref);
   return (
-    <Link ref={ref} href={"/park-status?park=" + p.id} prefetch={false}
+    <Link ref={ref} href={"/parks/" + p.id} prefetch={false}
       style={{ display: "block", textDecoration: "none", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 22, overflow: "hidden", boxShadow: "0 26px 60px -40px rgba(0,0,0,.9)" }}>
       <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,var(--pb-surface-2) 0 14px,var(--pb-surface) 14px 28px)" }}>
         {photo && photo.url && <img src={photo.url} alt={p.name} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}

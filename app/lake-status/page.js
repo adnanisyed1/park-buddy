@@ -68,7 +68,7 @@ export default async function LakeStatusPage({ searchParams }) {
   const scenicDrives = await getNearbyByways(lat, lng, { parkCode: park?.npsCode, limit: 4 });
   const driveSub = (d) => (d.tier === "all-american" ? "All-American Road" : d.tier === "landmark" ? "Historic landmark road" : "National Scenic Byway") + (d.length ? " · " + d.length : "") + (d.distMi != null ? " · " + d.distMi + " mi" : "");
   const photoUrl = photoInfo?.url || null;
-  const parkHref = park ? "/park-status?park=" + park.id : null;
+  const parkHref = park ? "/parks/" + park.id : null;
   const areaAcres = waterbody ? waterbody.areaAcres : null;
   // Warm big-water palette for reservoirs / large lakes; cool alpine otherwise.
   const palette = kind === "Reservoir" || (areaAcres && areaAcres > 300) ? "warm" : "alpine";

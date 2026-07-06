@@ -81,7 +81,7 @@ export default async function TrailStatusPage({ searchParams }) {
   const [fees, contact] = park ? await Promise.all([getParkFees(park.npsCode), getParkContact(park.npsCode)]) : [null, null];
   const trailhead = Array.isArray(trail.path) && trail.path.length ? trail.path[0] : null;
   const catMeta = CAT_META[trail.category] || { icon: "🥾", label: "Trail" };
-  const parkHref = park ? "/park-status?park=" + park.id : null;
+  const parkHref = park ? "/parks/" + park.id : null;
   const trailKey = "trail:" + (park ? park.name : trail.unitName || "") + "|" + trail.name;
 
   const pills = [];

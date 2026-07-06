@@ -37,7 +37,7 @@ export default async function ScenicDriveDetailPage({ params }) {
   const cross = [];
   if (park && park.dist <= 60) {
     const full = /national park/i.test(park.name) ? park.name : park.name + " National Park";
-    cross.push({ name: full, type: "National Park", href: "/park-status?park=" + park.id, q: [full, park.name].join("|"), lat: park.lat, lng: park.lng });
+    cross.push({ name: full, type: "National Park", href: "/parks/" + park.id, q: [full, park.name].join("|"), lat: park.lat, lng: park.lng });
   }
   (nearby.trails || []).slice(0, 3).forEach((t) => {
     const m = mid(t.path);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 
 // The one header for the whole platform (Phase A of the design-system rollout).
@@ -16,9 +17,19 @@ import Link from "next/link";
 //   acctSlot   — if true, render the #pp-acct-slot that auth.js mounts the real
 //                account / Sign-in UI into (explore), instead of the static button.
 
+// "Explore" is a dropdown of ways to experience the parks. New activities are
+// park-ANCHORED (dive/climb the parks) so they lean on the real park data spine
+// rather than trying to be a standalone dive/climbing app.
+const EXPLORE_MENU = [
+  { icon: "🗺", label: "The Live Map", desc: "All 63 parks, live conditions", href: "/explore" },
+  { icon: "🛣", label: "Scenic Drives", desc: "Byways & road trips", href: "/scenic-drives" },
+  { icon: "🚢", label: "Cruises", desc: "Reach the parks by sea", href: "/cruises" },
+  { icon: "🤿", label: "Diving the Parks", desc: "Dry Tortugas · Channel Islands", href: "/diving", soon: true },
+  { icon: "🧗", label: "Climbing the Parks", desc: "Yosemite · Zion · Joshua Tree", href: "/climbing", soon: true },
+];
+const EXPLORE_KEYS = ["explore", "drives", "cruises", "diving", "climbing"];
+
 const LINKS = [
-  { key: "explore", label: "Explore", href: "/explore" },
-  { key: "drives", label: "Scenic Drives", href: "/scenic-drives" },
   { key: "stay", label: "Stay & Gear", href: "/#stay" },
   { key: "pro", label: "Pro", href: "/#pro" },
   { key: "learn", label: "Learn", href: "/#learn" },
@@ -36,6 +47,8 @@ function Logo() {
 }
 
 export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false }) {
+  const [exOpen, setExOpen] = useState(false);
+  const exActive = EXPLORE_KEYS.includes(active);
   const askBuddy = () => {
     // Trigger the global Ask Park Buddy assistant if it's mounted; otherwise send
     // the visitor to the home hero where the assistant lives.
@@ -59,6 +72,37 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
     >
       <Logo />
       <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 26, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
+        {/* Explore ▾ — the ways to experience the parks */}
+        <div onMouseEnter={() => setExOpen(true)} onMouseLeave={() => setExOpen(false)} style={{ position: "relative" }}>
+          <Link href="/explore" style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", color: exActive ? "var(--pb-gold)" : "inherit", transition: "color .3s", cursor: "pointer" }}>
+            Explore <span style={{ fontSize: ".6rem", opacity: 0.8, transform: exOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
+          </Link>
+          {exOpen && (
+            <div style={{ position: "absolute", top: "100%", left: -14, paddingTop: 12 }}>
+              <div style={{ width: 300, background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: 8, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
+                {EXPLORE_MENU.map((m) => (
+                  <Link
+                    key={m.href}
+                    href={m.href}
+                    onClick={() => setExOpen(false)}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(217,183,121,.08)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 11px", borderRadius: 11, textDecoration: "none", transition: "background .2s" }}
+                  >
+                    <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".86rem", fontWeight: 600, color: "var(--pb-ink)" }}>
+                        {m.label}
+                        {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
+                      </span>
+                      <span style={{ display: "block", fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         {LINKS.map((l) => (
           <Link
             key={l.key}

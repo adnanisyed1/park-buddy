@@ -57,11 +57,17 @@ Open follow-ups for this platform:
       sandbox catalog carries), production `0850.FC.PRE.CW.080CW444.MXX` (8.5×8.5);
       interior PDF sizes to the trim. Sandbox shipping = MAIL (GROUND unavailable), prod
       = GROUND. Diagnostic probes (`/api/lulu-cost?probe=…`) are sandbox-only. ✅
-- [ ] **Trip Book → GO LIVE** (all env flips in Vercel, no code): set Lulu **production**
-      creds + `LULU_ENV=production` (SKU auto-switches to 8.5×8.5) + add a payment method
-      on the Lulu account (jobs are created UNPAID); swap Stripe to `sk_live_`/`pk_live_`
-      + `STRIPE_LIVE_OK=1`; re-create the Stripe webhook in LIVE mode + update
-      `STRIPE_WEBHOOK_SECRET`. Then place one real order as the final proof.
+- [ ] **Trip Book → GO LIVE** — DEFERRED until the `theparkbuddy.com` domain move (launch
+      on the real brand, not park-buddy-gamma.vercel.app). All env flips in Vercel, no code:
+      • Lulu **production** creds + `LULU_ENV=production` (SKU auto-switches to 8.5×8.5) +
+        add a payment method on the Lulu account (jobs are created UNPAID);
+      • Stripe → `sk_live_`/`pk_live_` + `STRIPE_LIVE_OK=1`;
+      • re-create the Stripe webhook in LIVE mode pointing at
+        `https://theparkbuddy.com/api/stripe-webhook` → update `STRIPE_WEBHOOK_SECRET`;
+      • set `NEXT_PUBLIC_SITE_URL=https://theparkbuddy.com`.
+      Domain-move safe by design: checkout success/cancel + Lulu PDF URLs derive from the
+      request origin (auto-adapt); hosted PDFs live on Supabase (absolute URLs, unaffected).
+      Then place one real order as the final proof.
 - [ ] **Trip Book polish** — higher-res photos (captures are ~1000px, below 300dpi at
       full page → Lulu low-res *warning*; pairs with photos→object storage), refine cover
       panel geometry against Lulu's downloadable template, richer fonts/theming in the PDF.

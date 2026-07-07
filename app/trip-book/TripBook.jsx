@@ -52,24 +52,40 @@ export default function TripBook() {
 
   const page = { background: "#fbf7ee", color: "#241f16", borderRadius: 6, boxShadow: "0 30px 70px -40px rgba(0,0,0,.7), 0 1px 0 rgba(0,0,0,.05)", overflow: "hidden", border: "1px solid #e7ddc7" };
 
+  const downloadPdf = () => { try { window.print(); } catch {} };
+  const noteInterest = () => { try { localStorage.setItem("pb_book_interest", JSON.stringify({ at: new Date().toISOString(), trip: meta.tripName || "" })); } catch {}; alert("Thanks — noted that you'd love a bound copy. We'll email you when the press is ready. For now, use “Download book (PDF)” to save or print it yourself."); };
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans }}>
+      <style>{`
+        @page { margin: 12mm; }
+        @media print {
+          nav, .tb-noprint { display: none !important; }
+          html, body { background: #fff !important; }
+          .tb-wrap { padding: 0 !important; max-width: none !important; margin: 0 !important; }
+          .tb-book { gap: 0 !important; }
+          .tb-page { break-inside: avoid; page-break-after: always; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
+          .tb-page:last-child { page-break-after: auto; }
+          textarea { border: none !important; }
+        }
+      `}</style>
       <SiteHeader acctSlot />
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "clamp(80px,12vh,120px) clamp(14px,4vw,24px) 70px" }}>
+      <div className="tb-wrap" style={{ maxWidth: 760, margin: "0 auto", padding: "clamp(80px,12vh,120px) clamp(14px,4vw,24px) 70px" }}>
 
         {/* intro / actions */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
+        <div className="tb-noprint" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 22 }}>
           <div>
             <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".58rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Preview · your keepsake</div>
             <h1 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.7rem,4.5vw,2.4rem)", margin: "4px 0 0" }}>The Trip Book</h1>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <a href="/trip-mode" style={{ textDecoration: "none", fontSize: ".84rem", fontWeight: 700, color: "#e7e3d8", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "10px 18px" }}>📸 Add photos in Trip Mode</a>
-            <button onClick={() => { try { localStorage.setItem("pb_book_interest", JSON.stringify({ at: new Date().toISOString(), trip: meta.tripName || "" })); } catch {}; alert("Thanks — we’ve noted you’d love a printed copy. We’ll email you when the press is ready."); }} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".84rem", fontWeight: 700, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "10px 18px" }}>I&apos;d print this →</button>
+            <a href="/trip-mode" style={{ textDecoration: "none", fontSize: ".84rem", fontWeight: 700, color: "#e7e3d8", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "10px 18px" }}>📸 Add photos</a>
+            <button onClick={downloadPdf} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".84rem", fontWeight: 700, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "10px 18px" }}>⬇ Download book (PDF)</button>
           </div>
         </div>
-        <p style={{ color: "var(--pb-ink-2)", fontSize: ".92rem", lineHeight: 1.6, margin: "0 0 24px", maxWidth: "60ch" }}>
-          A page for every stop, with the photos you snap in Trip Mode and the story you write along the way. This is a live preview — printing &amp; binding come next.
+        <p className="tb-noprint" style={{ color: "var(--pb-ink-2)", fontSize: ".92rem", lineHeight: 1.6, margin: "0 0 24px", maxWidth: "60ch" }}>
+          A page for every stop, with the photos you snap in Trip Mode and the story you write along the way. Save it as a PDF now with “Download book”, or{" "}
+          <button onClick={noteInterest} style={{ background: "none", border: "none", padding: 0, color: "var(--pb-gold)", cursor: "pointer", font: "inherit", textDecoration: "underline" }}>tell us you&apos;d love a bound copy</button>.
         </p>
 
         {!ready ? (
@@ -77,9 +93,9 @@ export default function TripBook() {
         ) : stops.length === 0 ? (
           <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "40px 0" }}>Your trip is empty. <a href="/build-trip" style={{ color: "var(--pb-gold)" }}>Build it first →</a></div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
+          <div className="tb-book" style={{ display: "flex", flexDirection: "column", gap: 26 }}>
             {/* COVER */}
-            <div style={{ ...page, position: "relative", minHeight: 420, display: "flex", alignItems: "flex-end", color: "#fff" }}>
+            <div className="tb-page" style={{ ...page, position: "relative", minHeight: 420, display: "flex", alignItems: "flex-end", color: "#fff" }}>
               {coverImg ? <img src={coverImg} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#33555f,#1d3941)" }} />}
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,16,12,.15) 30%,rgba(8,16,12,.82))" }} />
               <div style={{ position: "relative", padding: "clamp(22px,5vw,40px)" }}>
@@ -95,7 +111,7 @@ export default function TripBook() {
             {stops.map((s, i) => <BookPage key={s.name} s={s} index={i} />)}
 
             {/* CLOSING */}
-            <div style={{ ...page, padding: "clamp(26px,5vw,44px)", textAlign: "center" }}>
+            <div className="tb-page" style={{ ...page, padding: "clamp(26px,5vw,44px)", textAlign: "center" }}>
               <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600 }}>The end — for now.</div>
               <p style={{ color: "#6a6146", fontSize: ".92rem", lineHeight: 1.6, maxWidth: "48ch", margin: "10px auto 0" }}>
                 {photoCount() ? photoCount() + " photos and counting. " : ""}Keep adding moments in Trip Mode — every stop, every perfect snap, becomes a page you&apos;ll keep for life.
@@ -124,7 +140,7 @@ function BookPage({ s, index }) {
   }
 
   return (
-    <div style={{ ...page, padding: "clamp(20px,4vw,34px)" }}>
+    <div className="tb-page" style={{ ...page, padding: "clamp(20px,4vw,34px)" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
         <span style={{ fontFamily: serif, fontSize: "2.4rem", fontWeight: 700, color: "#c79a4b", lineHeight: 1 }}>{index + 1}</span>
         <div>

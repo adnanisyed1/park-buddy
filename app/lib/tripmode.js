@@ -30,8 +30,9 @@ function notify() {
 export function subscribeTripMode(fn) {
   subs.add(fn);
   const onStorage = () => fn();
-  if (typeof window !== "undefined") window.addEventListener("storage", onStorage);
-  return () => { subs.delete(fn); if (typeof window !== "undefined") window.removeEventListener("storage", onStorage); };
+  const onEvt = () => fn(); // account-sync pull dispatches pb:tripmode after writing remote data
+  if (typeof window !== "undefined") { window.addEventListener("storage", onStorage); window.addEventListener("pb:tripmode", onEvt); }
+  return () => { subs.delete(fn); if (typeof window !== "undefined") { window.removeEventListener("storage", onStorage); window.removeEventListener("pb:tripmode", onEvt); } };
 }
 
 // ---------- photos ----------

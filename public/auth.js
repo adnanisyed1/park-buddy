@@ -12,7 +12,11 @@
 
    Loads AFTER the Supabase browser client (CDN) and supabase-config.js. */
 (function () {
-  var TRACK = ["pp_trip2", "pp_map_trip", "pp_favorites", "pp_prefs", "pp_stamped", "pp_passports"];
+  // Cross-device sync (user_data table). pb_trip* are the new trip platform's
+  // lightweight planning data (stops, setup answers, checklist, per-stop story).
+  // Photos (pb_trip_photos) + breadcrumb are intentionally NOT synced here — they're
+  // large base64/point data and belong in object storage; kept device-local for now.
+  var TRACK = ["pp_trip2", "pp_map_trip", "pp_favorites", "pp_prefs", "pp_stamped", "pp_passports", "pb_trip", "pb_trip_meta", "pb_trip_checklist", "pb_trip_story"];
 
   function configured() {
     var u = window.SUPABASE_URL, k = window.SUPABASE_ANON_KEY;
@@ -60,10 +64,12 @@
     return supa.from("user_data").select("data").eq("id", user.id).maybeSingle().then(function (res) {
       var data = res && res.data && res.data.data;
       if (!data || !Object.keys(data).length) { pushCloud(); return false; }
-      var changed = false;
+      var changed = false, tripChanged = false;
       TRACK.forEach(function (k) {
-        if (data[k] != null) { var nv = JSON.stringify(data[k]); if (localStorage.getItem(k) !== nv) { localStorage.setItem(k, nv); changed = true; } }
+        if (data[k] != null) { var nv = JSON.stringify(data[k]); if (localStorage.getItem(k) !== nv) { localStorage.setItem(k, nv); changed = true; if (k.indexOf("pb_trip") === 0) tripChanged = true; } }
       });
+      // Nudge the React trip store to re-read (same-tab writes don't fire `storage`).
+      if (tripChanged) { try { window.dispatchEvent(new CustomEvent("pb:trip")); window.dispatchEvent(new CustomEvent("pb:tripmode")); } catch (e) {} }
       return changed;
     }, function () { return false; });
   }

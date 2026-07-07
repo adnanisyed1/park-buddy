@@ -6,6 +6,36 @@ plan and `DESIGN.md` for the design system.
 
 ---
 
+## 🧳 Trip platform (planner → Trip Mode → Trip Book)
+Shipped this session:
+- [x] ~~Add any **physical address / place** as a stop~~ — /api/geocode (OSM Nominatim);
+      trip store now carries lat/lng/state/custom so geocoded stops round-trip. ✅
+- [x] ~~Full **trip-setup questionnaire**~~ — start/end date, adults + infants, drive vs
+      fly, trip scope, rental car, flights budget, "use defaults". Saved to trip meta. ✅
+- [x] ~~**Print-ready itinerary**~~ — /trip-print: cover, SVG route map, day-by-day,
+      budget, packing checklist; print/PDF via the browser. ✅
+- [x] ~~**Trip Mode**~~ — /trip-mode: live location + breadcrumb, arrival photo prompts,
+      per-stop conditions/alerts, packing checklist. Client-side. ✅
+- [x] ~~**Trip Book** (preview)~~ — /trip-book: cream keepsake pages, cover + a page per
+      stop with photos (from Trip Mode) + editable story. No ordering yet. ✅
+
+Open follow-ups for this platform:
+- [ ] **Background reminders when the app is closed** — needs a Service Worker + Web
+      Push (or native) + a backend to schedule. Today reminders only fire while the tab
+      is open. Pairs with accounts.
+- [ ] **Sync trip data to the account** (Supabase) instead of localStorage — so a trip,
+      its photos, checklist and story survive across devices. Photos need object storage
+      (Supabase Storage / S3) + server-side thumbnailing; localStorage caps at ~5 MB.
+- [ ] **Trip Book → real product** — pick a photo-book print-on-demand partner (e.g.
+      Blurb/Lulu API, Mixbook, Peecho), generate the interior PDF server-side from the
+      trip + photos + story, wire checkout + shipping + sales tax. Capture "I'd print
+      this" interest is already stored (`pb_book_interest`). Confirm licensing of any
+      map/photo assets embedded in a sold book.
+- [ ] **Auto-story drafting** — offer an AI first draft of each stop's story from the
+      trip data + photo timestamps/locations, which the traveller edits (keep it theirs).
+- [ ] Address field could use Places Autocomplete (nicer UX) once the Google key has the
+      Places API enabled; Nominatim is the keyless fallback.
+
 ## 🔺 Now — infrastructure
 - [ ] **`theparkbuddy.com` is broken** (needs YOUR action in Vercel/DNS, I can't do
       it). It resolves to non-Vercel IPs; HTTPS fails (no valid cert) and HTTP

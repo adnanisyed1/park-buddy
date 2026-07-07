@@ -138,9 +138,12 @@ export function clearTrip() { write([]); }
 export function subscribeTrip(fn) {
   subs.add(fn);
   const onStorage = (e) => { if (!e || e.key === KEY || e.key === META_KEY) fn(); };
-  if (typeof window !== "undefined") window.addEventListener("storage", onStorage);
+  // `pb:trip` also fires from the account-sync pull (auth.js) after it writes remote
+  // trip data into localStorage in this tab, so the UI refreshes on sign-in.
+  const onEvt = () => fn();
+  if (typeof window !== "undefined") { window.addEventListener("storage", onStorage); window.addEventListener("pb:trip", onEvt); }
   return () => {
     subs.delete(fn);
-    if (typeof window !== "undefined") window.removeEventListener("storage", onStorage);
+    if (typeof window !== "undefined") { window.removeEventListener("storage", onStorage); window.removeEventListener("pb:trip", onEvt); }
   };
 }

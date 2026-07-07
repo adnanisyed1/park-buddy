@@ -300,19 +300,31 @@ function ReserveModal({ data, onClose }) {
       return;
     }
     setStatus("sending");
+    const headers = { "Content-Type": "application/json" };
+    const payload = JSON.stringify({
+      email: email.trim(), name, shipping: ship, quantity: qty, note,
+      title: data.title, theme: data.theme, size: data.size, price: data.price,
+    });
+
+    // 1) Always record the reservation (waitlist / order intent).
+    let reserved = false;
     try {
-      const r = await fetch("/api/book-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(), name, shipping: ship, quantity: qty, note,
-          title: data.title, theme: data.theme, size: data.size, price: data.price,
-        }),
-      });
+      const r = await fetch("/api/book-order", { method: "POST", headers, body: payload });
       const d = await r.json().catch(() => ({}));
-      if (r.ok && d.ok) setStatus("done");
-      else { setStatus("idle"); setError(d.error || "Couldn't save your reservation. Try again."); }
+      reserved = r.ok && d.ok;
+    } catch {}
+
+    // 2) If payments are live, send them to Stripe Checkout; otherwise fall back
+    //    to the honest "you're reserved" confirmation.
+    try {
+      const r = await fetch("/api/checkout", { method: "POST", headers, body: payload });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.url) { window.location.href = d.url; return; }
+      if (reserved) { setStatus("done"); return; }
+      setStatus("idle");
+      setError(d.error || "Couldn't complete that right now. Please try again.");
     } catch {
+      if (reserved) { setStatus("done"); return; }
       setStatus("idle");
       setError("Network error — please try again.");
     }

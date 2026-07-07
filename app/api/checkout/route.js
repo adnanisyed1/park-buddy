@@ -4,7 +4,7 @@
 // metadata, so /api/stripe-webhook can create the Lulu print job on payment.
 // Degrades honestly (503) with no Stripe key; refuses live keys unless STRIPE_LIVE_OK=1.
 import Stripe from "stripe";
-import { luluConfigured, coverDimensions } from "../../lib/lulu";
+import { luluConfigured, coverDimensions, LULU_PRODUCT } from "../../lib/lulu";
 import { storageConfigured, uploadPublicPdf } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
@@ -41,11 +41,11 @@ export async function POST(request) {
   if (luluConfigured() && storageConfigured() && entries.length) {
     try {
       const { bytes: interiorBytes, pageCount } = await buildInteriorPdf({
-        title, dates: body.dates, dedication: body.dedication, entries, origin,
+        title, dates: body.dates, dedication: body.dedication, entries, origin, trimIn: LULU_PRODUCT.trimIn,
       });
       const stamp = Date.now().toString(36) + "-" + Math.round(price);
       const interior_url = await uploadPublicPdf("orders/" + stamp + "-interior.pdf", interiorBytes);
-      const dims = await coverDimensions(pageCount);
+      const dims = await coverDimensions(pageCount, LULU_PRODUCT.sku);
       const coverEntry = entries.find((e) => e.type === "Remember this") || entries[0];
       const coverImage = await resolveEntryImage(coverEntry, origin);
       const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims });

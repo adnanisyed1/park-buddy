@@ -4,7 +4,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 const PT = 72;
-export const PAGE = 8.75 * PT;      // 630pt page incl. bleed
 const SAFE = 0.625 * PT;            // bleed + 0.5in safe ≈ 45pt
 export const MIN_PAGES = 24;        // casewrap hardcover minimum
 
@@ -57,7 +56,8 @@ function wrap(font, text, size, maxW) {
   return lines;
 }
 
-export async function buildInteriorPdf({ title, dates, dedication, entries, origin }) {
+export async function buildInteriorPdf({ title, dates, dedication, entries, origin, trimIn = 8.5 }) {
+  const PAGE = (trimIn + 0.25) * PT; // trim + 0.125in bleed per edge
   const pdf = await PDFDocument.create();
   const serif = await pdf.embedFont(StandardFonts.TimesRoman);
   const serifIt = await pdf.embedFont(StandardFonts.TimesRomanItalic);

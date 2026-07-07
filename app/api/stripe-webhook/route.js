@@ -6,7 +6,7 @@
 //        LULU_* (see lib/lulu), optional LULU_CONTACT_EMAIL.
 //   Add the endpoint in Stripe → Developers → Webhooks → checkout.session.completed.
 import Stripe from "stripe";
-import { luluConfigured, createPrintJob, LULU_SKU } from "../../lib/lulu";
+import { luluConfigured, createPrintJob, LULU_PRODUCT } from "../../lib/lulu";
 
 export const runtime = "nodejs";
 
@@ -47,7 +47,7 @@ async function fulfill(session) {
       title: m.trip_title || "Trip Book",
       quantity: Math.max(1, parseInt(m.quantity, 10) || 1),
       printable_normalization: {
-        pod_package_id: LULU_SKU,
+        pod_package_id: LULU_PRODUCT.sku,
         cover: { source_url: m.cover_url },
         interior: { source_url: m.interior_url },
       },
@@ -62,7 +62,7 @@ async function fulfill(session) {
       country_code: addr.country || "US",
       phone_number: cust.phone || "+10000000000",
     },
-    shipping_level: "GROUND",
+    shipping_level: LULU_PRODUCT.shipping,
   };
 
   const job = await createPrintJob(payload);

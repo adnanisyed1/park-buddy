@@ -1,7 +1,7 @@
 // POST /api/lulu-cost — get Lulu's print + shipping + tax quote for a Trip Book to a
 // shipping address. Used to (a) show shipping/tax in checkout and (b) make sure the
 // Stripe charge always covers fulfillment. Honest 503 when Lulu isn't configured.
-import { luluConfigured, costCalc, LULU_SKU, luluDiag, costCalcProbe } from "../../lib/lulu";
+import { luluConfigured, costCalc, LULU_SKU, LULU_PRODUCT, luluDiag, costCalcProbe } from "../../lib/lulu";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,8 @@ export async function GET(request) {
   const probe = u.searchParams.get("probe");
   if (probe) {
     const sku = u.searchParams.get("sku") || LULU_SKU;
-    try { return Response.json(await costCalcProbe(probe, sku)); }
+    const ship = u.searchParams.get("ship") || "MAIL";
+    try { return Response.json(await costCalcProbe(probe, sku, 32, ship)); }
     catch (e) { return err("probe failed: " + (e && e.message), 502); }
   }
   return Response.json(await luluDiag());
@@ -42,7 +43,7 @@ export async function POST(request) {
     const cost = await costCalc({
       line_items: [{ page_count, pod_package_id: sku, quantity: qty }],
       shipping_address,
-      shipping_option: String(body.shipping_option || "GROUND"),
+      shipping_option: String(body.shipping_option || LULU_PRODUCT.shipping),
     });
     return Response.json({ ok: true, cost });
   } catch (e) {

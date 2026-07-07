@@ -9,10 +9,13 @@ const ENV = (process.env.LULU_ENV || "sandbox").toLowerCase();
 export const LULU_BASE = ENV === "production" ? "https://api.lulu.com" : "https://api.sandbox.lulu.com";
 const AUTH_URL = LULU_BASE + "/auth/realms/glasstree/protocol/openid-connect/token";
 
-// Square color hardcover photo-book SKU (8.5×8.5, full color, premium, casewrap,
-// 80# coated white, matte). Trim code is a single "0850" (verified against Lulu's
-// spec sheet — "0850X0850" is NOT a real SKU and 400s). Interior = 630×630pt.
-export const LULU_SKU = "0850.FC.PRE.CW.080CW444.MXX";
+// Square full-color premium casewrap hardcover. The SANDBOX catalog is limited and
+// only carries 7.5×7.5 of this family, so we test at 7.5 and ship the real 8.5×8.5
+// in production. trimIn drives the interior PDF page size (trim + 0.25in bleed).
+export const LULU_PRODUCT = ENV === "production"
+  ? { sku: "0850.FC.PRE.CW.080CW444.MXX", trimIn: 8.5, shipping: "GROUND" }
+  : { sku: "0750X0750.FC.PRE.CW.080CW444.MXX", trimIn: 7.5, shipping: "MAIL" };
+export const LULU_SKU = LULU_PRODUCT.sku; // back-compat
 
 export function luluConfigured() {
   return !!(process.env.LULU_CLIENT_KEY && process.env.LULU_CLIENT_SECRET);
@@ -75,7 +78,7 @@ export function getPrintJob(id) {
 
 // Diagnostic probe: run auth + a cost-calc against an explicit environment
 // ("sandbox" | "production") using the same creds, to detect an env/creds mismatch.
-export async function costCalcProbe(whichEnv, sku, page_count = 32) {
+export async function costCalcProbe(whichEnv, sku, page_count = 32, shipping = "MAIL") {
   const base = whichEnv === "production" ? "https://api.lulu.com" : "https://api.sandbox.lulu.com";
   const key = process.env.LULU_CLIENT_KEY, secret = process.env.LULU_CLIENT_SECRET;
   if (!key || !secret) return { base, error: "not configured" };
@@ -87,7 +90,7 @@ export async function costCalcProbe(whichEnv, sku, page_count = 32) {
   const { access_token } = await tr.json();
   const r = await fetch(base + "/print-job-cost-calculations/", {
     method: "POST", headers: { Authorization: "Bearer " + access_token, "Content-Type": "application/json" },
-    body: JSON.stringify({ line_items: [{ page_count, pod_package_id: sku, quantity: 1 }], shipping_address: { city: "Moab", state_code: "UT", postcode: "84532", country_code: "US", street1: "1 Main St", phone_number: "+13035550100" }, shipping_option: "GROUND" }),
+    body: JSON.stringify({ line_items: [{ page_count, pod_package_id: sku, quantity: 1 }], shipping_address: { city: "Moab", state_code: "UT", postcode: "84532", country_code: "US", street1: "1 Main St", phone_number: "+13035550100" }, shipping_option: shipping }),
   });
   const text = await r.text(); let data; try { data = JSON.parse(text); } catch { data = text; }
   return { base, stage: "cost", status: r.status, data };

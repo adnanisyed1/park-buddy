@@ -1,0 +1,35 @@
+/* Trip Book Studio — base + motion, ported from the preview's <style> block,
+   scoped to .tbstudio so it doesn't restyle the rest of the site. */
+
+.tbstudio{
+  background:#0e0e0c; color:#f4f1ea;
+  font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+}
+.tbstudio *{ margin:0; box-sizing:border-box; }
+.tbstudio ::selection{ background:#d9b779; color:#0e0e0c; }
+.tbstudio input[type=range]{ accent-color:#c9a35f; }
+
+@keyframes st-up{ from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+@keyframes st-dot{ 0%,100%{opacity:1} 50%{opacity:.35} }
+@keyframes st-ping{ 0%{box-shadow:0 0 0 0 rgba(217,183,121,.5)} 70%{box-shadow:0 0 0 10px rgba(217,183,121,0)} 100%{box-shadow:0 0 0 0 rgba(217,183,121,0)} }
+.st-rev{ opacity:0; transform:translateY(16px); transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1); }
+.st-rev.st-in{ opacity:1; transform:none; }
+
+@media(prefers-reduced-motion:reduce){
+  .tbstudio *{ animation:none!important; transition:none!important; }
+  .st-rev{ opacity:1; transform:none; }
+}
+
+/* ---- Mobile / tablet: the ported layout is desktop-only inline CSS, so fix
+   the two-column steps here (inline styles need !important to override). ---- */
+@media(max-width:860px){
+  /* Step 2 — stack the live preview ABOVE the settings, both full width
+     (was minmax(0,1fr) 380px → the preview collapsed to 0px on phones). */
+  #themeSettingsGrid{ grid-template-columns:1fr !important; gap:16px !important; }
+  #themeSettingsGrid > div:first-child{ position:static !important; top:auto !important; }
+
+  /* Header — let the step rail drop to its own centered row instead of
+     being squeezed off-screen next to the logo + action button. */
+  .tbstudio header{ height:auto !important; flex-wrap:wrap; gap:8px 10px !important; padding-top:9px !important; padding-bottom:9px !important; }
+  .tbstudio header #steps{ order:3; width:100%; justify-content:center; }
+}

@@ -10,8 +10,9 @@ export const LULU_BASE = ENV === "production" ? "https://api.lulu.com" : "https:
 const AUTH_URL = LULU_BASE + "/auth/realms/glasstree/protocol/openid-connect/token";
 
 // Square color hardcover photo-book SKU (8.5×8.5, full color, premium, casewrap,
-// 80# coated white, matte). Interior PDF = 630×630pt, min 24 pages.
-export const LULU_SKU = "0850X0850.FC.PRE.CW.080CW444.MXX";
+// 80# coated white, matte). Trim code is a single "0850" (verified against Lulu's
+// spec sheet — "0850X0850" is NOT a real SKU and 400s). Interior = 630×630pt.
+export const LULU_SKU = "0850.FC.PRE.CW.080CW444.MXX";
 
 export function luluConfigured() {
   return !!(process.env.LULU_CLIENT_KEY && process.env.LULU_CLIENT_SECRET);

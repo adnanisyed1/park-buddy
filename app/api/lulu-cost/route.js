@@ -30,6 +30,9 @@ export async function POST(request) {
     });
     return Response.json({ ok: true, cost });
   } catch (e) {
-    return err("Lulu cost calculation failed" + (e && e.status ? " (" + e.status + ")" : "") + ".", 502);
+    return Response.json({
+      error: "Lulu cost calculation failed" + (e && e.status ? " (" + e.status + ")" : "") + ".",
+      detail: (e && e.data) || null,
+    }, { status: 502 });
   }
 }

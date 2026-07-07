@@ -47,14 +47,24 @@ Open follow-ups for this platform:
 - [x] ~~**Create the `book_orders` Supabase table**~~ — created; verified in prod (POST to
       /api/book-order → 200, row persisted). Reservations now save live. (Delete the
       `verify-test@theparkbuddy.com` test row.) ✅
-- [ ] **Trip Book Studio → real paid checkout** — Stripe Checkout endpoint BUILT
-      (`/api/checkout`; the modal records the reservation then routes to Stripe when
-      `STRIPE_SECRET_KEY` is set, honest 503 fallback otherwise). Remaining:
-      (a) ✅ Stripe **test** keys added in Vercel + verified in prod (/api/checkout →
-      200 with a real cs_test session URL); (b) **Lulu fulfillment** — generate a print-ready interior PDF from the
-      diary + create a print job on payment success (Stripe webhook); shipping/tax;
-      (c) flip to LIVE keys. DO NOT go live until fulfillment works — no charging for a
-      book we can't produce. Lulu account ✅, Stripe account ✅ (test keys issued).
+- [x] ~~**Trip Book paid checkout + Lulu fulfillment (sandbox-verified end-to-end)**~~ —
+      Stripe Checkout (`/api/checkout`) generates + hosts the interior + cover PDFs
+      (Supabase `book-pdfs` bucket) and passes their URLs in session metadata;
+      `/api/stripe-webhook` creates a Lulu print job on payment. VERIFIED in sandbox:
+      job #311761 → **UNPAID / line item ACCEPTED** ("successfully validated"). Fonts are
+      embedded static OFL (EB Garamond + Inter) — Lulu rejects non-embedded base-14.
+      Env-aware SKU: sandbox `0750X0750...` (7.5×7.5, the only square hardcover the
+      sandbox catalog carries), production `0850.FC.PRE.CW.080CW444.MXX` (8.5×8.5);
+      interior PDF sizes to the trim. Sandbox shipping = MAIL (GROUND unavailable), prod
+      = GROUND. Diagnostic probes (`/api/lulu-cost?probe=…`) are sandbox-only. ✅
+- [ ] **Trip Book → GO LIVE** (all env flips in Vercel, no code): set Lulu **production**
+      creds + `LULU_ENV=production` (SKU auto-switches to 8.5×8.5) + add a payment method
+      on the Lulu account (jobs are created UNPAID); swap Stripe to `sk_live_`/`pk_live_`
+      + `STRIPE_LIVE_OK=1`; re-create the Stripe webhook in LIVE mode + update
+      `STRIPE_WEBHOOK_SECRET`. Then place one real order as the final proof.
+- [ ] **Trip Book polish** — higher-res photos (captures are ~1000px, below 300dpi at
+      full page → Lulu low-res *warning*; pairs with photos→object storage), refine cover
+      panel geometry against Lulu's downloadable template, richer fonts/theming in the PDF.
 - [ ] **Background reminders when the app is closed** — needs a Service Worker + Web
       Push (or native) + a backend to schedule. Today reminders only fire while the tab
       is open. Pairs with accounts.

@@ -73,6 +73,26 @@ export function getPrintJob(id) {
   return api("/print-jobs/" + id + "/", { method: "GET" });
 }
 
+// Diagnostic probe: run auth + a cost-calc against an explicit environment
+// ("sandbox" | "production") using the same creds, to detect an env/creds mismatch.
+export async function costCalcProbe(whichEnv, sku, page_count = 32) {
+  const base = whichEnv === "production" ? "https://api.lulu.com" : "https://api.sandbox.lulu.com";
+  const key = process.env.LULU_CLIENT_KEY, secret = process.env.LULU_CLIENT_SECRET;
+  if (!key || !secret) return { base, error: "not configured" };
+  const basic = Buffer.from(key + ":" + secret).toString("base64");
+  const tr = await fetch(base + "/auth/realms/glasstree/protocol/openid-connect/token", {
+    method: "POST", headers: { Authorization: "Basic " + basic, "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials",
+  });
+  if (!tr.ok) return { base, stage: "auth", status: tr.status };
+  const { access_token } = await tr.json();
+  const r = await fetch(base + "/print-job-cost-calculations/", {
+    method: "POST", headers: { Authorization: "Bearer " + access_token, "Content-Type": "application/json" },
+    body: JSON.stringify({ line_items: [{ page_count, pod_package_id: sku, quantity: 1 }], shipping_address: { city: "Moab", state_code: "UT", postcode: "84532", country_code: "US", street1: "1 Main St", phone_number: "+13035550100" }, shipping_option: "GROUND" }),
+  });
+  const text = await r.text(); let data; try { data = JSON.parse(text); } catch { data = text; }
+  return { base, stage: "cost", status: r.status, data };
+}
+
 // Diagnostic: which environment/base we're on + whether auth works. No secrets.
 export async function luluDiag() {
   const d = { env: process.env.LULU_ENV || "(unset → sandbox)", base: LULU_BASE, configured: luluConfigured() };

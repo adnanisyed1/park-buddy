@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import TripModal from "./TripModal";
 import AuthModal from "./AuthModal";
+import AccountPanel from "./AccountPanel";
 import { useAuth } from "../lib/auth";
 import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 
@@ -257,8 +258,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
 
       {/* Platform-wide trip planner dialog — auto-opens on any add-to-trip. */}
       <TripModal />
-      {/* Platform-wide sign-in / account modal. */}
+      {/* Platform-wide sign-in modal (signed out) + account panel (signed in). */}
       <AuthModal />
+      <AccountPanel />
     </nav>
   );
 }

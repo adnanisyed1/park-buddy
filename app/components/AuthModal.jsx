@@ -6,9 +6,7 @@
 // to <body> because the header nav's backdrop-filter traps fixed children.
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { useAuth } from "../lib/auth";
-import { tripCount } from "../lib/trip";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 14 };
@@ -36,16 +34,17 @@ export default function AuthModal() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open, closeAuth]);
 
-  if (!mounted || !open) return null;
+  // Signed-out only — the signed-in experience is AccountPanel (slide-in).
+  if (!mounted || !open || user) return null;
 
   return createPortal(
     <div
       onMouseDown={(e) => { if (e.target === e.currentTarget) closeAuth(); }}
       style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "clamp(16px,7vh,90px) 16px", background: "rgba(4,7,5,.72)", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)", overflowY: "auto", fontFamily: "var(--pb-sans)" }}
     >
-      <div style={{ width: "100%", maxWidth: user ? 480 : 400, ...card, borderColor: "var(--pb-line-strong)", boxShadow: "var(--pb-shadow)", padding: "clamp(20px,4vw,28px)", position: "relative" }}>
+      <div style={{ width: "100%", maxWidth: 400, ...card, borderColor: "var(--pb-line-strong)", boxShadow: "var(--pb-shadow)", padding: "clamp(20px,4vw,28px)", position: "relative" }}>
         <button onClick={closeAuth} aria-label="Close" style={{ position: "absolute", top: 14, right: 14, cursor: "pointer", width: 30, height: 30, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "transparent", color: "var(--pb-ink-2)", fontSize: "1rem", lineHeight: 1 }}>×</button>
-        {user ? <Account auth={auth} /> : <SignIn auth={auth} />}
+        <SignIn auth={auth} />
       </div>
     </div>,
     document.body
@@ -131,102 +130,5 @@ function SignIn({ auth }) {
       </div>
       <p style={{ ...micro, letterSpacing: ".06em", textTransform: "none", color: "var(--pb-muted)", marginTop: 16, lineHeight: 1.5 }}>By continuing you agree to our terms. We never post anything or share your email.</p>
     </div>
-  );
-}
-
-function Account({ auth }) {
-  const { user } = auth;
-  const name = (user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0];
-  const avatar = user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture);
-  const initial = (name || "?").charAt(0).toUpperCase();
-
-  const [prefs, setLocal] = useState(() => auth.getPrefs());
-  const save = (patch) => { const next = { ...prefs, ...patch }; setLocal(next); auth.setPrefs(next); };
-  const notify = prefs.notify || {};
-  const saveNotify = (patch) => save({ notify: { ...notify, ...patch } });
-
-  const stuff = [
-    { icon: "🎒", label: "My Trip", href: "/build-trip", meta: tripCount() + " stops" },
-    { icon: "📖", label: "Trip Book", href: "/trip-book", meta: "Design & order" },
-    { icon: "◉", label: "Trip Mode", href: "/trip-mode", meta: "Live on-trip" },
-    { icon: "🗺", label: "Explore", href: "/explore", meta: "Map & favorites" },
-  ];
-
-  return (
-    <div>
-      {/* profile header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 13, marginBottom: 18 }}>
-        {avatar
-          ? <img src={avatar} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--pb-line-strong)" }} />
-          : <span style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", flex: "none" }}>{initial}</span>}
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.2rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
-          <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</div>
-        </div>
-        <button style={{ ...ghostBtn, padding: "8px 13px", fontSize: ".8rem", flex: "none" }} onClick={() => auth.signOut()}>Sign out</button>
-      </div>
-
-      {/* My stuff */}
-      <div style={{ ...micro, marginBottom: 8 }}>My stuff</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 20 }}>
-        {stuff.map((s) => (
-          <Link key={s.label} href={s.href} onClick={() => auth.closeAuth()} style={{ ...card, padding: "12px 13px", textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: "1.2rem" }}>{s.icon}</span>
-            <span style={{ minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: ".9rem", fontWeight: 600, color: "var(--pb-ink)" }}>{s.label}</span>
-              <span style={{ display: "block", fontSize: ".68rem", color: "var(--pb-muted)" }}>{s.meta}</span>
-            </span>
-          </Link>
-        ))}
-      </div>
-
-      {/* Preferences */}
-      <div style={{ ...micro, marginBottom: 8 }}>Preferences</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
-        <Seg label="Distance" value={prefs.units || "mi"} opts={[["mi", "Miles"], ["km", "Kilometers"]]} onPick={(v) => save({ units: v })} />
-        <Seg label="Temperature" value={prefs.temp || "f"} opts={[["f", "°F"], ["c", "°C"]]} onPick={(v) => save({ temp: v })} />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <span style={{ fontSize: ".88rem", color: "var(--pb-ink-2)" }}>Home region</span>
-          <input style={{ ...field, width: 180, padding: "9px 11px", fontSize: ".85rem" }} placeholder="e.g. Utah" value={prefs.homeRegion || ""} onChange={(e) => save({ homeRegion: e.target.value })} />
-        </div>
-      </div>
-
-      {/* Notifications */}
-      <div style={{ ...micro, marginBottom: 8 }}>Notifications</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 6 }}>
-        <Toggle label="Park condition alerts" hint="Verdict flips, road & permit changes" on={notify.parkAlerts !== false} onChange={(v) => saveNotify({ parkAlerts: v })} />
-        <Toggle label="Trip reminders" hint="Photo prompts & checklist while traveling" on={notify.tripReminders !== false} onChange={(v) => saveNotify({ tripReminders: v })} />
-        <Toggle label="Email updates" hint="Occasional product news (no spam)" on={!!notify.emailUpdates} onChange={(v) => saveNotify({ emailUpdates: v })} />
-      </div>
-      <p style={{ ...micro, letterSpacing: ".06em", textTransform: "none", color: "var(--pb-muted)", marginTop: 10, lineHeight: 1.5 }}>Reminders work while the app is open; background push & alert emails are rolling out.</p>
-    </div>
-  );
-}
-
-function Seg({ label, value, opts, onPick }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-      <span style={{ fontSize: ".88rem", color: "var(--pb-ink-2)" }}>{label}</span>
-      <div style={{ display: "flex", gap: 5 }}>
-        {opts.map(([v, lbl]) => {
-          const on = value === v;
-          return <button key={v} onClick={() => onPick(v)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: 600, borderRadius: 8, padding: "7px 13px", border: "1px solid " + (on ? "transparent" : "var(--pb-line-strong)"), background: on ? "var(--pb-grad-gold)" : "transparent", color: on ? "var(--pb-bg)" : "var(--pb-ink-2)" }}>{lbl}</button>;
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Toggle({ label, hint, on, onChange }) {
-  return (
-    <button onClick={() => onChange(!on)} style={{ display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", cursor: "pointer", padding: "8px 0", textAlign: "left", width: "100%" }}>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: "block", fontSize: ".9rem", fontWeight: 600, color: "var(--pb-ink)" }}>{label}</span>
-        <span style={{ display: "block", fontSize: ".72rem", color: "var(--pb-muted)" }}>{hint}</span>
-      </span>
-      <span style={{ position: "relative", width: 42, height: 24, borderRadius: 999, flex: "none", background: on ? "var(--pb-grad-gold)" : "rgba(255,255,255,.14)", transition: "background .25s" }}>
-        <span style={{ position: "absolute", top: 2, left: 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transform: on ? "translateX(18px)" : "none", transition: "transform .25s" }} />
-      </span>
-    </button>
   );
 }

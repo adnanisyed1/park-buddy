@@ -174,6 +174,34 @@ export default function TripBook() {
         if (studio.step < 2) studio.setStep(studio.step + 1);
         else openReserve();
       };
+
+      // "Print-ready PDF" — generate the Lulu-spec interior PDF and download it,
+      // so the traveler can preview exactly what gets printed.
+      if (!document.getElementById("tb-pdf-btn")) {
+        const dl = document.createElement("button");
+        dl.id = "tb-pdf-btn";
+        dl.textContent = "⬇ Print-ready PDF";
+        dl.style.cssText = "cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;color:#f4f1ea;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.35);border-radius:999px;padding:9px 16px";
+        dl.onclick = async () => {
+          const prev = dl.textContent; dl.textContent = "Preparing…"; dl.disabled = true;
+          try {
+            const payload = {
+              title: studio.S.title, dates: studio.S.dates, dedication: studio.S.ded,
+              entries: (studio.entries || []).map((e) => ({ place: e.place, cap: e.cap, userImg: e.userImg, q: e.q })),
+            };
+            const r = await fetch("/api/interior-pdf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Couldn't build the PDF."); }
+            const blob = await r.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = "trip-book-interior.pdf";
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+          } catch (e) { alert(e.message || "Couldn't build the PDF."); }
+          finally { dl.textContent = prev; dl.disabled = false; }
+        };
+        const cb = document.getElementById("closeBook");
+        if (cb && cb.parentElement) cb.parentElement.appendChild(dl);
+      }
     }
 
     // Live GPS: on a real trip, offer to use the traveler's location and turn the

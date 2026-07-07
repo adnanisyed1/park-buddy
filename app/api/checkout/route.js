@@ -48,7 +48,7 @@ export async function POST(request) {
       const dims = await coverDimensions(pageCount, LULU_PRODUCT.sku);
       const coverEntry = entries.find((e) => e.type === "Remember this") || entries[0];
       const coverImage = await resolveEntryImage(coverEntry, origin);
-      const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims });
+      const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims, origin });
       const cover_url = await uploadPublicPdf("orders/" + stamp + "-cover.pdf", coverBytes);
       fulfillMeta = { interior_url, cover_url, page_count: String(pageCount) };
     } catch (e) {

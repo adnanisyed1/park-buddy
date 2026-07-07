@@ -3,14 +3,14 @@
 // Layout is a first-pass proof: full-bleed cover photo + scrim, title on the front
 // panel, spine title, colophon on the back. Refine panel geometry against Lulu's
 // downloadable cover template after the first sandbox proof.
-import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
+import { PDFDocument, rgb, degrees } from "pdf-lib";
+import { embedFonts } from "./pdfFonts";
 
-export async function buildCoverPdf({ title, dates, edition, coverImage, dims }) {
+export async function buildCoverPdf({ title, dates, edition, coverImage, dims, origin }) {
   const W = Number(dims.width), H = Number(dims.height);
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([W, H]);
-  const serif = await pdf.embedFont(StandardFonts.TimesRoman);
-  const sans = await pdf.embedFont(StandardFonts.Helvetica);
+  const { serif, sans } = await embedFonts(pdf, origin);
 
   // background
   page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(0.055, 0.055, 0.047) });

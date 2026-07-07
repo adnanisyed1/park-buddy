@@ -24,7 +24,7 @@ async function orderProbe(origin) {
   const interior_url = await uploadPublicPdf("test/" + stamp + "-interior.pdf", bytes);
   const dims = await coverDimensions(pageCount, LULU_PRODUCT.sku);
   const coverImg = await resolveEntryImage(entries[0], origin);
-  const coverBytes = await buildCoverPdf({ title: "Sandbox Test Book", dates: "May 2026", coverImage: coverImg, dims });
+  const coverBytes = await buildCoverPdf({ title: "Sandbox Test Book", dates: "May 2026", coverImage: coverImg, dims, origin });
   const cover_url = await uploadPublicPdf("test/" + stamp + "-cover.pdf", coverBytes);
   const job = await createPrintJob({
     contact_email: process.env.LULU_CONTACT_EMAIL || "orders@theparkbuddy.com",

@@ -1,7 +1,8 @@
 // Shared builder for the print-ready INTERIOR PDF (used by /api/interior-pdf and,
 // at fulfillment time, by checkout). Lulu SKU 0850X0850.FC.PRE.CW.080CW444.MXX:
 // uniform 630×630pt pages (8.5in trim + 0.125in bleed), 0.5in safe margin, sRGB.
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, rgb } from "pdf-lib";
+import { embedFonts } from "./pdfFonts";
 
 const PT = 72;
 const SAFE = 0.625 * PT;            // bleed + 0.5in safe ≈ 45pt
@@ -59,9 +60,7 @@ function wrap(font, text, size, maxW) {
 export async function buildInteriorPdf({ title, dates, dedication, entries, origin, trimIn = 8.5 }) {
   const PAGE = (trimIn + 0.25) * PT; // trim + 0.125in bleed per edge
   const pdf = await PDFDocument.create();
-  const serif = await pdf.embedFont(StandardFonts.TimesRoman);
-  const serifIt = await pdf.embedFont(StandardFonts.TimesRomanItalic);
-  const sans = await pdf.embedFont(StandardFonts.Helvetica);
+  const { serif, serifIt, sans } = await embedFonts(pdf, origin);
 
   const blank = () => { const p = pdf.addPage([PAGE, PAGE]); p.drawRectangle({ x: 0, y: 0, width: PAGE, height: PAGE, color: CREAM }); return p; };
   const center = (p, font, text, size, y, color) => {

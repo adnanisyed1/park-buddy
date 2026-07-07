@@ -1,7 +1,7 @@
 // POST /api/lulu-cost — get Lulu's print + shipping + tax quote for a Trip Book to a
 // shipping address. Used to (a) show shipping/tax in checkout and (b) make sure the
 // Stripe charge always covers fulfillment. Honest 503 when Lulu isn't configured.
-import { luluConfigured, costCalc, LULU_SKU, LULU_PRODUCT, luluDiag, costCalcProbe, coverDimensions, createPrintJob } from "../../lib/lulu";
+import { luluConfigured, costCalc, LULU_SKU, LULU_PRODUCT, luluDiag, costCalcProbe, coverDimensions, createPrintJob, getPrintJob } from "../../lib/lulu";
 import { storageConfigured, uploadPublicPdf } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
@@ -41,6 +41,11 @@ async function orderProbe(origin) {
 export async function GET(request) {
   const u = new URL(request.url);
   const probe = u.searchParams.get("probe");
+  if (probe === "job") {
+    const id = u.searchParams.get("id");
+    try { const j = await getPrintJob(id); return Response.json({ id: j.id, status: j.status, line_items: (j.line_items || []).map((l) => ({ status: l.status })) }); }
+    catch (e) { return err("job probe failed: " + (e && e.message), 502); }
+  }
   if (probe === "order") {
     try { return Response.json(await orderProbe(u.origin)); }
     catch (e) { return err("order probe failed: " + (e && e.message ? e.message : "unknown"), 502); }

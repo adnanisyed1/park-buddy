@@ -37,9 +37,10 @@ Open follow-ups for this platform:
       the user's actual stops (trip.js) + Trip Mode captures/stories (tripmode.js); real
       title/dates/region/route; prompts nudge un-photographed stops; falls back to the
       Colorado Plateau demo when there's no trip. ✅
-- [ ] **Trip Book Studio → live GPS/geofence prompts** — the moment prompts are static
-      nudges now; drive them from real location (arrival/pullout/trailhead geofences,
-      like /trip-mode's watchPosition) so they fire in the moment.
+- [x] ~~**Trip Book Studio → live GPS/geofence prompts**~~ — Step 1 "Use my location"
+      pill starts watchPosition; within 2 mi of a stop the prompt becomes "You've
+      reached <stop>" (+ status line + capture stamp + one Notification), reusing
+      /trip-mode's coord resolution. Static nudges remain the fallback. ✅
 - [x] ~~**Trip Book Studio → reserve-your-copy flow**~~ — the CTA opens a real reservation
       modal (edition summary + name/email/copies/ship/note) → /api/book-order → Supabase
       `book_orders` (honest 503 fallback when unconfigured). No charge; captures buyers. ✅

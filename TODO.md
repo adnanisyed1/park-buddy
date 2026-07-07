@@ -24,8 +24,21 @@ Shipped this session:
 - [x] ~~**Sync trip PLANNING data to the account**~~ — pb_trip/meta/checklist/story now
       ride auth.js's existing `user_data` TRACK sync (auto push on change, pull on
       sign-in, UI refreshes via pb:trip events). No new table. ✅
+- [x] ~~**Trip Book Studio** (rebuild)~~ — /trip-book is now the 3-step living-diary
+      keepsake, ported 1:1 from Claude Design (studioSource.js engine + TripBook.jsx
+      wrapper + studio.css): Step 1 diary w/ real photo capture (localStorage
+      `pb_book_diary`), Step 2 full-width theme+settings w/ live openable preview + 9
+      themes, Step 3 openable 3D hardcover w/ real page-turns. Photos via server-cached
+      /api/photo. Responsive pass added (desktop-only inline CSS was breaking mobile).
+      `/trip-book-styles` = internal noindex warm-vs-bold direction picker. ✅
 
 Open follow-ups for this platform:
+- [ ] **Trip Book Studio → wire to the REAL trip** — it still defaults to the curated
+      "Colorado Plateau" demo + scripted moment prompts. Seed the diary from the user's
+      actual stops (trip.js) + Trip Mode captures (tripmode.js `pb_trip_photos`), and
+      fire the moment prompts from real GPS/geofence instead of the scripted PROMPTS.
+- [ ] **Trip Book Studio → real order checkout** — the "Order this book" CTA only toasts;
+      wire it to a print partner (Lulu recommended) with the chosen theme/size/price.
 - [ ] **Background reminders when the app is closed** — needs a Service Worker + Web
       Push (or native) + a backend to schedule. Today reminders only fire while the tab
       is open. Pairs with accounts.

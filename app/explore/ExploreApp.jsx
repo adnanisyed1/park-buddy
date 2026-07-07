@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
 import SiteHeader from "../components/SiteHeader";
+import { getClient, initAuth, openAuth } from "../lib/auth";
 import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
 import { fetchElevationProfile } from "../lib/elevationClient";
 import { getStops as tripStops, addStop as tripAdd, removeStop as tripRemove, subscribeTrip } from "../lib/trip";
@@ -311,13 +312,7 @@ function TrailStats({ tr }) {
 
 function useSupabaseClient() {
   const [supa, setSupa] = useState(null);
-  useEffect(() => {
-    if (window.__ppAuth && window.__ppAuth.supa) { setSupa(window.__ppAuth.supa); return; }
-    const t = setInterval(() => {
-      if (window.__ppAuth && window.__ppAuth.supa) { setSupa(window.__ppAuth.supa); clearInterval(t); }
-    }, 300);
-    return () => clearInterval(t);
-  }, []);
+  useEffect(() => { initAuth(); setSupa(getClient()); }, []);
   return supa;
 }
 
@@ -414,7 +409,7 @@ function ReviewsSection({ tr }) {
       ))}
 
       {supa && !user && (
-        <button onClick={() => window.__ppAuth.openAccount()} style={{ width: "100%", border: "1px solid rgba(217,183,121,.3)", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.04)", color: "#e7e3d8", marginTop: 4 }}>Sign in to write a review</button>
+        <button onClick={() => openAuth()} style={{ width: "100%", border: "1px solid rgba(217,183,121,.3)", borderRadius: 10, padding: 10, fontSize: ".8rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: "rgba(255,255,255,.04)", color: "#e7e3d8", marginTop: 4 }}>Sign in to write a review</button>
       )}
 
       {supa && user && (
@@ -550,11 +545,8 @@ export default function ExploreApp() {
       if (!key) { patch({ keyOverlay: true }); }
       else loadGoogle(key, all);
 
-      // Account UI + Ask Park Buddy (self-mounting shared globals; fab hidden via CSS,
-      // the design's own button triggers the panel).
-      loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2")
-        .then(() => loadScript("/supabase-config.js"))
-        .then(() => loadScript("/auth.js"));
+      // Auth is now the React store + SiteHeader modal (no legacy auth.js here —
+      // that caused a second, different sign-in panel on this page).
       loadScript("/ask-parkbuddy.js");
     })();
     return () => { disposed = true; };

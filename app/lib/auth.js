@@ -63,6 +63,7 @@ export function initAuth() {
 
 // ---------- state accessors ----------
 export function getUser() { return user; }
+export function getClient() { return client(); }
 export function subscribeAuth(fn) { subs.add(fn); return () => subs.delete(fn); }
 export function openAuth() { modalOpen = true; notify(); }
 export function closeAuth() { modalOpen = false; notify(); }

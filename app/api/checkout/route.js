@@ -1,10 +1,13 @@
 // POST /api/checkout — create a Stripe Checkout Session for a printed Trip Book.
-// Uses STRIPE_SECRET_KEY (server-side only). Returns { url } to redirect to Stripe.
-// Degrades honestly to 503 when no key is set, so the client falls back to the
-// no-charge reservation flow. IMPORTANT: only switch to LIVE keys once Lulu
-// fulfillment (print-ready PDF → print job) is wired — don't charge for a book we
-// can't yet produce. Test keys (sk_test_…) are safe to exercise now.
+// When fulfillment is configured (Lulu creds + a public storage bucket), it first
+// generates + hosts the interior & cover PDFs and passes their URLs in the session
+// metadata, so /api/stripe-webhook can create the Lulu print job on payment.
+// Degrades honestly (503) with no Stripe key; refuses live keys unless STRIPE_LIVE_OK=1.
 import Stripe from "stripe";
+import { luluConfigured, coverDimensions } from "../../lib/lulu";
+import { storageConfigured, uploadPublicPdf } from "../../lib/storage";
+import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
+import { buildCoverPdf } from "../../lib/coverPdf";
 
 export const runtime = "nodejs";
 
@@ -13,10 +16,7 @@ function err(msg, status = 400) { return Response.json({ error: msg }, { status 
 export async function POST(request) {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return err("Payments aren't live yet — check back soon.", 503);
-  // SAFETY GUARD: refuse to use a LIVE key (sk_live_…) unless fulfillment is ready
-  // and explicitly enabled with STRIPE_LIVE_OK=1. This prevents charging real cards
-  // for a book we can't yet print/ship — the app falls back to the no-charge
-  // reservation flow instead. Test keys (sk_test_…) are unaffected.
+  // SAFETY GUARD: refuse a LIVE key unless fulfillment is ready + explicitly enabled.
   if (/^sk_live_/.test(key) && process.env.STRIPE_LIVE_OK !== "1") {
     return err("Payments aren't live yet — check back soon.", 503);
   }
@@ -33,6 +33,29 @@ export async function POST(request) {
   const size = String(body.size || "").slice(0, 20);
   const origin = request.headers.get("origin") || new URL(request.url).origin;
 
+  // Fulfillment prep: generate + host the print PDFs so the webhook can order them.
+  // Only runs when both Lulu and storage are configured; otherwise this is a plain
+  // (test) checkout with no auto-print.
+  let fulfillMeta = {};
+  const entries = Array.isArray(body.entries) ? body.entries.slice(0, 60) : [];
+  if (luluConfigured() && storageConfigured() && entries.length) {
+    try {
+      const { bytes: interiorBytes, pageCount } = await buildInteriorPdf({
+        title, dates: body.dates, dedication: body.dedication, entries, origin,
+      });
+      const stamp = Date.now().toString(36) + "-" + Math.round(price);
+      const interior_url = await uploadPublicPdf("orders/" + stamp + "-interior.pdf", interiorBytes);
+      const dims = await coverDimensions(pageCount);
+      const coverEntry = entries.find((e) => e.type === "Remember this") || entries[0];
+      const coverImage = await resolveEntryImage(coverEntry, origin);
+      const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims });
+      const cover_url = await uploadPublicPdf("orders/" + stamp + "-cover.pdf", coverBytes);
+      fulfillMeta = { interior_url, cover_url, page_count: String(pageCount) };
+    } catch (e) {
+      return err("Couldn't prepare your book for print. Please try again.", 502);
+    }
+  }
+
   try {
     const stripe = new Stripe(key);
     const session = await stripe.checkout.sessions.create({
@@ -43,14 +66,12 @@ export async function POST(request) {
         price_data: {
           currency: "usd",
           unit_amount: Math.round(price * 100),
-          product_data: {
-            name: "Trip Book — " + title,
-            description: [size, theme, "hardcover"].filter(Boolean).join(" · "),
-          },
+          product_data: { name: "Trip Book — " + title, description: [size, theme, "hardcover"].filter(Boolean).join(" · ") },
         },
       }],
       shipping_address_collection: { allowed_countries: ["US", "CA"] },
-      metadata: { trip_title: title, theme, size, quantity: String(qty) },
+      phone_number_collection: { enabled: true },
+      metadata: { trip_title: title, theme, size, quantity: String(qty), ...fulfillMeta },
       success_url: origin + "/trip-book?order=success",
       cancel_url: origin + "/trip-book?order=cancel",
     });

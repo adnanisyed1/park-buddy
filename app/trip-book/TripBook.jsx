@@ -164,7 +164,11 @@ export default function TripBook() {
         try {
           const theme = (studio.THEMES[studio.sel] || {}).name || "";
           const pr = studio.PRINTS[studio.S.print] || ["", ""];
-          setReserve({ theme, size: pr[0], price: pr[1], title: studio.S.title || "" });
+          setReserve({
+            theme, size: pr[0], price: pr[1], title: studio.S.title || "",
+            dates: studio.S.dates || "", dedication: studio.S.ded || "",
+            entries: (studio.entries || []).map((e) => ({ type: e.type, place: e.place, cap: e.cap, userImg: e.userImg, q: e.q })),
+          });
         } catch (e) {}
       };
       const ob = document.getElementById("orderBtn");
@@ -332,6 +336,7 @@ function ReserveModal({ data, onClose }) {
     const payload = JSON.stringify({
       email: email.trim(), name, shipping: ship, quantity: qty, note,
       title: data.title, theme: data.theme, size: data.size, price: data.price,
+      dates: data.dates, dedication: data.dedication, entries: data.entries,
     });
 
     // 1) Always record the reservation (waitlist / order intent).

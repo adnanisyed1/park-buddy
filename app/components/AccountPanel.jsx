@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useAuth } from "../lib/auth";
+import { useAuth, getAccessToken } from "../lib/auth";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const micro = { fontFamily: mono, fontSize: ".54rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)" };
@@ -92,7 +92,7 @@ export default function AccountPanel() {
           )}
           {view === "prefs" && <Preferences auth={auth} />}
           {view === "trips" && <Soon title="My Itineraries" body="Save multiple named trips and jump back into any of them. Building this next — it needs the multi-trip save we're adding." link={{ href: "/build-trip", label: "Build a trip →" }} onClose={closeAuth} />}
-          {view === "orders" && <Soon title="Trip Books & Orders" body="Every book you design and every print order, in one place. Wiring this to your account now." link={{ href: "/trip-book", label: "Design a Trip Book →" }} onClose={closeAuth} />}
+          {view === "orders" && <Orders onClose={closeAuth} />}
           {view === "alerts" && <Soon title="Alerts & Subscriptions" body="Follow any park, forest or state park — and subscribe to a whole itinerary to get alerts for every stop along the way (weather flips, road & permit changes). Coming as we build it out." link={{ href: "/explore", label: "Browse places →" }} onClose={closeAuth} />}
           {view === "passport" && <Soon title="Trip Passport" body="A real travel log that auto-stamps the places you actually visit (from Trip Mode's live location) — no manual check-ins. Building the visited-places record next." link={{ href: "/trip-mode", label: "Open Trip Mode →" }} onClose={closeAuth} />}
           {view === "plan" && <Soon title="Your Plan" body="Manage your Park Buddy plan and Pro features here once subscriptions are live." link={{ href: "/#pro", label: "See Pro →" }} onClose={closeAuth} />}
@@ -137,6 +137,49 @@ function Preferences({ auth }) {
       </div>
 
       <div style={{ ...micro, letterSpacing: ".06em", textTransform: "none", color: "var(--pb-muted)", lineHeight: 1.5 }}>Preferences sync to your account automatically.</div>
+    </div>
+  );
+}
+
+function Orders({ onClose }) {
+  const [state, setState] = useState({ loading: true });
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      try {
+        const t = await getAccessToken();
+        if (!t) { if (on) setState({ error: "Sign in to see your orders." }); return; }
+        const r = await fetch("/api/my-orders", { headers: { Authorization: "Bearer " + t } });
+        const d = await r.json().catch(() => ({}));
+        if (!on) return;
+        if (r.ok) setState({ orders: d.orders || [] }); else setState({ error: d.error || "Couldn't load your orders." });
+      } catch { if (on) setState({ error: "Couldn't load your orders." }); }
+    })();
+    return () => { on = false; };
+  }, []);
+
+  if (state.loading) return <div style={{ color: "var(--pb-muted)", fontSize: ".9rem" }}>Loading your orders…</div>;
+  if (state.error) return <div style={{ color: "var(--pb-ink-2)", fontSize: ".9rem", lineHeight: 1.6 }}>{state.error}</div>;
+  if (!state.orders.length) return <Soon body="No orders yet. Design a Trip Book and reserve a printed copy — it'll show up here." link={{ href: "/trip-book", label: "Design a Trip Book →" }} onClose={onClose} />;
+
+  const stColor = (s) => (/production|shipped|delivered|paid/i.test(s) ? "var(--pb-go)" : /cancel|reject/i.test(s) ? "var(--pb-hold)" : "var(--pb-prepare)");
+  const fmtDate = (d) => { try { return new Date(d).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }); } catch { return ""; } };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {state.orders.map((o, i) => (
+        <div key={i} style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 14, padding: "14px 15px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "var(--pb-ink)", lineHeight: 1.2 }}>{o.trip_title || "Trip Book"}</div>
+            <span style={{ flex: "none", fontFamily: mono, fontSize: ".54rem", letterSpacing: ".08em", textTransform: "uppercase", color: stColor(o.status || ""), border: "1px solid " + stColor(o.status || "") + "55", borderRadius: 999, padding: "3px 9px" }}>{(o.status || "reserved").replace(/_/g, " ")}</span>
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8, fontSize: ".78rem", color: "var(--pb-muted)" }}>
+            {o.theme && <span>{o.theme}</span>}
+            {o.size && <span>{o.size}</span>}
+            {o.price && <span>{o.price}{o.quantity > 1 ? " × " + o.quantity : ""}</span>}
+            {o.created_at && <span style={{ marginLeft: "auto" }}>{fmtDate(o.created_at)}</span>}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

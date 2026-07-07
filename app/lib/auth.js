@@ -64,6 +64,12 @@ export function initAuth() {
 // ---------- state accessors ----------
 export function getUser() { return user; }
 export function getClient() { return client(); }
+// Current access token (for authenticating our own API routes server-side).
+export async function getAccessToken() {
+  const s = client(); if (!s) return null;
+  const { data } = await s.auth.getSession();
+  return data && data.session ? data.session.access_token : null;
+}
 export function subscribeAuth(fn) { subs.add(fn); return () => subs.delete(fn); }
 export function openAuth() { modalOpen = true; notify(); }
 export function closeAuth() { modalOpen = false; notify(); }

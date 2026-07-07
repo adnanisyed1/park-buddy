@@ -93,7 +93,7 @@ export default function AccountPanel() {
           {view === "prefs" && <Preferences auth={auth} />}
           {view === "trips" && <Soon title="My Itineraries" body="Save multiple named trips and jump back into any of them. Building this next — it needs the multi-trip save we're adding." link={{ href: "/build-trip", label: "Build a trip →" }} onClose={closeAuth} />}
           {view === "orders" && <Orders onClose={closeAuth} />}
-          {view === "alerts" && <Soon title="Alerts & Subscriptions" body="Follow any park, forest or state park — and subscribe to a whole itinerary to get alerts for every stop along the way (weather flips, road & permit changes). Coming as we build it out." link={{ href: "/explore", label: "Browse places →" }} onClose={closeAuth} />}
+          {view === "alerts" && <Alerts onClose={closeAuth} />}
           {view === "passport" && <Soon title="Trip Passport" body="A real travel log that auto-stamps the places you actually visit (from Trip Mode's live location) — no manual check-ins. Building the visited-places record next." link={{ href: "/trip-mode", label: "Open Trip Mode →" }} onClose={closeAuth} />}
           {view === "plan" && <Soon title="Your Plan" body="Manage your Park Buddy plan and Pro features here once subscriptions are live." link={{ href: "/#pro", label: "See Pro →" }} onClose={closeAuth} />}
         </div>
@@ -180,6 +180,67 @@ function Orders({ onClose }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+const ALERT_KINDS = [
+  ["alert_verdict", "Conditions"],
+  ["alert_road", "Roads"],
+  ["alert_permit", "Permits"],
+  ["alert_flood", "Flood"],
+  ["alert_snow", "Snow"],
+];
+
+function Alerts({ onClose }) {
+  const [state, setState] = useState({ loading: true });
+  const [busy, setBusy] = useState("");
+
+  const load = async () => {
+    try {
+      const t = await getAccessToken();
+      if (!t) { setState({ error: "Sign in to see your alerts." }); return; }
+      const r = await fetch("/api/my-alerts", { headers: { Authorization: "Bearer " + t } });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) setState({ alerts: d.alerts || [] }); else setState({ error: d.error || "Couldn't load your alerts." });
+    } catch { setState({ error: "Couldn't load your alerts." }); }
+  };
+  useEffect(() => { let on = true; (async () => { await load(); if (!on) {} })(); return () => { on = false; }; }, []); // eslint-disable-line
+
+  const unfollow = async (parkId) => {
+    setBusy(parkId);
+    try {
+      const t = await getAccessToken();
+      const r = await fetch("/api/my-alerts?park_id=" + encodeURIComponent(parkId), { method: "DELETE", headers: { Authorization: "Bearer " + t } });
+      if (r.ok) setState((s) => ({ alerts: (s.alerts || []).filter((a) => a.park_id !== parkId) }));
+    } catch {}
+    setBusy("");
+  };
+
+  if (state.loading) return <div style={{ color: "var(--pb-muted)", fontSize: ".9rem" }}>Loading your alerts…</div>;
+  if (state.error) return <div style={{ color: "var(--pb-ink-2)", fontSize: ".9rem", lineHeight: 1.6 }}>{state.error}</div>;
+  if (!state.alerts.length) return <Soon body="You're not following any places yet. Open any park, forest or state park and tap “Alert me” — weather flips, road closures and permit changes will land in your inbox, and show up here." link={{ href: "/explore", label: "Browse places →" }} onClose={onClose} />;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {state.alerts.map((a) => {
+        const kinds = ALERT_KINDS.filter(([k]) => a[k]);
+        return (
+          <div key={a.park_id} style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 14, padding: "14px 15px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+              <Link href={"/parks/" + encodeURIComponent(a.park_id)} onClick={onClose} style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "var(--pb-ink)", lineHeight: 1.2, textDecoration: "none" }}>{a.park_name || a.park_id}</Link>
+              <button onClick={() => unfollow(a.park_id)} disabled={busy === a.park_id} style={{ flex: "none", cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 600, color: "var(--pb-muted)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 11px" }}>{busy === a.park_id ? "…" : "Unfollow"}</button>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+              {kinds.length ? kinds.map(([k, lbl]) => (
+                <span key={k} style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "3px 9px" }}>{lbl}</span>
+              )) : <span style={{ fontSize: ".76rem", color: "var(--pb-muted)" }}>All condition alerts</span>}
+            </div>
+          </div>
+        );
+      })}
+      <Link href="/explore" onClick={onClose} style={{ ...ghostBtn, width: "100%", textAlign: "center", textDecoration: "none", marginTop: 4 }}>Follow more places →</Link>
+      <div style={{ ...micro, letterSpacing: ".06em", textTransform: "none", color: "var(--pb-muted)", lineHeight: 1.5, marginTop: 4 }}>Whole-itinerary alerts (one subscribe for every stop on a route) are coming with saved trips.</div>
     </div>
   );
 }

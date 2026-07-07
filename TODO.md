@@ -93,6 +93,22 @@ Open follow-ups for this platform:
       system (supersedes vanilla auth.js on React pages). Sign-in: Google, Apple,
       email+password, magic link. Signed-in account panel: Preferences (distance/temp/
       home region), Notifications toggles, My-stuff hub. SiteHeader wired. Verified UI. ✅
+- [x] ~~**Account panel = Explore-style slide-in + bento grid**~~ — signed-in AccountPanel is a
+      roomy right-side slide-in; home = bento grid of category tiles (Preferences / Itineraries /
+      Books & Orders / Alerts / Passport / Plan); tap a tile → that section opens in place. ✅
+- [x] ~~**Sign-in unified as one drawer**~~ — AuthModal rebuilt as a right-side slide-in drawer
+      matching the landing (public/embed/home) + the account panel, so sign-in looks identical
+      on every page (was a centered modal on React pages). Verified on /book. ✅
+- [x] ~~**Books & Orders section**~~ — /api/my-orders (token-verified; user sees only their own
+      book_orders) + order-card list in the panel. Prod auth guard = 401 with no/bad token. ✅
+- [x] ~~**Alerts & Subscriptions section**~~ — /api/my-alerts (GET list active park_alerts by
+      verified email; DELETE ?park_id soft-unfollows) + list UI with alert-type chips + Unfollow.
+      Whole-itinerary alerts deferred to saved-trips work below. ✅
+- [ ] **My Itineraries section** — needs **multi-trip save first** (app holds one trip today);
+      then list saved named trips + subscribe-a-whole-itinerary → alerts for every stop.
+- [ ] **Trip Passport section** — a visited-places record that auto-stamps from Trip Mode's live
+      location (no manual check-ins); surface stamps in the panel.
+- [ ] **Your Plan section** — Stripe subscriptions/billing (later).
 - [ ] **Supabase auth config — NOW** (USER action, dashboard): enable the **Email** provider
       (unlocks password + magic link) + add site URL & redirect URLs to the allow-list
       (`https://park-buddy-gamma.vercel.app/**`, `http://localhost:3001/**`). Google already

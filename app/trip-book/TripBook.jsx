@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./studio.css";
 import { MARKUP, mountStudio } from "./studioSource";
 import { getStops, getMeta } from "../lib/trip";
@@ -129,6 +129,7 @@ function buildRealData() {
 
 export default function TripBook() {
   const rootRef = useRef(null);
+  const [reserve, setReserve] = useState(null);
 
   useEffect(() => {
     // The ported inline styles reference fonts by their literal family names,
@@ -153,6 +154,26 @@ export default function TripBook() {
     } catch (e) {
       console.error("Trip Book Studio failed to mount:", e);
     }
+
+    // Replace the demo "Added to cart" toast with the real Reserve flow. The
+    // order buttons live in the injected markup, so re-bind them after mount.
+    if (studio) {
+      const openReserve = () => {
+        try {
+          const theme = (studio.THEMES[studio.sel] || {}).name || "";
+          const pr = studio.PRINTS[studio.S.print] || ["", ""];
+          setReserve({ theme, size: pr[0], price: pr[1], title: studio.S.title || "" });
+        } catch (e) {}
+      };
+      const ob = document.getElementById("orderBtn");
+      if (ob) ob.onclick = openReserve;
+      const ta = document.getElementById("topAction");
+      if (ta) ta.onclick = () => {
+        if (studio.step < 2) studio.setStep(studio.step + 1);
+        else openReserve();
+      };
+    }
+
     return () => {
       try {
         studio && studio.destroy && studio.destroy();
@@ -161,5 +182,115 @@ export default function TripBook() {
     };
   }, []);
 
-  return <div className="tbstudio" ref={rootRef} />;
+  return (
+    <>
+      <div className="tbstudio" ref={rootRef} />
+      {reserve && <ReserveModal data={reserve} onClose={() => setReserve(null)} />}
+    </>
+  );
+}
+
+// Honest reservation flow — captures the edition + buyer, no charge. Becomes real
+// checkout once Lulu (print) + Stripe (payment) are wired; POSTs to /api/book-order.
+function ReserveModal({ data, onClose }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [ship, setShip] = useState("");
+  const [qty, setQty] = useState(1);
+  const [note, setNote] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | sending | done
+  const [error, setError] = useState("");
+
+  const priceNum = parseFloat(String(data.price).replace(/[^0-9.]/g, "")) || 0;
+  const total = priceNum ? "$" + (priceNum * qty).toFixed(0) : data.price;
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const submit = async () => {
+    setError("");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    setStatus("sending");
+    try {
+      const r = await fetch("/api/book-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(), name, shipping: ship, quantity: qty, note,
+          title: data.title, theme: data.theme, size: data.size, price: data.price,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) setStatus("done");
+      else { setStatus("idle"); setError(d.error || "Couldn't save your reservation. Try again."); }
+    } catch {
+      setStatus("idle");
+      setError("Network error — please try again.");
+    }
+  };
+
+  return (
+    <div className="tbres-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="tbres-card" role="dialog" aria-modal="true">
+        {status === "done" ? (
+          <div className="tbres-done">
+            <div className="ic">✨</div>
+            <h3>You&rsquo;re on the list</h3>
+            <p>We&rsquo;ve reserved your edition of &ldquo;{data.title || "your Trip Book"}&rdquo;. We&rsquo;ll email {email} the moment printed books go live — no charge yet.</p>
+            <div style={{ marginTop: 18 }}><button className="tbres-btn" onClick={onClose}>Done</button></div>
+          </div>
+        ) : (
+          <>
+            <div className="tbres-kicker">Reserve your copy</div>
+            <div className="tbres-title">{data.title || "Your Trip Book"}</div>
+            <div className="tbres-sum">
+              <span>Theme <b>{data.theme}</b></span>
+              <span>Size <b>{data.size}</b></span>
+              <span>Hardcover <b>{data.price}</b></span>
+            </div>
+            <div className="tbres-total"><span>Est. total</span><b>{total}</b></div>
+
+            <div className="tbres-field">
+              <label>Your name</label>
+              <input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Rivera" />
+            </div>
+            <div className="tbres-field">
+              <label>Email *</label>
+              <input className="tbres-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
+            </div>
+            <div className="tbres-row">
+              <div className="tbres-field" style={{ flex: "0 0 92px" }}>
+                <label>Copies</label>
+                <input className="tbres-input" type="number" min="1" max="20" value={qty}
+                  onChange={(e) => setQty(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))} />
+              </div>
+              <div className="tbres-field">
+                <label>Ship to (optional)</label>
+                <input className="tbres-input" value={ship} onChange={(e) => setShip(e.target.value)} placeholder="City, State" />
+              </div>
+            </div>
+            <div className="tbres-field">
+              <label>Note (optional)</label>
+              <textarea className="tbres-ta" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything you'd like us to know" />
+            </div>
+
+            <p className="tbres-note">This reserves your edition — you won&rsquo;t be charged. Printed books are made on demand; we&rsquo;ll email you to complete the order when fulfillment is live.</p>
+            {error && <div className="tbres-err">{error}</div>}
+            <div className="tbres-actions">
+              <button className="tbres-btn" disabled={status === "sending"} onClick={submit}>
+                {status === "sending" ? "Reserving…" : "Reserve my copy"}
+              </button>
+              <button className="tbres-cancel" onClick={onClose}>Cancel</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

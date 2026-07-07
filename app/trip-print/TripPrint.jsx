@@ -114,6 +114,7 @@ export default function TripPrint() {
     <div style={{ background: "#f4efe4", minHeight: "100vh", color: "#20241c", fontFamily: "var(--pb-sans), 'Hanken Grotesk', system-ui, sans-serif" }}>
       <style>{`
         @page { margin: 14mm; }
+        @media screen and (max-width: 560px) { .tp-two { grid-template-columns: 1fr !important; } }
         @media print {
           .tp-noprint { display: none !important; }
           .tp-sheet { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
@@ -185,7 +186,7 @@ export default function TripPrint() {
             </div>
 
             {/* budget + settings */}
-            <div className="tp-break" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 22 }}>
+            <div className="tp-break tp-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 22 }}>
               <div style={card}>
                 <div style={{ ...label, marginBottom: 8 }}>Estimated budget</div>
                 {Object.entries(budget).map(([k, v]) => (
@@ -205,7 +206,7 @@ export default function TripPrint() {
             {/* checklist */}
             <div className="tp-break" style={{ marginBottom: 12 }}>
               <div style={{ ...label, marginBottom: 10 }}>Packing &amp; prep checklist</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="tp-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 {Object.entries(CHECKLIST).map(([group, items]) => (
                   <div key={group} style={card}>
                     <div style={{ fontWeight: 800, fontSize: ".92rem", marginBottom: 7 }}>{group}</div>

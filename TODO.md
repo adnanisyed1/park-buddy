@@ -93,10 +93,15 @@ Open follow-ups for this platform:
       system (supersedes vanilla auth.js on React pages). Sign-in: Google, Apple,
       email+password, magic link. Signed-in account panel: Preferences (distance/temp/
       home region), Notifications toggles, My-stuff hub. SiteHeader wired. Verified UI. ✅
-- [ ] **Supabase provider config** (USER action, dashboard) so all sign-in methods work:
-      enable the **Email** provider (password + magic link); configure **Apple** (needs an
-      Apple developer Service ID + key); add site URL + redirect URLs to the allow-list.
-      Google already works. Until enabled, those methods return an honest error in the modal.
+- [ ] **Supabase auth config — NOW** (USER action, dashboard): enable the **Email** provider
+      (unlocks password + magic link) + add site URL & redirect URLs to the allow-list
+      (`https://park-buddy-gamma.vercel.app/**`, `http://localhost:3001/**`). Google already
+      works. ~2 min, no external accounts. Then Claude tests the magic-link flow.
+- [ ] **Supabase auth config — LATER (deferred by user):**
+      • **Apple** sign-in — needs an Apple Developer account ($99/yr) + a Service ID/Key set
+        up on Apple's side, then filled into Supabase → Providers → Apple.
+      • **Custom SMTP** (Resend/SendGrid) under Project Settings → Auth → SMTP — Supabase's
+        built-in email is rate-limited to a few/hour; needed before real magic-link volume.
 - [ ] **/trip-mode hydration fix** — pre-existing: it renders `photoCount()` / breadcrumb
       counts server-side where they differ from client → hydration mismatch ("1 error").
       Render those counts client-only (after mount). Unrelated to auth; small.

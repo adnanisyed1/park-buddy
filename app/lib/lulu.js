@@ -72,3 +72,11 @@ export function createPrintJob(payload) {
 export function getPrintJob(id) {
   return api("/print-jobs/" + id + "/", { method: "GET" });
 }
+
+// Diagnostic: which environment/base we're on + whether auth works. No secrets.
+export async function luluDiag() {
+  const d = { env: process.env.LULU_ENV || "(unset → sandbox)", base: LULU_BASE, configured: luluConfigured() };
+  try { const t = await getToken(); d.tokenOk = !!t; }
+  catch (e) { d.tokenOk = false; d.tokenErr = String(e && e.message); }
+  return d;
+}

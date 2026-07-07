@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import "./studio.css";
 import { MARKUP, mountStudio } from "./studioSource";
+import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
-import { getPhotos, getStory } from "../lib/tripmode";
+import { getPhotos, getStory, distMiles, addCrumb } from "../lib/tripmode";
 
 // Trip Book Studio — a living travel-diary keepsake. Ported 1:1 from the Claude
 // Design preview (see studioSource.js): a 3-step hub (living diary → theme &
@@ -149,6 +150,7 @@ export default function TripBook() {
     if (!el) return;
     el.innerHTML = MARKUP;
     let studio;
+    let watchId = null;
     try {
       studio = mountStudio(buildRealData());
     } catch (e) {
@@ -174,9 +176,90 @@ export default function TripBook() {
       };
     }
 
+    // Live GPS: on a real trip, offer to use the traveler's location and turn the
+    // diary prompt into a real arrival ("You've reached <stop>"). Reuses the same
+    // coord resolution + arrival threshold as /trip-mode.
+    if (studio) {
+      (async () => {
+        let raw = [];
+        try { raw = getStops() || []; } catch {}
+        if (!raw.length) return; // demo → no geofencing
+        const coord = {};
+        try {
+          await loadScript("/trip-data.js");
+          // key by both the dataset's short name AND "<name> National Park" so a
+          // stop stored either way resolves (the dataset uses short names).
+          (window.TRIP_PARKS || []).forEach((p) => {
+            if (p && p.name) { coord[p.name] = { lat: p.lat, lng: p.lng }; coord[p.name + " National Park"] = { lat: p.lat, lng: p.lng }; }
+          });
+        } catch {}
+        const findCoord = (s) => {
+          if (s.lat != null) return s;
+          const bare = s.name.replace(/\s+national park$/i, "").trim();
+          return coord[s.name] || coord[bare] || null;
+        };
+        const geoStops = raw
+          .map((s) => { const c = findCoord(s); return c && c.lat != null ? { name: s.name, lat: c.lat, lng: c.lng, q: [s.name + " National Park", s.name] } : null; })
+          .filter(Boolean);
+        if (!geoStops.length) return;
+
+        const setText = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+        const showPrompt = (p) => {
+          const cardEl = document.getElementById("promptCard"); if (cardEl) cardEl.style.display = "";
+          setText("promptIcon", p.ic); setText("promptTitle", p.title); setText("promptMsg", p.msg);
+          const cs = document.getElementById("capStamp");
+          try { if (cs) cs.innerHTML = studio.stamp(p.place, p.w || ""); } catch {}
+          studio._ap = p;
+        };
+        const notified = {};
+        const onPos = (pos) => {
+          const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const btn = document.getElementById("tb-loc-btn"); if (btn) btn.textContent = "📍 Location on";
+          try { addCrumb(c.lat, c.lng); } catch {}
+          let near = null, nd = Infinity;
+          geoStops.forEach((s) => { const d = distMiles(c.lat, c.lng, s.lat, s.lng); if (d < nd) { nd = d; near = s; } });
+          if (near && nd <= 2) {
+            showPrompt({ type: "Remember this", ic: "📍", title: "You've reached " + near.name, msg: "You made it — grab a photo for your book.", place: near.name, w: "", q: near.q });
+            setText("tripModeLine", "You're at " + near.name);
+            if (!notified[near.name]) {
+              notified[near.name] = true;
+              try { if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("You've reached " + near.name + " 📸", { body: "Snap a photo for your trip book." }); } catch {}
+            }
+          } else if (near) {
+            setText("tripModeLine", "Nearest: " + near.name + " · " + (nd < 10 ? nd.toFixed(1) : Math.round(nd)) + " mi");
+          }
+        };
+        const onErr = (err) => { const btn = document.getElementById("tb-loc-btn"); if (btn) btn.textContent = err && err.code === 1 ? "Location denied" : "Location error"; };
+        const startGeo = () => {
+          const btn = document.getElementById("tb-loc-btn");
+          if (!navigator.geolocation) { if (btn) btn.textContent = "Location unavailable"; return; }
+          if (btn) btn.textContent = "📍 Locating…";
+          try { if (typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission().catch(() => {}); } catch {}
+          watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+        };
+
+        if (!document.getElementById("tb-loc-btn")) {
+          const anchor = document.getElementById("tripModeLine");
+          const row = anchor ? anchor.parentElement : null;
+          if (row) {
+            row.style.flexWrap = "wrap";
+            const b = document.createElement("button");
+            b.id = "tb-loc-btn";
+            b.textContent = "📍 Use my location";
+            b.style.cssText = "cursor:pointer;font-family:var(--pb-mono),monospace;font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;color:#0e0e0c;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;border-radius:999px;padding:6px 12px;margin-left:auto";
+            b.onclick = startGeo;
+            row.appendChild(b);
+          }
+        }
+      })();
+    }
+
     return () => {
       try {
         studio && studio.destroy && studio.destroy();
+      } catch (e) {}
+      try {
+        if (watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
       } catch (e) {}
       if (el) el.innerHTML = "";
     };

@@ -41,6 +41,10 @@ async function orderProbe(origin) {
 export async function GET(request) {
   const u = new URL(request.url);
   const probe = u.searchParams.get("probe");
+  // Diagnostics are sandbox-only — never let a public GET create/inspect jobs in prod.
+  if (probe && (process.env.LULU_ENV || "").toLowerCase() === "production") {
+    return err("Diagnostics are disabled in production.", 403);
+  }
   if (probe === "job") {
     const id = u.searchParams.get("id");
     try { const j = await getPrintJob(id); return Response.json({ id: j.id, status: j.status, line_items: (j.line_items || []).map((l) => ({ status: l.status })) }); }

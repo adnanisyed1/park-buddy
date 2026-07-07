@@ -40,8 +40,15 @@ Open follow-ups for this platform:
 - [ ] **Trip Book Studio → live GPS/geofence prompts** — the moment prompts are static
       nudges now; drive them from real location (arrival/pullout/trailhead geofences,
       like /trip-mode's watchPosition) so they fire in the moment.
-- [ ] **Trip Book Studio → real order checkout** — the "Order this book" CTA only toasts;
-      wire it to a print partner (Lulu recommended) with the chosen theme/size/price.
+- [x] ~~**Trip Book Studio → reserve-your-copy flow**~~ — the CTA opens a real reservation
+      modal (edition summary + name/email/copies/ship/note) → /api/book-order → Supabase
+      `book_orders` (honest 503 fallback when unconfigured). No charge; captures buyers. ✅
+- [ ] **Create the `book_orders` Supabase table** (USER action) so reservations persist in
+      prod — SQL is in `app/api/book-order/route.js` header. Until then the modal shows
+      the honest "couldn't save / not live yet" message.
+- [ ] **Trip Book Studio → real paid checkout** — turn reservations into orders: wire Lulu
+      (print job from a generated interior PDF) + Stripe (payment) + shipping/tax. Needs
+      your Lulu + Stripe accounts + keys (Vercel). Reserve flow + buyer capture already in.
 - [ ] **Background reminders when the app is closed** — needs a Service Worker + Web
       Push (or native) + a backend to schedule. Today reminders only fire while the tab
       is open. Pairs with accounts.

@@ -44,9 +44,9 @@ Open follow-ups for this platform:
 - [x] ~~**Trip Book Studio → reserve-your-copy flow**~~ — the CTA opens a real reservation
       modal (edition summary + name/email/copies/ship/note) → /api/book-order → Supabase
       `book_orders` (honest 503 fallback when unconfigured). No charge; captures buyers. ✅
-- [ ] **Create the `book_orders` Supabase table** (USER action) so reservations persist in
-      prod — SQL is in `app/api/book-order/route.js` header. Until then the modal shows
-      the honest "couldn't save / not live yet" message.
+- [x] ~~**Create the `book_orders` Supabase table**~~ — created; verified in prod (POST to
+      /api/book-order → 200, row persisted). Reservations now save live. (Delete the
+      `verify-test@theparkbuddy.com` test row.) ✅
 - [ ] **Trip Book Studio → real paid checkout** — turn reservations into orders: wire Lulu
       (print job from a generated interior PDF) + Stripe (payment) + shipping/tax. Needs
       your Lulu + Stripe accounts + keys (Vercel). Reserve flow + buyer capture already in.

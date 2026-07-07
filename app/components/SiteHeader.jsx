@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import loadScript from "./load-script";
 import TripModal from "./TripModal";
+import AuthModal from "./AuthModal";
+import { useAuth } from "../lib/auth";
 import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 
 // The one header for the whole platform (Phase A of the design-system rollout).
@@ -85,29 +86,13 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   // Open the account/sign-in panel auth.js mounts (used by the mobile menu, where
   // the desktop #pp-acct-slot pill is hidden). Falls back to home if auth isn't
   // loaded on this page (parity with the static desktop "Sign in").
-  const openAccount = () => {
-    setMenuOpen(false);
-    if (typeof window !== "undefined" && window.__ppAuth && window.__ppAuth.openAccount) window.__ppAuth.openAccount();
-    else if (typeof window !== "undefined") window.location.href = "/";
-  };
-
-  // When a page opts into the real account slot, make sure the auth chain is
-  // loaded so #pp-acct-slot mounts the Sign-in / account control — otherwise the
-  // banner would be missing Sign in on pages that don't load auth themselves
-  // (Book, Shop, …). loadScript dedupes per src, so this never double-loads with
-  // pages (like /explore) that already load it.
-  useEffect(() => {
-    if (!acctSlot || typeof window === "undefined") return;
-    if (window.__ppAuth) { try { window.__ppAuth.render(); } catch (e) {} return; }
-    let on = true;
-    (async () => {
-      await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2");
-      await loadScript("/supabase-config.js");
-      await loadScript("/auth.js");
-      if (on && window.__ppAuth) { try { window.__ppAuth.render(); } catch (e) {} }
-    })();
-    return () => { on = false; };
-  }, [acctSlot]);
+  // React auth store — supersedes the legacy auth.js on React pages. "Sign in"
+  // and the account pill both open the one AuthModal (which shows sign-in when
+  // signed out, the account panel when signed in).
+  const { user, openAuth } = useAuth();
+  const openAccount = () => { setMenuOpen(false); openAuth(); };
+  const displayName = user ? ((user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0]) : "";
+  const avatar = user && user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture);
 
   const askBuddy = () => {
     // Trigger the global Ask Park Buddy assistant if it's mounted; otherwise send
@@ -184,16 +169,15 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
             <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".58rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
           </button>
         )}
-        {acctSlot ? (
-          // auth.js mounts the real account / Sign-in control here (dark-royal pill
-          // when signed out, avatar when signed in). Left empty so there's no
-          // duplicate placeholder alongside the mounted control.
-          <span id="pp-acct-slot" style={{ display: "inline-flex", alignItems: "center", minHeight: 34 }} />
+        {user ? (
+          <button type="button" onClick={openAuth} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 13px 5px 5px" }}>
+            {avatar
+              ? <img src={avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover" }} />
+              : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: ".78rem" }}>{(displayName || "?").charAt(0).toUpperCase()}</span>}
+            <span style={{ maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</span>
+          </button>
         ) : (
-          <button
-            type="button"
-            style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}
-          >
+          <button type="button" onClick={openAuth} style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}>
             Sign in
           </button>
         )}
@@ -254,7 +238,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
               </button>
             )}
             <button type="button" onClick={openAccount} style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 16px" }}>
-              Sign in
+              {user ? "Account" : "Sign in"}
             </button>
             <button type="button" onClick={() => { setMenuOpen(false); askBuddy(); }} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".9rem", fontWeight: 600, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", padding: "13px 17px", borderRadius: 12 }}>
               ✦ Ask Park Buddy
@@ -273,6 +257,8 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
 
       {/* Platform-wide trip planner dialog — auto-opens on any add-to-trip. */}
       <TripModal />
+      {/* Platform-wide sign-in / account modal. */}
+      <AuthModal />
     </nav>
   );
 }

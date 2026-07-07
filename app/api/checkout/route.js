@@ -52,7 +52,7 @@ export async function POST(request) {
       const cover_url = await uploadPublicPdf("orders/" + stamp + "-cover.pdf", coverBytes);
       fulfillMeta = { interior_url, cover_url, page_count: String(pageCount) };
     } catch (e) {
-      return err("Couldn't prepare your book for print. Please try again.", 502);
+      return err("Couldn't prepare your book for print: " + (e && e.message ? e.message : "unknown"), 502);
     }
   }
 

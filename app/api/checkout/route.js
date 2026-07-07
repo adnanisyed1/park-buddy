@@ -13,6 +13,13 @@ function err(msg, status = 400) { return Response.json({ error: msg }, { status 
 export async function POST(request) {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return err("Payments aren't live yet — check back soon.", 503);
+  // SAFETY GUARD: refuse to use a LIVE key (sk_live_…) unless fulfillment is ready
+  // and explicitly enabled with STRIPE_LIVE_OK=1. This prevents charging real cards
+  // for a book we can't yet print/ship — the app falls back to the no-charge
+  // reservation flow instead. Test keys (sk_test_…) are unaffected.
+  if (/^sk_live_/.test(key) && process.env.STRIPE_LIVE_OK !== "1") {
+    return err("Payments aren't live yet — check back soon.", 503);
+  }
 
   let body;
   try { body = await request.json(); } catch { return err("Bad request."); }

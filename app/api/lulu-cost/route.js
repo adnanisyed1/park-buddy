@@ -22,9 +22,12 @@ export async function POST(request) {
     street1: String(a.street1 || ""), phone_number: String(a.phone_number || ""),
   };
 
+  // Allow a pod_package_id override so we can probe which SKUs the sandbox carries
+  // without redeploying per attempt (defaults to the configured LULU_SKU).
+  const sku = String(body.pod_package_id || LULU_SKU);
   try {
     const cost = await costCalc({
-      line_items: [{ page_count, pod_package_id: LULU_SKU, quantity: qty }],
+      line_items: [{ page_count, pod_package_id: sku, quantity: qty }],
       shipping_address,
       shipping_option: String(body.shipping_option || "GROUND"),
     });

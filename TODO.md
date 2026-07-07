@@ -88,6 +88,21 @@ Open follow-ups for this platform:
 - [ ] Address field could use Places Autocomplete (nicer UX) once the Google key has the
       Places API enabled; Nominatim is the keyless fallback.
 
+## 👤 Accounts & settings
+- [x] ~~**React auth + account modal**~~ — app/lib/auth.js store + AuthModal on the design
+      system (supersedes vanilla auth.js on React pages). Sign-in: Google, Apple,
+      email+password, magic link. Signed-in account panel: Preferences (distance/temp/
+      home region), Notifications toggles, My-stuff hub. SiteHeader wired. Verified UI. ✅
+- [ ] **Supabase provider config** (USER action, dashboard) so all sign-in methods work:
+      enable the **Email** provider (password + magic link); configure **Apple** (needs an
+      Apple developer Service ID + key); add site URL + redirect URLs to the allow-list.
+      Google already works. Until enabled, those methods return an honest error in the modal.
+- [ ] **/trip-mode hydration fix** — pre-existing: it renders `photoCount()` / breadcrumb
+      counts server-side where they differ from client → hydration mismatch ("1 error").
+      Render those counts client-only (after mount). Unrelated to auth; small.
+- [ ] **Richer account panel** — real favorites / Trip Passport / book-order counts in the
+      My-stuff hub (currently links + trip-stop count only).
+
 ## 🔺 Now — infrastructure
 - [ ] **`theparkbuddy.com` is broken** (needs YOUR action in Vercel/DNS, I can't do
       it). It resolves to non-Vercel IPs; HTTPS fails (no valid cert) and HTTP

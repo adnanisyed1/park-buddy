@@ -47,9 +47,15 @@ Open follow-ups for this platform:
 - [x] ~~**Create the `book_orders` Supabase table**~~ — created; verified in prod (POST to
       /api/book-order → 200, row persisted). Reservations now save live. (Delete the
       `verify-test@theparkbuddy.com` test row.) ✅
-- [ ] **Trip Book Studio → real paid checkout** — turn reservations into orders: wire Lulu
-      (print job from a generated interior PDF) + Stripe (payment) + shipping/tax. Needs
-      your Lulu + Stripe accounts + keys (Vercel). Reserve flow + buyer capture already in.
+- [ ] **Trip Book Studio → real paid checkout** — Stripe Checkout endpoint BUILT
+      (`/api/checkout`; the modal records the reservation then routes to Stripe when
+      `STRIPE_SECRET_KEY` is set, honest 503 fallback otherwise). Remaining:
+      (a) add Stripe **test** keys (Vercel Preview or local `.env.local`:
+      `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) → verify a test purchase
+      (card 4242…); (b) **Lulu fulfillment** — generate a print-ready interior PDF from the
+      diary + create a print job on payment success (Stripe webhook); shipping/tax;
+      (c) flip to LIVE keys. DO NOT go live until fulfillment works — no charging for a
+      book we can't produce. Lulu account ✅, Stripe account ✅ (test keys issued).
 - [ ] **Background reminders when the app is closed** — needs a Service Worker + Web
       Push (or native) + a backend to schedule. Today reminders only fire while the tab
       is open. Pairs with accounts.

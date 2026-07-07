@@ -50,9 +50,8 @@ Open follow-ups for this platform:
 - [ ] **Trip Book Studio → real paid checkout** — Stripe Checkout endpoint BUILT
       (`/api/checkout`; the modal records the reservation then routes to Stripe when
       `STRIPE_SECRET_KEY` is set, honest 503 fallback otherwise). Remaining:
-      (a) add Stripe **test** keys (Vercel Preview or local `.env.local`:
-      `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) → verify a test purchase
-      (card 4242…); (b) **Lulu fulfillment** — generate a print-ready interior PDF from the
+      (a) ✅ Stripe **test** keys added in Vercel + verified in prod (/api/checkout →
+      200 with a real cs_test session URL); (b) **Lulu fulfillment** — generate a print-ready interior PDF from the
       diary + create a print job on payment success (Stripe webhook); shipping/tax;
       (c) flip to LIVE keys. DO NOT go live until fulfillment works — no charging for a
       book we can't produce. Lulu account ✅, Stripe account ✅ (test keys issued).

@@ -33,10 +33,13 @@ Shipped this session:
       `/trip-book-styles` = internal noindex warm-vs-bold direction picker. ✅
 
 Open follow-ups for this platform:
-- [ ] **Trip Book Studio → wire to the REAL trip** — it still defaults to the curated
-      "Colorado Plateau" demo + scripted moment prompts. Seed the diary from the user's
-      actual stops (trip.js) + Trip Mode captures (tripmode.js `pb_trip_photos`), and
-      fire the moment prompts from real GPS/geofence instead of the scripted PROMPTS.
+- [x] ~~**Trip Book Studio → wire to the REAL trip**~~ — diary + book now compose from
+      the user's actual stops (trip.js) + Trip Mode captures/stories (tripmode.js); real
+      title/dates/region/route; prompts nudge un-photographed stops; falls back to the
+      Colorado Plateau demo when there's no trip. ✅
+- [ ] **Trip Book Studio → live GPS/geofence prompts** — the moment prompts are static
+      nudges now; drive them from real location (arrival/pullout/trailhead geofences,
+      like /trip-mode's watchPosition) so they fire in the moment.
 - [ ] **Trip Book Studio → real order checkout** — the "Order this book" CTA only toasts;
       wire it to a print partner (Lulu recommended) with the chosen theme/size/price.
 - [ ] **Background reminders when the app is closed** — needs a Service Worker + Web

@@ -23,3 +23,19 @@ export async function uploadPublicPdf(path, bytes) {
   if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("Storage upload failed (" + r.status + ") " + t.slice(0, 140)); }
   return b + "/storage/v1/object/public/" + BOOK_BUCKET + "/" + path;
 }
+
+// Pines photo uploads. Needs a PUBLIC bucket "pines" (override with SUPABASE_PINES_BUCKET).
+//   Create once in Supabase → Storage → New bucket → name "pines", Public = ON.
+export const PINES_BUCKET = process.env.SUPABASE_PINES_BUCKET || "pines";
+
+export async function uploadPublicImage(path, bytes, contentType = "image/jpeg") {
+  const b = base(), key = process.env.SUPABASE_SERVICE_KEY;
+  if (!b || !key) throw new Error("Storage not configured");
+  const r = await fetch(b + "/storage/v1/object/" + PINES_BUCKET + "/" + path, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + key, apikey: key, "Content-Type": contentType, "x-upsert": "true" },
+    body: Buffer.from(bytes),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("Image upload failed (" + r.status + ") " + t.slice(0, 140)); }
+  return b + "/storage/v1/object/public/" + PINES_BUCKET + "/" + path;
+}

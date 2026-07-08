@@ -20,25 +20,29 @@ streamed). A cheaper photo/webcam-only "Phase 0" was considered and deferred —
 
 ## Build status & setup
 
-**Shipped (Phase 1a, degrades honestly with no keys):**
-- `/pines` — full-screen vertical scroll-snap feed, on the design system, with an honest
-  "Pines are coming" empty state (`app/pines/`).
-- `app/lib/cloudflareStream.js` — Stream client (direct-upload URL, playback URLs, webhook
-  verify).
-- `app/api/pines/upload-url` (signed-in → Cloudflare upload URL; **503** until configured),
-  `app/api/pines` (POST create metadata / GET approved feed), `app/api/pines/webhook`
-  (Cloudflare "ready" → `pending`, signature-verified).
+**Shipped (Phase 1a — degrades honestly with no keys):**
+- `/pines` — full-screen feed on the design system with an Instagram/TikTok-style **bottom
+  tab menu**: **Feed** (vertical scroll-snap, photo + video), **Top** (Top 10 of the week),
+  **＋** (post), **Mine** (your Pines + review status). Uses `SiteHeader` + `--pb-*` tokens.
+- **Photo Pines work end-to-end WITHOUT Cloudflare** (Supabase Storage): `PinesCompose`
+  (pick/take a photo → **EXIF GPS auto-detected** via `exifr` → downscaled on-device →
+  tag place + caption, default **"Adventure"**) → `app/api/pines/photo` → `pines` bucket.
+- `app/api/pines`: POST video metadata / GET feed (recency, `?sort=top` week, `?mine=1`).
+- `app/api/pines/upload-url` + `app/api/pines/webhook` + `app/lib/cloudflareStream.js` —
+  the **video** path, gated on Cloudflare (**503** until configured).
+- `app/lib/storage.js` → `uploadPublicImage` + `PINES_BUCKET`.
 
 **To turn it on (your dashboard actions — keys never in chat):**
-1. **Supabase:** run the `pines` table SQL (in `app/api/pines/route.js` header comment).
-2. **Cloudflare:** create an account → Stream; make an API token scoped to **Stream:Edit**;
-   register a Stream webhook pointing at `https://<domain>/api/pines/webhook`.
-3. **Vercel env:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_STREAM_API_TOKEN`,
-   `CLOUDFLARE_STREAM_WEBHOOK_SECRET` (+ `SUPABASE_SERVICE_KEY` already set).
+1. **Supabase table:** run the `pines` SQL (in `app/api/pines/route.js` header comment).
+2. **Supabase Storage:** new **public** bucket named **`pines`** (like `book-pdfs`). → photo
+   Pines go fully live (no Cloudflare needed).
+3. **Cloudflare (video only, later):** account → Stream; API token scoped **Stream:Edit**;
+   webhook → `https://<domain>/api/pines/webhook`. Vercel env: `CLOUDFLARE_ACCOUNT_ID`,
+   `CLOUDFLARE_STREAM_API_TOKEN`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET`.
 
-**Next increments:** in-app capture UI (record ≤60s → upload URL → PUT → POST /api/pines),
-GPS re-verification + "On-site" badge (Phase 1b), AI-moderation hook in the webhook, and
-per-place surfacing (park pages / map).
+**Next increments:** AI-moderation hook (auto approve/reject on upload), like/view counting
+(powers Top + payouts), GPS→park matching + "On-site" badge (Phase 1b), per-place
+surfacing (park pages / map), then in-app **video** capture once Cloudflare is set.
 
 ---
 

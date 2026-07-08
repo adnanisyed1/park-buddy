@@ -7,20 +7,24 @@
 //   create table pines (
 //     id bigint generated always as identity primary key,
 //     user_id uuid not null,
-//     cf_uid text not null,
+//     media_type text default 'video',    -- 'photo' | 'video'
+//     cf_uid text,                         -- video only (Cloudflare Stream id)
+//     image_url text,                      -- photo only (Supabase Storage public URL)
 //     place_type text, place_id text, place_name text,
-//     caption text, duration_s int,
+//     caption text default 'Adventure', duration_s int,
 //     poster_url text, hls_url text, iframe_url text,
 //     lat float8, lng float8, accuracy_m float8, captured_at timestamptz,
+//     location_source text,                -- 'photo' (EXIF) | 'manual'
 //     verified boolean default false,
 //     display_lat float8, display_lng float8,
-//     status text default 'processing',   -- processing|pending|approved|rejected|removed
+//     status text default 'processing',    -- processing|pending|approved|rejected|removed
 //     like_count int default 0, view_count int default 0,
 //     created_at timestamptz default now()
 //   );
 //   create index on pines (status, created_at desc);
+//   create index on pines (status, like_count desc);
 //   create index on pines (place_type, place_id, status);
-//   create unique index on pines (cf_uid);
+//   create index on pines (user_id, created_at desc);
 import { createClient } from "@supabase/supabase-js";
 import { playbackUrls } from "../../lib/cloudflareStream";
 
@@ -82,22 +86,37 @@ export async function POST(request) {
   } catch { return Response.json({ error: "Couldn't reach the Pines backend." }, { status: 502 }); }
 }
 
+const SELECT = "id,media_type,cf_uid,image_url,place_type,place_id,place_name,caption,duration_s,poster_url,hls_url,iframe_url,verified,location_source,display_lat,display_lng,like_count,view_count,status,created_at";
+
 export async function GET(request) {
   const sb = sbBase(), svc = process.env.SUPABASE_SERVICE_KEY;
   if (!sb || !svc) return Response.json({ pines: [], configured: false });
 
   const url = new URL(request.url);
   const place = url.searchParams.get("place"); // e.g. "park:yell"
+  const sort = url.searchParams.get("sort");   // "top" (of the week) | default recency
+  const mine = url.searchParams.get("mine");    // "1" → the caller's own Pines (any status)
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit"), 10) || 20));
-  const before = url.searchParams.get("before"); // created_at cursor
 
-  let q = sb + "/rest/v1/pines?status=eq.approved&order=created_at.desc&limit=" + limit +
-    "&select=id,cf_uid,place_type,place_id,place_name,caption,duration_s,poster_url,hls_url,iframe_url,verified,display_lat,display_lng,like_count,view_count,created_at";
+  let q = sb + "/rest/v1/pines?select=" + SELECT + "&limit=" + limit;
+
+  if (mine) {
+    const user = await userFromToken(request);
+    if (!user) return Response.json({ error: "Sign in." }, { status: 401 });
+    q += "&user_id=eq." + user.id + "&order=created_at.desc"; // all statuses, so they see review state
+  } else if (sort === "top") {
+    // Top of the week: most-liked approved Pines from the last 7 days.
+    const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+    q += "&status=eq.approved&created_at=gte." + weekAgo + "&order=like_count.desc,view_count.desc&limit=10";
+  } else {
+    q += "&status=eq.approved&order=created_at.desc";
+    const before = url.searchParams.get("before");
+    if (before) q += "&created_at=lt." + encodeURIComponent(before);
+  }
   if (place && place.includes(":")) {
     const [pt, pid] = place.split(":");
     q += "&place_type=eq." + encodeURIComponent(pt) + "&place_id=eq." + encodeURIComponent(pid);
   }
-  if (before) q += "&created_at=lt." + encodeURIComponent(before);
 
   try {
     const r = await fetch(q, { headers: { apikey: svc, Authorization: "Bearer " + svc } });

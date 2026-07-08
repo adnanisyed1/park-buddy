@@ -124,13 +124,26 @@ Open follow-ups for this platform:
 - [ ] **Richer account panel** — real favorites / Trip Passport / book-order counts in the
       My-stuff hub (currently links + trip-stop count only).
 
-## 🌲 Pines — short vertical video (PLANNED, spec written)
-- [ ] **Full spec lives in `PINES.md`** at repo root. Reels-for-parks: full-screen swipe-up
-      feed where every clip is geo-locked to a real place + verified on-site by GPS; surfaces
-      on park pages/map next to the live verdict; every Pine → Add-to-trip/Conditions.
-      Provider recommendation: **Cloudflare Stream** (encoding included, flat pricing).
-      Phased: 1a core pipeline → 1b verify+surface → 2 social loop → 3 ecosystem.
-      **5 open decisions** for the user before Phase 1a (see PINES.md §9). Not started.
+## 🌲 Pines — the social layer (BUILT; needs backend switches to go live)
+Specs: `PINES.md` + `CAMPFIRE.md` (+ `PINES-DESIGN-BRIEF.md`). Ported Claude Design's
+reprocessed spec 1:1 into `/pines`: responsive **phone (bottom tab bar) + web (standard
+SiteHeader + floating glass tab bar)**, six screens (Feed · Top of week · Place hub/Campfire
+w/ Talk-first · Compose · Places · You/Mine). Wired to real data, honesty-first (verdict from
+/api/conditions = Explore's NWS source; no fabricated likes/earnings/counts; honest empty
+states). Photo Pines via Supabase Storage + EXIF; video path gated on Cloudflare. Marketing:
+teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`opengraph-image`).
+- [ ] **To go live (USER, dashboard — keys never in chat):** run SQL for `pines`,
+      `pines_waitlist` (route header comments); create **public Storage bucket `pines`**.
+      Then feed/compose/waitlist work end-to-end (photos, no Cloudflare needed).
+- [ ] **Moderation:** `/api/pines/moderate` (approve/reject, gated by `PINES_ADMIN_SECRET`)
+      flips a pine live; on approve it auto-posts to Facebook if configured. Needs an admin
+      UI + AI first-pass (currently secret-gated manual).
+- [ ] **Video Pines:** set Cloudflare Stream env (see PINES.md) → in-app video capture.
+- [ ] **Interactivity (next build):** likes / follow / comments backend; live **temp** in the
+      verdict chip; per-place surfacing on park pages + map.
+- [ ] **Facebook auto-post (PARKED):** `app/lib/facebook.js` + moderate hook built & inert;
+      user will set `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN` later. Also discussed:
+      FB login, Meta Pixel, share buttons — not built yet.
 
 ## 🔥 Campfire — place communities (PLANNED, spec written)
 - [ ] **Full spec in `CAMPFIRE.md`.** One community per park/forest/state-park/gateway-town,

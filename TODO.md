@@ -124,6 +124,14 @@ Open follow-ups for this platform:
 - [ ] **Richer account panel** — real favorites / Trip Passport / book-order counts in the
       My-stuff hub (currently links + trip-stop count only).
 
+## 🌲 Pines — short vertical video (PLANNED, spec written)
+- [ ] **Full spec lives in `PINES.md`** at repo root. Reels-for-parks: full-screen swipe-up
+      feed where every clip is geo-locked to a real place + verified on-site by GPS; surfaces
+      on park pages/map next to the live verdict; every Pine → Add-to-trip/Conditions.
+      Provider recommendation: **Cloudflare Stream** (encoding included, flat pricing).
+      Phased: 1a core pipeline → 1b verify+surface → 2 social loop → 3 ecosystem.
+      **5 open decisions** for the user before Phase 1a (see PINES.md §9). Not started.
+
 ## 🔺 Now — infrastructure
 - [ ] **`theparkbuddy.com` is broken** (needs YOUR action in Vercel/DNS, I can't do
       it). It resolves to non-Vercel IPs; HTTPS fails (no valid cert) and HTTP

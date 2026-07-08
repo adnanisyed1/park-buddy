@@ -165,6 +165,19 @@ because a Pine only counts when it was genuinely captured at the place. No other
 platform can claim that. So we can pay on **verified** engagement and **real** conversions,
 not gameable raw views.
 
+### Does watch time itself earn money?
+Only through a mechanism — attention doesn't convert to cash on its own. The pure
+"time = money" model is **advertising** (ads in the feed; more watch time → more
+impressions → revenue — this is also what funds YouTube/TikTok creator payouts). It's a
+real lever, but the *weakest* one for us: it only matters at big scale, and one booking
+(~$40 affiliate on an $800 stay) out-earns thousands of ad views (~$15 / 1,000 @ a high
+travel CPM). Our edge is that we own the trips/conditions/booking graph, so attention here
+is unusually **convertible** — generic reels are stuck with ads because they can't convert.
+Plain programmatic ads also fight the premium, "we-never-sell-your-data" brand. So we
+capture watch-time revenue mostly through **sponsored Pines (#4, ads done honestly) +
+conversion (#1)**, keeping raw programmatic ads as an *optional later lever* only if scale
+ever justifies it.
+
 ### How Park Buddy earns (in build order)
 1. **Affiliate pull-through (primary, honest, already our model).** Pines are top-of-funnel:
    watch → *Add to trip* → book stays / cars / gear / tours / campsites through affiliate

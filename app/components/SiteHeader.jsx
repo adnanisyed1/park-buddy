@@ -151,13 +151,26 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           )}
         </div>
         {LINKS.map((l) => (
-          <Link
-            key={l.key}
-            href={l.href}
-            style={{ textDecoration: "none", color: active === l.key ? "var(--pb-gold)" : "inherit", transition: "color .3s" }}
-          >
-            {l.label}
-          </Link>
+          l.key === "pines" ? (
+            <Link
+              key={l.key}
+              href={l.href}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "7px 15px 7px 12px", fontWeight: 700, boxShadow: active === l.key ? "0 0 0 2px rgba(217,183,121,.35), 0 6px 18px -8px rgba(217,183,121,.7)" : "0 4px 14px -6px rgba(217,183,121,.55)", transition: "box-shadow .3s, transform .2s" }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--pb-bg)" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
+              Pines
+            </Link>
+          ) : (
+            <Link
+              key={l.key}
+              href={l.href}
+              style={{ textDecoration: "none", color: active === l.key ? "var(--pb-gold)" : "inherit", transition: "color .3s" }}
+            >
+              {l.label}
+            </Link>
+          )
         ))}
       </div>
       <div className="pb-nav-actions" style={{ display: "flex", alignItems: "center", gap: 12 }}>

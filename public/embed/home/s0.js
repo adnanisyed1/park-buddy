@@ -31,7 +31,12 @@ class Component extends DCLogic {
     var nav=document.getElementById('navLinks');
     if(nav){
       var links=[['Explore','/explore'],['Pines','/pines'],['Book','/book'],['Shop','/shop'],['Pro','#pro'],['Learn','#learn']];
-      nav.innerHTML=links.map(function(l){ return '<a href="'+l[1]+'" style="text-decoration:none;color:inherit;position:relative;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+l[0]+'</a>'; }).join('');
+      nav.innerHTML=links.map(function(l){
+        if(l[0]==='Pines'){
+          return '<a href="'+l[1]+'" style="display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:#0a1712;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:999px;padding:7px 15px 7px 12px;font-weight:700;box-shadow:0 4px 14px -6px rgba(217,183,121,.55);transition:transform .2s" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="#0a1712" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path><rect x="11" y="18" width="2" height="4"></rect></svg>Pines</a>';
+        }
+        return '<a href="'+l[1]+'" style="text-decoration:none;color:inherit;position:relative;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+l[0]+'</a>';
+      }).join('');
     }
     var done=function(form,label){ if(!form)return; form.onsubmit=function(e){ e.preventDefault(); var b=form.querySelector('button'); if(b){ b.textContent=label; b.style.background='linear-gradient(120deg,#7fce9a,#4f9e6a)'; b.style.color='#0b1710'; } }; };
     done(document.getElementById('intakeForm'),'Application received ✓');

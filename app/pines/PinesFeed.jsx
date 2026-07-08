@@ -56,7 +56,7 @@ async function fetchVerdict(lat, lng) {
     const d = await r.json();
     const alerts = (d.weatherAlerts || []);
     const severe = alerts.some((a) => /warning|severe|red flag|evacuation/i.test(JSON.stringify(a)));
-    return { v: severe ? "HOLD" : alerts.length ? "PREPARE" : "GO", alert: alerts[0] || null };
+    return { v: severe ? "HOLD" : alerts.length ? "PREPARE" : "GO", alert: alerts[0] || null, temp: d.temp && d.temp.label ? d.temp.label : null };
   } catch { return null; }
 }
 
@@ -153,7 +153,7 @@ function Feed({ onPost, user, isWeb }) {
       <div style={{ position: "absolute", left: 16, top: 14, zIndex: 6, display: "flex", gap: 4 }}>{st.pines.map((x, i) => <span key={i} style={{ width: i === idx ? 18 : 6, height: 3, borderRadius: 2, background: i === idx ? "var(--pb-gold)" : "rgba(255,255,255,.4)", transition: "width .3s" }} />)}</div>
       {verdict && (
         <div style={{ position: "absolute", top: 26, right: 14, zIndex: 6, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, background: "rgba(6,14,10,.55)", backdropFilter: "blur(10px)", border: "1px solid " + vc + "66", borderRadius: 14, padding: "8px 11px" }}>
-          <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".06em", fontWeight: 700, color: vc }}>{verdict.v}</span>
+          <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".06em", fontWeight: 700, color: vc }}>{verdict.v}{verdict.temp ? " · " + verdict.temp : ""}</span>
           <span style={{ fontFamily: mono, fontSize: ".44rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#cfd6cf" }}>Conditions ›</span>
         </div>
       )}

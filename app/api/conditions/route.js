@@ -117,6 +117,19 @@ async function airQuality(lat, lng) {
   };
 }
 
+// --- NWS current temperature (best-effort; null on failure) -----------------
+// points/{lat,lng} → forecastHourly → periods[0]. Free, no key. Cached 10 min.
+async function currentTemp(lat, lng) {
+  const UA = { headers: { "User-Agent": "ParkBuddy (conditions)", Accept: "application/geo+json" } };
+  const pt = await getJSON("https://api.weather.gov/points/" + lat.toFixed(4) + "," + lng.toFixed(4), UA);
+  const url = pt && pt.properties && pt.properties.forecastHourly;
+  if (!url) return null;
+  const fc = await getJSON(url, UA);
+  const per = fc && fc.properties && fc.properties.periods && fc.properties.periods[0];
+  if (!per || typeof per.temperature !== "number") return null;
+  return { temp: per.temperature, unit: per.temperatureUnit || "F", label: per.temperature + "°", short: (per.shortForecast || "").slice(0, 40) };
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const lat = num(searchParams.get("lat"));
@@ -125,16 +138,18 @@ export async function GET(request) {
     return Response.json({ error: "lat and lng query params are required." }, { status: 400 });
   }
 
-  const [wx, fires, air] = await Promise.all([
+  const [wx, fires, air, temp] = await Promise.all([
     weatherAlerts(lat, lng),
     wildfires(lat, lng),
     airQuality(lat, lng),
+    currentTemp(lat, lng),
   ]);
 
   return Response.json({
     weatherAlerts: wx || [],
     wildfires: fires || [],
     airQuality: air || null,
+    temp: temp || null,
     sources: { weather: "weather.gov", wildfire: "NIFC", air: process.env.AIRNOW_API_KEY ? "AirNow" : "disabled (set AIRNOW_API_KEY)" },
   });
 }

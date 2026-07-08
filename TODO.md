@@ -132,6 +132,15 @@ Open follow-ups for this platform:
       Phased: 1a core pipeline → 1b verify+surface → 2 social loop → 3 ecosystem.
       **5 open decisions** for the user before Phase 1a (see PINES.md §9). Not started.
 
+## 🔥 Campfire — place communities (PLANNED, spec written)
+- [ ] **Full spec in `CAMPFIRE.md`.** One community per park/forest/state-park/gateway-town,
+      **virtual + keyed by the place we already model** (full coverage ~free; only posts need
+      storage). **Living dashboard first** (verdict/alerts/Pines/webcams/status pinned so it's
+      useful before anyone posts) → discussion second. Locked: name **Campfire**, coverage
+      **all places now**. Phase 1 = dashboard (no posts, no moderation risk); Phase 2 =
+      discussion + AI moderation + follow notifications (reuse alerts); Phase 3 = reputation +
+      gateway-town local commerce; Phase 4 = community conditions feed the verdict. Not started.
+
 ## 🔺 Now — infrastructure
 - [ ] **`theparkbuddy.com` is broken** (needs YOUR action in Vercel/DNS, I can't do
       it). It resolves to non-Vercel IPs; HTTPS fails (no valid cert) and HTTP

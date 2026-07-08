@@ -1,0 +1,208 @@
+<style>
+  :root{
+    --bg:#0a1712; --bg2:#08130d; --card:#0b1710; --card2:#0e2016;
+    --line:rgba(217,183,121,.16); --line2:rgba(217,183,121,.30);
+    --gold:#e8cf9a; --gold2:#c9a35f; --goldsoft:#d9b779;
+    --ink:#f4f1ea; --ink2:#aab0ba; --muted:#7f8a82;
+    --go:#4fd98a; --prep:#e8cf9a; --hold:#e08a6a;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'Space Mono',ui-monospace,'SFMono-Regular',monospace;
+    --grad:linear-gradient(120deg,#e8cf9a,#c9a35f);
+  }
+  *{box-sizing:border-box}
+  .pinesdoc{background:radial-gradient(120% 80% at 50% -10%,#10231a,#0a1712 60%);color:var(--ink);font-family:var(--sans);padding:40px 20px 64px;min-height:100vh}
+  .wrap{max-width:1180px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:.6rem;letter-spacing:.28em;text-transform:uppercase;color:var(--goldsoft)}
+  .disp{font-family:var(--serif);font-weight:500;line-height:1.02;margin:8px 0 0;font-size:clamp(2.4rem,6vw,4rem)}
+  .disp em{font-style:italic;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{color:var(--ink2);font-size:1.02rem;line-height:1.6;font-weight:300;max-width:560px;margin:14px 0 0}
+  .note{margin-top:16px;display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:7px 13px}
+  .screens{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;margin-top:44px}
+  .col{width:288px}
+  .caption{font-family:var(--mono);font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:14px}
+  .phone{width:288px;height:600px;border-radius:34px;border:1px solid var(--line2);background:var(--bg);overflow:hidden;position:relative;box-shadow:0 40px 90px -50px rgba(0,0,0,.9)}
+  .navpill{position:absolute;top:14px;left:14px;z-index:5;display:inline-flex;align-items:center;gap:6px;background:var(--grad);color:var(--bg);border-radius:999px;padding:6px 13px 6px 10px;font-weight:700;font-size:.78rem;box-shadow:0 4px 14px -6px rgba(217,183,121,.6)}
+  .photo{position:absolute;inset:0}
+  .ph-canyon{background:linear-gradient(165deg,#2e1c12,#7a4a28 42%,#b9793f 72%,#e6b273)}
+  .ph-forest{background:linear-gradient(165deg,#0d2a1c,#1d5a3f 55%,#4f9e6a)}
+  .ph-lake{background:linear-gradient(170deg,#0f3242,#2b6f86 52%,#8fc3d2)}
+  .ph-sunset{background:linear-gradient(160deg,#241634,#7a4a5a 44%,#e0a86a)}
+  .ph-dune{background:linear-gradient(165deg,#2a2012,#8a6a34 50%,#d8b878)}
+  .glow{position:absolute;inset:0;background:radial-gradient(90% 60% at 30% 20%,rgba(255,255,255,.18),transparent 60%)}
+  .scrim{position:absolute;left:0;right:0;bottom:0;height:62%;background:linear-gradient(0deg,rgba(6,14,10,.95),rgba(6,14,10,.4) 55%,transparent)}
+  .rail{position:absolute;right:12px;bottom:150px;display:flex;flex-direction:column;gap:18px;align-items:center;z-index:4}
+  .rail div{display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;font-size:.6rem}
+  .rail svg{width:26px;height:26px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+  .verdict{position:absolute;top:14px;right:14px;z-index:5;font-family:var(--mono);font-size:.56rem;letter-spacing:.06em;color:var(--bg);background:var(--go);border-radius:999px;padding:4px 9px;font-weight:700}
+  .fmeta{position:absolute;left:16px;right:64px;bottom:78px;z-index:4}
+  .place{display:flex;align-items:center;gap:6px;font-family:var(--serif);font-weight:600;font-size:1.25rem;color:#fff}
+  .badge{font-family:var(--mono);font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid}
+  .b-go{color:var(--go);border-color:rgba(79,217,138,.5)}
+  .cap{color:rgba(255,255,255,.9);font-size:.82rem;line-height:1.45;margin:6px 0 10px}
+  .pills{display:flex;gap:7px;flex-wrap:wrap}
+  .pill{font-size:.72rem;font-weight:700;border-radius:999px;padding:7px 13px;text-decoration:none}
+  .pill-gold{background:var(--grad);color:var(--bg)}
+  .pill-ghost{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.22);font-weight:600}
+  .tabbar{position:absolute;left:0;right:0;bottom:0;height:56px;z-index:6;display:flex;align-items:center;background:rgba(8,19,13,.9);border-top:1px solid var(--line);backdrop-filter:blur(10px)}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink2);font-size:.56rem;font-weight:600}
+  .tab.on{color:var(--gold)}
+  .tab svg{width:20px;height:20px}
+  .tab-plus{flex:1;display:flex;align-items:center;justify-content:center}
+  .tab-plus span{width:40px;height:40px;border-radius:12px;background:var(--grad);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700}
+  .pad{position:absolute;inset:0;padding:56px 16px 66px;overflow:hidden}
+  .h{font-family:var(--serif);font-weight:500;font-size:1.6rem;color:var(--ink);margin:0}
+  .sub{color:var(--ink2);font-size:.8rem;line-height:1.45;margin:6px 0 0}
+  .rank{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:9px;margin-top:10px}
+  .rank .n{font-family:var(--serif);font-weight:700;font-size:1.3rem;color:var(--gold);width:22px;text-align:center}
+  .rank .t{width:46px;height:46px;border-radius:9px;flex:none}
+  .rank .m{flex:1;min-width:0}
+  .rank .m b{display:block;font-family:var(--serif);font-weight:600;font-size:.9rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rank .m span{font-size:.72rem;color:var(--muted)}
+  .rank .lk{font-family:var(--mono);font-size:.56rem;color:var(--goldsoft)}
+  .field{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--line2);border-radius:11px;padding:11px 12px;color:var(--ink);font-family:var(--sans);font-size:.85rem;margin-top:9px}
+  .field.ph{color:var(--muted)}
+  .detected{display:flex;align-items:center;gap:6px;color:var(--go);font-size:.76rem;margin-top:10px}
+  .postbtn{width:100%;margin-top:14px;background:var(--grad);color:var(--bg);border:none;border-radius:11px;padding:12px;font-weight:700;font-size:.85rem}
+  .composephoto{height:150px;border-radius:12px;margin-top:6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+  .mine{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--card)}
+  .mine .t{height:96px}
+  .mine .r{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 9px}
+  .mine .r b{font-size:.72rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .st{font-family:var(--mono);font-size:.48rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:999px;border:1px solid;flex:none}
+  .st-live{color:var(--go);border-color:rgba(79,217,138,.5)}
+  .st-rev{color:var(--prep);border-color:rgba(232,207,154,.5)}
+  .legend{margin-top:56px;border-top:1px solid var(--line);padding-top:30px;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:26px}
+  .legend h3{font-family:var(--mono);font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--goldsoft);margin:0 0 12px}
+  .sw{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-size:.78rem;color:var(--ink2)}
+  .chip{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);flex:none}
+  .typ{margin-bottom:10px}
+  .typ small{font-family:var(--mono);font-size:.52rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:2px}
+</style>
+
+<div class="pinesdoc"><div class="wrap">
+  <div class="eyebrow">Park Buddy · Pines</div>
+  <h1 class="disp">Reels, but <em>for the wild.</em></h1>
+  <p class="lede">Short, real, place-anchored clips and photos from the national parks — every one captured on-site and shown next to that park's live conditions. Design preview on the Park Buddy system, for Claude Design to elevate.</p>
+  <div class="note">Layout &amp; content only · fonts render as Cormorant / Inter / Space Mono in the app · final visual polish is yours</div>
+
+  <div class="screens">
+    <div class="col">
+      <div class="phone">
+        <span class="navpill"><svg width="13" height="13" viewBox="0 0 24 24" fill="#0a1712"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"/><rect x="11" y="18" width="2" height="4"/></svg>Pines</span>
+        <div class="photo ph-canyon"></div><div class="glow"></div><div class="scrim"></div>
+        <span class="verdict">GO · 74°F</span>
+        <div class="rail">
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z"/></svg>1.2k</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z"/></svg>84</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></div>
+        </div>
+        <div class="fmeta">
+          <div class="place">📍 Zion National Park <span class="badge b-go">✓ On-site</span></div>
+          <div class="cap">Golden hour on Angels Landing — worth every switchback. Adventure.</div>
+          <div class="pills"><span class="pill pill-gold">＋ Add to trip</span><span class="pill pill-ghost">Conditions</span></div>
+        </div>
+        <div class="tabbar">
+          <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>Top</div>
+          <div class="tab-plus"><span>＋</span></div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mine</div>
+        </div>
+      </div>
+      <div class="caption">1 · Feed — swipe-up, photo + video</div>
+    </div>
+
+    <div class="col">
+      <div class="phone">
+        <div class="pad">
+          <h2 class="h">Top of the week</h2>
+          <p class="sub">The 10 most-loved Adventures from the last seven days.</p>
+          <div class="rank"><span class="n">1</span><span class="t ph-lake"></span><span class="m"><b>Crater Lake</b><span>Bluest water I've ever seen</span></span><span class="lk">♥ 3.1k</span></div>
+          <div class="rank"><span class="n">2</span><span class="t ph-forest"></span><span class="m"><b>Olympic NP</b><span>Fog in the Hoh rainforest</span></span><span class="lk">♥ 2.4k</span></div>
+          <div class="rank"><span class="n">3</span><span class="t ph-sunset"></span><span class="m"><b>Grand Canyon</b><span>Sunrise at Mather Point</span></span><span class="lk">♥ 2.0k</span></div>
+          <div class="rank"><span class="n">4</span><span class="t ph-dune"></span><span class="m"><b>Great Sand Dunes</b><span>Sledding the high dune</span></span><span class="lk">♥ 1.7k</span></div>
+          <div class="rank"><span class="n">5</span><span class="t ph-canyon"></span><span class="m"><b>Arches NP</b><span>Delicate Arch, last light</span></span><span class="lk">♥ 1.5k</span></div>
+        </div>
+        <div class="tabbar">
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>Top</div>
+          <div class="tab-plus"><span>＋</span></div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mine</div>
+        </div>
+      </div>
+      <div class="caption">2 · Top of the week</div>
+    </div>
+
+    <div class="col">
+      <div class="phone">
+        <div class="pad">
+          <div class="eyebrow">Post a Pine</div>
+          <h2 class="h" style="margin-top:4px">Share an Adventure</h2>
+          <div class="composephoto ph-forest"></div>
+          <div class="detected">📍 Location detected from photo</div>
+          <input class="field ph" value="Rocky Mountain National Park" readonly>
+          <input class="field" value="Adventure" readonly>
+          <button class="postbtn">Post Pine →</button>
+          <p class="sub" style="margin-top:10px">Reviewed before it goes live. Real, on-site shots only — no stock.</p>
+        </div>
+        <div class="tabbar">
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>Top</div>
+          <div class="tab-plus"><span>＋</span></div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mine</div>
+        </div>
+      </div>
+      <div class="caption">3 · Compose — EXIF auto-locates</div>
+    </div>
+
+    <div class="col">
+      <div class="phone">
+        <div class="pad">
+          <h2 class="h">Your Pines</h2>
+          <p class="sub">Everything you've pinned, with its review status — and, soon, what it's earned.</p>
+          <div class="grid2">
+            <div class="mine"><div class="t ph-lake"></div><div class="r"><b>Crater Lake</b><span class="st st-live">Live</span></div></div>
+            <div class="mine"><div class="t ph-canyon"></div><div class="r"><b>Zion NP</b><span class="st st-rev">In review</span></div></div>
+            <div class="mine"><div class="t ph-sunset"></div><div class="r"><b>Grand Canyon</b><span class="st st-live">Live</span></div></div>
+            <div class="mine"><div class="t ph-dune"></div><div class="r"><b>Sand Dunes</b><span class="st st-rev">In review</span></div></div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg>Top</div>
+          <div class="tab-plus"><span>＋</span></div>
+          <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Mine</div>
+        </div>
+      </div>
+      <div class="caption">4 · Mine — status + earnings</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div>
+      <h3>Palette</h3>
+      <div class="sw"><span class="chip" style="background:#0a1712"></span>Forest base · #0a1712</div>
+      <div class="sw"><span class="chip" style="background:#0e2016"></span>Raised card · #0e2016</div>
+      <div class="sw"><span class="chip" style="background:linear-gradient(120deg,#e8cf9a,#c9a35f)"></span>Champagne gold gradient</div>
+      <div class="sw"><span class="chip" style="background:#f4f1ea"></span>Ink · #f4f1ea</div>
+    </div>
+    <div>
+      <h3>Verdict semantics</h3>
+      <div class="sw"><span class="chip" style="background:#4fd98a"></span>GO · #4fd98a</div>
+      <div class="sw"><span class="chip" style="background:#e8cf9a"></span>PREPARE · #e8cf9a</div>
+      <div class="sw"><span class="chip" style="background:#e08a6a"></span>HOLD · #e08a6a</div>
+      <div class="sw"><span class="chip" style="background:#0b1710;border-color:rgba(217,183,121,.3)"></span>Hairline · rgba(217,183,121,.16–.30)</div>
+    </div>
+    <div>
+      <h3>Type</h3>
+      <div class="typ"><small>Display — Cormorant Garamond</small><span style="font-family:var(--serif);font-size:1.6rem">Reels for the wild</span></div>
+      <div class="typ"><small>Body — Inter</small><span style="font-size:.95rem;color:var(--ink2)">Captured on-site, pinned to the place.</span></div>
+      <div class="typ"><small>Micro — Space Mono</small><span style="font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase">On-site · Verified</span></div>
+    </div>
+    <div>
+      <h3>For Claude Design</h3>
+      <p class="sub" style="margin:0">Make the place + live-verdict fusion the hero of the feed. Design the "On-site" badge as something creators want to earn. Give Top-of-week and creator earnings real editorial weight. Full brief in PINES-DESIGN-BRIEF.md.</p>
+    </div>
+  </div>
+</div></div>

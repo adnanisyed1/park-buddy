@@ -132,10 +132,9 @@ w/ Talk-first · Compose · Places · You/Mine). Wired to real data, honesty-fir
 /api/conditions = Explore's NWS source; no fabricated likes/earnings/counts; honest empty
 states). Photo Pines via Supabase Storage + EXIF; video path gated on Cloudflare. Marketing:
 teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`opengraph-image`).
-- [ ] **To go live (USER, dashboard — keys never in chat):** run SQL for `pines`,
-      `pines_waitlist`, `pine_likes`, `pine_comments` (+ the count triggers — all in the route
-      header comments); create **public Storage bucket `pines`**. Then feed/compose/waitlist/
-      likes/comments work end-to-end (photos, no Cloudflare needed).
+- [x] ~~**LIVE:** SQL run (db/pines.sql), public `pines` Storage bucket created, `OPENAI_API_KEY`
+      set (auto-moderation). Backend confirmed configured on prod. Photos now post →
+      auto-approve (clean) → Feed, end-to-end.~~ ✅
 - [x] ~~**Interactivity: likes + comments + follow**~~ — `/api/pines/like` (toggle, trigger keeps
       like_count), `/api/pines/comments` (GET/POST, trigger keeps comment_count); feed heart +
       comments sheet + hub Follow (→ /api/park-alert) wired. Real, honest, auth-gated. ✅

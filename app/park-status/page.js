@@ -1,4 +1,5 @@
 import EmbeddedSite from "../components/EmbeddedSite";
+import EmbedAuthBridge from "../components/EmbedAuthBridge";
 
 // Per-park live status page. Reads ?park=<id> exactly like the original.
 // Canonical points at the base path so the many ?park= variants aren't indexed
@@ -17,5 +18,10 @@ export const metadata = {
 };
 
 export default function ParkStatusPage() {
-  return <EmbeddedSite page="park-status" />;
+  return (
+    <>
+      <EmbeddedSite page="park-status" />
+      <EmbedAuthBridge />
+    </>
+  );
 }

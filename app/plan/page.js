@@ -1,4 +1,5 @@
 import EmbeddedSite from "../components/EmbeddedSite";
+import EmbedAuthBridge from "../components/EmbedAuthBridge";
 
 // Trip planner.
 export const metadata = {
@@ -15,5 +16,10 @@ export const metadata = {
 };
 
 export default function PlanPage() {
-  return <EmbeddedSite page="plan" />;
+  return (
+    <>
+      <EmbeddedSite page="plan" />
+      <EmbedAuthBridge />
+    </>
+  );
 }

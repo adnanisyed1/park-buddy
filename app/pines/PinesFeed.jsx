@@ -391,11 +391,13 @@ function Waitlist() {
   };
   if (state === "done") return <div style={{ ...micro, letterSpacing: ".04em", textTransform: "none", color: C.go, fontSize: ".9rem" }}>✓ You're on the list — we'll email you the moment Pines opens.</div>;
   return (
-    <form onSubmit={submit} style={{ display: "flex", flexWrap: "wrap", gap: 8, maxWidth: 380, margin: "0 auto", justifyContent: "center" }}>
-      <input type="email" placeholder="you@email.com" value={email} onChange={(e) => { setEmail(e.target.value); setState(""); }}
-        style={{ flex: "1 1 170px", minWidth: 0, background: "rgba(255,255,255,.04)", border: "1px solid " + (state === "error" ? "var(--pb-hold)" : "var(--pb-line-strong)"), borderRadius: 999, padding: "12px 16px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".9rem", outline: "none" }} />
-      <button type="submit" disabled={state === "busy"} style={{ ...goldBtn(), padding: "12px 20px", flex: "1 1 auto", whiteSpace: "nowrap" }}>{state === "busy" ? "…" : "Get early access"}</button>
-    </form>
-    {state === "error" && msg && <div style={{ color: "var(--pb-hold)", fontSize: ".8rem", marginTop: 8 }}>{msg}</div>}
+    <>
+      <form onSubmit={submit} style={{ display: "flex", flexWrap: "wrap", gap: 8, maxWidth: 380, margin: "0 auto", justifyContent: "center" }}>
+        <input type="email" placeholder="you@email.com" value={email} onChange={(e) => { setEmail(e.target.value); setState(""); }}
+          style={{ flex: "1 1 170px", minWidth: 0, background: "rgba(255,255,255,.04)", border: "1px solid " + (state === "error" ? "var(--pb-hold)" : "var(--pb-line-strong)"), borderRadius: 999, padding: "12px 16px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".9rem", outline: "none" }} />
+        <button type="submit" disabled={state === "busy"} style={{ ...goldBtn(), padding: "12px 20px", flex: "1 1 auto", whiteSpace: "nowrap" }}>{state === "busy" ? "…" : "Get early access"}</button>
+      </form>
+      {state === "error" && msg && <div style={{ color: "var(--pb-hold)", fontSize: ".8rem", marginTop: 8 }}>{msg}</div>}
+    </>
   );
 }

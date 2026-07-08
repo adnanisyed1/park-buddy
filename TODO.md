@@ -156,8 +156,12 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
       EXIF GPS suggests the nearest real place (from 63 parks + 103 forests); user confirms or
       taps Change → picks from a searchable list. Sets place_type + place_id (exact linkage, not
       name-based). Honest: only places we actually model can be tagged. ✅
+- [x] ~~**Compose picker: parks + forests + gateway towns + state parks**~~ — 63 parks + 103
+      forests + ~40 curated gateway towns (window.PB_GATEWAY) + state parks (from the
+      `destinations` table). State parks only appear once that table is populated (PAD-US/RIDB
+      ingest still pending — currently returns empty, handled gracefully). ✅
 - [ ] **Left to polish:** user-follow (creator) + real follower counts; moderation-queue admin
-      UI; state parks + gateway towns in the compose place picker (parks + forests done).
+      UI; populate the `destinations` table so state parks show in the picker + across the app.
 - [ ] **Facebook auto-post (PARKED):** `app/lib/facebook.js` + moderate hook built & inert;
       user will set `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN` later. Also discussed:
       FB login, Meta Pixel, share buttons — not built yet.

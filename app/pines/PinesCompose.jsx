@@ -22,6 +22,16 @@ function miles(a, b, c, d) {
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 const slug = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const typeLabel = (t) => (t === "forest" ? "National Forest" : t === "state_park" ? "State Park" : t === "town" ? "Gateway town" : "National Park");
+const typeTag = (t) => (t === "forest" ? "Forest" : t === "state_park" ? "State park" : t === "town" ? "Town" : "Park");
+function loadScriptOnce(src) {
+  return new Promise((res) => {
+    if (typeof document === "undefined") return res();
+    if ([...document.scripts].some((s) => s.src && s.src.indexOf(src) >= 0)) return res();
+    const el = document.createElement("script"); el.src = src; el.async = true; el.onload = res; el.onerror = res;
+    document.body.appendChild(el);
+  });
+}
 
 // Downscale to <=1440px longest edge → JPEG data URL (also strips EXIF for privacy;
 // we've already pulled the GPS we need before this).
@@ -59,15 +69,27 @@ export default function PinesCompose({ open, onClose, onPosted }) {
     let on = true;
     (async () => {
       try {
-        const [pTxt, fTxt] = await Promise.all([
+        const [pTxt, fTxt, dest] = await Promise.all([
           fetch("/trip-data.js").then((r) => r.text()).catch(() => ""),
           fetch("/forest-data.js").then((r) => r.text()).catch(() => ""),
+          fetch("/api/destinations?type=state_park&limit=500").then((r) => r.json()).catch(() => ({})),
         ]);
         const pm = pTxt.match(/window\.TRIP_PARKS\s*=\s*(\[.*?\]);/);
         const fm = fTxt.match(/window\.FOREST_DATA\s*=\s*(\[[\s\S]*?\]);/);
-        const parks = pm ? JSON.parse(pm[1]).map((p) => ({ type: "park", id: String(p.id), name: p.name + " National Park", short: p.name, state: p.state, lat: p.lat, lng: p.lng })) : [];
+        const rawParks = pm ? JSON.parse(pm[1]) : [];
+        const parks = rawParks.map((p) => ({ type: "park", id: String(p.id), name: p.name + " National Park", short: p.name, state: p.state, lat: p.lat, lng: p.lng }));
         const forests = fm ? JSON.parse(fm[1]).map((f) => ({ type: "forest", id: slug(f.name), name: f.name, short: f.name, state: f.state, lat: f.lat, lng: f.lng })) : [];
-        if (on) setPlaces([...parks, ...forests]);
+        const stateParks = ((dest && dest.destinations) || []).filter((d) => d.type === "state_park" && d.lat != null).map((d) => ({ type: "state_park", id: String(d.id), name: d.name, short: d.name, state: d.state, lat: d.lat, lng: d.lng }));
+        // Gateway towns: one curated basecamp town per park (window.PB_GATEWAY).
+        let towns = [];
+        try {
+          await loadScriptOnce("/gateway-towns.js");
+          if (typeof window !== "undefined" && window.PB_GATEWAY) {
+            const seen = new Set();
+            towns = rawParks.map((p) => { const t = window.PB_GATEWAY(p.name); if (!t || t.lat == null || seen.has(t.town)) return null; seen.add(t.town); return { type: "town", id: slug(t.town), name: t.town, short: t.town, state: "", lat: t.lat, lng: t.lng }; }).filter(Boolean);
+          }
+        } catch {}
+        if (on) setPlaces([...parks, ...stateParks, ...forests, ...towns]);
       } catch {}
     })();
     return () => { on = false; };
@@ -167,7 +189,7 @@ export default function PinesCompose({ open, onClose, onPosted }) {
                     <span style={{ fontSize: "1rem" }}>📍</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: ".92rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{place.name}</div>
-                      <div style={{ fontSize: ".7rem", color: detected ? "var(--pb-go,#4fd98a)" : "var(--pb-muted)", marginTop: 1 }}>{detected ? "Detected from photo — tap Change if it's wrong" : (place.type === "forest" ? "National Forest" : "National Park") + (place.state ? " · " + place.state : "")}</div>
+                      <div style={{ fontSize: ".7rem", color: detected ? "var(--pb-go,#4fd98a)" : "var(--pb-muted)", marginTop: 1 }}>{detected ? "Detected from photo — tap Change if it's wrong" : typeLabel(place.type) + (place.state ? " · " + place.state : "")}</div>
                     </div>
                     <button onClick={() => { setPlace(null); setDetected(false); setQuery(""); }} style={{ cursor: "pointer", flex: "none", fontFamily: "inherit", fontSize: ".74rem", fontWeight: 600, color: "var(--pb-ink)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "6px 12px" }}>Change</button>
                   </div>
@@ -179,7 +201,7 @@ export default function PinesCompose({ open, onClose, onPosted }) {
                         {filtered.length ? filtered.map((pl) => (
                           <button key={pl.type + pl.id} onClick={() => { setPlace(pl); setDetected(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", textAlign: "left", cursor: "pointer", background: "none", border: "none", borderBottom: "1px solid var(--pb-line)", padding: "10px 12px" }}>
                             <span style={{ fontSize: ".88rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</span>
-                            <span style={{ ...micro, fontSize: ".5rem", flex: "none", color: "var(--pb-gold-soft)" }}>{pl.type === "forest" ? "Forest" : "Park"}{pl.state ? " · " + pl.state : ""}</span>
+                            <span style={{ ...micro, fontSize: ".5rem", flex: "none", color: "var(--pb-gold-soft)" }}>{typeTag(pl.type)}{pl.state ? " · " + pl.state : ""}</span>
                           </button>
                         )) : <div style={{ padding: "12px", color: "var(--pb-muted)", fontSize: ".84rem", lineHeight: 1.5 }}>No match — only real parks &amp; forests can be tagged{places.length ? "." : " (loading places…)"}</div>}
                       </div>

@@ -70,7 +70,7 @@ export default function ForestsIndex({ forests }) {
           <p style={{ fontSize: "1.02rem", color: "var(--pb-ink-2)", lineHeight: 1.6, maxWidth: 620, marginTop: 14 }}>Millions of acres of public land — the quieter side of the outdoors, with dispersed camping, hiking, and off-road routes the national parks don&apos;t allow. Grouped by region.</p>
           <div style={{ display: "flex", flexWrap: "wrap", marginTop: 30, borderTop: "1px solid rgba(217,183,121,.14)" }}>
             <div style={{ padding: "18px 30px 4px 0" }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "2rem", lineHeight: 1 }}>{forests.length}</div><div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 5 }}>Forests</div></div>
-            <div style={{ padding: "18px 30px 4px", borderLeft: "1px solid rgba(217,183,121,.14)" }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "2rem", lineHeight: 1 }}>{regions.length - 1}</div><div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 5 }}>Regions</div></div>
+            <div style={{ padding: "18px 30px 4px", borderLeft: "1px solid rgba(217,183,121,.14)" }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "2rem", lineHeight: 1 }}>{Math.max(0, regions.length - 1)}</div><div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 5 }}>Regions</div></div>
           </div>
         </div>
       </section>

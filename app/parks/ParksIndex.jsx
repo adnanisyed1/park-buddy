@@ -64,7 +64,7 @@ export default function ParksIndex({ parks }) {
           <p style={{ fontSize: "1.02rem", color: "var(--pb-ink-2)", lineHeight: 1.6, maxWidth: 620, marginTop: 14 }}>All 63 — from Acadia to Zion. Every park links to its live status: today&apos;s weather, alerts, and the honest go / no-go call, plus the trails, lakes, drives and campgrounds around it.</p>
           <div style={{ display: "flex", flexWrap: "wrap", marginTop: 30, borderTop: "1px solid rgba(217,183,121,.14)" }}>
             <div style={{ padding: "18px 30px 4px 0" }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "2rem", lineHeight: 1 }}>{parks.length}</div><div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 5 }}>Parks</div></div>
-            <div style={{ padding: "18px 30px 4px", borderLeft: "1px solid rgba(217,183,121,.14)" }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "2rem", lineHeight: 1 }}>{regions.length - 1}</div><div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 5 }}>Regions</div></div>
+            <div style={{ padding: "18px 30px 4px", borderLeft: "1px solid rgba(217,183,121,.14)" }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "2rem", lineHeight: 1 }}>{Math.max(0, regions.length - 1)}</div><div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 5 }}>Regions</div></div>
           </div>
         </div>
       </section>

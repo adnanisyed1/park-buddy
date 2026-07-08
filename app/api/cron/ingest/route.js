@@ -12,12 +12,11 @@ export const maxDuration = 300; // ingest pages through all 63 parks; needs Verc
 
 export async function GET(request) {
   // Auth: reject anything that isn't Vercel's cron (or a caller with the secret).
+  // Fail closed — if CRON_SECRET isn't set, refuse rather than run openly.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization") || "";
-    if (auth !== "Bearer " + secret) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+  const auth = request.headers.get("authorization") || "";
+  if (!secret || auth !== "Bearer " + secret) {
+    return new Response("Unauthorized", { status: 401 });
   }
 
   // Derive our own origin from the incoming request (no host-specific env needed).

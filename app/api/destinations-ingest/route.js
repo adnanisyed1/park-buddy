@@ -113,7 +113,7 @@ export async function POST(request) {
   const sb = (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, ""), key = process.env.SUPABASE_SERVICE_KEY;
   if (!sb || !key) return Response.json({ error: "Set SUPABASE_URL and SUPABASE_SERVICE_KEY." }, { status: 500 });
   const { searchParams } = new URL(request.url);
-  if (process.env.INGEST_SECRET && searchParams.get("token") !== process.env.INGEST_SECRET) {
+  if (!process.env.INGEST_SECRET || searchParams.get("token") !== process.env.INGEST_SECRET) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const origin = new URL(request.url).origin;

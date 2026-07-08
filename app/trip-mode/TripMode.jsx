@@ -122,7 +122,7 @@ export default function TripMode() {
               <button onClick={stopTracking} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".9rem", fontWeight: 700, color: "#e7e3d8", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "13px 24px" }}>■ Stop tracking</button>
             )}
             <a href="/trip-book" style={{ textDecoration: "none", fontSize: ".9rem", fontWeight: 700, color: "#e7e3d8", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "13px 22px" }}>📖 Turn this into a book →</a>
-            <span style={{ fontFamily: mono, fontSize: ".62rem", color: "var(--pb-muted)" }}>{photoCount()} photos · {getBreadcrumb().length} track points</span>
+            <span style={{ fontFamily: mono, fontSize: ".62rem", color: "var(--pb-muted)" }}>{ready ? photoCount() : 0} photos · {ready ? getBreadcrumb().length : 0} track points</span>
           </div>
           {geoErr && <div style={{ marginTop: 12, fontSize: ".84rem", color: "#e0906a" }}>{geoErr}</div>}
           {tracking && pos && (

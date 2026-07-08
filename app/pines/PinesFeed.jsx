@@ -404,7 +404,9 @@ function You({ user, onPost }) {
   if (!user) return <div style={{ padding: "60px 20px" }}><h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", color: "var(--pb-ink)" }}>Your Pines</h2><p style={{ color: "var(--pb-ink-2)", lineHeight: 1.6, margin: "10px 0 16px" }}>Sign in to post Adventures and track the ones you've shared.</p><button onClick={() => openAuth()} style={goldBtn()}>Sign in</button></div>;
   const name = (user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0];
   const live = (mine || []).filter((m) => m.status === "approved").length;
-  const stats = [[String((mine || []).length), "Pines"], ["0", "Followers"], ["0", "Following"], [String(live), "Live"]];
+  const review = (mine || []).filter((m) => m.status === "pending" || m.status === "processing").length;
+  // Real stats only — Followers/Following aren't modeled yet, so we don't show fake 0s.
+  const stats = [[String((mine || []).length), "Pines"], [String(live), "Live"], [String(review), "In review"]];
   return (
     <div style={{ padding: "50px 0 20px" }}>
       <div style={{ padding: "0 15px" }}>

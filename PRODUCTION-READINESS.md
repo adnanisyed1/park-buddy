@@ -8,6 +8,20 @@
 
 ---
 
+## ✅ Cleared autonomously (2026-07-08, shipped to main)
+
+- **Checkout money bug** — price is now server-authoritative (derived from book size); client price ignored.
+- **Legal** — `/privacy`, `/terms`, `/attributions` pages live (honest baseline: safety disclaimer, UGC license, DMCA/report, affiliate disclosure, data-source credits); AuthModal now links to real Terms/Privacy (valid clickwrap); legal links added to the landing footer. *(Recommend a lawyer eyeballs the wording before scale — it's a solid starting template.)*
+- **SEO** — per-park + per-forest `generateMetadata` (63 parks + forests now distinct, indexable pages).
+- **Fake forms** — CategoryPage "Notify me" now really stores emails (`/api/pines-waitlist`).
+- **trip-mode hydration** — the persistent "1 error" fixed (counts gated on mount).
+- **Security headers** — nosniff, Referrer-Policy, X-Frame-Options, Permissions-Policy, HSTS added.
+- **Fail-closed secrets** — ingest/seed/cron endpoints now require their secret (were open if unset).
+- **Honest stats** — Pines "You" page drops fake `0` Followers/Following (shows real Pines/Live/In-review).
+- **Polish** — parks/forests index "-1 Regions" clamp; park-alert 500→503; brand unified to "Park Buddy".
+
+**Still needs code (not yet done):** rate limiting/CAPTCHA on public POSTs (needs an hCaptcha acct), UGC Report button + `pine_reports` table, Ask-Park-Buddy in-context reachability + platform tools, the `profiles`/Bio system, moderation-queue admin UI, `usePhoto`/ParkStatusV2 hydration, EmbeddedSite try/catch fallback, `/book`+`/pines` dead tiles. **Owner-only:** RLS verify, env vars, Stripe/Lulu/affiliate accounts, domain — see checklist below.
+
 ## 🔴 LAUNCH BLOCKERS (P0) — the short list to clear before going live
 
 1. **No Terms of Service / Privacy Policy pages** — auth already says "you agree to our Terms & Privacy" but the links don't exist. *(flagged by 3 of 5 audits — #1 priority)*

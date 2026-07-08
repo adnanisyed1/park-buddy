@@ -21,6 +21,7 @@ const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const vColor = (v) => (v === "GO" ? C.go : v === "PREPARE" ? C.prep : v === "HOLD" ? C.hold : "#aab0ba");
 const vShort = (v) => (v === "PREPARE" ? "PREP" : v);
 const micro = { fontFamily: mono, fontSize: ".54rem", letterSpacing: ".16em", textTransform: "uppercase" };
+const arrowBtn = { cursor: "pointer", width: 38, height: 38, borderRadius: "50%", background: "rgba(6,14,10,.55)", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.3)", color: "#fff", fontSize: "1rem", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" };
 
 // ---- real photo via our pipeline (/api/photo?q=pipe|candidates), with cache + fade ----
 const photoCache = {};
@@ -141,14 +142,35 @@ function Feed({ onPost, user, isWeb }) {
     try { const t = await getAccessToken(); const r = await fetch("/api/pines/like", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: p.id }) }); const d = await r.json().catch(() => ({})); if (d.like_count != null) setLike({ liked: !!d.liked, count: d.like_count }); } catch {}
   };
 
+  // Advance/rewind through the feed — by tap, wheel/trackpad scroll, or ↑/↓ keys.
+  const n = st.pines.length;
+  const advance = (dir) => { if (n < 2) return; setIdx((i) => (i + dir + n) % n); };
+  const wheelLock = useRef(false);
+  const onWheel = (e) => {
+    if (Math.abs(e.deltaY) < 24 || wheelLock.current) return;
+    wheelLock.current = true; advance(e.deltaY > 0 ? 1 : -1);
+    setTimeout(() => { wheelLock.current = false; }, 520);
+  };
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "ArrowDown") advance(1); else if (e.key === "ArrowUp") advance(-1); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [n]); // eslint-disable-line
+
   if (st.loading) return <Center><span style={{ color: "var(--pb-muted)", ...micro }}>Loading Pines…</span></Center>;
   if (!st.pines.length) return <Center><Empty user={user} onPost={onPost} /></Center>;
 
   const src = p.image_url || p.poster_url;
   const vc = verdict ? vColor(verdict.v) : "#aab0ba";
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 480, background: "#000", overflow: "hidden", borderRadius: isWeb ? 20 : 0, border: isWeb ? "1px solid var(--pb-line)" : "none", marginTop: isWeb ? 18 : 0 }}>
+    <div onWheel={onWheel} style={{ position: "relative", width: "100%", height: "100%", minHeight: 480, background: "#000", overflow: "hidden", borderRadius: isWeb ? 20 : 0, border: isWeb ? "1px solid var(--pb-line)" : "none", marginTop: isWeb ? 18 : 0 }}>
       {src ? <img src={src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}
+      {isWeb && n > 1 && (
+        <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", zIndex: 7, display: "flex", flexDirection: "column", gap: 10 }}>
+          <button onClick={() => advance(-1)} aria-label="Previous" style={arrowBtn}>↑</button>
+          <button onClick={() => advance(1)} aria-label="Next" style={arrowBtn}>↓</button>
+        </div>
+      )}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(6,14,10,.5),transparent 22%,transparent 52%,rgba(6,14,10,.96))" }} />
       <div style={{ position: "absolute", left: 16, top: 14, zIndex: 6, display: "flex", gap: 4 }}>{st.pines.map((x, i) => <span key={i} style={{ width: i === idx ? 18 : 6, height: 3, borderRadius: 2, background: i === idx ? "var(--pb-gold)" : "rgba(255,255,255,.4)", transition: "width .3s" }} />)}</div>
       {verdict && (

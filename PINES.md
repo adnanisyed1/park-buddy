@@ -1,7 +1,8 @@
 # 🌲 Pines — short vertical video for Park Buddy
 
-> **Status:** Spec / not yet built. This is the "plan the full video version" doc.
-> Nothing here is live. Build order is in [Phased build](#phased-build).
+> **Status:** Phase 1a **in progress** — pipeline scaffolding + the `/pines` feed are
+> built and shipped (they degrade honestly until the Cloudflare account is set up). See
+> [Build status](#build-status--setup). Build order is in [Phased build](#phased-build).
 >
 > One clip = **a Pine**. The verb is *"pin it."* Pines = *pin* + *pine* + *reels*.
 
@@ -14,6 +15,30 @@ plugs straight into planning.
 This doc is the plan for the **real-video** version (user-captured clips, hosted &
 streamed). A cheaper photo/webcam-only "Phase 0" was considered and deferred — see
 [Alternatives considered](#alternatives-considered).
+
+---
+
+## Build status & setup
+
+**Shipped (Phase 1a, degrades honestly with no keys):**
+- `/pines` — full-screen vertical scroll-snap feed, on the design system, with an honest
+  "Pines are coming" empty state (`app/pines/`).
+- `app/lib/cloudflareStream.js` — Stream client (direct-upload URL, playback URLs, webhook
+  verify).
+- `app/api/pines/upload-url` (signed-in → Cloudflare upload URL; **503** until configured),
+  `app/api/pines` (POST create metadata / GET approved feed), `app/api/pines/webhook`
+  (Cloudflare "ready" → `pending`, signature-verified).
+
+**To turn it on (your dashboard actions — keys never in chat):**
+1. **Supabase:** run the `pines` table SQL (in `app/api/pines/route.js` header comment).
+2. **Cloudflare:** create an account → Stream; make an API token scoped to **Stream:Edit**;
+   register a Stream webhook pointing at `https://<domain>/api/pines/webhook`.
+3. **Vercel env:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_STREAM_API_TOKEN`,
+   `CLOUDFLARE_STREAM_WEBHOOK_SECRET` (+ `SUPABASE_SERVICE_KEY` already set).
+
+**Next increments:** in-app capture UI (record ≤60s → upload URL → PUT → POST /api/pines),
+GPS re-verification + "On-site" badge (Phase 1b), AI-moderation hook in the webhook, and
+per-place surfacing (park pages / map).
 
 ---
 

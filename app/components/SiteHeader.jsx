@@ -36,6 +36,7 @@ const EXPLORE_MENU = [
 const EXPLORE_KEYS = ["explore", "drives", "cruises", "diving", "climbing"];
 
 const LINKS = [
+  { key: "pines", label: "Pines", href: "/pines" },
   { key: "book", label: "Book", href: "/book" },
   { key: "shop", label: "Shop", href: "/shop" },
   { key: "pro", label: "Pro", href: "/#pro" },

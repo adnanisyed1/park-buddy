@@ -145,8 +145,13 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
 - [ ] **Moderation queue UI:** `/api/pines/moderate` (approve/reject, `PINES_ADMIN_SECRET`) works;
       needs a small admin screen to clear pending when AI isn't configured.
 - [ ] **Video Pines:** set Cloudflare Stream env (see PINES.md) → in-app video capture.
-- [ ] **Left to polish:** live **temp** in the verdict chip; per-place surfacing on park pages +
-      map; user-follow (creator) + real follower counts.
+- [x] ~~**Live temp in the verdict chip**~~ — /api/conditions now returns real NWS current temp;
+      feed hero reads e.g. "GO · 58°". ✅
+- [x] ~~**Per-place Pines on park pages**~~ — "Pines from here" rail on /parks/[id] Overview
+      (matches by place_name via /api/pines?place_name=; honest empty invite). ✅
+- [ ] **Left to polish:** Pines **count on Explore map pins** (the other half of surfacing);
+      GPS→park-id linkage on compose (so matching is exact, not name-based); user-follow
+      (creator) + real follower counts; moderation-queue admin UI.
 - [ ] **Facebook auto-post (PARKED):** `app/lib/facebook.js` + moderate hook built & inert;
       user will set `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN` later. Also discussed:
       FB login, Meta Pixel, share buttons — not built yet.

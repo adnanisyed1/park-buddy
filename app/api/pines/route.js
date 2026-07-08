@@ -117,6 +117,10 @@ export async function GET(request) {
     const [pt, pid] = place.split(":");
     q += "&place_type=eq." + encodeURIComponent(pt) + "&place_id=eq." + encodeURIComponent(pid);
   }
+  // Loose match by place name (compose stores the typed name; GPS→park id linkage
+  // is a later step) — lets park pages surface their Pines today.
+  const placeName = url.searchParams.get("place_name");
+  if (placeName) q += "&place_name=ilike.*" + encodeURIComponent(placeName) + "*";
 
   try {
     const r = await fetch(q, { headers: { apikey: svc, Authorization: "Bearer " + svc } });

@@ -309,6 +309,49 @@ function chip(kind) {
 const H2 = { fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.4rem,3vw,1.9rem)" };
 
 /* ---------------- OVERVIEW ---------------- */
+// "Pines from here" — surfaces this place's community clips/photos on the park page.
+// Matches by place name (compose stores the typed name; GPS→park-id linkage is a later
+// step). Honest: shows the real count, or a slim invite to post the first when empty.
+function PinesRail({ park }) {
+  const [pins, setPins] = useState(null);
+  useEffect(() => {
+    if (!park) return; let on = true;
+    fetch("/api/pines?place_name=" + encodeURIComponent(park.name) + "&limit=12")
+      .then((r) => r.json()).then((d) => on && setPins(d.pines || [])).catch(() => on && setPins([]));
+    return () => { on = false; };
+  }, [park && park.name]);
+  if (pins === null) return null;
+  return (
+    <div style={{ marginBottom: "clamp(20px,4vw,36px)" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+        <h2 style={{ ...H2, fontSize: "clamp(1.3rem,3vw,1.8rem)", display: "flex", alignItems: "center", gap: 9 }}>
+          <span style={{ width: 22, height: 22, borderRadius: 6, background: "var(--pb-grad-gold)", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "none" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="var(--pb-bg)"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg></span>
+          Pines from here
+        </h2>
+        <a href="/pines" style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--pb-gold)", textDecoration: "none", flex: "none" }}>{pins.length ? "See all ›" : "Open Pines ›"}</a>
+      </div>
+      {pins.length ? (
+        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }} className="pn-scroll">
+          {pins.map((p) => (
+            <a key={p.id} href="/pines" style={{ flex: "none", width: 132, textDecoration: "none" }}>
+              <div style={{ width: 132, aspectRatio: "3/4", borderRadius: 12, overflow: "hidden", border: "1px solid var(--pb-line)", background: "#000", position: "relative" }}>
+                {(p.image_url || p.poster_url) && <img src={p.image_url || p.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                {p.verified && <span style={{ position: "absolute", top: 6, left: 6, fontFamily: mono, fontSize: ".44rem", letterSpacing: ".08em", textTransform: "uppercase", color: "#4fd98a", background: "rgba(6,14,10,.7)", border: "1px solid rgba(79,217,138,.5)", borderRadius: 999, padding: "2px 6px" }}>✓ On-site</span>}
+              </div>
+              {p.caption && <div style={{ fontSize: ".72rem", color: "var(--pb-ink-2)", marginTop: 5, lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption}</div>}
+            </a>
+          ))}
+        </div>
+      ) : (
+        <a href="/pines" style={{ display: "flex", alignItems: "center", gap: 11, textDecoration: "none", border: "1px dashed var(--pb-line-strong)", borderRadius: 14, padding: "14px 16px", background: "rgba(255,255,255,.02)" }}>
+          <span style={{ fontSize: "1.3rem" }}>🌲</span>
+          <span style={{ color: "var(--pb-ink-2)", fontSize: ".9rem", lineHeight: 1.4 }}>No Pines from {park ? park.name : "here"} yet — <b style={{ color: "var(--pb-gold)" }}>share the first Adventure ›</b></span>
+        </a>
+      )}
+    </div>
+  );
+}
+
 function Overview({ park, nps, isForest }) {
   const p = nps && nps.park;
   const forestAbout = park
@@ -316,6 +359,7 @@ function Overview({ park, nps, isForest }) {
     : "";
   return (
     <>
+      <PinesRail park={park} />
       <div style={{ display: "grid", gap: "clamp(20px,4vw,40px)" }} className="ps-grid">
         <div>
           <h2 style={{ ...H2, fontSize: "clamp(1.6rem,3.4vw,2.3rem)" }}>{isForest ? "About the forest" : "About the park"}</h2>

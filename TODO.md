@@ -149,9 +149,12 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
       feed hero reads e.g. "GO · 58°". ✅
 - [x] ~~**Per-place Pines on park pages**~~ — "Pines from here" rail on /parks/[id] Overview
       (matches by place_name via /api/pines?place_name=; honest empty invite). ✅
-- [ ] **Left to polish:** Pines **count on Explore map pins** (the other half of surfacing);
-      GPS→park-id linkage on compose (so matching is exact, not name-based); user-follow
-      (creator) + real follower counts; moderation-queue admin UI.
+- [x] ~~**Pines on the Explore map**~~ — a "Pines from here" line in the pin's detail panel
+      (not a pin-badge — decided against clutter). Matches by place name → /pines. ✅
+- [x] ~~**SQL in the repo**~~ — full Pines schema at `db/pines.sql` (+ still in route headers).
+      Backend verified live on prod (configured:true; waitlist write ok). ✅
+- [ ] **Left to polish:** GPS→park-id linkage on compose (so place matching is exact, not
+      name-based); user-follow (creator) + real follower counts; moderation-queue admin UI.
 - [ ] **Facebook auto-post (PARKED):** `app/lib/facebook.js` + moderate hook built & inert;
       user will set `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN` later. Also discussed:
       FB login, Meta Pixel, share buttons — not built yet.

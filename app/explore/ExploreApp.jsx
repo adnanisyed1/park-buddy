@@ -424,6 +424,28 @@ function ReviewsSection({ tr }) {
   );
 }
 
+/* "Pines from here" peek for the detail panel — a compact line linking into the
+   feed. Matches by place name (like the park-page rail); honest count / invite. */
+function PinesPeek({ name }) {
+  const [pins, setPins] = useState(null);
+  useEffect(() => {
+    if (!name) return; let on = true;
+    fetch("/api/pines?place_name=" + encodeURIComponent(name) + "&limit=1")
+      .then((r) => r.json()).then((d) => on && setPins(d.pines || [])).catch(() => on && setPins([]));
+    return () => { on = false; };
+  }, [name]);
+  if (pins === null) return null;
+  return (
+    <a href="/pines" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none", border: "1px solid rgba(217,183,121,.2)", borderRadius: 12, padding: "10px 12px", marginBottom: 14, background: "rgba(255,255,255,.02)" }}>
+      <span style={{ width: 20, height: 20, borderRadius: 6, background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="#0a1712"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
+      </span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: ".82rem", fontWeight: 600, color: "#e7e3d8" }}>{pins.length ? "Pines from here" : "Be the first to pin a Pine here"}</span>
+      <span style={{ fontSize: ".78rem", fontWeight: 600, color: "#e8cf9a", flex: "none" }}>→</span>
+    </a>
+  );
+}
+
 /* ================================ component ================================ */
 
 export default function ExploreApp() {
@@ -1636,6 +1658,7 @@ export default function ExploreApp() {
                   {statusHrefFor(sel) && (
                     <a href={statusHrefFor(sel)} style={{ display: "block", textAlign: "center", border: "1px solid rgba(217,183,121,.2)", borderRadius: 12, padding: 11, fontWeight: 600, fontSize: ".84rem", color: "#e8cf9a", textDecoration: "none", marginBottom: 14 }}>View full live status →</a>
                   )}
+                  <PinesPeek name={sel.name} />
                 </>
               )}
               {ui.detailTab === "about" && (

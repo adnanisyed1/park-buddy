@@ -133,14 +133,20 @@ w/ Talk-first · Compose · Places · You/Mine). Wired to real data, honesty-fir
 states). Photo Pines via Supabase Storage + EXIF; video path gated on Cloudflare. Marketing:
 teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`opengraph-image`).
 - [ ] **To go live (USER, dashboard — keys never in chat):** run SQL for `pines`,
-      `pines_waitlist` (route header comments); create **public Storage bucket `pines`**.
-      Then feed/compose/waitlist work end-to-end (photos, no Cloudflare needed).
-- [ ] **Moderation:** `/api/pines/moderate` (approve/reject, gated by `PINES_ADMIN_SECRET`)
-      flips a pine live; on approve it auto-posts to Facebook if configured. Needs an admin
-      UI + AI first-pass (currently secret-gated manual).
+      `pines_waitlist`, `pine_likes`, `pine_comments` (+ the count triggers — all in the route
+      header comments); create **public Storage bucket `pines`**. Then feed/compose/waitlist/
+      likes/comments work end-to-end (photos, no Cloudflare needed).
+- [x] ~~**Interactivity: likes + comments + follow**~~ — `/api/pines/like` (toggle, trigger keeps
+      like_count), `/api/pines/comments` (GET/POST, trigger keeps comment_count); feed heart +
+      comments sheet + hub Follow (→ /api/park-alert) wired. Real, honest, auth-gated. ✅
+- [x] ~~**AI moderation first-pass**~~ — `app/lib/moderation.js` (env-gated: MODERATION_WEBHOOK_URL
+      or OPENAI_API_KEY; else manual/pending) wired into `/api/pines/photo`: clean→approved,
+      flagged→rejected, none→pending queue. ✅
+- [ ] **Moderation queue UI:** `/api/pines/moderate` (approve/reject, `PINES_ADMIN_SECRET`) works;
+      needs a small admin screen to clear pending when AI isn't configured.
 - [ ] **Video Pines:** set Cloudflare Stream env (see PINES.md) → in-app video capture.
-- [ ] **Interactivity (next build):** likes / follow / comments backend; live **temp** in the
-      verdict chip; per-place surfacing on park pages + map.
+- [ ] **Left to polish:** live **temp** in the verdict chip; per-place surfacing on park pages +
+      map; user-follow (creator) + real follower counts.
 - [ ] **Facebook auto-post (PARKED):** `app/lib/facebook.js` + moderate hook built & inert;
       user will set `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN` later. Also discussed:
       FB login, Meta Pixel, share buttons — not built yet.

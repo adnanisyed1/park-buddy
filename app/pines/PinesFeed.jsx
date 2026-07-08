@@ -125,9 +125,21 @@ function Feed({ onPost, user, isWeb }) {
   const [st, setSt] = useState({ loading: true, pines: [] });
   const [idx, setIdx] = useState(0);
   const [verdict, setVerdict] = useState(null);
+  const [like, setLike] = useState({ liked: false, count: 0 });
+  const [commentsOpen, setCommentsOpen] = useState(false);
   useEffect(() => { let on = true; fetch("/api/pines?limit=20").then((r) => r.json()).then((d) => on && setSt({ loading: false, pines: d.pines || [] })).catch(() => on && setSt({ loading: false, pines: [] })); return () => { on = false; }; }, []);
   const p = st.pines[idx];
   useEffect(() => { setVerdict(null); if (p && p.display_lat != null && p.display_lng != null) fetchVerdict(p.display_lat, p.display_lng).then(setVerdict); }, [p && p.id]);
+  // real like state for the active pine
+  useEffect(() => {
+    if (!p) return; setLike({ liked: false, count: p.like_count || 0 });
+    (async () => { try { const t = await getAccessToken(); const r = await fetch("/api/pines/like?pine_id=" + p.id, t ? { headers: { Authorization: "Bearer " + t } } : {}); const d = await r.json().catch(() => ({})); setLike({ liked: !!d.liked, count: d.like_count != null ? d.like_count : (p.like_count || 0) }); } catch {} })();
+  }, [p && p.id]);
+  const toggleLike = async () => {
+    if (!user) { openAuth(); return; }
+    setLike((l) => ({ liked: !l.liked, count: l.count + (l.liked ? -1 : 1) })); // optimistic
+    try { const t = await getAccessToken(); const r = await fetch("/api/pines/like", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: p.id }) }); const d = await r.json().catch(() => ({})); if (d.like_count != null) setLike({ liked: !!d.liked, count: d.like_count }); } catch {}
+  };
 
   if (st.loading) return <Center><span style={{ color: "var(--pb-muted)", ...micro }}>Loading Pines…</span></Center>;
   if (!st.pines.length) return <Center><Empty user={user} onPost={onPost} /></Center>;
@@ -146,10 +158,11 @@ function Feed({ onPost, user, isWeb }) {
         </div>
       )}
       <div style={{ position: "absolute", right: 12, bottom: 150, zIndex: 6, display: "flex", flexDirection: "column", gap: 18, alignItems: "center", color: "#fff" }}>
-        <RailBtn label={p.like_count || 0}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></RailBtn>
-        <RailBtn label={p.comment_count || 0}><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z" /></RailBtn>
-        <RailBtn><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></RailBtn>
+        <RailBtn label={like.count} onClick={toggleLike} active={like.liked}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></RailBtn>
+        <RailBtn label={p.comment_count || 0} onClick={() => setCommentsOpen(true)}><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z" /></RailBtn>
+        <RailBtn onClick={() => { try { navigator.share ? navigator.share({ title: "Park Buddy Pines", url: location.href }) : navigator.clipboard.writeText(location.href); } catch {} }}><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></RailBtn>
       </div>
+      {commentsOpen && <CommentsSheet pine={p} user={user} onClose={() => setCommentsOpen(false)} />}
       <div style={{ position: "absolute", left: 16, right: 70, bottom: 96, zIndex: 6 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "#fff", textShadow: "0 2px 12px rgba(0,0,0,.6)" }}>📍 {p.place_name || "Adventure"}</span>
@@ -165,8 +178,48 @@ function Feed({ onPost, user, isWeb }) {
     </div>
   );
 }
-function RailBtn({ children, label }) {
-  return <button style={{ cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", fontSize: ".6rem", fontWeight: 600 }}><svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" style={{ width: 26, height: 26, filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}>{children}</svg>{label != null && label !== 0 ? <span>{label}</span> : null}</button>;
+function RailBtn({ children, label, onClick, active }) {
+  return <button onClick={onClick} style={{ cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", fontSize: ".6rem", fontWeight: 600 }}><svg viewBox="0 0 24 24" fill={active ? C.like : "none"} stroke={active ? C.like : "#fff"} strokeWidth="2" style={{ width: 26, height: 26, filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}>{children}</svg>{label != null && label !== 0 ? <span>{label}</span> : null}</button>;
+}
+
+function CommentsSheet({ pine, user, onClose }) {
+  const [comments, setComments] = useState(null);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = () => fetch("/api/pines/comments?pine_id=" + pine.id).then((r) => r.json()).then((d) => setComments(d.comments || [])).catch(() => setComments([]));
+  useEffect(() => { load(); }, [pine.id]); // eslint-disable-line
+  const post = async () => {
+    if (!user) { openAuth(); return; }
+    const body = text.trim(); if (!body) return;
+    setBusy(true);
+    try { const t = await getAccessToken(); const r = await fetch("/api/pines/comments", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: pine.id, body }) }); if (r.ok) { setText(""); await load(); } } catch {}
+    setBusy(false);
+  };
+  const fmt = (d) => { try { return new Date(d).toLocaleDateString([], { month: "short", day: "numeric" }); } catch { return ""; } };
+  return (
+    <div onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(4,7,5,.5)", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ background: "var(--pb-bg)", borderTop: "1px solid var(--pb-line-strong)", borderRadius: "22px 22px 0 0", maxHeight: "80%", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--pb-line)" }}>
+          <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>Comments</span>
+          <button onClick={onClose} aria-label="Close" style={{ cursor: "pointer", width: 30, height: 30, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "transparent", color: "var(--pb-ink-2)" }}>×</button>
+        </div>
+        <div style={{ overflowY: "auto", padding: "8px 16px", flex: 1 }}>
+          {comments === null ? <p style={{ color: "var(--pb-muted)", fontSize: ".85rem", padding: "12px 0" }}>Loading…</p>
+            : !comments.length ? <p style={{ color: "var(--pb-ink-2)", fontSize: ".9rem", lineHeight: 1.6, padding: "16px 0", textAlign: "center" }}>No comments yet. Be the first to say something.</p>
+            : comments.map((c) => (
+              <div key={c.id} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--pb-line)" }}>
+                <span style={{ width: 28, height: 28, borderRadius: "50%", flex: "none", background: "linear-gradient(150deg,#1f5e46,#0e2016)", border: "1px solid var(--pb-gold-2)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: ".75rem", color: "var(--pb-gold)" }}>{(c.author_name || "?")[0].toUpperCase()}</span>
+                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: ".8rem", color: "var(--pb-ink)" }}><b>{c.author_name || "Someone"}</b> <span style={{ color: "var(--pb-muted)", fontSize: ".7rem" }}>· {fmt(c.created_at)}</span></div><div style={{ fontSize: ".88rem", color: "var(--pb-ink-2)", lineHeight: 1.45, marginTop: 2 }}>{c.body}</div></div>
+              </div>
+            ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--pb-line)" }}>
+          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && post()} placeholder={user ? "Add a comment…" : "Sign in to comment"} style={{ flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "10px 14px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".88rem", outline: "none" }} />
+          <button onClick={post} disabled={busy} style={{ ...goldBtn(), padding: "10px 18px", flex: "none" }}>Post</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ---------------- Top ---------------- */
@@ -226,7 +279,7 @@ function Hub({ place, onBack }) {
           <div><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", lineHeight: 1.02, color: "var(--pb-ink)" }}>{pl.name} Campfire</div></div>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <span style={{ fontSize: ".76rem", fontWeight: 700, background: C.gold, color: "var(--pb-bg)", borderRadius: 999, padding: "8px 16px", cursor: "pointer" }}>Follow</span>
+          <FollowButton place={pl} />
           {pl.type === "park" && pl.id && <Link href={"/parks/" + pl.id} style={{ fontSize: ".76rem", fontWeight: 600, color: "var(--pb-ink)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px", textDecoration: "none" }}>Live conditions ›</Link>}
         </div>
       </div>
@@ -234,6 +287,18 @@ function Hub({ place, onBack }) {
       <div style={{ height: 14 }} />
     </div>
   );
+}
+
+function FollowButton({ place }) {
+  const { user } = useAuth();
+  const [state, setState] = useState(""); // "" | busy | done
+  const follow = async () => {
+    if (!user) { openAuth(); return; }
+    if (place.type !== "park" || !place.id) { setState("done"); return; } // only parks have alert follows today
+    setState("busy");
+    try { const r = await fetch("/api/park-alert", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, park_id: place.id, park_name: place.name, alert_verdict: true }) }); setState(r.ok ? "done" : ""); } catch { setState(""); }
+  };
+  return <button onClick={follow} disabled={state === "busy"} style={{ cursor: "pointer", fontFamily: "var(--pb-sans)", fontSize: ".76rem", fontWeight: 700, background: state === "done" ? "rgba(255,255,255,.05)" : C.gold, color: state === "done" ? "var(--pb-ink)" : "var(--pb-bg)", border: state === "done" ? "1px solid var(--pb-line-strong)" : "none", borderRadius: 999, padding: "8px 16px" }}>{state === "done" ? "✓ Following" : state === "busy" ? "…" : "Follow"}</button>;
 }
 
 function HubTabs({ pl, pins }) {

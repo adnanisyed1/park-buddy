@@ -18,7 +18,7 @@
 //     verified boolean default false,
 //     display_lat float8, display_lng float8,
 //     status text default 'processing',    -- processing|pending|approved|rejected|removed
-//     like_count int default 0, view_count int default 0,
+//     like_count int default 0, comment_count int default 0, view_count int default 0,
 //     created_at timestamptz default now()
 //   );
 //   create index on pines (status, created_at desc);
@@ -86,7 +86,7 @@ export async function POST(request) {
   } catch { return Response.json({ error: "Couldn't reach the Pines backend." }, { status: 502 }); }
 }
 
-const SELECT = "id,media_type,cf_uid,image_url,place_type,place_id,place_name,caption,duration_s,poster_url,hls_url,iframe_url,verified,location_source,display_lat,display_lng,like_count,view_count,status,created_at";
+const SELECT = "id,media_type,cf_uid,image_url,place_type,place_id,place_name,caption,duration_s,poster_url,hls_url,iframe_url,verified,location_source,display_lat,display_lng,like_count,comment_count,view_count,status,created_at";
 
 export async function GET(request) {
   const sb = sbBase(), svc = process.env.SUPABASE_SERVICE_KEY;

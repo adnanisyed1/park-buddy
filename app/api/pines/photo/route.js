@@ -5,6 +5,7 @@
 // writes a pines row (media_type=photo, status=pending → AI/manual moderation).
 import { createClient } from "@supabase/supabase-js";
 import { uploadPublicImage, storageConfigured } from "../../../lib/storage";
+import { moderateImage } from "../../../lib/moderation";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,11 @@ export async function POST(request) {
   try { image_url = await uploadPublicImage(path, bytes, contentType); }
   catch { return Response.json({ error: "Couldn't save your photo." }, { status: 502 }); }
 
+  // AI moderation first-pass: clean → approved (live), flagged → rejected, else pending
+  // (manual queue). Never blocks posting — failure/absence falls back to pending.
+  const mod = await moderateImage(image_url);
+  const status = mod.decision === "approve" ? "approved" : mod.decision === "reject" ? "rejected" : "pending";
+
   const lat = num(b.lat), lng = num(b.lng);
   const row = {
     user_id: user.id,
@@ -63,7 +69,7 @@ export async function POST(request) {
     location_source: b.location_source === "photo" ? "photo" : "manual",
     captured_at: b.captured_at || new Date().toISOString(),
     verified: false,
-    status: "pending", // awaiting moderation (AI hook / manual queue)
+    status, // AI first-pass: approved | rejected | pending (manual queue)
   };
 
   try {

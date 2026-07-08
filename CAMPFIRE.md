@@ -8,6 +8,20 @@
 A Campfire is the place-anchored community for every **National Park, National Forest, State
 Park, and gateway town** — where visitors and locals talk about what's going on *right now*.
 
+## ⭐ Unified: Pines & Campfire are ONE social space
+To avoid confusing users with competing brands, the social layer is a single destination:
+- **Pines** = the whole social space (the gold nav button, feed-first home). The one entry.
+- **Campfire** = what a *place's community* is called *inside* Pines (like "Groups"). You open
+  "Yosemite's Campfire" from within Pines; there is no separate Campfire nav item.
+- **One ＋ composer** posts either a **Pine** (photo/video) or a **Post** (report / question /
+  wildlife / trip / heads-up).
+- **One social graph:** `pines` (media) + `campfire_posts` (discussion), both keyed by place;
+  the Feed blends them. Shared follows, notifications, moderation, profile, earnings.
+
+Mental model: **Park Buddy → Pines (social space) → Feed + Places → each place has its Campfire
+(live dashboard + community).** Bottom nav: **Feed · Places · ＋ · You.** The **place hub** is
+where they merge — live verdict/alerts on top, then tabs **Pines · Talk · Live**.
+
 ## Locked decisions
 - **Shape:** *living dashboard first, discussion second.* Each Campfire opens already full of
   real signal (verdict, alerts, Pines, webcams, status) so it's useful before anyone posts.

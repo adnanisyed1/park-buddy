@@ -18,6 +18,14 @@ streamed). A cheaper photo/webcam-only "Phase 0" was considered and deferred —
 
 ---
 
+## ⭐ Pines is the unified social space (incl. Campfire)
+Pines is not just the video/photo feed — it's the **one social destination** for Park Buddy.
+Place communities (**Campfire**, see `CAMPFIRE.md`) live *inside* Pines, not as a separate
+nav item. Bottom nav: **Feed · Places · ＋ · You**. The ＋ posts a **Pine** (photo/video) or a
+**Post** (Campfire discussion). Each place has a **hub** merging its Pines + Campfire + live
+conditions. One social graph (`pines` + `campfire_posts`, both place-keyed); shared follows,
+notifications, moderation, profile, earnings. Full model in `CAMPFIRE.md` → "Unified".
+
 ## Build status & setup
 
 **Shipped (Phase 1a — degrades honestly with no keys):**

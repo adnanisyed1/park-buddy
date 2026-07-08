@@ -1,0 +1,220 @@
+<style>
+  :root{
+    --bg:#0a1712; --bg2:#08130d; --card:#0b1710; --card2:#0e2016;
+    --line:rgba(217,183,121,.16); --line2:rgba(217,183,121,.30);
+    --gold:#e8cf9a; --gold2:#c9a35f; --goldsoft:#d9b779;
+    --ink:#f4f1ea; --ink2:#aab0ba; --muted:#7f8a82;
+    --go:#4fd98a; --prep:#e8cf9a; --hold:#e08a6a;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'Space Mono',ui-monospace,monospace;
+    --grad:linear-gradient(120deg,#e8cf9a,#c9a35f);
+  }
+  *{box-sizing:border-box}
+  .doc{background:radial-gradient(120% 60% at 50% -10%,#10231a,#0a1712 60%);min-height:100vh;font-family:var(--sans);color:var(--ink);padding:36px 18px 60px}
+  .wrap{max-width:1240px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:.6rem;letter-spacing:.26em;text-transform:uppercase;color:var(--goldsoft)}
+  .disp{font-family:var(--serif);font-weight:500;font-size:clamp(2rem,5vw,3rem);line-height:1.04;margin:8px 0 0}
+  .lede{color:var(--ink2);font-size:1rem;line-height:1.6;font-weight:300;max-width:600px;margin:12px 0 0}
+  .screens{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;margin-top:40px}
+  .col{width:300px}
+  .cap{font-family:var(--mono);font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:13px}
+  .phone{width:300px;height:632px;border-radius:36px;border:1px solid var(--line2);background:var(--bg);overflow:hidden;position:relative;box-shadow:0 40px 100px -50px rgba(0,0,0,.9)}
+  .ph-alp{background:linear-gradient(165deg,#13233a,#3a5a86 52%,#9fb8d2)}
+  .ph-canyon{background:linear-gradient(165deg,#2e1c12,#7a4a28 42%,#b9793f 72%,#e6b273)}
+  .ph-forest{background:linear-gradient(165deg,#0d2a1c,#1d5a3f 55%,#4f9e6a)}
+  .ph-lake{background:linear-gradient(170deg,#0f3242,#2b6f86 52%,#8fc3d2)}
+  .ph-sunset{background:linear-gradient(160deg,#241634,#7a4a5a 44%,#e0a86a)}
+  .ph-dune{background:linear-gradient(165deg,#2a2012,#8a6a34 50%,#d8b878)}
+  .glow{position:absolute;inset:0;background:radial-gradient(90% 55% at 32% 22%,rgba(255,255,255,.16),transparent 60%)}
+  .tabbar{position:absolute;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;background:rgba(8,19,13,.92);border-top:1px solid var(--line);z-index:8}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink2);font-size:.56rem;font-weight:600}
+  .tab.on{color:var(--gold)}
+  .tab svg{width:19px;height:19px}
+  .tab-plus{flex:1;display:flex;align-items:center;justify-content:center}
+  .tab-plus span{width:40px;height:40px;border-radius:12px;background:var(--grad);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700}
+  .verdict{font-family:var(--mono);font-size:.54rem;letter-spacing:.05em;color:var(--bg);border-radius:999px;padding:4px 9px;font-weight:700}
+  .v-go{background:var(--go)} .v-prep{background:var(--prep)}
+  .navpill{display:inline-flex;align-items:center;gap:6px;background:var(--grad);color:var(--bg);border-radius:999px;padding:6px 12px 6px 9px;font-weight:700;font-size:.78rem}
+  .badge{font-family:var(--mono);font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid}
+  .b-go{color:var(--go);border-color:rgba(79,217,138,.5)}
+  .pill{font-size:.72rem;font-weight:700;border-radius:999px;padding:7px 13px;text-decoration:none;display:inline-block}
+  .pill-gold{background:var(--grad);color:var(--bg)}
+  .pill-ghost{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.22);font-weight:600}
+  .scrim{position:absolute;left:0;right:0;bottom:0;height:60%;background:linear-gradient(0deg,rgba(6,14,10,.95),transparent)}
+  .rail{position:absolute;right:12px;bottom:150px;display:flex;flex-direction:column;gap:16px;align-items:center;z-index:5;color:#fff;font-size:.58rem;text-align:center}
+  .rail svg{width:25px;height:25px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+  .toggle{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:6;display:flex;gap:4px;background:rgba(6,14,10,.5);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px}
+  .toggle span{font-size:.68rem;font-weight:600;color:#cfd6cf;padding:5px 12px;border-radius:999px}
+  .toggle span.on{background:var(--grad);color:var(--bg);font-weight:700}
+  .fmeta{position:absolute;left:15px;right:62px;bottom:74px;z-index:5}
+  .place{font-family:var(--serif);font-weight:600;font-size:1.2rem;color:#fff}
+  .cap2{color:rgba(255,255,255,.9);font-size:.8rem;line-height:1.45;margin:5px 0 9px}
+  .sec{padding:0 15px}
+  .head{display:flex;align-items:center;justify-content:space-between;padding:14px 15px 8px}
+  .htitle{font-family:var(--serif);font-weight:600;font-size:1.15rem}
+  .chips{display:flex;gap:6px;overflow:hidden;padding:2px 15px 0}
+  .chip{font-size:.66rem;font-weight:600;color:var(--ink2);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px;padding:5px 10px;white-space:nowrap}
+  .chip.on{background:var(--grad);color:var(--bg);border-color:transparent;font-weight:700}
+  .post{border:1px solid var(--line);border-radius:13px;padding:11px;margin:9px 15px 0;background:var(--card)}
+  .pmeta{display:flex;align-items:center;gap:7px}
+  .adot{width:24px;height:24px;border-radius:50%;background:var(--card2);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:.6rem;color:var(--gold);font-weight:700;flex:none}
+  .pmeta b{font-size:.74rem;color:var(--ink)}
+  .pmeta small{font-size:.62rem;color:var(--muted)}
+  .ptag{margin-left:auto;font-family:var(--mono);font-size:.46rem;letter-spacing:.08em;text-transform:uppercase;color:var(--goldsoft);border:1px solid var(--line2);border-radius:999px;padding:2px 6px}
+  .ptext{font-size:.8rem;color:var(--ink);line-height:1.45;margin:8px 0 0}
+  .pfoot{display:flex;gap:14px;margin-top:9px;color:var(--muted);font-size:.66rem}
+  .tabsrow{display:flex;gap:20px;padding:12px 15px 0;border-bottom:1px solid var(--line);margin-top:10px}
+  .tabsrow button{background:none;border:none;padding:0 0 9px;font-size:.82rem;font-weight:600;color:var(--muted);position:relative}
+  .tabsrow button.on{color:var(--ink)}
+  .tabsrow button.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--grad);border-radius:2px}
+  .alert{display:flex;gap:8px;align-items:flex-start;margin:10px 15px 0;padding:9px 11px;border:1px solid rgba(224,138,106,.4);border-radius:11px;background:rgba(224,138,106,.07)}
+  .alert svg{width:15px;height:15px;flex:none;color:var(--hold);margin-top:1px}
+  .alert small{font-size:.72rem;color:var(--ink2);line-height:1.4}
+  .search{margin:12px 15px 0;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--line2);border-radius:12px;padding:10px 12px;color:var(--muted);font-size:.82rem}
+  .prow{display:flex;align-items:center;gap:11px;margin:9px 15px 0;padding:9px;border:1px solid var(--line);border-radius:13px;background:var(--card)}
+  .pthumb{width:44px;height:44px;border-radius:10px;flex:none}
+  .prow .m{flex:1;min-width:0}
+  .prow .m b{display:block;font-size:.84rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prow .m span{font-size:.64rem;color:var(--muted)}
+  .prow .act{font-family:var(--mono);font-size:.5rem;letter-spacing:.06em;text-transform:uppercase;color:var(--goldsoft)}
+  .choose{position:absolute;left:0;right:0;bottom:0;top:0;background:rgba(4,7,5,.55);z-index:9;display:flex;flex-direction:column;justify-content:flex-end}
+  .sheet{background:var(--bg);border-top:1px solid var(--line2);border-radius:22px 22px 0 0;padding:18px 16px 24px}
+  .sheet h4{font-family:var(--serif);font-weight:600;font-size:1.3rem;margin:0 0 3px}
+  .sheet p{color:var(--ink2);font-size:.78rem;margin:0 0 15px}
+  .two{display:flex;gap:11px}
+  .big{flex:1;border:1px solid var(--line2);border-radius:15px;padding:15px 12px;text-align:center;background:rgba(255,255,255,.03)}
+  .big .ic{width:44px;height:44px;border-radius:13px;margin:0 auto 9px;background:var(--card2);display:flex;align-items:center;justify-content:center;color:var(--gold)}
+  .big.gold{border-color:transparent;background:linear-gradient(160deg,rgba(232,207,154,.16),rgba(201,163,95,.05))}
+  .big b{font-size:.92rem;color:var(--ink);display:block}
+  .big small{font-size:.66rem;color:var(--muted);display:block;margin-top:2px}
+  .place-tag{display:flex;align-items:center;gap:6px;margin-top:14px;font-size:.76rem;color:var(--go)}
+  .instr{margin-top:44px;border-top:1px solid var(--line);padding-top:22px;color:var(--ink2);font-size:.9rem;line-height:1.6;max-width:640px}
+</style>
+
+<div class="doc"><div class="wrap">
+  <div class="eyebrow">Park Buddy · Pines — the social space</div>
+  <h1 class="disp">Decide the whole platform.</h1>
+  <p class="lede">The four remaining screens on the Park Buddy system: the blended Feed, the Place hub where Pines and Campfire merge, the one ＋ composer, and Places. React to any of it — or hand to Claude Design.</p>
+
+  <div class="screens">
+
+    <div class="col">
+      <div class="phone">
+        <div class="ph-alp" style="position:absolute;inset:0"></div><div class="glow"></div><div class="scrim"></div>
+        <div class="toggle"><span class="on">For you</span><span>Top this week</span></div>
+        <span class="verdict v-go" style="position:absolute;top:15px;right:14px;z-index:6">GO · 61°F</span>
+        <div class="rail">
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z"/></svg>1.2k</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z"/></svg>84</div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg></div>
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div>
+        </div>
+        <div class="fmeta">
+          <div style="display:flex;align-items:center;gap:7px"><span class="place">📍 Grand Teton</span><span class="badge b-go">✓ On-site</span></div>
+          <div class="cap2">First light on the Cathedral Group. Adventure. — @mara</div>
+          <div style="display:flex;gap:7px"><span class="pill pill-gold">＋ Add to trip</span><span class="pill pill-ghost">Conditions</span></div>
+        </div>
+        <div class="tabbar">
+          <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Places</div>
+          <div class="tab-plus"><span>＋</span></div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</div>
+        </div>
+      </div>
+      <div class="cap">1 · Feed — blended, For-you / Top-this-week</div>
+    </div>
+
+    <div class="col">
+      <div class="phone">
+        <div class="ph-forest" style="position:absolute;top:0;left:0;right:0;height:150px"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:150px;background:linear-gradient(0deg,var(--bg),transparent 70%)"></div>
+        <div style="position:absolute;top:14px;left:14px;z-index:5;width:30px;height:30px;border-radius:50%;background:rgba(6,14,10,.5);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;color:#fff">‹</div>
+        <div style="position:relative;padding:96px 15px 0;z-index:3">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px">
+            <div><div style="font-family:var(--serif);font-weight:600;font-size:1.5rem;line-height:1.05">Yosemite Campfire</div><div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.06em;color:var(--muted);margin-top:2px">National Park · California · 4.1k here</div></div>
+            <span class="verdict v-go">GO · 68°</span>
+          </div>
+          <div style="display:flex;gap:7px;margin-top:11px"><span class="pill pill-gold">Follow</span><span class="pill pill-ghost" style="color:var(--ink);background:rgba(255,255,255,.05);border-color:var(--line2)">＋ Trip</span></div>
+        </div>
+        <div class="alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><small><b style="color:var(--hold)">Heads-up:</b> Tioga Road closed — late snow. NPS · updated 2h ago.</small></div>
+        <div class="tabsrow"><button>Pines</button><button class="on">Talk</button><button>Live</button></div>
+        <div class="chips" style="margin-top:11px"><span class="chip on">Conditions</span><span class="chip">Trip planning</span><span class="chip">Wildlife</span><span class="chip">General</span></div>
+        <div class="post">
+          <div class="pmeta"><span class="adot">JR</span><b>Jenna R.</b><small>· 2h</small><span class="ptag">community-reported</span></div>
+          <div class="ptext">Mist Trail slick below Vernal Fall — go early, bring poles. Falls are roaring.</div>
+          <div class="pfoot"><span>♥ 18</span><span>💬 5</span></div>
+        </div>
+        <div class="post">
+          <div class="pmeta"><span class="adot">TK</span><b>Theo K.</b><small>· 5h</small><span class="ptag">trip · buddy</span></div>
+          <div class="ptext">Half Dome cables Sat — have a permit, looking for 1 more. Start 4am.</div>
+          <div class="pfoot"><span>♥ 9</span><span>💬 12</span></div>
+        </div>
+        <div class="tabbar">
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Places</div>
+          <div class="tab-plus"><span>＋</span></div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</div>
+        </div>
+      </div>
+      <div class="cap">2 · Place hub — Pines + Talk + Live</div>
+    </div>
+
+    <div class="col">
+      <div class="phone">
+        <div style="position:absolute;inset:0;filter:blur(1px);opacity:.5" class="ph-canyon"></div>
+        <div class="choose">
+          <div class="sheet">
+            <h4>Share to Pines</h4>
+            <p>What do you want to post?</p>
+            <div class="two">
+              <div class="big gold">
+                <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8cf9a" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.2"/><path d="M8 6l1.5-2h5L16 6"/></svg></div>
+                <b>A Pine</b><small>Photo or video, on-site</small>
+              </div>
+              <div class="big">
+                <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e8cf9a" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                <b>A Post</b><small>To a place's Campfire</small>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px">
+              <span class="chip">Conditions</span><span class="chip">Question</span><span class="chip">Wildlife</span><span class="chip">Trip buddy</span><span class="chip">Heads-up</span>
+            </div>
+            <div class="place-tag">📍 Zion National Park · detected from photo</div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Places</div>
+          <div class="tab-plus"><span>×</span></div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</div>
+        </div>
+      </div>
+      <div class="cap">3 · ＋ Composer — Pine or Post</div>
+    </div>
+
+    <div class="col">
+      <div class="phone">
+        <div class="head"><span class="htitle">Places</span><span class="navpill"><svg width="13" height="13" viewBox="0 0 24 24" fill="#0a1712"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"/><rect x="11" y="18" width="2" height="4"/></svg>Pines</span></div>
+        <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Search parks, forests, towns</div>
+        <div style="font-family:var(--mono);font-size:.54rem;letter-spacing:.16em;text-transform:uppercase;color:var(--goldsoft);padding:16px 15px 0">Your Campfires</div>
+        <div class="prow"><span class="pthumb ph-forest"></span><div class="m"><b>Yosemite NP</b><span>National Park · CA</span></div><div style="text-align:right"><span class="verdict v-go" style="font-size:.5rem">GO</span><div class="act" style="margin-top:5px">3 new</div></div></div>
+        <div class="prow"><span class="pthumb ph-canyon"></span><div class="m"><b>Zion NP</b><span>National Park · UT</span></div><div style="text-align:right"><span class="verdict v-prep" style="font-size:.5rem">PREP</span><div class="act" style="margin-top:5px">7 new</div></div></div>
+        <div class="prow"><span class="pthumb ph-dune"></span><div class="m"><b>Springdale</b><span>Gateway town · UT</span></div><div style="text-align:right"><div class="act">local</div><div class="act" style="margin-top:5px">2 new</div></div></div>
+        <div style="font-family:var(--mono);font-size:.54rem;letter-spacing:.16em;text-transform:uppercase;color:var(--goldsoft);padding:16px 15px 0">Trending now</div>
+        <div class="prow"><span class="pthumb ph-alp"></span><div class="m"><b>Grand Teton</b><span>National Park · WY</span></div><div class="act">128 talking</div></div>
+        <div class="prow"><span class="pthumb ph-lake"></span><div class="m"><b>Crater Lake</b><span>National Park · OR</span></div><div class="act">96 talking</div></div>
+        <div class="tabbar">
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+          <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Places</div>
+          <div class="tab-plus"><span>＋</span></div>
+          <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</div>
+        </div>
+      </div>
+      <div class="cap">4 · Places — your Campfires + trending</div>
+    </div>
+
+  </div>
+
+  <p class="instr">That's the full set — with the <a href="https://claude.ai/code/artifact/95f1ce09-3249-4579-9cd9-9031bd2776da" style="color:var(--gold)">You page</a>, five screens define the whole platform. Tell me what to change on any of them, or hand these to Claude Design. Once the look is locked, I port each 1:1 into the live app. Photos are gradient stand-ins; the display font renders as Cormorant in the app.</p>
+</div></div>

@@ -1,0 +1,153 @@
+<style>
+  :root{
+    --bg:#0a1712; --bg2:#08130d; --card:#0b1710; --card2:#0e2016;
+    --line:rgba(217,183,121,.16); --line2:rgba(217,183,121,.30);
+    --gold:#e8cf9a; --gold2:#c9a35f; --goldsoft:#d9b779;
+    --ink:#f4f1ea; --ink2:#aab0ba; --muted:#7f8a82;
+    --go:#4fd98a; --prep:#e8cf9a; --hold:#e08a6a;
+    --serif:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --mono:'Space Mono',ui-monospace,'SFMono-Regular',monospace;
+    --grad:linear-gradient(120deg,#e8cf9a,#c9a35f);
+  }
+  *{box-sizing:border-box}
+  .youdoc{background:radial-gradient(120% 70% at 50% -10%,#10231a,#0a1712 60%);min-height:100vh;font-family:var(--sans);color:var(--ink);padding:34px 16px 60px;display:flex;flex-direction:column;align-items:center;gap:16px}
+  .cap{font-family:var(--mono);font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);text-align:center}
+  .frame{width:392px;max-width:100%;border-radius:36px;border:1px solid var(--line2);background:var(--bg);overflow:hidden;box-shadow:0 40px 100px -50px rgba(0,0,0,.9)}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px}
+  .brand{display:flex;align-items:center;gap:8px}
+  .brand .pill{display:inline-flex;align-items:center;gap:6px;background:var(--grad);color:var(--bg);border-radius:999px;padding:6px 13px 6px 10px;font-weight:700;font-size:.82rem}
+  .icn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;color:var(--ink2)}
+  .body{padding:6px 18px 20px}
+  .prof{display:flex;gap:15px;align-items:center}
+  .ava{width:76px;height:76px;border-radius:50%;flex:none;background:var(--grad);color:var(--bg);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;font-size:2rem;box-shadow:0 0 0 3px rgba(217,183,121,.18)}
+  .who{min-width:0}
+  .nm{font-family:var(--serif);font-weight:600;font-size:1.5rem;line-height:1.05}
+  .hd{font-family:var(--mono);font-size:.62rem;letter-spacing:.05em;color:var(--muted);margin-top:1px}
+  .ranger{display:inline-flex;align-items:center;gap:5px;margin-top:7px;font-family:var(--mono);font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid var(--line2);border-radius:999px;padding:3px 9px}
+  .bio{color:var(--ink2);font-size:.86rem;line-height:1.5;margin:13px 0 0}
+  .stats{display:flex;gap:0;margin-top:15px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .stat{flex:1;text-align:center;padding:11px 4px;border-right:1px solid var(--line)}
+  .stat:last-child{border-right:none}
+  .stat b{display:block;font-family:var(--serif);font-weight:600;font-size:1.2rem;color:var(--ink)}
+  .stat span{font-family:var(--mono);font-size:.5rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .row{display:flex;gap:9px;margin-top:13px}
+  .btn{flex:1;text-align:center;border-radius:11px;padding:10px;font-size:.82rem;font-weight:600}
+  .btn-gold{background:var(--grad);color:var(--bg);font-weight:700}
+  .btn-ghost{background:rgba(255,255,255,.04);color:var(--ink);border:1px solid var(--line2)}
+  .earn{margin-top:15px;border:1px solid var(--line2);border-radius:16px;padding:14px;background:linear-gradient(160deg,rgba(232,207,154,.10),rgba(201,163,95,.03))}
+  .earn .lbl{display:flex;align-items:center;justify-content:space-between}
+  .earn .lbl span{font-family:var(--mono);font-size:.54rem;letter-spacing:.16em;text-transform:uppercase;color:var(--goldsoft)}
+  .earn .lbl a{font-size:.72rem;font-weight:700;color:var(--gold);text-decoration:none}
+  .earn .grid{display:flex;gap:8px;margin-top:11px}
+  .earn .c{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:11px;padding:9px 10px}
+  .earn .c b{display:block;font-family:var(--serif);font-weight:600;font-size:1.15rem;color:var(--ink)}
+  .earn .c span{font-size:.62rem;color:var(--muted)}
+  .sechead{display:flex;align-items:center;justify-content:space-between;margin:20px 0 9px}
+  .sechead h3{font-family:var(--mono);font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--goldsoft);margin:0}
+  .sechead a{font-size:.72rem;color:var(--ink2);text-decoration:none}
+  .stamps{display:flex;gap:9px;overflow:hidden}
+  .stamp{width:52px;flex:none;text-align:center}
+  .stamp .d{width:52px;height:52px;border-radius:50%;border:1px dashed var(--line2);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;font-size:.95rem;color:var(--gold)}
+  .stamp small{display:block;font-size:.56rem;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tabs{display:flex;gap:22px;margin-top:20px;border-bottom:1px solid var(--line);padding-bottom:0}
+  .tabs button{background:none;border:none;padding:0 0 10px;font-family:var(--sans);font-size:.84rem;font-weight:600;color:var(--muted);position:relative}
+  .tabs button.on{color:var(--ink)}
+  .tabs button.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--grad);border-radius:2px}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:14px}
+  .cell{position:relative;aspect-ratio:9/13;border-radius:8px;overflow:hidden}
+  .cell .ov{position:absolute;left:0;right:0;bottom:0;padding:6px;background:linear-gradient(0deg,rgba(6,14,10,.85),transparent);display:flex;align-items:center;justify-content:space-between}
+  .cell .ov small{font-size:.56rem;color:#fff;display:flex;align-items:center;gap:3px}
+  .st{position:absolute;top:5px;left:5px;font-family:var(--mono);font-size:.44rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:999px;background:rgba(6,14,10,.7);border:1px solid}
+  .st-live{color:var(--go);border-color:rgba(79,217,138,.5)}
+  .st-rev{color:var(--prep);border-color:rgba(232,207,154,.5)}
+  .ph-canyon{background:linear-gradient(165deg,#2e1c12,#7a4a28 42%,#b9793f 72%,#e6b273)}
+  .ph-forest{background:linear-gradient(165deg,#0d2a1c,#1d5a3f 55%,#4f9e6a)}
+  .ph-lake{background:linear-gradient(170deg,#0f3242,#2b6f86 52%,#8fc3d2)}
+  .ph-sunset{background:linear-gradient(160deg,#241634,#7a4a5a 44%,#e0a86a)}
+  .ph-dune{background:linear-gradient(165deg,#2a2012,#8a6a34 50%,#d8b878)}
+  .ph-alp{background:linear-gradient(165deg,#13233a,#3a5a86 52%,#9fb8d2)}
+  .tabbar{display:flex;align-items:center;background:rgba(8,19,13,.92);border-top:1px solid var(--line);height:58px}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink2);font-size:.58rem;font-weight:600}
+  .tab.on{color:var(--gold)}
+  .tab svg{width:20px;height:20px}
+  .tab-plus{flex:1;display:flex;align-items:center;justify-content:center}
+  .tab-plus span{width:42px;height:42px;border-radius:13px;background:var(--grad);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700}
+</style>
+
+<div class="youdoc">
+  <div class="cap">Pines · the “You” page (your profile / “Mine”) — design proposal on the Park Buddy system</div>
+  <div class="frame">
+    <div class="topbar">
+      <div class="brand"><span class="pill"><svg width="13" height="13" viewBox="0 0 24 24" fill="#0a1712"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"/><rect x="11" y="18" width="2" height="4"/></svg>Pines</span></div>
+      <div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></div>
+    </div>
+
+    <div class="body">
+      <div class="prof">
+        <div class="ava">A</div>
+        <div class="who">
+          <div class="nm">Adnan S.</div>
+          <div class="hd">@adnan · Colorado</div>
+          <span class="ranger"><svg width="10" height="10" viewBox="0 0 24 24" fill="#e8cf9a"><path d="M12 2l3 6 6 .5-4.5 4 1.4 6L12 15.5 6.1 18.5 7.5 12.5 3 8.5 9 8z"/></svg> Verified local · Rocky Mtn</span>
+        </div>
+      </div>
+      <p class="bio">Chasing alpine light across the West. Trail reports, honest conditions, the odd marmot. 27 parks and counting.</p>
+
+      <div class="stats">
+        <div class="stat"><b>24</b><span>Pines</span></div>
+        <div class="stat"><b>1.3k</b><span>Followers</span></div>
+        <div class="stat"><b>88</b><span>Following</span></div>
+        <div class="stat"><b>27</b><span>Parks</span></div>
+      </div>
+
+      <div class="row">
+        <span class="btn btn-gold">Edit profile</span>
+        <span class="btn btn-ghost">Share</span>
+      </div>
+
+      <div class="earn">
+        <div class="lbl"><span>Creator earnings</span><a href="#">Withdraw →</a></div>
+        <div class="grid">
+          <div class="c"><b>$142</b><span>This month</span></div>
+          <div class="c"><b>$1,280</b><span>Lifetime</span></div>
+          <div class="c"><b>Jul 15</b><span>Next payout</span></div>
+        </div>
+      </div>
+
+      <div class="sechead"><h3>Trip Passport · 27 places</h3><a href="#">See all</a></div>
+      <div class="stamps">
+        <div class="stamp"><div class="d">RM</div><small>Rocky Mtn</small></div>
+        <div class="stamp"><div class="d">ZI</div><small>Zion</small></div>
+        <div class="stamp"><div class="d">YO</div><small>Yosemite</small></div>
+        <div class="stamp"><div class="d">GC</div><small>Grand Cyn</small></div>
+        <div class="stamp"><div class="d">AR</div><small>Arches</small></div>
+        <div class="stamp"><div class="d">+22</div><small>more</small></div>
+      </div>
+
+      <div class="tabs">
+        <button class="on">Pines</button>
+        <button>Posts</button>
+        <button>Campfires</button>
+        <button>Saved</button>
+      </div>
+
+      <div class="pgrid">
+        <div class="cell ph-alp"><span class="st st-live">Live</span><div class="ov"><small>♥ 1.2k</small></div></div>
+        <div class="cell ph-canyon"><span class="st st-live">Live</span><div class="ov"><small>♥ 840</small></div></div>
+        <div class="cell ph-lake"><span class="st st-rev">Review</span><div class="ov"><small>◷</small></div></div>
+        <div class="cell ph-forest"><span class="st st-live">Live</span><div class="ov"><small>♥ 610</small></div></div>
+        <div class="cell ph-sunset"><span class="st st-live">Live</span><div class="ov"><small>♥ 402</small></div></div>
+        <div class="cell ph-dune"><span class="st st-live">Live</span><div class="ov"><small>♥ 288</small></div></div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Feed</div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4-9 9-9 9z" opacity="0"/><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Places</div>
+      <div class="tab-plus"><span>＋</span></div>
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>You</div>
+    </div>
+  </div>
+  <div class="cap">Tell me what to change — layout, what's up top, earnings placement — or hand this to Claude Design. Once it's locked, I build it 1:1.</div>
+</div>

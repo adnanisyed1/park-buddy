@@ -137,17 +137,89 @@ and stores metadata) — cheap, scalable, no proxying.
 
 User video is our biggest safety/legal surface — treat it seriously.
 
-- **Pre-publish review.** Pines are invisible (`pending`) until approved. MVP = a small
-  manual admin queue; add an **AI first-pass** (poster + sampled frames through a
-  moderation API — Hive / AWS Rekognition / similar) when volume warrants.
+- **AI-assisted review from day one (DECIDED).** Every Pine is invisible (`processing`
+  → `pending`) until cleared. An **AI first-pass** screens the poster + sampled frames
+  (Hive / AWS Rekognition / similar) → auto-reject the obvious, auto-approve the clearly
+  clean, route the uncertain to a small **manual queue**. This scales safety from launch
+  and is a second provider/key to budget for.
 - **Reporting + takedown.** In-feed report; reported Pines flip to review; fast removal.
 - **Rules** (surfaced at capture): no minors without consent; nothing dangerous/illegal;
   no revealing sensitive/exact-home locations; respect wildlife/Leave-No-Trace; you own
   or licensed any music. **DMCA** process + counter-notice.
 - **Retention & deletion.** Creator can delete (removes from Cloudflare + row); account
   deletion cascades. Clear ToS/consent copy at capture.
-- **Who can post at launch:** signed-in + **captured-in-app only** first (spam control),
-  widen later.
+- **Who can post at launch (DECIDED):** signed-in + **captured-in-app only** — GPS is
+  trustworthy, spam/fraud is contained, and it's the honest baseline. Widen later.
+
+---
+
+## ⭐ Business model — how Park Buddy *and* creators earn
+
+Pines is a **two-sided engine**: Park Buddy earns, and it puts money in creators' pockets
+— in a way that stays honest (it rewards real, on-site, useful footage, not view-farming).
+
+### The unlock: verification *is* fraud-prevention
+Every Pine is GPS-verified on-site (§4). That same honesty requirement makes creator
+payouts **fraud-resistant** — you can't farm a payout with stock / AI / re-uploaded clips,
+because a Pine only counts when it was genuinely captured at the place. No other UGC-video
+platform can claim that. So we can pay on **verified** engagement and **real** conversions,
+not gameable raw views.
+
+### How Park Buddy earns (in build order)
+1. **Affiliate pull-through (primary, honest, already our model).** Pines are top-of-funnel:
+   watch → *Add to trip* → book stays / cars / gear / tours / campsites through affiliate
+   partners → we earn commission. Pines make the existing commerce stack convert better.
+2. **Print & Trip Book pull-through.** "Get this shot as a print" / "turn this into a Trip
+   Book" on a Pine → POD + Book revenue (existing Shop/Book rails).
+3. **Pro subscriptions.** Pines drive engagement → Pro conversions; creator tools
+   (analytics, monetization, scheduling) live behind Pro.
+4. **Sponsored / branded Pines (largest scalable line).** Tourism boards, gateway towns,
+   outfitters and gear brands pay to promote a real place/product — native, clearly labeled
+   "Paid partnership", matched to relevant places. The big line once there's an audience.
+5. **Marketplace take-rate.** A platform fee on creator earnings (tips, sponsored deals,
+   experiences sold through Pines).
+
+### How creators earn (layered on after there's an audience)
+1. **Affiliate rev-share (best aligned).** A Pine that drives a real booking earns the
+   creator a cut of that commission — rewards content that actually sends people on trips,
+   not just views. Performance-based, honest, fraud-resistant.
+2. **Bounties (very on-brand).** Park Buddy or partners post: "need current footage of X
+   trail / after the storm" → a creator fulfills, GPS-verified → gets paid. This literally
+   funds the *current-conditions intel* that makes Pines valuable.
+3. **Tips ("Trail tips").** Viewers tip; platform takes a small fee.
+4. **Print / Book royalties.** Creator earns when their footage/photos get printed or
+   Trip-Booked.
+5. **Sponsored matching / creator fund.** Connect creators to brand/tourism campaigns
+   (platform cut); optionally a modest pool funded from ad revenue, split by *verified*
+   engagement.
+
+### Payout infrastructure
+**Stripe Connect (Express accounts)** — same Stripe we already use for checkout. Handles
+creator onboarding, KYC, **tax forms (1099)**, and payouts. Needed only when creator
+earning goes live (Phase C), not before.
+
+### Legal / trust (must-haves before payouts)
+- **Content license in ToS:** creator keeps ownership, grants Park Buddy a license to
+  display / print / promote; clear rev-share terms.
+- **FTC disclosure** on every sponsored/paid Pine ("Paid partnership").
+- **Tax reporting** thresholds (1099-K/NEC) handled via Stripe Connect.
+- **Payout fraud controls:** pay on *verified engagement + real conversions* (not raw
+  views); bot/duplicate-view detection; GPS-verification as the first gate.
+
+### Monetization phasing (revenue is layered AFTER audience)
+- **Phase A — Build (no money).** In-app capture, AI moderation, grow content + views.
+- **Phase B — Park Buddy earns.** Affiliate attribution on Pines + Print/Book pull-through.
+  No creator payouts yet — proves Pines drive revenue.
+- **Phase C — Creators earn.** Stripe Connect + affiliate rev-share + tips + bounties.
+- **Phase D — Scale.** Sponsored/branded-Pines marketplace + Pro creator tools + creator fund.
+
+### Provider decision, re-framed for the business model
+Creator payouts and sponsor reporting need **reliable watch-time + conversion analytics**.
+We'll track our **own** playback/engagement events into Supabase regardless of host
+(provider-agnostic, fraud-controllable, and exactly what payouts are computed from). For
+the host itself, **Cloudflare Stream still wins on cost** for a large short-UGC library;
+**Mux** only earns its premium if we'd rather buy turnkey analytics than roll our own.
+**Recommendation stands: Cloudflare Stream + our own event tracking** — pending your OK.
 
 ---
 
@@ -193,17 +265,33 @@ length (≤60 s), poster-first + lazy autoplay, delete rejected clips promptly, 
 - **Phase 3 — Ecosystem.** Approved clips → **Trip Book**; ranked/personalized feed;
   notifications ("a new Pine at a park you follow" — ties into the alerts system).
 
+**Money layers on top of these** (see ⭐ Business model): revenue starts at **Phase 1b–2**
+(affiliate pull-through + Print/Book — *Park Buddy* earns), creator payouts arrive with the
+social loop (**Phase 2–3** via Stripe Connect), sponsored Pines + creator fund come last.
+Build the audience first; monetize a real one.
+
 ---
 
-## 9. Open decisions (need your call before Phase 1a)
+## 9. Decisions
 
-1. **Provider** — Cloudflare Stream (recommended) vs Mux? *(Affects keys + cost.)*
-2. **Capture** — in-app record only (max GPS trust) vs also allow camera-roll upload
-   (more content, "tagged" not "verified")? *Recommend: allow both, badge honestly.*
-3. **Public location precision** — snapped-to-place public coords (privacy, recommended)
-   vs exact?
-4. **Launch moderation** — manual-only (recommended for MVP) vs AI-assisted from day one?
-5. **Who can post at launch** — signed-in + captured-in-app only (recommended) vs anyone?
+**Settled:**
+- ✅ **Capture** — in-app record only (max GPS trust).
+- ✅ **Moderation** — AI-assisted from day one (auto-screen → manual queue for the uncertain).
+- ✅ **Business framing** — two-sided model: Park Buddy earns *and* creators earn (see
+  ⭐ Business model). Verification doubles as payout fraud-prevention.
+
+**Recommended, pending your OK:**
+- **Provider** — Cloudflare Stream + our own engagement tracking (cost-effective; analytics
+  we control drive payouts). Mux only if we want turnkey analytics over cost.
+- **Public location precision** — snapped-to-place public coords (privacy); precise coords
+  private.
+
+**Still open (monetization — needed before Phase C, not before building):**
+1. **First creator-earning lever** — affiliate rev-share (recommended, most aligned) vs
+   bounties vs tips first?
+2. **Rev-share split** — what % to creators vs platform on affiliate-driven bookings?
+3. **Gating** — is creator monetization open to all verified creators, or a **Pro** perk?
+4. **Sponsored Pines** — court tourism boards / brands early, or after audience is proven?
 
 ---
 

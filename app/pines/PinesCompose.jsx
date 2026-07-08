@@ -1,10 +1,12 @@
 "use client";
 
-// Post a photo Pine. Pick/take a photo → we read its EXIF GPS (auto-detect location)
-// and downscale it on-device → tag a place + caption (defaults to "Adventure") → upload
-// to Supabase Storage via /api/pines/photo → enters moderation. Video capture is the
-// next increment (needs Cloudflare). Portaled to <body>, on the design system.
-import { useRef, useState } from "react";
+// Post a photo Pine. Pick/take a photo → we read its EXIF GPS and SUGGEST the nearest
+// real place (from our parks + forests datasets); the user confirms or taps "Change"
+// and SELECTS the real location from a searchable list — never free-typed. This keeps
+// place tags honest (only places we actually model) and links place_type/place_id so
+// Pines surface on the right park pages. Downscales on-device → /api/pines/photo →
+// moderation. Portaled to <body>, on the design system.
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import exifr from "exifr";
 import { getAccessToken } from "../lib/auth";
@@ -12,6 +14,14 @@ import { getAccessToken } from "../lib/auth";
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const field = { width: "100%", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 11, padding: "12px 13px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".92rem", outline: "none" };
 const micro = { fontFamily: mono, fontSize: ".54rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)" };
+
+function miles(a, b, c, d) {
+  const R = 3958.8, t = (x) => (x * Math.PI) / 180;
+  const dLat = t(c - a), dLng = t(d - b);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(t(a)) * Math.cos(t(c)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+const slug = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 // Downscale to <=1440px longest edge → JPEG data URL (also strips EXIF for privacy;
 // we've already pulled the GPS we need before this).
@@ -31,27 +41,56 @@ function downscale(file, max = 1440, quality = 0.85) {
 }
 
 export default function PinesCompose({ open, onClose, onPosted }) {
+  const [places, setPlaces] = useState([]);       // real parks + forests
   const [dataUrl, setDataUrl] = useState("");
-  const [gps, setGps] = useState(null);          // {lat,lng} from EXIF
+  const [gps, setGps] = useState(null);            // {lat,lng} from EXIF
   const [capturedAt, setCapturedAt] = useState("");
-  const [place, setPlace] = useState("");
+  const [place, setPlace] = useState(null);        // selected {type,id,name,short,state,lat,lng}
+  const [detected, setDetected] = useState(false); // place came from photo GPS
+  const [query, setQuery] = useState("");
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
   const fileRef = useRef(null);
 
+  // Load the real place list once (parks + national forests).
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      try {
+        const [pTxt, fTxt] = await Promise.all([
+          fetch("/trip-data.js").then((r) => r.text()).catch(() => ""),
+          fetch("/forest-data.js").then((r) => r.text()).catch(() => ""),
+        ]);
+        const pm = pTxt.match(/window\.TRIP_PARKS\s*=\s*(\[.*?\]);/);
+        const fm = fTxt.match(/window\.FOREST_DATA\s*=\s*(\[[\s\S]*?\]);/);
+        const parks = pm ? JSON.parse(pm[1]).map((p) => ({ type: "park", id: String(p.id), name: p.name + " National Park", short: p.name, state: p.state, lat: p.lat, lng: p.lng })) : [];
+        const forests = fm ? JSON.parse(fm[1]).map((f) => ({ type: "forest", id: slug(f.name), name: f.name, short: f.name, state: f.state, lat: f.lat, lng: f.lng })) : [];
+        if (on) setPlaces([...parks, ...forests]);
+      } catch {}
+    })();
+    return () => { on = false; };
+  }, []);
+
+  // When a photo's GPS + the place list are both available, suggest the nearest place.
+  useEffect(() => {
+    if (!gps || !places.length) return;
+    let best = null, bd = 1e9;
+    for (const pl of places) { if (pl.lat == null) continue; const d = miles(gps.lat, gps.lng, pl.lat, pl.lng); if (d < bd) { bd = d; best = pl; } }
+    if (best && bd < 120) { setPlace(best); setDetected(true); }
+  }, [gps, places.length]); // eslint-disable-line
+
   if (!open) return null;
 
-  const reset = () => { setDataUrl(""); setGps(null); setCapturedAt(""); setPlace(""); setCaption(""); setErr(""); setDone(false); setBusy(false); };
+  const reset = () => { setDataUrl(""); setGps(null); setCapturedAt(""); setPlace(null); setDetected(false); setQuery(""); setCaption(""); setErr(""); setDone(false); setBusy(false); };
   const close = () => { reset(); onClose(); };
 
   const pick = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    setErr("");
+    setErr(""); setPlace(null); setDetected(false); setGps(null);
     try {
-      // Read EXIF GPS + capture time BEFORE downscaling (which strips metadata).
       const [g, meta] = await Promise.all([
         exifr.gps(file).catch(() => null),
         exifr.parse(file, ["DateTimeOriginal"]).catch(() => null),
@@ -65,7 +104,7 @@ export default function PinesCompose({ open, onClose, onPosted }) {
   const submit = async () => {
     setErr("");
     if (!dataUrl) { setErr("Add a photo first."); return; }
-    if (!place.trim() && !gps) { setErr("Add a location, or use a photo that has one."); return; }
+    if (!place) { setErr("Select the location for this Adventure."); return; }
     setBusy(true);
     try {
       const t = await getAccessToken();
@@ -73,10 +112,10 @@ export default function PinesCompose({ open, onClose, onPosted }) {
       const body = {
         imageBase64: dataUrl,
         caption: caption.trim() || "Adventure",
-        place_name: place.trim(),
-        location_source: gps ? "photo" : "manual",
+        place_type: place.type, place_id: place.id, place_name: place.name,
+        location_source: gps && detected ? "photo" : "manual",
         captured_at: capturedAt || undefined,
-        ...(gps ? { lat: gps.lat, lng: gps.lng } : {}),
+        lat: gps ? gps.lat : place.lat, lng: gps ? gps.lng : place.lng,
       };
       const r = await fetch("/api/pines/photo", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
@@ -85,6 +124,10 @@ export default function PinesCompose({ open, onClose, onPosted }) {
     } catch { setErr("Couldn't post your Pine."); }
     setBusy(false);
   };
+
+  const filtered = query.trim()
+    ? places.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()) || (p.short || "").toLowerCase().includes(query.trim().toLowerCase())).slice(0, 24)
+    : [];
 
   return createPortal(
     <div onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
@@ -115,16 +158,38 @@ export default function PinesCompose({ open, onClose, onPosted }) {
               </button>
             )}
 
-            {gps && (
-              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 7, color: "var(--pb-go, #4fd98a)", fontSize: ".8rem" }}>
-                <span>📍</span> Location detected from photo
+            {/* LOCATION — selected place chip, or a searchable picker of real places */}
+            {dataUrl && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ ...micro, marginBottom: 7 }}>Location</div>
+                {place ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.04)", border: "1px solid " + (detected ? "rgba(79,217,138,.4)" : "var(--pb-line-strong)"), borderRadius: 11, padding: "10px 12px" }}>
+                    <span style={{ fontSize: "1rem" }}>📍</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: ".92rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{place.name}</div>
+                      <div style={{ fontSize: ".7rem", color: detected ? "var(--pb-go,#4fd98a)" : "var(--pb-muted)", marginTop: 1 }}>{detected ? "Detected from photo — tap Change if it's wrong" : (place.type === "forest" ? "National Forest" : "National Park") + (place.state ? " · " + place.state : "")}</div>
+                    </div>
+                    <button onClick={() => { setPlace(null); setDetected(false); setQuery(""); }} style={{ cursor: "pointer", flex: "none", fontFamily: "inherit", fontSize: ".74rem", fontWeight: 600, color: "var(--pb-ink)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "6px 12px" }}>Change</button>
+                  </div>
+                ) : (
+                  <div>
+                    <input style={field} placeholder="Search a park or forest…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+                    {query.trim() && (
+                      <div style={{ marginTop: 6, maxHeight: 190, overflowY: "auto", border: "1px solid var(--pb-line)", borderRadius: 11, background: "var(--pb-surface)" }}>
+                        {filtered.length ? filtered.map((pl) => (
+                          <button key={pl.type + pl.id} onClick={() => { setPlace(pl); setDetected(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", textAlign: "left", cursor: "pointer", background: "none", border: "none", borderBottom: "1px solid var(--pb-line)", padding: "10px 12px" }}>
+                            <span style={{ fontSize: ".88rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pl.name}</span>
+                            <span style={{ ...micro, fontSize: ".5rem", flex: "none", color: "var(--pb-gold-soft)" }}>{pl.type === "forest" ? "Forest" : "Park"}{pl.state ? " · " + pl.state : ""}</span>
+                          </button>
+                        )) : <div style={{ padding: "12px", color: "var(--pb-muted)", fontSize: ".84rem", lineHeight: 1.5 }}>No match — only real parks &amp; forests can be tagged{places.length ? "." : " (loading places…)"}</div>}
+                      </div>
+                    )}
+                    {gps && <div style={{ ...micro, letterSpacing: ".04em", textTransform: "none", color: "var(--pb-muted)", marginTop: 7 }}>This photo has GPS but isn't near a park we recognize — pick the closest real place.</div>}
+                  </div>
+                )}
+                <input style={{ ...field, marginTop: 10 }} placeholder="Caption — Adventure" value={caption} onChange={(e) => setCaption(e.target.value)} />
               </div>
             )}
-
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-              <input style={field} placeholder={gps ? "Name this place (optional)" : "Where was this? e.g. Yosemite National Park"} value={place} onChange={(e) => setPlace(e.target.value)} />
-              <input style={field} placeholder="Caption — Adventure" value={caption} onChange={(e) => setCaption(e.target.value)} />
-            </div>
 
             {err && <div style={{ color: "var(--pb-hold)", fontSize: ".82rem", marginTop: 10 }}>{err}</div>}
 

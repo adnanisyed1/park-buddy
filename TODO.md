@@ -152,8 +152,12 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
       (not a pin-badge — decided against clutter). Matches by place name → /pines. ✅
 - [x] ~~**SQL in the repo**~~ — full Pines schema at `db/pines.sql` (+ still in route headers).
       Backend verified live on prod (configured:true; waitlist write ok). ✅
-- [ ] **Left to polish:** GPS→park-id linkage on compose (so place matching is exact, not
-      name-based); user-follow (creator) + real follower counts; moderation-queue admin UI.
+- [x] ~~**Location is now SELECT-only (real places)**~~ — compose no longer free-types location.
+      EXIF GPS suggests the nearest real place (from 63 parks + 103 forests); user confirms or
+      taps Change → picks from a searchable list. Sets place_type + place_id (exact linkage, not
+      name-based). Honest: only places we actually model can be tagged. ✅
+- [ ] **Left to polish:** user-follow (creator) + real follower counts; moderation-queue admin
+      UI; state parks + gateway towns in the compose place picker (parks + forests done).
 - [ ] **Facebook auto-post (PARKED):** `app/lib/facebook.js` + moderate hook built & inert;
       user will set `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN` later. Also discussed:
       FB login, Meta Pixel, share buttons — not built yet.

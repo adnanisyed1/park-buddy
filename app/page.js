@@ -1,4 +1,5 @@
 import EmbeddedSite from "./components/EmbeddedSite";
+import EmbedAuthBridge from "./components/EmbedAuthBridge";
 
 // Homepage = the futuristic-royal LANDING page (public/embed/home), ported 1:1
 // from the user's Claude-design spec (~/Downloads/parkbuddy-landing-preview.html).
@@ -16,5 +17,10 @@ export const metadata = {
 };
 
 export default function HomePage() {
-  return <EmbeddedSite page="home" />;
+  return (
+    <>
+      <EmbeddedSite page="home" />
+      <EmbedAuthBridge />
+    </>
+  );
 }

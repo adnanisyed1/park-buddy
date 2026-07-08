@@ -10,8 +10,11 @@
 // earnings; every empty state tells the truth.
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import SiteHeader from "../components/SiteHeader";
 import PinesCompose from "./PinesCompose";
 import { useAuth, openAuth, getAccessToken } from "../lib/auth";
+
+const HEADER = 66; // standard platform header height (SiteHeader is fixed on top)
 
 const C = { gold: "linear-gradient(120deg,#e8cf9a,#c9a35f)", go: "#4fd98a", prep: "#e8cf9a", hold: "#e08a6a", like: "#e0546a" };
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
@@ -75,101 +78,50 @@ export default function PinesFeed() {
   const go = (t) => { if (t === "compose") return post(); setTab(t); };
   const openHub = (place) => { setHub(place); setTab("hub"); };
 
-  const screen = { feed: <Feed onPost={post} user={user} />, top: <Top openHub={openHub} />, hub: <Hub place={hub} onBack={() => setTab("places")} />, places: <Places openHub={openHub} />, you: <You user={user} onPost={post} /> }[tab];
+  const screen = { feed: <Feed onPost={post} user={user} isWeb={isWeb} />, top: <Top openHub={openHub} />, hub: <Hub place={hub} onBack={() => setTab("places")} />, places: <Places openHub={openHub} />, you: <You user={user} onPost={post} /> }[tab];
 
-  if (isWeb) {
-    return (
-      <>
-        <div style={{ display: "grid", gridTemplateColumns: "232px minmax(0,1fr) 312px", minHeight: "100vh", background: "var(--pb-bg)" }}>
-          <Sidebar tab={tab} go={go} user={user} onPost={post} />
-          <div style={{ borderLeft: "1px solid var(--pb-line)", borderRight: "1px solid var(--pb-line)", display: "flex", justifyContent: "center", padding: "26px 18px", background: "radial-gradient(120% 60% at 50% 0,#0e2016,#08130d 60%)" }}>
-            <div style={{ width: "100%", maxWidth: 540 }}>
-              <div style={{ borderRadius: 20, overflow: "hidden", border: "1px solid var(--pb-line)", background: "var(--pb-bg)", minHeight: 700 }}>{screen}</div>
-            </div>
-          </div>
-          <Rail openHub={openHub} />
-        </div>
-        {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("you")} />}
-      </>
-    );
-  }
+  // feed is a full-bleed media stage; other screens are centered content columns.
+  const wrap = tab === "feed"
+    ? { maxWidth: isWeb ? 500 : "100%", margin: "0 auto", height: "calc(100dvh - " + HEADER + "px)" }
+    : { maxWidth: 940, margin: "0 auto", padding: "0 0 104px" };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
-      <div style={{ position: "absolute", inset: "0 0 62px 0", overflowY: "auto", WebkitOverflowScrolling: "touch" }}>{screen}</div>
-      <TabBar tab={tab} go={go} />
+    <>
+      <SiteHeader active="pines" solid />
+      <div style={{ position: "fixed", top: HEADER, left: 0, right: 0, bottom: 0, overflowY: tab === "feed" ? "hidden" : "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
+        <div style={wrap}>{screen}</div>
+      </div>
+      <FloatingTabs tab={tab} go={go} isWeb={isWeb} />
       {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("you")} />}
-    </div>
+    </>
   );
 }
 
-/* ---------------- shells ---------------- */
+/* ---------------- floating bottom tab bar (phone full-width · web centered pill) ---------------- */
 function navIcon(id) {
   const p = { feed: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>, places: <><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" /></>, you: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></> }[id];
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 20, height: 20 }}>{p}</svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 19, height: 19 }}>{p}</svg>;
 }
-function TabBar({ tab, go }) {
+function FloatingTabs({ tab, go, isWeb }) {
   const cur = tab === "top" ? "feed" : tab === "hub" ? "places" : tab;
   const T = (id, label) => (
-    <button onClick={() => go(id)} style={{ flex: 1, cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontFamily: "var(--pb-sans)", fontSize: ".58rem", fontWeight: 600, color: cur === id ? "var(--pb-gold)" : "var(--pb-muted)" }}>{navIcon(id)}{label}</button>
+    <button key={id} onClick={() => go(id)} style={{ flex: isWeb ? "none" : 1, cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontFamily: "var(--pb-sans)", fontSize: ".58rem", fontWeight: 600, color: cur === id ? "var(--pb-gold)" : "var(--pb-muted)", padding: isWeb ? "6px 18px" : 0 }}>{navIcon(id)}{label}</button>
   );
-  return (
-    <nav style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 62, display: "flex", alignItems: "center", background: "rgba(8,19,13,.94)", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", borderTop: "1px solid var(--pb-line)", zIndex: 30 }}>
-      {T("feed", "Feed")}{T("places", "Places")}
-      <button onClick={() => go("compose")} aria-label="Post" style={{ flex: 1, cursor: "pointer", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ width: 44, height: 44, borderRadius: 14, background: C.gold, color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", fontWeight: 700, boxShadow: "0 8px 22px -8px rgba(217,183,121,.8)" }}>＋</span>
-      </button>
-      {T("you", "You")}
-    </nav>
+  const plus = (
+    <button key="c" onClick={() => go("compose")} aria-label="Post" style={{ flex: isWeb ? "none" : 1, cursor: "pointer", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", padding: isWeb ? "0 10px" : 0 }}>
+      <span style={{ width: isWeb ? 42 : 44, height: isWeb ? 42 : 44, borderRadius: 14, background: C.gold, color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.45rem", fontWeight: 700, boxShadow: "0 8px 22px -8px rgba(217,183,121,.8)" }}>＋</span>
+    </button>
   );
-}
-function Sidebar({ tab, go, user, onPost }) {
-  const cur = tab === "top" ? "feed" : tab === "hub" ? "places" : tab;
-  const items = [["feed", "Feed"], ["places", "Places"], ["compose", "＋  Post"], ["you", "You"]];
-  const name = user ? ((user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0]) : "Guest";
-  return (
-    <div style={{ padding: "22px 16px", display: "flex", flexDirection: "column", gap: 4, position: "sticky", top: 0, height: "100vh" }}>
-      <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 18px", textDecoration: "none" }}>
-        <span style={{ width: 34, height: 34, borderRadius: 9, background: C.gold, display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="17" height="17" viewBox="0 0 24 24" fill="var(--pb-bg)"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg></span>
-        <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.35rem", color: "var(--pb-ink)" }}>Pines</span>
-      </Link>
-      {items.map(([id, label]) => {
-        const on = id === cur, gold = id === "compose";
-        return <button key={id} onClick={() => go(id)} style={{ cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12, fontFamily: "var(--pb-sans)", fontSize: ".98rem", fontWeight: 600, border: "none", borderRadius: 12, padding: "12px 14px", margin: gold ? "6px 0" : 0, background: gold ? C.gold : on ? "rgba(217,183,121,.12)" : "transparent", color: gold ? "var(--pb-bg)" : on ? "var(--pb-ink)" : "var(--pb-ink-2)" }}>{label}</button>;
-      })}
-      <div style={{ flex: 1 }} />
-      <button onClick={() => go("you")} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 8px", borderTop: "1px solid var(--pb-line)", marginTop: 10, background: "none", border: "none", borderTopWidth: 1, cursor: "pointer", textAlign: "left" }}>
-        <span style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(150deg,#1f5e46,#0e2016)", border: "1px solid var(--pb-gold-2)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, color: "var(--pb-gold)", fontWeight: 600 }}>{(name[0] || "?").toUpperCase()}</span>
-        <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: ".84rem", fontWeight: 600, color: "var(--pb-ink)" }}>{name}</span>{user && <span style={{ display: "block", fontSize: ".6rem", color: "var(--pb-muted)" }}>{user.email}</span>}</span>
-      </button>
-    </div>
-  );
-}
-function Rail({ openHub }) {
-  const [top, setTop] = useState(null);
-  useEffect(() => { fetch("/api/pines?sort=top").then((r) => r.json()).then((d) => setTop(d.pines || [])).catch(() => setTop([])); }, []);
-  return (
-    <div style={{ padding: "22px 16px", overflowY: "auto" }}>
-      <div style={{ ...micro, color: "var(--pb-gold-soft)", marginBottom: 12 }}>Top of the week</div>
-      {top === null ? <span style={{ color: "var(--pb-muted)", fontSize: ".8rem" }}>Loading…</span>
-        : top.length === 0 ? <p style={{ color: "var(--pb-ink-2)", fontSize: ".8rem", lineHeight: 1.5 }}>No ranked Pines yet — the week's most-loved Adventures will show here.</p>
-        : top.slice(0, 5).map((t, i) => (
-          <button key={t.id} onClick={() => openHub(placeOf(t))} style={{ cursor: "pointer", width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: "8px 0" }}>
-            <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.2rem", color: "var(--pb-gold-soft)", width: 18, flex: "none" }}>{i + 1}</span>
-            <span style={{ position: "relative", width: 40, height: 40, borderRadius: 9, overflow: "hidden", flex: "none" }}>{t.image_url || t.poster_url ? <img src={t.image_url || t.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={t.place_name} />}</span>
-            <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: "block", fontSize: ".86rem", fontWeight: 600, color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.place_name || "Adventure"}</span></span>
-            <span style={{ display: "flex", alignItems: "center", gap: 4, color: C.like, fontSize: ".72rem", fontWeight: 600 }}>{heart(12)}{t.like_count || 0}</span>
-          </button>
-        ))}
-      <div style={{ ...micro, letterSpacing: ".06em", textTransform: "none", color: "var(--pb-muted)", lineHeight: 1.6, marginTop: 18 }}>On-site &amp; verified. Real park photos only — honesty is the brand.</div>
-    </div>
-  );
+  const shell = isWeb
+    ? { position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 6, background: "rgba(8,19,13,.82)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "7px 10px", boxShadow: "0 24px 60px -24px rgba(0,0,0,.85)", zIndex: 90 }
+    : { position: "fixed", left: 0, right: 0, bottom: 0, height: 62, display: "flex", alignItems: "center", background: "rgba(8,19,13,.94)", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", borderTop: "1px solid var(--pb-line)", zIndex: 90 };
+  return <nav style={shell}>{T("feed", "Feed")}{T("places", "Places")}{plus}{T("you", "Mine")}</nav>;
 }
 function placeOf(p) { return { type: p.place_type || "park", id: p.place_id, name: p.place_name, q: p.place_name }; }
 function heart(sz) { return <svg viewBox="0 0 24 24" fill={C.like} style={{ width: sz, height: sz }}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></svg>; }
 
 /* ---------------- Feed ---------------- */
-function Feed({ onPost, user }) {
+function Feed({ onPost, user, isWeb }) {
   const [st, setSt] = useState({ loading: true, pines: [] });
   const [idx, setIdx] = useState(0);
   const [verdict, setVerdict] = useState(null);
@@ -183,12 +135,12 @@ function Feed({ onPost, user }) {
   const src = p.image_url || p.poster_url;
   const vc = verdict ? vColor(verdict.v) : "#aab0ba";
   return (
-    <div style={{ position: "relative", width: "100%", minHeight: "100vh", background: "#000" }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 480, background: "#000", overflow: "hidden", borderRadius: isWeb ? 20 : 0, border: isWeb ? "1px solid var(--pb-line)" : "none", marginTop: isWeb ? 18 : 0 }}>
       {src ? <img src={src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(6,14,10,.5),transparent 22%,transparent 52%,rgba(6,14,10,.96))" }} />
-      <div style={{ position: "absolute", left: 16, top: 46, zIndex: 6, display: "flex", gap: 4 }}>{st.pines.map((x, i) => <span key={i} style={{ width: i === idx ? 18 : 6, height: 3, borderRadius: 2, background: i === idx ? "var(--pb-gold)" : "rgba(255,255,255,.4)", transition: "width .3s" }} />)}</div>
+      <div style={{ position: "absolute", left: 16, top: 14, zIndex: 6, display: "flex", gap: 4 }}>{st.pines.map((x, i) => <span key={i} style={{ width: i === idx ? 18 : 6, height: 3, borderRadius: 2, background: i === idx ? "var(--pb-gold)" : "rgba(255,255,255,.4)", transition: "width .3s" }} />)}</div>
       {verdict && (
-        <div style={{ position: "absolute", top: 42, right: 14, zIndex: 6, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, background: "rgba(6,14,10,.55)", backdropFilter: "blur(10px)", border: "1px solid " + vc + "66", borderRadius: 14, padding: "8px 11px" }}>
+        <div style={{ position: "absolute", top: 26, right: 14, zIndex: 6, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, background: "rgba(6,14,10,.55)", backdropFilter: "blur(10px)", border: "1px solid " + vc + "66", borderRadius: 14, padding: "8px 11px" }}>
           <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".06em", fontWeight: 700, color: vc }}>{verdict.v}</span>
           <span style={{ fontFamily: mono, fontSize: ".44rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#cfd6cf" }}>Conditions ›</span>
         </div>
@@ -278,18 +230,38 @@ function Hub({ place, onBack }) {
           {pl.type === "park" && pl.id && <Link href={"/parks/" + pl.id} style={{ fontSize: ".76rem", fontWeight: 600, color: "var(--pb-ink)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px", textDecoration: "none" }}>Live conditions ›</Link>}
         </div>
       </div>
-      <div style={{ display: "flex", gap: 22, padding: "14px 15px 0", borderBottom: "1px solid var(--pb-line)", marginTop: 14 }}>
-        {["Pines", "Talk", "Live"].map((t, i) => <span key={t} style={{ fontSize: ".84rem", fontWeight: 600, color: i === 0 ? "var(--pb-ink)" : "var(--pb-muted)", paddingBottom: 9, borderBottom: i === 0 ? "2px solid var(--pb-gold-2)" : "none" }}>{t}</span>)}
-      </div>
-      {pins === null ? <p style={pad()}>Loading…</p> : !pins.length ? (
-        <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6 }}>No Pines from {pl.name} yet. Be the first — capture one on-site and pin it here.</p>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, padding: "3px 3px 0" }}>
-          {pins.map((p) => <div key={p.id} style={{ position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000" }}>{p.image_url || p.poster_url ? <img src={p.image_url || p.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}</div>)}
-        </div>
-      )}
+      <HubTabs pl={pl} pins={pins} />
       <div style={{ height: 14 }} />
     </div>
+  );
+}
+
+function HubTabs({ pl, pins }) {
+  const [sub, setSub] = useState("talk"); // Talk is first & default
+  return (
+    <>
+      <div style={{ display: "flex", gap: 22, padding: "14px 15px 0", borderBottom: "1px solid var(--pb-line)", marginTop: 14 }}>
+        {["talk", "pines", "live"].map((t) => <button key={t} onClick={() => setSub(t)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--pb-sans)", fontSize: ".84rem", fontWeight: 600, textTransform: "capitalize", color: sub === t ? "var(--pb-ink)" : "var(--pb-muted)", paddingBottom: 9, borderBottom: sub === t ? "2px solid var(--pb-gold-2)" : "2px solid transparent" }}>{t}</button>)}
+      </div>
+      {sub === "talk" && (
+        <div style={{ padding: "10px 15px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "11px 13px", color: "var(--pb-muted)", fontSize: ".82rem" }}>
+            <span style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(150deg,#1f5e46,#0e2016)", border: "1px solid var(--pb-gold-2)", flex: "none" }} />Start a conversation at {pl.name}…
+          </div>
+          <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6, textAlign: "center" }}>No conversations yet. Be the first — share what's happening on the ground: trail conditions, a buddy request, a wildlife sighting.</p>
+        </div>
+      )}
+      {sub === "pines" && (
+        pins === null ? <p style={pad()}>Loading…</p> : !pins.length ? <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6 }}>No Pines from {pl.name} yet. Be the first — capture one on-site and pin it here.</p> : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, padding: "3px 3px 0" }}>
+            {pins.map((p) => <div key={p.id} style={{ position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000" }}>{p.image_url || p.poster_url ? <img src={p.image_url || p.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}</div>)}
+          </div>
+        )
+      )}
+      {sub === "live" && (
+        <div style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6 }}>{pl.type === "park" && pl.id ? <>See the full live conditions — weather, alerts, air quality — on the park's status page. <Link href={"/parks/" + pl.id} style={{ color: "var(--pb-gold)" }}>Open conditions ›</Link></> : "Live conditions appear here once this place is linked."}</div>
+      )}
+    </>
   );
 }
 
@@ -384,17 +356,46 @@ function You({ user, onPost }) {
 }
 
 /* ---------------- shared ---------------- */
-function Center({ children }) { return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>{children}</div>; }
+function Center({ children }) { return <div style={{ height: "100%", minHeight: 480, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>{children}</div>; }
 function pad() { return { padding: "22px 15px", color: "var(--pb-muted)", fontSize: ".9rem" }; }
 function goldBtn(w) { return { cursor: "pointer", width: w || "auto", fontFamily: "var(--pb-sans)", fontSize: ".92rem", fontWeight: 700, color: "var(--pb-bg)", background: C.gold, border: "none", borderRadius: 999, padding: "12px 24px" }; }
 function Empty({ user, onPost }) {
   return (
-    <div style={{ textAlign: "center", maxWidth: 440 }}>
+    <div style={{ textAlign: "center", maxWidth: 460 }}>
+      <div style={{ ...micro, color: "var(--pb-gold-soft)", marginBottom: 10 }}>Coming soon · early access</div>
       <div style={{ fontSize: "2.4rem", marginBottom: 6 }}>🌲</div>
-      <h1 style={{ fontFamily: serif, fontWeight: 500, fontSize: "clamp(2rem,6vw,2.8rem)", lineHeight: 1.05, color: "var(--pb-ink)", margin: "0 0 12px" }}>Pines are coming</h1>
-      <p style={{ color: "var(--pb-ink-2)", fontSize: "1rem", lineHeight: 1.6, margin: "0 0 22px" }}>Short, real Adventures from the parks — every one captured on-site and pinned to the exact place, next to today's conditions. No stock, no fakes.</p>
-      <button onClick={onPost} style={goldBtn()}>{user ? "Be the first to pin one" : "Sign in to pin one"}</button>
-      <div style={{ ...micro, color: "var(--pb-muted)", marginTop: 18 }}>Reels, but for the wild.</div>
+      <h1 style={{ fontFamily: serif, fontWeight: 500, fontSize: "clamp(2rem,6vw,2.9rem)", lineHeight: 1.04, color: "var(--pb-ink)", margin: "0 0 12px" }}>Reels, but for the wild.</h1>
+      <p style={{ color: "var(--pb-ink-2)", fontSize: "1.02rem", lineHeight: 1.6, margin: "0 0 22px" }}>Short, real Adventures from the parks — every one captured on-site, pinned to the exact place, next to today's live conditions. No stock, no fakes.</p>
+      <Waitlist />
+      <div style={{ margin: "18px 0 0", display: "flex", alignItems: "center", gap: 12, justifyContent: "center" }}>
+        <span style={{ height: 1, width: 40, background: "var(--pb-line)" }} /><span style={micro}>or</span><span style={{ height: 1, width: 40, background: "var(--pb-line)" }} />
+      </div>
+      <button onClick={onPost} style={{ ...goldBtn(), background: "transparent", color: "var(--pb-ink)", border: "1px solid var(--pb-line-strong)", marginTop: 16 }}>{user ? "Post the first Pine" : "Sign in to post"}</button>
     </div>
+  );
+}
+
+function Waitlist() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState(""); // "" | busy | done | error
+  const [msg, setMsg] = useState("");
+  const submit = async (e) => {
+    e && e.preventDefault && e.preventDefault();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setState("error"); setMsg("Enter a valid email."); return; }
+    setState("busy");
+    try {
+      const r = await fetch("/api/pines-waitlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim(), source: "pines-feed" }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { setState("done"); } else { setState("error"); setMsg(d.error || "Something went wrong."); }
+    } catch { setState("error"); setMsg("Couldn't reach the waitlist."); }
+  };
+  if (state === "done") return <div style={{ ...micro, letterSpacing: ".04em", textTransform: "none", color: C.go, fontSize: ".9rem" }}>✓ You're on the list — we'll email you the moment Pines opens.</div>;
+  return (
+    <form onSubmit={submit} style={{ display: "flex", flexWrap: "wrap", gap: 8, maxWidth: 380, margin: "0 auto", justifyContent: "center" }}>
+      <input type="email" placeholder="you@email.com" value={email} onChange={(e) => { setEmail(e.target.value); setState(""); }}
+        style={{ flex: "1 1 170px", minWidth: 0, background: "rgba(255,255,255,.04)", border: "1px solid " + (state === "error" ? "var(--pb-hold)" : "var(--pb-line-strong)"), borderRadius: 999, padding: "12px 16px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".9rem", outline: "none" }} />
+      <button type="submit" disabled={state === "busy"} style={{ ...goldBtn(), padding: "12px 20px", flex: "1 1 auto", whiteSpace: "nowrap" }}>{state === "busy" ? "…" : "Get early access"}</button>
+    </form>
+    {state === "error" && msg && <div style={{ color: "var(--pb-hold)", fontSize: ".8rem", marginTop: 8 }}>{msg}</div>}
   );
 }

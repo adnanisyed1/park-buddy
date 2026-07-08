@@ -142,7 +142,7 @@ function SignIn({ auth }) {
           </button>
         )}
       </div>
-      <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".04em", color: "var(--pb-muted)", lineHeight: 1.5, marginTop: 22, textAlign: "center" }}>By continuing you agree to our Terms &amp; Privacy. We never sell your data.</div>
+      <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".04em", color: "var(--pb-muted)", lineHeight: 1.6, marginTop: 22, textAlign: "center" }}>By continuing you agree to our <a href="/terms" target="_blank" style={{ color: "var(--pb-gold-soft)" }}>Terms</a> &amp; <a href="/privacy" target="_blank" style={{ color: "var(--pb-gold-soft)" }}>Privacy</a>. We never sell your data.</div>
     </div>
   );
 }

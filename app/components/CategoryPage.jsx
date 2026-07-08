@@ -21,6 +21,22 @@ const mono = "var(--pb-mono)";
 export default function CategoryPage({ eyebrow, title, emphasis, blurb, photoQ, mode = "soon", mapHref = "/explore", features = [], navActive = "explore" }) {
   const hero = usePhoto(photoQ, null, null);
   const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  // Real waitlist capture (was a fake local-only "done"): stores the email so the
+  // interest is actually captured. Reuses the pines_waitlist table via `source`.
+  const notify = async (e) => {
+    e.preventDefault();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setErr("Enter a valid email."); return; }
+    setBusy(true); setErr("");
+    try {
+      const r = await fetch("/api/pines-waitlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim(), source: "category-" + navActive }) });
+      if (r.ok) setSent(true);
+      else { const d = await r.json().catch(() => ({})); setErr(d.error || "Couldn't save just now — try again."); }
+    } catch { setErr("Couldn't reach the list — try again."); }
+    setBusy(false);
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
@@ -53,12 +69,13 @@ export default function CategoryPage({ eyebrow, title, emphasis, blurb, photoQ, 
             ) : sent ? (
               <div style={{ display: "inline-flex", alignItems: "center", gap: 9, color: "var(--pb-go)", fontWeight: 600 }}>✓ You&apos;re on the list — we&apos;ll tell you the moment it opens.</div>
             ) : (
-              <form onSubmit={(e) => { e.preventDefault(); setSent(true); }} style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-                <input type="email" required placeholder="Email me when it's live" className="pb-input" style={{ width: "min(280px,70vw)", borderRadius: 999 }} />
-                <Button type="submit">Notify me</Button>
+              <form onSubmit={notify} style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                <input type="email" required value={email} onChange={(e) => { setEmail(e.target.value); setErr(""); }} placeholder="Email me when it's live" className="pb-input" style={{ width: "min(280px,70vw)", borderRadius: 999 }} />
+                <Button type="submit" disabled={busy}>{busy ? "…" : "Notify me"}</Button>
               </form>
             )}
           </div>
+          {err && <div style={{ marginTop: 10, color: "var(--pb-hold)", fontSize: ".85rem" }}>{err}</div>}
           {mode === "map" && <div style={{ marginTop: 14, fontFamily: mono, fontSize: ".6rem", letterSpacing: ".06em", color: "var(--pb-muted)" }}>A curated index is on the way — for now, browse them live on the map.</div>}
         </div>
       </section>

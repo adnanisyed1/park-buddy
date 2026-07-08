@@ -677,7 +677,7 @@ class Component extends DCLogic {
       +items.map(function(it){ return '<a href="'+it[1]+'" style="text-decoration:none;color:#c3c8d0;font-size:.86rem;transition:color .3s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'#c3c8d0\'">'+it[0]+'</a>'; }).join('')
       +'</div>'; };
     if(c1)c1.innerHTML=col('Explore',[['Live map','/explore'],['Trails','/explore'],['Scenic drives','/scenic-drives'],['Lakes','/explore']]);
-    if(c2)c2.innerHTML=col('Company',[['Plan a trip','/build-trip'],['Shop','#shop'],['List with us','#'],['About','/about']]);
+    if(c2)c2.innerHTML=col('Company',[['About','/about'],['Plan a trip','/build-trip'],['Shop','/shop'],['Privacy','/privacy'],['Terms','/terms'],['Data & attributions','/attributions']]);
     if(soc)soc.innerHTML=['✦','◈','◆','●'].map(function(g){ return '<a href="#" style="width:34px;height:34px;border-radius:50%;border:1px solid rgba(217,183,121,.25);display:flex;align-items:center;justify-content:center;color:#d9b779;text-decoration:none;transition:all .3s" onmouseover="this.style.background=\'rgba(217,183,121,.12)\'" onmouseout="this.style.background=\'transparent\'">'+g+'</a>'; }).join('');
   }
 

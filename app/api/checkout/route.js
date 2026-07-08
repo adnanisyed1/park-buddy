@@ -26,8 +26,12 @@ export async function POST(request) {
   const email = String(body.email || "").trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err("Enter a valid email address.");
   const qty = Math.max(1, Math.min(20, parseInt(body.quantity, 10) || 1));
-  const price = parseFloat(String(body.price).replace(/[^0-9.]/g, "")) || 0;
-  if (!price) return err("Invalid price.");
+  // SERVER-AUTHORITATIVE PRICING — never trust the client's price (a spoofed body
+  // could otherwise buy a hardcover for cents). Derive price from the book size.
+  // Keep this table in sync with studioSource.js PRINTS.
+  const PRICE_BY_DIM = { 8: 45, 10: 65, 12: 89 };
+  const price = PRICE_BY_DIM[parseInt(String(body.size), 10)];
+  if (!price) return err("Unrecognized book size.");
   const title = String(body.title || "Trip Book").slice(0, 120);
   const theme = String(body.theme || "").slice(0, 60);
   const size = String(body.size || "").slice(0, 20);

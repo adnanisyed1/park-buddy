@@ -12,7 +12,7 @@ function err(msg, status = 400) { return Response.json({ error: msg }, { status 
 export async function POST(request) {
   const sb = (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, "");
   const key = process.env.SUPABASE_SERVICE_KEY;
-  if (!sb || !key) return err("Alerts backend isn't configured.", 500);
+  if (!sb || !key) return err("Alerts aren't set up yet — check back soon.", 503);
 
   let body;
   try { body = await request.json(); } catch { return err("Bad request."); }

@@ -5,11 +5,18 @@ import ParkStatusV2 from "../../parks/[id]/ParkStatusV2";
 // dataset (public/national-forests.json) and wires the same lat/lng-based live data
 // — verdict, NWS alerts, wildfire, air, forecast, sun & sky, river flow, trails,
 // nearby — while skipping the NPS-only pieces that don't apply to a forest.
-export const metadata = {
-  title: "Live national-forest status & conditions",
-  description:
-    "The deep live status for a U.S. national forest: today's GO / PREPARE / HOLD verdict, NWS alerts, wildfire & air quality, forecast, sun & sky, trails and what's nearby.",
-};
+// Per-forest SEO metadata, derived from the slug so each forest is a distinct page.
+export async function generateMetadata({ params }) {
+  let name = String(params.id || "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+  if (name && !/forest/i.test(name)) name += " National Forest";
+  const readable = name || "National Forest";
+  return {
+    title: readable + " — live conditions & trip planner",
+    description: "Today's GO / PREPARE / HOLD verdict for " + readable + ": live weather, NWS alerts, wildfire & air quality, forecast, trails and what's nearby — from real sources.",
+    alternates: { canonical: "/forests/" + params.id },
+    openGraph: { title: readable + " — live conditions | Park Buddy", description: "Live verdict + conditions for " + readable + ".", url: "/forests/" + params.id },
+  };
+}
 
 export default function ForestPage({ params }) {
   return <ParkStatusV2 id={params.id} kind="forest" />;

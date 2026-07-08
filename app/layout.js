@@ -23,12 +23,12 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://theparkbudd
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "ParkBuddy — Discover, plan & collect the outdoors",
-    template: "%s · ParkBuddy",
+    default: "Park Buddy — Discover, plan & collect the outdoors",
+    template: "%s · Park Buddy",
   },
   description:
     "Discover the best national parks and lakes near you, build real-road trips with live weather and conditions, and collect a digital Trip Passport.",
-  applicationName: "ParkBuddy",
+  applicationName: "Park Buddy",
   keywords: [
     "national parks", "trip planner", "road trip", "hiking", "camping",
     "park weather", "park conditions", "outdoors", "trail finder",
@@ -36,15 +36,15 @@ export const metadata = {
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    siteName: "ParkBuddy",
-    title: "ParkBuddy — Discover, plan & collect the outdoors",
+    siteName: "Park Buddy",
+    title: "Park Buddy — Discover, plan & collect the outdoors",
     description:
       "Discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ParkBuddy — Discover, plan & collect the outdoors",
+    title: "Park Buddy — Discover, plan & collect the outdoors",
     description:
       "Discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
   },
@@ -55,11 +55,11 @@ export const metadata = {
 const JSON_LD = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "ParkBuddy",
+  name: "Park Buddy",
   url: SITE_URL,
   description:
     "Discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
-  publisher: { "@type": "Organization", name: "ParkBuddy", url: SITE_URL },
+  publisher: { "@type": "Organization", name: "Park Buddy", url: SITE_URL },
 };
 
 export default function RootLayout({ children }) {

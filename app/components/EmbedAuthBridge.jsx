@@ -39,7 +39,14 @@ export default function EmbedAuthBridge() {
     // a floating pill (top-right, where auth.js put its widget) and hide #pp-acct.
     const ensure = () => {
       const native = document.getElementById("signInBtn");
-      if (native) { native.textContent = label(); return true; }
+      if (native) {
+        native.textContent = label();
+        // The embed's own button appears async; if we injected a pill before it
+        // showed up, remove the pill now so there aren't two "Sign in" buttons.
+        const stale = document.getElementById(PILL_ID);
+        if (stale) stale.remove();
+        return true;
+      }
 
       const acct = document.getElementById("pp-acct");
       if (acct) acct.style.display = "none";

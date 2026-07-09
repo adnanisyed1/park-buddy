@@ -162,6 +162,16 @@
 
   <!-- ================= PINES / COMMUNITY ================= -->
   <section data-screen-label="Pines" style="position:relative;padding:clamp(60px,10vh,120px) clamp(16px,4vw,54px)">
+    <!-- cinematic intro film (click-to-play; preload=none so the 25MB only loads on play) -->
+    <div class="pb-rise" style="max-width:1000px;margin:0 auto clamp(36px,5vw,60px);text-align:center">
+      <div style="font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.28em;text-transform:uppercase;color:#d9b779;margin-bottom:14px">▶ Watch — a minute in the wild</div>
+      <div style="position:relative;border-radius:20px;overflow:hidden;border:1px solid rgba(217,183,121,.24);box-shadow:0 40px 90px -44px rgba(0,0,0,.9)">
+        <video controls playsinline preload="none" poster="/media/pines-intro-poster.jpg" style="width:100%;display:block;aspect-ratio:16/9;background:#000">
+          <source src="/media/pines-intro.mp4" type="video/mp4">
+          Your browser can't play this video.
+        </video>
+      </div>
+    </div>
     <div id="pinesGrid" style="max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:clamp(32px,5vw,60px);align-items:center">
       <!-- LEFT: the pitch -->
       <div class="pb-rise">

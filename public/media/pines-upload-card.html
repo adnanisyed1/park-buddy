@@ -13,7 +13,12 @@
   html,body{height:100%}
   body{ background:radial-gradient(120% 80% at 50% 40%, rgba(217,183,121,.07), transparent 60%), linear-gradient(160deg,var(--bg2),var(--bg) 72%);
     color:var(--ink); font-family:'Space Mono',monospace; display:flex; align-items:center; justify-content:center; height:100vh; overflow:hidden; cursor:pointer; }
-  .stage{ width:min(100vw,177.78vh); aspect-ratio:16/9; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(12px,2vh,22px); }
+  .stage{ width:min(100vw,177.78vh); aspect-ratio:16/9; position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(12px,2vh,22px); }
+  /* full-frame fill: a blurred, darkened copy of the clip so the 16:9 frame is filled
+     with our scenery/colors — no black bars, no dead space around the card. */
+  .bgfill{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scale(1.15); filter:blur(46px) brightness(.42) saturate(1.15); z-index:0; }
+  .bgtint{ position:absolute; inset:0; background:radial-gradient(120% 90% at 50% 40%, rgba(8,19,13,.35), rgba(8,19,13,.78)); z-index:0; }
+  .stage > .eyebrow, .stage > .card, .stage > .live{ position:relative; z-index:2; }
   .eyebrow{ position:absolute; top:12%; left:0; right:0; text-align:center; font-size:clamp(.55rem,1.3vw,.9rem); letter-spacing:.28em; text-transform:uppercase; color:var(--gold-soft); opacity:0; animation:fade .8s .2s forwards; }
 
   .card{ width:min(42%,460px); background:rgba(10,23,16,.72); border:1px solid rgba(217,183,121,.24); border-radius:18px;
@@ -59,6 +64,8 @@
 </head>
 <body>
   <div class="stage" id="stage">
+    <video class="bgfill" src="pines-clip.mp4" autoplay muted loop playsinline></video>
+    <div class="bgtint"></div>
     <div class="eyebrow">Post a Pine · on-site only</div>
     <div class="card">
       <div class="clip"><video src="pines-clip.mp4" autoplay muted loop playsinline poster="pines-intro-poster.jpg"></video><div class="play">▶</div><div class="dur">0:14</div></div>

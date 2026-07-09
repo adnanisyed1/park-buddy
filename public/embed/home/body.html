@@ -199,16 +199,17 @@
               <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
               <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
               <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
+              <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
             </div>
             <!-- scene stage -->
             <div style="position:relative;flex:1;min-height:0">
               <!-- SCENE — FEED (Ben's post, advertised) -->
               <div class="pb-sc" data-tab="feed" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
-                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Feed · fresh from the trail</div>
+                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Feed · people &amp; places you follow</div>
                 <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
                   <span style="width:30px;height:30px;border-radius:50%;flex:none;background:linear-gradient(135deg,#2a6b45,#0e2016);border:1px solid rgba(217,183,121,.4);display:flex;align-items:center;justify-content:center;font-size:.95rem">🧔🏻</span>
                   <div style="line-height:1.1"><b style="font-size:.82rem;color:#f4f1ea">Ben R.</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">@benhikes · 2h</div></div>
-                  <span style="margin-left:auto;font-size:.6rem;font-weight:700;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:999px;padding:5px 11px">Follow</span>
+                  <span style="margin-left:auto;font-size:.58rem;font-weight:700;color:#e8cf9a;background:rgba(217,183,121,.12);border:1px solid rgba(217,183,121,.35);border-radius:999px;padding:5px 10px">🤝 Buddy</span>
                 </div>
                 <div style="position:relative;margin-top:9px;border-radius:14px;overflow:hidden;height:150px;background:linear-gradient(170deg,#1b3d5c 0%,#2f6b7a 42%,#7a9a5f 100%)">
                   <svg class="pb-reel" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="235" cy="42" r="18" fill="#f4dca0" opacity=".85"/><path d="M0 150 L60 96 L104 132 L150 74 L196 128 L246 88 L300 138 L300 200 L0 200 Z" fill="#16321f" opacity=".92"/><path d="M0 170 L46 138 L92 166 L140 120 L188 160 L236 128 L300 164 L300 200 L0 200 Z" fill="#0e2016"/></svg>
@@ -226,25 +227,23 @@
                 </div>
                 <div style="margin-top:8px;font-size:.7rem;color:#9aa7a0;line-height:1.4"><b style="color:#cdd3c0">Dana</b> Unreal 😍 adding this to my list</div>
               </div>
-              <!-- SCENE — PLACES -->
-              <div class="pb-sc" data-tab="places" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
-                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Places · tap into a community</div>
-                <div style="margin-top:10px;display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.16);border-radius:999px;padding:8px 12px;color:#7f8a82;font-size:.74rem">⌕ Search parks, forests, towns…</div>
-                <div id="pbPlaces" style="margin-top:11px;display:flex;flex-direction:column;gap:8px">
-                  <div class="pb-row" style="opacity:0;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.12);border-radius:13px;padding:8px 10px">
-                    <span style="width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(150deg,#2f6b7a,#16321f)"></span>
-                    <div style="min-width:0;line-height:1.15"><b style="font-size:.78rem;color:#f4f1ea">Rocky Mountain NP</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Colorado · 🔥 128 in Campfire</div></div>
-                    <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:.5rem;font-weight:700;color:#4fd98a">GO</span>
+              <!-- SCENE — PINES (global discover: reels + photos from everyone) -->
+              <div class="pb-sc" data-tab="pines" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Pines · discover the world</div>
+                <div id="pbDiscover" style="margin-top:11px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <div class="pb-tile" style="opacity:0;position:relative;border-radius:12px;overflow:hidden;aspect-ratio:3/4;background:linear-gradient(160deg,#1b3d5c,#3a7a6a)">
+                    <span style="position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:rgba(8,19,13,.55);border:1px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.44rem;padding-left:1px">▶</span>
+                    <span style="position:absolute;left:6px;bottom:6px;font-family:'Space Mono',monospace;font-size:.45rem;line-height:1.3;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)">📍 Half Dome<br>@maya</span>
                   </div>
-                  <div class="pb-row" style="opacity:0;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.12);border-radius:13px;padding:8px 10px">
-                    <span style="width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(150deg,#c9a35f,#5c4a24)"></span>
-                    <div style="min-width:0;line-height:1.15"><b style="font-size:.78rem;color:#f4f1ea">Great Sand Dunes NP</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Colorado · 🔥 41 in Campfire</div></div>
-                    <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:.5rem;font-weight:700;color:#4fd98a">GO</span>
+                  <div class="pb-tile" style="opacity:0;position:relative;border-radius:12px;overflow:hidden;aspect-ratio:3/4;background:linear-gradient(160deg,#8a5a2a,#c9a35f)">
+                    <span style="position:absolute;left:6px;bottom:6px;font-family:'Space Mono',monospace;font-size:.45rem;line-height:1.3;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)">📍 The Narrows<br>@tomas</span>
                   </div>
-                  <div class="pb-row" style="opacity:0;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.12);border-radius:13px;padding:8px 10px">
-                    <span style="width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(150deg,#3a6b45,#0e2016)"></span>
-                    <div style="min-width:0;line-height:1.15"><b style="font-size:.78rem;color:#f4f1ea">Roosevelt Nat'l Forest</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Colorado · 🔥 17 in Campfire</div></div>
-                    <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:.5rem;font-weight:700;color:#e8cf9a">PREPARE</span>
+                  <div class="pb-tile" style="opacity:0;position:relative;border-radius:12px;overflow:hidden;aspect-ratio:3/4;background:linear-gradient(160deg,#3a3a6b,#5a86c9)">
+                    <span style="position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:rgba(8,19,13,.55);border:1px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.44rem;padding-left:1px">▶</span>
+                    <span style="position:absolute;left:6px;bottom:6px;font-family:'Space Mono',monospace;font-size:.45rem;line-height:1.3;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)">📍 Denali dawn<br>@aki</span>
+                  </div>
+                  <div class="pb-tile" style="opacity:0;position:relative;border-radius:12px;overflow:hidden;aspect-ratio:3/4;background:linear-gradient(160deg,#3a6b45,#16321f)">
+                    <span style="position:absolute;left:6px;bottom:6px;font-family:'Space Mono',monospace;font-size:.45rem;line-height:1.3;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)">📍 Smoky fog<br>@lena</span>
                   </div>
                 </div>
               </div>
@@ -264,8 +263,8 @@
                 <button style="margin-top:10px;width:100%;border:none;border-radius:11px;padding:10px;font-size:.8rem;font-weight:700;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f)">Post Pine</button>
                 <div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#6f7a72;margin-top:8px;line-height:1.4;text-align:center">Your GPS confirms you were really here.</div>
               </div>
-              <!-- SCENE — TALK (campfire) -->
-              <div class="pb-sc" data-tab="talk" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+              <!-- SCENE — CAMPFIRE (community chat) -->
+              <div class="pb-sc" data-tab="campfire" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
                 <div style="display:flex;align-items:center;gap:7px">
                   <span style="font-size:1rem">🔥</span>
                   <div><div style="font-size:.84rem;font-weight:600;color:#f4f1ea;line-height:1">Rocky Mountain NP</div><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Campfire · 128 nearby</div></div>
@@ -275,6 +274,24 @@
                   <div class="pb-msg" style="opacity:0;align-self:flex-start;max-width:82%;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.12);border-radius:14px 14px 14px 4px;padding:8px 10px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#9aa7a0;margin-bottom:3px">Dana</div><div style="font-size:.74rem;line-height:1.4;color:#e7e3d8">Whoa, thanks for the warning 🙏</div></div>
                   <div class="pb-msg" style="opacity:0;align-self:flex-start;max-width:82%;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.12);border-radius:14px 14px 14px 4px;padding:8px 10px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#9aa7a0;margin-bottom:3px">Marcus</div><div style="font-size:.74rem;line-height:1.4;color:#e7e3d8">Which trailhead did you start from?</div></div>
                   <div class="pb-msg" style="opacity:0;align-self:flex-end;max-width:82%;background:linear-gradient(120deg,rgba(232,207,154,.2),rgba(201,163,95,.14));border:1px solid rgba(217,183,121,.3);border-radius:14px 14px 4px 14px;padding:8px 10px"><div style="font-size:.74rem;line-height:1.4;color:#f4f1ea">Cub Lake TH, ~7am. Quiet and gorgeous 🌲</div></div>
+                </div>
+              </div>
+              <!-- SCENE — GALLERY (browse & select from every photo + reel) -->
+              <div class="pb-sc" data-tab="gallery" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+                <div style="display:flex;align-items:baseline;justify-content:space-between">
+                  <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Gallery · every photo &amp; reel</div>
+                  <div style="font-family:'Space Mono',monospace;font-size:.44rem;color:#e8cf9a">Tap to select</div>
+                </div>
+                <div id="pbGallery" style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px">
+                  <span class="pb-cell" style="opacity:0;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#2f6b7a,#16321f)"><span style="position:absolute;top:4px;right:4px;color:#fff;font-size:.5rem;text-shadow:0 1px 3px rgba(0,0,0,.8)">▶</span></span>
+                  <span class="pb-cell" style="opacity:0;aspect-ratio:1;border-radius:8px;background:linear-gradient(160deg,#8a5a2a,#c9a35f)"></span>
+                  <span class="pb-cell" style="opacity:0;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#3a3a6b,#5a86c9)"><span style="position:absolute;top:4px;right:4px;color:#fff;font-size:.5rem;text-shadow:0 1px 3px rgba(0,0,0,.8)">▶</span></span>
+                  <span class="pb-cell" style="opacity:0;aspect-ratio:1;border-radius:8px;background:linear-gradient(160deg,#3a6b45,#0e2016)"></span>
+                  <span class="pb-cell" style="opacity:0;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#1b3d5c,#3a7a6a);outline:2px solid #e8cf9a;outline-offset:-2px"><span style="position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:#e8cf9a;color:#0b1710;display:flex;align-items:center;justify-content:center;font-size:.5rem;font-weight:700">✓</span></span>
+                  <span class="pb-cell" style="opacity:0;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#5a2a4a,#c95a8a)"><span style="position:absolute;top:4px;right:4px;color:#fff;font-size:.5rem;text-shadow:0 1px 3px rgba(0,0,0,.8)">▶</span></span>
+                  <span class="pb-cell" style="opacity:0;aspect-ratio:1;border-radius:8px;background:linear-gradient(160deg,#2a6b45,#16321f)"></span>
+                  <span class="pb-cell" style="opacity:0;aspect-ratio:1;border-radius:8px;background:linear-gradient(160deg,#c9a35f,#5c4a24)"></span>
+                  <span class="pb-cell" style="opacity:0;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:linear-gradient(160deg,#3a5a6b,#7a9a5f)"><span style="position:absolute;top:4px;right:4px;color:#fff;font-size:.5rem;text-shadow:0 1px 3px rgba(0,0,0,.8)">▶</span></span>
                 </div>
               </div>
               <!-- SCENE — MINE (profile) -->
@@ -300,10 +317,13 @@
               </div>
             </div>
             <!-- tab bar (active tab lights up as the demo walks through them) -->
-            <div id="pbTabs" style="display:flex;align-items:center;justify-content:space-around;padding:9px 10px 14px;border-top:1px solid rgba(217,183,121,.12);flex:none;font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.06em;text-transform:uppercase;color:#7f8a82">
-              <span class="pb-tab" data-tab="feed" style="transition:color .4s">◇ Feed</span><span class="pb-tab" data-tab="places" style="transition:color .4s">◇ Places</span>
-              <span class="pb-tab" data-tab="post" style="width:34px;height:34px;border-radius:50%;background:linear-gradient(120deg,#e8cf9a,#c9a35f);color:#0b1710;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;transition:transform .4s,box-shadow .4s">＋</span>
-              <span class="pb-tab" data-tab="talk" style="transition:color .4s">◇ Talk</span><span class="pb-tab" data-tab="mine" style="transition:color .4s">◇ Mine</span>
+            <div id="pbTabs" style="display:flex;align-items:center;justify-content:space-between;gap:2px;padding:9px 12px 14px;border-top:1px solid rgba(217,183,121,.12);flex:none;font-family:'Space Mono',monospace;font-size:.44rem;letter-spacing:.02em;text-transform:uppercase;color:#7f8a82">
+              <span class="pb-tab" data-tab="feed" style="transition:color .4s">Feed</span>
+              <span class="pb-tab" data-tab="pines" style="transition:color .4s">Pines</span>
+              <span class="pb-tab" data-tab="post" style="width:30px;height:30px;flex:none;border-radius:50%;background:linear-gradient(120deg,#e8cf9a,#c9a35f);color:#0b1710;display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:700;transition:transform .4s,box-shadow .4s">＋</span>
+              <span class="pb-tab" data-tab="campfire" style="transition:color .4s">Campfire</span>
+              <span class="pb-tab" data-tab="gallery" style="transition:color .4s">Gallery</span>
+              <span class="pb-tab" data-tab="mine" style="transition:color .4s">Mine</span>
             </div>
           </div>
         </div>

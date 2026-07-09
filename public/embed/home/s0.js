@@ -49,9 +49,10 @@ class Component extends DCLogic {
 
     var runAnim=function(tab){
       if(tab==='feed') countTo('#pbLike',168,207);
-      else if(tab==='places') revealSeq('#pbPlaces .pb-row',280,170);
+      else if(tab==='pines') revealSeq('#pbDiscover .pb-tile',200,150);
       else if(tab==='post') typeInto('#pbCap','Golden hour at Bear Lake 🌄 worth the early start.',30);
-      else if(tab==='talk') revealSeq('#pbChat .pb-msg',300,560);
+      else if(tab==='campfire') revealSeq('#pbChat .pb-msg',300,560);
+      else if(tab==='gallery') revealSeq('#pbGallery .pb-cell',120,70);
       else if(tab==='mine'){ typeInto('#pbBio','Weekend peak-bagger. Will hike for an alpine lake.',30); revealSeq('#pbChips .pb-chip',760,150); }
     };
 

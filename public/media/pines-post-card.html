@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pines — "posted to Campfire" beat (screen-record me)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#08130d; --bg2:#0a1712; --ink:#f4f1ea; --muted:#aab0ba; --gold-a:#e8cf9a; --gold-b:#c9a35f; --gold-soft:#d9b779; --go:#4fd98a; --like:#e0546a; }
+  *{margin:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{ background:radial-gradient(120% 80% at 50% 38%, rgba(217,183,121,.08), transparent 60%), linear-gradient(160deg,var(--bg2),var(--bg) 72%);
+    color:var(--ink); font-family:'Space Mono',monospace; display:flex; align-items:center; justify-content:center; height:100vh; overflow:hidden; cursor:pointer; }
+  .stage{ width:min(100vw,177.78vh); aspect-ratio:16/9; position:relative; display:flex; align-items:center; justify-content:center; }
+
+  .eyebrow{ position:absolute; top:12%; left:0; right:0; text-align:center; font-size:clamp(.6rem,1.4vw,1rem); letter-spacing:.28em; text-transform:uppercase; color:var(--gold-soft); }
+  .eyebrow b{ display:block; opacity:0; }
+  .e1{ animation:fade .8s .2s ease forwards, fade .6s 3s reverse forwards; }
+  .e2{ animation:fade .8s 3.6s ease forwards; }
+
+  /* the captured "clip" */
+  .clip{ position:relative; width:min(46%,520px); aspect-ratio:16/10; border-radius:18px; overflow:hidden;
+    border:1px solid rgba(217,183,121,.3); box-shadow:0 30px 80px -34px rgba(0,0,0,.9);
+    opacity:0; transform:translateY(24px) scale(.96);
+    animation:clipIn 1s .4s cubic-bezier(.16,.8,.24,1) forwards, clipLift 1.2s 3.4s cubic-bezier(.16,.8,.24,1) forwards; }
+  .clip img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .clip .shade{ position:absolute; inset:0; background:linear-gradient(180deg,rgba(6,14,10,.35),transparent 40%,rgba(6,14,10,.75)); }
+  .play{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:12%; aspect-ratio:1; border-radius:50%;
+    background:rgba(8,19,13,.5); border:1px solid rgba(255,255,255,.6); display:flex; align-items:center; justify-content:center; color:#fff;
+    font-size:1.1vw; animation:pulse 2.4s ease-in-out infinite; }
+  .rec{ position:absolute; top:7%; left:6%; font-size:clamp(.5rem,1vw,.75rem); letter-spacing:.12em; color:#fff; opacity:0; animation:fade .5s .8s forwards; }
+  .rec .dot{ color:#ff5a5a; }
+  .tag{ position:absolute; left:6%; bottom:8%; display:flex; gap:6px; flex-wrap:wrap; opacity:0; transform:translateY(8px); animation:rise .7s 1.7s cubic-bezier(.16,.8,.24,1) forwards; }
+  .chip{ font-size:clamp(.5rem,1vw,.72rem); color:#fff; background:rgba(8,19,13,.66); border:1px solid rgba(255,255,255,.2); border-radius:999px; padding:.35em .7em; }
+  .chip.go{ color:#0b1710; background:var(--go); border:none; font-weight:700; }
+  .chip.site{ color:var(--go); border-color:rgba(79,217,138,.5); }
+
+  /* campfire it posts into */
+  .fire{ position:absolute; left:50%; bottom:14%; transform:translateX(-50%); display:flex; align-items:center; gap:.7em;
+    background:rgba(255,255,255,.05); border:1px solid rgba(217,183,121,.3); border-radius:999px; padding:.7em 1.2em;
+    opacity:0; animation:rise .8s 4s cubic-bezier(.16,.8,.24,1) forwards; }
+  .fire .name{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(1rem,2vw,1.5rem); color:var(--ink); }
+  .fire .sent{ font-size:clamp(.5rem,1vw,.72rem); color:var(--go); letter-spacing:.1em; }
+
+  /* reactions floating up */
+  .reacts{ position:absolute; left:50%; bottom:24%; transform:translateX(-50%); display:flex; gap:1.4em; }
+  .heart{ font-size:clamp(1rem,2.2vw,1.7rem); color:var(--like); opacity:0; }
+  .heart:nth-child(1){ animation:floatUp 2s 4.6s ease-out forwards; }
+  .heart:nth-child(2){ animation:floatUp 2s 5.0s ease-out forwards; }
+  .heart:nth-child(3){ animation:floatUp 2s 5.4s ease-out forwards; }
+
+  @keyframes clipIn{ to{ opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes clipLift{ to{ transform:translateY(-14%) scale(.62); } }
+  @keyframes rise{ to{ opacity:1; transform:translateY(0); } }
+  @keyframes fade{ to{ opacity:1; } }
+  @keyframes pulse{ 0%,100%{ opacity:.9; } 50%{ opacity:.4; } }
+  @keyframes floatUp{ 0%{ opacity:0; transform:translateY(0) scale(.8); } 20%{ opacity:1; } 100%{ opacity:0; transform:translateY(-140px) scale(1.1); } }
+  .hint{ position:fixed; bottom:14px; left:0; right:0; text-align:center; font-size:.58rem; letter-spacing:.1em; color:rgba(170,176,186,.35); }
+  @media(prefers-reduced-motion:reduce){ *{animation-duration:.001s!important} }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="eyebrow">
+      <b class="e1">He filmed the moment…</b>
+      <b class="e2">…and shared it to the Campfire</b>
+    </div>
+    <div class="clip">
+      <img src="/media/pines-intro-poster.jpg" alt="">
+      <div class="shade"></div>
+      <div class="play">▶</div>
+      <div class="rec"><span class="dot">●</span> REC</div>
+      <div class="tag">
+        <span class="chip">📍 Bear Lake · RMNP</span>
+        <span class="chip go">GO · 62°</span>
+        <span class="chip site">◉ On-site</span>
+      </div>
+    </div>
+    <div class="reacts"><span class="heart">♥</span><span class="heart">♥</span><span class="heart">♥</span></div>
+    <div class="fire">🔥 <span class="name">Rocky Mountain</span> <span class="sent">· shared ✓</span></div>
+  </div>
+  <div class="hint">click / press space to replay · screen-record ~7s</div>
+  <script>
+    var s=document.getElementById('stage');
+    function replay(){ s.style.display='none'; void s.offsetWidth; s.style.display='flex';
+      s.querySelectorAll('*').forEach(function(el){ el.style.animation='none'; void el.offsetWidth; el.style.animation=''; }); }
+    document.body.addEventListener('click', replay);
+    document.body.addEventListener('keydown', function(e){ if(e.code==='Space'){ e.preventDefault(); replay(); } });
+  </script>
+</body>
+</html>

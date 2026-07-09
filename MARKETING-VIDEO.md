@@ -129,6 +129,33 @@ Target ~30–35s, vertical 9:16 for social (or 16:9 for the site hero — you ha
 4. Adventure's better with a buddy.
 5. Find your park. Bring a buddy.
 
+---
+
+## ⭐ v2 — Cinematic recut (NO screen recordings) + music
+
+Feedback on the first cut: the app screen recordings feel clunky inside a filmic
+piece. v2 drops them entirely. The "captures a Pine → posts to Campfire" beat
+becomes a **designed brand moment** (a gold-on-dark motion card), not a literal
+UI capture. Carried by music, mostly wordless.
+
+**Edit order (~45s):**
+1. **Arrival** (0–7s) — Ben hikes toward the ridge, golden hour. Music: solo guitar/piano, sparse.
+2. **The moment** (7–15s) — he stops; cut to what he sees (bear across the meadow / vista). Let natural sound breathe, music begins to swell.
+3. **The capture** (15–22s) — low / over-the-shoulder of Ben **raising his phone to film the real scene** (show the gesture, never the screen). Text: *"Capture the moment."*
+4. **The share** (22–30s) — cut to the **designed beat** → `public/media/pines-post-card.html` (screen-record ~7s): his clip, tagged 📍 Bear Lake · GO 62° · On-site, lifting into 🔥 Rocky Mountain Campfire with hearts floating up. *This replaces the screen recording.*
+5. **The community** (30–40s) — cut to OTHER people: hikers at a trailhead, faces in golden light, someone smiling at a phone. The Campfire *feeling*. Music peaks.
+6. **Resolve** (40–48s) — the hero ridge shot → the **end card** (`endcard.html`). Music lands warm.
+
+**The designed "share" beat:** open `http://localhost:3001/media/pines-post-card.html`
+fullscreen, screen-record ~7s (space/click replays for a clean take), and cut it in
+at beat 4. It's built in the brand aesthetic — a premium title-card moment, not app chrome.
+
+### Music
+- **Feel:** warm, cinematic, hopeful — acoustic guitar or felt-piano + a soft ambient pad, building to one uplifting swell at the community beat, resolving on the end card. ~85–105 BPM. Emotional, NOT epic-trailer/drums.
+- **Where to get it (licensed):** Epidemic Sound, Artlist, or Musicbed (subscription, ad/YouTube-safe) · **Uppbeat** or **YouTube Audio Library** or **Pixabay Music** (free) · AI: **Suno / Udio** (verify commercial license before a public ad).
+- **Sync:** natural sound (wind, a distant bear) for beats 1–3, then let music take over from the capture; put the peak on the community beat, the resolve on the end card. Keep it under any VO.
+- Search terms that land this: "cinematic acoustic uplifting," "warm folk build," "hopeful ambient guitar."
+
 ## Legal / honesty checklist
 
 - [ ] Clip is promotional, not presented as a live/real condition read.

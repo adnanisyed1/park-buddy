@@ -33,3 +33,33 @@ export async function moderateImage(imageUrl) {
   } catch { /* fall through to manual */ }
   return { decision: "manual", reason: "no provider" };
 }
+
+// Text moderation for user-authored content (comments). Same providers as images.
+// Comments are ephemeral (no manual queue), so callers treat "reject" as block and
+// anything else as allow — a provider outage must never silently swallow comments.
+export async function moderateText(text) {
+  const t = String(text || "").trim();
+  if (!t) return { decision: "approve", reason: "empty" };
+  try {
+    if (process.env.MODERATION_WEBHOOK_URL) {
+      const r = await fetch(process.env.MODERATION_WEBHOOK_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t }),
+      });
+      const d = await r.json().catch(() => ({}));
+      const dec = ["approve", "reject", "manual"].includes(d.decision) ? d.decision : "manual";
+      return { decision: dec, reason: d.reason || "webhook" };
+    }
+    if (process.env.OPENAI_API_KEY) {
+      const r = await fetch("https://api.openai.com/v1/moderations", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + process.env.OPENAI_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "omni-moderation-latest", input: t }),
+      });
+      const d = await r.json().catch(() => ({}));
+      const res = d && d.results && d.results[0];
+      if (!res) return { decision: "manual", reason: "no result" };
+      return res.flagged ? { decision: "reject", reason: "flagged" } : { decision: "approve", reason: "clean" };
+    }
+  } catch { /* fall through to manual */ }
+  return { decision: "manual", reason: "no provider" };
+}

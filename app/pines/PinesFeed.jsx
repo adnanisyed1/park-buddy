@@ -247,14 +247,20 @@ function CommentsSheet({ pine, user, onClose }) {
   const [comments, setComments] = useState(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
   const load = () => fetch("/api/pines/comments?pine_id=" + pine.id).then((r) => r.json()).then((d) => setComments(d.comments || [])).catch(() => setComments([]));
   useEffect(() => { load(); }, [pine.id]); // eslint-disable-line
   useEffect(() => { const onKey = (e) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [onClose]);
   const post = async () => {
     if (!user) { openAuth(); return; }
     const body = text.trim(); if (!body) return;
-    setBusy(true);
-    try { const t = await getAccessToken(); const r = await fetch("/api/pines/comments", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: pine.id, body }) }); if (r.ok) { setText(""); await load(); } } catch {}
+    setBusy(true); setErr("");
+    try {
+      const t = await getAccessToken();
+      const r = await fetch("/api/pines/comments", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: pine.id, body }) });
+      if (r.ok) { setText(""); await load(); }
+      else { const d = await r.json().catch(() => ({})); setErr(d.error || "Couldn't post that comment."); }
+    } catch { setErr("Couldn't reach the server."); }
     setBusy(false);
   };
   const fmt = (d) => { try { return new Date(d).toLocaleDateString([], { month: "short", day: "numeric" }); } catch { return ""; } };
@@ -275,8 +281,9 @@ function CommentsSheet({ pine, user, onClose }) {
               </div>
             ))}
         </div>
+        {err && <div role="alert" style={{ margin: "0 16px", padding: "8px 12px", borderRadius: 10, background: "rgba(224,138,106,.12)", border: "1px solid " + C.hold + "66", color: C.hold, fontSize: ".78rem", lineHeight: 1.4 }}>{err}</div>}
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--pb-line)" }}>
-          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && post()} maxLength={600} aria-label="Add a comment" placeholder={user ? "Add a comment…" : "Sign in to comment"} style={{ flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "10px 14px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".88rem", outline: "none" }} />
+          <input value={text} onChange={(e) => { setText(e.target.value); if (err) setErr(""); }} onKeyDown={(e) => e.key === "Enter" && post()} maxLength={600} aria-label="Add a comment" placeholder={user ? "Add a comment…" : "Sign in to comment"} style={{ flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "10px 14px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".88rem", outline: "none" }} />
           <button onClick={post} disabled={busy} style={{ ...goldBtn(), padding: "10px 18px", flex: "none" }}>Post</button>
         </div>
       </div>

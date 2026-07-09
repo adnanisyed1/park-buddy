@@ -142,9 +142,13 @@ Everything below is the full detail, by track.
 - **[P2] Register when there's traction.** Registration is what makes it *"the emblem just for us"* (lets you stop others). Cost ballpark (US, verify current fees): **DIY ~$250–$350 gov fee/class**, **filing service ~$400–$800/class**, **attorney ~$1,000–$2,000+/class** (worth it for office actions). ~8–12 months to the ® ; you may use ™ now for free.
 - **[P2] Lock ONE name.** The app still mixes "Park Buddy" and "ParkBuddy" in a few places — pick one (I unified the metadata to "Park Buddy") and use it consistently across brand, domain, and any filing.
 
+## ✅ Decided
+
+- **Name & brand: "Park Buddy" at theparkbuddy.com** — keeping the name + the tree mark despite the crowded "Park Buddy" (parking-app) field; differentiated by the different market, the `.com`, and the parks focus. Canonical spelling is **"Park Buddy"** (two words) everywhere. Free next step (owner): USPTO TESS search to confirm class-9 registrations, then register when ready; ™ usable now.
+
 ## ❓ Open questions for you
 
-1. **"The emblem just for us"** — did you mean a proper **logo / brand mark (+ trademark)**, an **official/verified badge**, or a **favicon/app icon**? This also ties to the P2 brand-name inconsistency (Park Buddy vs ParkBuddy) — worth locking one name + mark before launch.
+1. **"The emblem just for us"** — with the name locked, did you mean a proper **logo / brand mark (+ trademark registration)**, an **official/verified badge** for the product, or a **favicon/app icon**?
 2. **Launch with commerce ON or as a fast-follow?** If Trip Book/affiliate stay OFF at v1 (keep `STRIPE_LIVE_OK` off, links as-is), several P0/P1 commerce items drop to fast-follow and the launch is much simpler. Recommended: **launch the free product first (map, Pines, conditions), turn on money right after.**
 3. **How much do you want me to build autonomously vs. review-first?** The legal pages, footer, fake-form fixes, voice pass, and Ask-Buddy navigation are things I can knock out now; the profile system + admin moderation UI are bigger and worth a quick design check.
 

@@ -63,10 +63,13 @@ async function fetchVerdict(lat, lng) {
 
 export default function PinesFeed() {
   const { user } = useAuth();
-  const [tab, setTab] = useState("feed");
+  // 6-tab model: Feed (people/places you follow) · Pines (global discover) · ＋ ·
+  // Campfire (place communities) · Gallery (browse every photo/reel) · Mine.
+  const [tab, setTab] = useState("pines"); // open on discover so first paint always has content
   const [isWeb, setIsWeb] = useState(false);
   const [compose, setCompose] = useState(false);
   const [hub, setHub] = useState(null); // {type,id,name,q}
+  const [lightbox, setLightbox] = useState(null); // a pine opened full-screen from Gallery
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width:1000px)");
@@ -79,50 +82,65 @@ export default function PinesFeed() {
   const go = (t) => { if (t === "compose") return post(); setTab(t); };
   const openHub = (place) => { setHub(place); setTab("hub"); };
 
-  const screen = { feed: <Feed onPost={post} user={user} isWeb={isWeb} />, top: <Top openHub={openHub} />, hub: <Hub place={hub} onBack={() => setTab("places")} />, places: <Places openHub={openHub} />, you: <You user={user} onPost={post} /> }[tab];
+  const screen = {
+    feed: <FeedPersonal user={user} onPost={post} openHub={openHub} goDiscover={() => setTab("pines")} goCampfire={() => setTab("campfire")} />,
+    pines: <Discover onPost={post} user={user} isWeb={isWeb} />,
+    campfire: <Campfire openHub={openHub} />,
+    hub: <Hub place={hub} onBack={() => setTab("campfire")} />,
+    gallery: <Gallery onOpen={setLightbox} />,
+    mine: <You user={user} onPost={post} />,
+  }[tab];
 
-  // feed is a full-bleed media stage; other screens are centered content columns.
-  const wrap = tab === "feed"
+  // Pines (discover) is a full-bleed media stage; the rest are centered content columns.
+  const fullBleed = tab === "pines";
+  const wrap = fullBleed
     ? { maxWidth: isWeb ? 500 : "100%", margin: "0 auto", height: "calc(100dvh - " + HEADER + "px)" }
     : { maxWidth: 940, margin: "0 auto", padding: "0 0 104px" };
 
   return (
     <>
       <SiteHeader active="pines" solid />
-      <div style={{ position: "fixed", top: HEADER, left: 0, right: 0, bottom: 0, overflowY: tab === "feed" ? "hidden" : "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
+      <div style={{ position: "fixed", top: HEADER, left: 0, right: 0, bottom: 0, overflowY: fullBleed ? "hidden" : "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
         <div style={wrap}>{screen}</div>
       </div>
       <FloatingTabs tab={tab} go={go} isWeb={isWeb} />
-      {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("you")} />}
+      {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("mine")} />}
+      {lightbox && <PineLightbox pine={lightbox} user={user} onClose={() => setLightbox(null)} />}
     </>
   );
 }
 
 /* ---------------- floating bottom tab bar (phone full-width · web centered pill) ---------------- */
 function navIcon(id) {
-  const p = { feed: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>, places: <><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" /></>, you: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></> }[id];
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 19, height: 19 }}>{p}</svg>;
+  const p = {
+    feed: <><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></>,
+    pines: <><path d="M12 3l5 8h-3l4 7H6l4-7H7z" /><line x1="12" y1="18" x2="12" y2="21" /></>,
+    campfire: <><path d="M12 22a6 6 0 0 0 6-6c0-4-3-6-4-9-2 2-2 4-3 4-1 0-1-2-1-3-2 2-4 4-4 8a6 6 0 0 0 6 6z" /></>,
+    gallery: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
+    you: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>,
+  }[id];
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 19, height: 19 }}>{p}</svg>;
 }
 function FloatingTabs({ tab, go, isWeb }) {
-  const cur = tab === "top" ? "feed" : tab === "hub" ? "places" : tab;
-  const T = (id, label) => (
-    <button key={id} onClick={() => go(id)} style={{ flex: isWeb ? "none" : 1, cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontFamily: "var(--pb-sans)", fontSize: ".58rem", fontWeight: 600, color: cur === id ? "var(--pb-gold)" : "var(--pb-muted)", padding: isWeb ? "6px 18px" : 0 }}>{navIcon(id)}{label}</button>
+  const cur = tab === "hub" ? "campfire" : tab === "top" ? "pines" : tab;
+  const T = (id, label, icon) => (
+    <button key={id} onClick={() => go(id)} style={{ flex: isWeb ? "none" : 1, cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, fontFamily: "var(--pb-sans)", fontSize: isWeb ? ".58rem" : ".52rem", fontWeight: 600, color: cur === id ? "var(--pb-gold)" : "var(--pb-muted)", padding: isWeb ? "6px 14px" : 0 }}>{navIcon(icon || id)}{label}</button>
   );
   const plus = (
-    <button key="c" onClick={() => go("compose")} aria-label="Post" style={{ flex: isWeb ? "none" : 1, cursor: "pointer", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", padding: isWeb ? "0 10px" : 0 }}>
-      <span style={{ width: isWeb ? 42 : 44, height: isWeb ? 42 : 44, borderRadius: 14, background: C.gold, color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.45rem", fontWeight: 700, boxShadow: "0 8px 22px -8px rgba(217,183,121,.8)" }}>＋</span>
+    <button key="c" onClick={() => go("compose")} aria-label="Post" style={{ flex: isWeb ? "none" : 1, cursor: "pointer", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", padding: isWeb ? "0 8px" : 0 }}>
+      <span style={{ width: isWeb ? 42 : 40, height: isWeb ? 42 : 40, borderRadius: 13, background: C.gold, color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.35rem", fontWeight: 700, boxShadow: "0 8px 22px -8px rgba(217,183,121,.8)" }}>＋</span>
     </button>
   );
   const shell = isWeb
-    ? { position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 6, background: "rgba(8,19,13,.82)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "7px 10px", boxShadow: "0 24px 60px -24px rgba(0,0,0,.85)", zIndex: 90 }
+    ? { position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 4, background: "rgba(8,19,13,.82)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "7px 10px", boxShadow: "0 24px 60px -24px rgba(0,0,0,.85)", zIndex: 90 }
     : { position: "fixed", left: 0, right: 0, bottom: 0, height: 62, display: "flex", alignItems: "center", background: "rgba(8,19,13,.94)", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", borderTop: "1px solid var(--pb-line)", zIndex: 90 };
-  return <nav style={shell}>{T("feed", "Feed")}{T("places", "Places")}{plus}{T("you", "Mine")}</nav>;
+  return <nav style={shell}>{T("feed", "Feed")}{T("pines", "Pines")}{plus}{T("campfire", "Campfire")}{T("gallery", "Gallery")}{T("you", "Mine", "you")}</nav>;
 }
 function placeOf(p) { return { type: p.place_type || "park", id: p.place_id, name: p.place_name, q: p.place_name }; }
 function heart(sz) { return <svg viewBox="0 0 24 24" fill={C.like} style={{ width: sz, height: sz }}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></svg>; }
 
-/* ---------------- Feed ---------------- */
-function Feed({ onPost, user, isWeb }) {
+/* ---------------- Pines (global discover — full-bleed swipeable stage) ---------------- */
+function Discover({ onPost, user, isWeb }) {
   const [st, setSt] = useState({ loading: true, pines: [] });
   const [idx, setIdx] = useState(0);
   const [verdict, setVerdict] = useState(null);
@@ -244,41 +262,6 @@ function CommentsSheet({ pine, user, onClose }) {
   );
 }
 
-/* ---------------- Top ---------------- */
-function Top({ openHub }) {
-  const [st, setSt] = useState({ loading: true, pines: [] });
-  useEffect(() => { fetch("/api/pines?sort=top").then((r) => r.json()).then((d) => setSt({ loading: false, pines: d.pines || [] })).catch(() => setSt({ loading: false, pines: [] })); }, []);
-  const P = st.pines;
-  return (
-    <div style={{ padding: "52px 0 20px" }}>
-      <div style={{ padding: "0 15px 14px" }}>
-        <div style={{ ...micro, color: "var(--pb-gold-soft)" }}>Last 7 days · most loved</div>
-        <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "2rem", lineHeight: 1.02, marginTop: 4, color: "var(--pb-ink)" }}>Top of the week</h2>
-      </div>
-      {st.loading ? <p style={pad()}>Loading…</p> : !P.length ? <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6 }}>No ranked Pines yet. Once Adventures start rolling in, the week's most-loved show up here — get pinned and you could be #1.</p> : (
-        <>
-          <button onClick={() => openHub(placeOf(P[0]))} style={{ cursor: "pointer", display: "block", textAlign: "left", position: "relative", margin: "0 15px", width: "calc(100% - 30px)", borderRadius: 18, overflow: "hidden", border: "1px solid var(--pb-line-strong)", aspectRatio: "5/4", background: "#000" }}>
-            {P[0].image_url || P[0].poster_url ? <img src={P[0].image_url || P[0].poster_url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={P[0].place_name} />}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,rgba(6,14,10,.95),transparent 60%)" }} />
-            <span style={{ position: "absolute", top: 12, left: 12, fontFamily: serif, fontWeight: 700, fontSize: "3.4rem", lineHeight: .8, color: "var(--pb-gold)", textShadow: "0 4px 20px rgba(0,0,0,.6)" }}>1</span>
-            <span style={{ position: "absolute", top: 14, right: 12, ...micro, fontSize: ".5rem", color: "var(--pb-bg)", background: C.gold, borderRadius: 999, padding: "4px 10px" }}>★ #1 this week</span>
-            <div style={{ position: "absolute", left: 14, right: 14, bottom: 13 }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.6rem", color: "#fff" }}>{P[0].place_name || "Adventure"}</div><div style={{ display: "flex", justifyContent: "flex-end", marginTop: 3 }}><span style={{ display: "flex", alignItems: "center", gap: 5, color: "#fff", fontSize: ".82rem", fontWeight: 600 }}>{heart(15)}{P[0].like_count || 0}</span></div></div>
-          </button>
-          <div style={{ marginTop: 14 }}>{P.slice(1).map((t, i) => (
-            <button key={t.id} onClick={() => openHub(placeOf(t))} style={{ cursor: "pointer", width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 13, background: "none", border: "none", borderTop: "1px solid var(--pb-line)", padding: "13px 15px" }}>
-              <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", color: "var(--pb-gold-soft)", width: 30, flex: "none" }}>{i + 2}</span>
-              <span style={{ position: "relative", width: 48, height: 48, borderRadius: 11, overflow: "hidden", flex: "none" }}>{t.image_url || t.poster_url ? <img src={t.image_url || t.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={t.place_name} />}</span>
-              <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: "block", fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "var(--pb-ink)" }}>{t.place_name || "Adventure"}</span></span>
-              <span style={{ display: "flex", alignItems: "center", gap: 5, color: C.like, fontSize: ".78rem", fontWeight: 600 }}>{heart(14)}{t.like_count || 0}</span>
-            </button>
-          ))}</div>
-          <div style={{ textAlign: "center", padding: "18px 15px 8px", ...micro, letterSpacing: ".1em", color: "var(--pb-muted)" }}>Featured Adventures earn a bonus. Get pinned.</div>
-        </>
-      )}
-    </div>
-  );
-}
-
 /* ---------------- Place hub (Campfire) ---------------- */
 function Hub({ place, onBack }) {
   const pl = place || { type: "park", name: "a place", q: "national park" };
@@ -352,8 +335,8 @@ function HubTabs({ pl, pins }) {
   );
 }
 
-/* ---------------- Places ---------------- */
-function Places({ openHub }) {
+/* ---------------- Campfire (place communities — list → hub) ---------------- */
+function Campfire({ openHub }) {
   const [mine, setMine] = useState(null);
   useEffect(() => {
     (async () => {
@@ -367,17 +350,18 @@ function Places({ openHub }) {
   ];
   return (
     <div style={{ padding: "50px 0 20px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 15px 10px" }}>
-        <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "var(--pb-ink)" }}>Places</span>
+      <div style={{ padding: "0 15px 10px" }}>
+        <div style={{ ...micro, color: "var(--pb-gold-soft)" }}>One per park, forest &amp; gateway town</div>
+        <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", color: "var(--pb-ink)" }}>Campfires</span>
       </div>
       <div style={{ margin: "0 15px", display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "11px 13px", color: "var(--pb-muted)", fontSize: ".82rem" }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 15, height: 15 }}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>Search parks, forests, towns
       </div>
       {mine && mine.length > 0 && <>
-        <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Your Campfires</div>
+        <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Campfires you follow</div>
         {mine.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} tag="following" />)}
       </>}
-      <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Popular parks</div>
+      <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Popular Campfires</div>
       {popular.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} />)}
       <div style={{ height: 14 }} />
     </div>
@@ -440,6 +424,133 @@ function You({ user, onPost }) {
           ); })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------- Feed (personalized: your posts + places you follow) ---------------- */
+function FeedPersonal({ user, onPost, openHub, goDiscover, goCampfire }) {
+  const [st, setSt] = useState({ loading: true, pines: [] });
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      if (!user) { if (on) setSt({ loading: false, pines: [] }); return; }
+      try {
+        const t = await getAccessToken();
+        const auth = t ? { headers: { Authorization: "Bearer " + t } } : {};
+        // your own approved Pines
+        const mine = ((await fetch("/api/pines?mine=1", auth).then((r) => r.json()).catch(() => ({}))).pines || []).filter((p) => p.status === "approved");
+        // Pines from the Campfires (parks) you follow
+        let placePines = [];
+        try {
+          const al = await fetch("/api/my-alerts", auth).then((r) => r.json()).catch(() => ({}));
+          const parks = (al.alerts || []).slice(0, 8);
+          const lists = await Promise.all(parks.map((a) => fetch("/api/pines?place=park:" + encodeURIComponent(a.park_id) + "&limit=8").then((r) => r.json()).then((d) => d.pines || []).catch(() => [])));
+          placePines = lists.flat();
+        } catch {}
+        const map = new Map();
+        [...mine, ...placePines].forEach((p) => { if (p && !map.has(p.id)) map.set(p.id, p); });
+        const merged = [...map.values()].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        if (on) setSt({ loading: false, pines: merged });
+      } catch { if (on) setSt({ loading: false, pines: [] }); }
+    })();
+    return () => { on = false; };
+  }, [user]);
+
+  if (st.loading) return <Center><span style={{ color: "var(--pb-muted)", ...micro }}>Loading your feed…</span></Center>;
+  if (!user) return <FeedEmpty title="Your feed lives here" body="Sign in to see Pines from the people and Campfires you follow — all in one place." cta="Sign in" onCta={() => openAuth()} goDiscover={goDiscover} />;
+  if (!st.pines.length) return <FeedEmpty title="Your feed is quiet — for now" body="Follow a Campfire or post your first Pine, and fresh Adventures from your places will show up right here." cta="Browse Campfires" onCta={goCampfire} goDiscover={goDiscover} />;
+
+  return (
+    <div style={{ padding: "50px 0 20px", maxWidth: 520, margin: "0 auto" }}>
+      <div style={{ padding: "0 15px 4px" }}>
+        <div style={{ ...micro, color: "var(--pb-gold-soft)" }}>People &amp; places you follow</div>
+        <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", marginTop: 3, color: "var(--pb-ink)" }}>Your feed</h2>
+      </div>
+      {st.pines.map((p) => <FeedCard key={p.id} p={p} openHub={openHub} />)}
+    </div>
+  );
+}
+function FeedCard({ p, openHub }) {
+  const name = p.place_name || "Adventure";
+  return (
+    <div style={{ margin: "12px 15px 0", border: "1px solid var(--pb-line)", borderRadius: 16, overflow: "hidden", background: "var(--pb-surface)" }}>
+      <button onClick={() => openHub(placeOf(p))} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 9, width: "100%", textAlign: "left", background: "none", border: "none", padding: "11px 12px" }}>
+        <span style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(150deg,#1f5e46,#0e2016)", border: "1px solid var(--pb-gold-2)", flex: "none" }} />
+        <span style={{ flex: 1, minWidth: 0 }}><b style={{ display: "block", fontSize: ".84rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {name}</b><span style={{ fontSize: ".62rem", color: "var(--pb-muted)" }}>{p.author_name || "A Park Buddy"}</span></span>
+        {p.verified && <span style={{ ...micro, fontSize: ".46rem", color: C.go, border: "1px solid " + C.go + "66", borderRadius: 999, padding: "3px 7px", flex: "none" }}>✓ On-site</span>}
+      </button>
+      <div style={{ position: "relative", aspectRatio: "4/5", background: "#000" }}>
+        {p.image_url || p.poster_url ? <img src={p.image_url || p.poster_url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={name} />}
+        {p.poster_url && <span style={{ position: "absolute", top: 8, right: 8, color: "#fff", fontSize: ".7rem", textShadow: "0 1px 4px rgba(0,0,0,.8)" }}>▶</span>}
+      </div>
+      {p.caption && <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", lineHeight: 1.5, padding: "10px 13px 0" }}>{p.caption}</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "10px 13px 13px", color: "var(--pb-muted)", fontSize: ".78rem" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5, color: C.like }}>{heart(14)}{p.like_count || 0}</span>
+        <span>💬 {p.comment_count || 0}</span>
+        {p.place_type === "park" && p.place_id && <Link href={"/parks/" + p.place_id} style={{ marginLeft: "auto", fontSize: ".72rem", fontWeight: 700, color: "var(--pb-gold)", textDecoration: "none" }}>Conditions ›</Link>}
+      </div>
+    </div>
+  );
+}
+function FeedEmpty({ title, body, cta, onCta, goDiscover }) {
+  return (
+    <div style={{ padding: "70px 24px", textAlign: "center", maxWidth: 440, margin: "0 auto" }}>
+      <div style={{ fontSize: "2rem", marginBottom: 8 }}>🌲</div>
+      <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", color: "var(--pb-ink)", margin: "0 0 10px" }}>{title}</h2>
+      <p style={{ color: "var(--pb-ink-2)", lineHeight: 1.6, margin: "0 0 18px" }}>{body}</p>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+        <button onClick={onCta} style={goldBtn("auto")}>{cta}</button>
+        <button onClick={goDiscover} style={{ ...goldBtn("auto"), background: "transparent", color: "var(--pb-ink)", border: "1px solid var(--pb-line-strong)" }}>Explore Pines</button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Gallery (browse every photo & reel → lightbox) ---------------- */
+function Gallery({ onOpen }) {
+  const [st, setSt] = useState({ loading: true, pines: [] });
+  useEffect(() => { let on = true; fetch("/api/pines?limit=60").then((r) => r.json()).then((d) => on && setSt({ loading: false, pines: d.pines || [] })).catch(() => on && setSt({ loading: false, pines: [] })); return () => { on = false; }; }, []);
+  return (
+    <div style={{ padding: "50px 0 20px" }}>
+      <div style={{ padding: "0 15px 12px" }}>
+        <div style={{ ...micro, color: "var(--pb-gold-soft)" }}>Every photo &amp; reel</div>
+        <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", marginTop: 3, color: "var(--pb-ink)" }}>Gallery</h2>
+      </div>
+      {st.loading ? <p style={pad()}>Loading…</p> : !st.pines.length ? <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6 }}>No Pines yet — once Adventures roll in, every photo and reel shows up here to browse and pick from.</p> : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, padding: "0 3px" }}>
+          {st.pines.map((p) => (
+            <button key={p.id} onClick={() => onOpen(p)} style={{ cursor: "pointer", position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000", border: "none", padding: 0 }}>
+              {p.image_url || p.poster_url ? <img src={p.image_url || p.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}
+              {p.poster_url && <span style={{ position: "absolute", top: 5, right: 5, color: "#fff", fontSize: ".6rem", textShadow: "0 1px 3px rgba(0,0,0,.8)" }}>▶</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+function PineLightbox({ pine, user, onClose }) {
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const src = pine.image_url || pine.poster_url;
+  return (
+    <div onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(4,7,5,.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ position: "relative", width: "min(440px,100%)", maxHeight: "92dvh", overflow: "hidden", borderRadius: 18, border: "1px solid var(--pb-line-strong)", background: "var(--pb-bg)" }}>
+        <div style={{ position: "relative", aspectRatio: "4/5", background: "#000" }}>
+          {src ? <img src={src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={pine.place_name} />}
+          <button onClick={onClose} aria-label="Close" style={{ cursor: "pointer", position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", background: "rgba(6,14,10,.6)", border: "1px solid rgba(255,255,255,.3)", color: "#fff", fontSize: "1rem" }}>×</button>
+          <div style={{ position: "absolute", left: 14, right: 14, bottom: 12 }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.3rem", color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,.6)" }}>📍 {pine.place_name || "Adventure"}</div></div>
+        </div>
+        <div style={{ padding: "12px 14px" }}>
+          {pine.caption && <div style={{ fontSize: ".88rem", color: "var(--pb-ink-2)", lineHeight: 1.5, marginBottom: 8 }}>{pine.caption}</div>}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, color: "var(--pb-muted)", fontSize: ".8rem" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 5, color: C.like }}>{heart(14)}{pine.like_count || 0}</span>
+            <button onClick={() => setCommentsOpen(true)} style={{ background: "none", border: "none", color: "var(--pb-muted)", cursor: "pointer", fontSize: ".8rem" }}>💬 {pine.comment_count || 0}</button>
+            {pine.place_type === "park" && pine.place_id && <Link href={"/parks/" + pine.place_id} style={{ marginLeft: "auto", fontWeight: 700, color: "var(--pb-gold)", textDecoration: "none" }}>Conditions ›</Link>}
+          </div>
+        </div>
+        {commentsOpen && <CommentsSheet pine={pine} user={user} onClose={() => setCommentsOpen(false)} />}
+      </div>
     </div>
   );
 }

@@ -38,10 +38,38 @@ class Component extends DCLogic {
         return '<a href="'+l[1]+'" style="text-decoration:none;color:inherit;position:relative;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+l[0]+'</a>';
       }).join('');
     }
-    var done=function(form,label){ if(!form)return; form.onsubmit=function(e){ e.preventDefault(); var b=form.querySelector('button'); if(b){ b.textContent=label; b.style.background='linear-gradient(120deg,#7fce9a,#4f9e6a)'; b.style.color='#0b1710'; } }; };
-    done(document.getElementById('intakeForm'),'Application received ✓');
-    done(document.getElementById('notifyShop'),'On the list ✓');
-    done(document.getElementById('footNews'),'✓');
+    // Real capture: POST the email to /api/pines-waitlist (writes to Supabase).
+    // No more fake "✓" that silently discards the address — the button only turns
+    // green on a real 200, and errors are surfaced honestly under the form.
+    var showErr=function(form,msg){
+      var e=form.querySelector('.pb-form-err');
+      if(!e){ e=document.createElement('div'); e.className='pb-form-err'; e.style.cssText='font-family:Space Mono,monospace;font-size:.58rem;letter-spacing:.03em;color:#e08a6a;margin-top:8px;line-height:1.5;flex-basis:100%'; form.appendChild(e); }
+      e.textContent=msg;
+    };
+    var done=function(form,label,source,busy){
+      if(!form) return;
+      form.onsubmit=function(e){
+        e.preventDefault();
+        var b=form.querySelector('button');
+        var ei=form.querySelector('input[type=email]');
+        var email=ei?ei.value.trim():'';
+        if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ if(ei){ ei.style.borderColor='#e08a6a'; ei.focus(); } showErr(form,'Enter a valid email address.'); return; }
+        var er=form.querySelector('.pb-form-err'); if(er) er.textContent='';
+        var sel=form.querySelector('select'); var src=source+(sel?(' · '+sel.value):'');
+        var orig=b?b.textContent:'';
+        if(b){ b.disabled=true; b.textContent=busy||'…'; }
+        fetch('/api/pines-waitlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:src.slice(0,40)})})
+          .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; },function(){ return {ok:r.ok,j:{}}; }); })
+          .then(function(res){
+            if(res.ok){ if(b){ b.textContent=label; b.style.background='linear-gradient(120deg,#7fce9a,#4f9e6a)'; b.style.color='#0b1710'; } if(ei) ei.blur(); }
+            else { if(b){ b.disabled=false; b.textContent=orig; } showErr(form,(res.j&&res.j.error)||'Something went wrong — try again.'); }
+          })
+          .catch(function(){ if(b){ b.disabled=false; b.textContent=orig; } showErr(form,"Couldn't reach the server — try again."); });
+      };
+    };
+    done(document.getElementById('intakeForm'),'Application received ✓','landing-pro','Sending…');
+    done(document.getElementById('notifyShop'),'On the list ✓','landing-shop','…');
+    done(document.getElementById('footNews'),'✓','landing-newsletter','…');
     var cols={agentWrap:'minmax(0,1fr) minmax(0,1.02fr)',alertsGrid:'minmax(0,1fr) minmax(0,1.1fr)',listGrid:'minmax(0,1fr) minmax(0,1.1fr)'};
     var fit=function(){ var one=window.innerWidth<820; Object.keys(cols).forEach(function(id){ var el=document.getElementById(id); if(el) el.style.gridTemplateColumns=one?'1fr':cols[id]; }); };
     fit(); window.addEventListener('resize',fit);

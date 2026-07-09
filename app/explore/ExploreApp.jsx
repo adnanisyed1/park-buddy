@@ -395,7 +395,7 @@ function ReviewsSection({ tr }) {
       {(!supa || reviews === null) && <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 10 }}>Loading reviews…</div>}
 
       {supa && reviews && reviews.length === 0 && (
-        <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 10 }}>No reviews yet — be the first.</div>
+        <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 10 }}>No notes from the trail yet — be the first to leave one.</div>
       )}
 
       {supa && reviews && reviews.map((r) => (
@@ -1377,7 +1377,10 @@ export default function ExploreApp() {
     <div style={{ fontFamily: sans, color: "var(--pb-ink)", position: "fixed", inset: 0, background: "var(--pb-bg)", overflow: "hidden" }}>
       <style>{`
         .ex-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
-        .ex-scroll::-webkit-scrollbar-thumb { background: #cdd3c0; border-radius: 9px; }
+        .ex-scroll::-webkit-scrollbar { background: transparent; }
+        .ex-scroll::-webkit-scrollbar-thumb { background: rgba(217,183,121,.22); border-radius: 9px; }
+        .ex-scroll::-webkit-scrollbar-thumb:hover { background: rgba(217,183,121,.38); }
+        .ex-scroll { scrollbar-width: thin; scrollbar-color: rgba(217,183,121,.22) transparent; }
         @keyframes ex-sheen { 0% { transform: translateY(-30%) rotate(8deg); opacity: 0; } 18% { opacity: .5; } 45% { opacity: 0; } 100% { transform: translateY(120%) rotate(8deg); opacity: 0; } }
         @keyframes ex-loc { 0% { box-shadow: 0 0 0 0 rgba(228,190,120,.55); } 70% { box-shadow: 0 0 0 10px rgba(228,190,120,0); } 100% { box-shadow: 0 0 0 0 rgba(228,190,120,0); } }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
@@ -1424,7 +1427,7 @@ export default function ExploreApp() {
           {q && (
             <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 70, ...panelGlass, borderRadius: 16, overflow: "hidden", maxHeight: 380, overflowY: "auto" }}>
               {searchGroups.length === 0 && (
-                <div style={{ padding: "16px", textAlign: "center", color: "#7f8a82", fontSize: ".84rem" }}>No parks, forests or state parks match “{ui.searchQuery.trim()}”.</div>
+                <div style={{ padding: "16px", textAlign: "center", color: "#7f8a82", fontSize: ".84rem" }}>Hmm, I can't find anything matching “{ui.searchQuery.trim()}” — try a park, forest or state-park name.</div>
               )}
               {searchGroups.map((g) => (
                 <div key={g.type}>
@@ -1495,7 +1498,7 @@ export default function ExploreApp() {
                   </select>
                   <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#9aa7a0", fontSize: ".7rem", pointerEvents: "none" }}>▾</span>
                   {ui.stateFilter && (
-                    <button onClick={() => patch({ stateFilter: "" })} style={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#d9b779", fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                    <button aria-label="Clear state filter" onClick={() => patch({ stateFilter: "" })} style={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#d9b779", fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
                   )}
                 </div>
 
@@ -1536,7 +1539,7 @@ export default function ExploreApp() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(217,183,121,.12)", border: "1px solid rgba(217,183,121,.3)", borderRadius: 11, padding: "8px 11px", marginBottom: 10 }}>
                   <span style={{ color: "#d9b779" }}>◎</span>
                   <span style={{ flex: 1, fontSize: ".78rem", fontWeight: 600, color: "#e8cf9a" }}>Around {ui.anchor.label}</span>
-                  <button onClick={clearAnchor} style={{ background: "none", border: "none", color: "#d9b779", fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                  <button aria-label="Clear location anchor" onClick={clearAnchor} style={{ background: "none", border: "none", color: "#d9b779", fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
                 </div>
               )}
 
@@ -1553,7 +1556,7 @@ export default function ExploreApp() {
               {ui.listMode && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {sortedVisible.length === 0 && (
-                    <div style={{ textAlign: "center", color: "#7f8a82", padding: "26px 10px", fontSize: ".85rem" }}>No destinations match this filter right now.</div>
+                    <div style={{ textAlign: "center", color: "#7f8a82", padding: "26px 10px", fontSize: ".85rem" }}>Nothing here with these filters — try widening the radius or turning a few back on.</div>
                   )}
                   {sortedVisible.map((p) => renderParkCard(p))}
                 </div>
@@ -1603,11 +1606,11 @@ export default function ExploreApp() {
 
               {trailStatus && trailStatus.park === sel.name && trailStatus.state !== "done" && (
                 <div style={{ fontSize: ".7rem", color: "#8a938b", margin: "-4px 0 12px", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
-                  {trailStatus.state === "loading" && <span>⏳ Loading trails around {sel.name}…</span>}
-                  {trailStatus.state === "empty" && <span>No mapped trails within 25 mi of the park center yet.</span>}
+                  {trailStatus.state === "loading" && <span>⏳ Rounding up the trails near {sel.name}…</span>}
+                  {trailStatus.state === "empty" && <span>No mapped trails within 25 mi of the park center yet — I'll keep looking as data grows.</span>}
                   {trailStatus.state === "error" && (
                     <>
-                      <span>Couldn't load trails just now.</span>
+                      <span>Couldn't pull the trails just now.</span>
                       <button onClick={() => loadTrailsFor(sel)} style={{ border: "none", background: "none", color: "#d9b779", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", padding: 0, textDecoration: "underline" }}>Retry</button>
                     </>
                   )}
@@ -1688,7 +1691,7 @@ export default function ExploreApp() {
                       )}
                     </>
                   ) : sel.type === "national_park" ? (
-                    <div style={{ color: "#8a938b", fontSize: ".8rem" }}>Loading park info from NPS.gov…</div>
+                    <div style={{ color: "#8a938b", fontSize: ".8rem" }}>Pulling the latest from NPS.gov…</div>
                   ) : (
                     <>
                       <div style={{ marginBottom: 8 }}><b style={{ color: "#e7e3d8" }}>Type:</b> {selMeta.label}</div>
@@ -1704,10 +1707,10 @@ export default function ExploreApp() {
                 return (
                   <div style={{ marginBottom: 14 }}>
                     {!td && (
-                      <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "16px 10px", fontSize: ".82rem" }}>⏳ Loading trails…</div>
+                      <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "16px 10px", fontSize: ".82rem" }}>⏳ Rounding up the trails…</div>
                     )}
                     {td && cats.length === 0 && (
-                      <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "16px 10px", fontSize: ".82rem" }}>No mapped trails within 25 mi of the park center yet.</div>
+                      <div style={{ textAlign: "center", color: "var(--pb-muted)", padding: "16px 10px", fontSize: ".82rem" }}>No mapped trails within 25 mi of the park center yet — I'll keep looking as data grows.</div>
                     )}
                     {cats.map((cat) => (
                       <div key={cat} style={{ marginBottom: 14 }}>
@@ -1744,16 +1747,16 @@ export default function ExploreApp() {
                   <div style={{ ...monoLabel, marginBottom: 8 }}>Nearby — within {ui.radius} mi (~{driveTimeLabel(ui.radius)} drive)</div>
                   <div style={{ fontSize: ".72rem", color: "#8a938b", margin: "0 0 10px", lineHeight: 1.4 }}>
                     {!selPlaces
-                      ? "⏳ Loading campgrounds & recreation areas…"
+                      ? "⏳ Checking campgrounds & recreation areas…"
                       : ((selPlaces.facilities || []).length + (selPlaces.recAreas || []).length) === 0
-                        ? "No campgrounds found near this park."
+                        ? "No campgrounds turned up near this park."
                         : "🏕 " + (selPlaces.facilities || []).length + " campgrounds · " + (selPlaces.recAreas || []).length + " recreation areas on the map"}
                     {ui.destLake && lakesData[sel.name] && lakesData[sel.name].length > 0 && (" · 💧 " + lakesData[sel.name].length + " lakes")}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <button onClick={() => setRadius(ui.radius - 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(217,183,121,.22)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>−</button>
-                    <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} style={{ flex: 1, accentColor: "#c9a35f" }} />
-                    <button onClick={() => setRadius(ui.radius + 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(217,183,121,.22)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+</button>
+                    <button aria-label="Decrease nearby radius" onClick={() => setRadius(ui.radius - 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(217,183,121,.22)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>−</button>
+                    <input type="range" min="10" max="300" step="10" value={ui.radius} onChange={(e) => setRadius(+e.target.value)} aria-label="Nearby radius in miles" style={{ flex: 1, accentColor: "#c9a35f" }} />
+                    <button aria-label="Increase nearby radius" onClick={() => setRadius(ui.radius + 25)} style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(217,183,121,.22)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+</button>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {nearbyItems.length === 0 && (
@@ -1852,7 +1855,7 @@ export default function ExploreApp() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 14 }}>
                 {tripItems.length === 0 && (
-                  <div style={{ textAlign: "center", color: "#7f8a82", padding: "24px 10px", fontSize: ".85rem", lineHeight: 1.5 }}>Nothing added yet. Select a place and tap &quot;Add to trip.&quot;</div>
+                  <div style={{ textAlign: "center", color: "#7f8a82", padding: "24px 10px", fontSize: ".85rem", lineHeight: 1.5 }}>Your trip&apos;s empty for now — pick a place and hit &quot;Add to trip,&quot; and I&apos;ll start building the route.</div>
                 )}
                 {tripItems.map((p, i) => {
                   const meta = TYPE_META[p.type];
@@ -1863,7 +1866,7 @@ export default function ExploreApp() {
                         <b style={{ fontSize: ".86rem", color: "#f4f1ea", display: "block" }}>{p.name}</b>
                         <span style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".06em", textTransform: "uppercase", color: "#8a938b" }}>{meta.label} · {p.state}</span>
                       </div>
-                      <button onClick={() => patch((s) => ({ trip: s.trip.filter((n) => n !== p.name) }))} style={{ background: "none", border: "none", color: "#e0906a", cursor: "pointer", fontSize: "1.15rem", lineHeight: 1 }}>×</button>
+                      <button aria-label={"Remove " + p.name + " from trip"} onClick={() => patch((s) => ({ trip: s.trip.filter((n) => n !== p.name) }))} style={{ background: "none", border: "none", color: "#e0906a", cursor: "pointer", fontSize: "1.15rem", lineHeight: 1 }}>×</button>
                     </div>
                   );
                 })}
@@ -1906,8 +1909,8 @@ export default function ExploreApp() {
       </div>
 
       {/* ---- bottom-right: my location + fullscreen + Ask Park Buddy ---- */}
-      <button title={ui.liveLoc ? "Hide my live location" : "Show my live location"} onClick={toggleLiveLocation} style={{ position: "absolute", right: 16, bottom: 120, zIndex: 20, width: 38, height: 38, borderRadius: "50%", ...panelGlass, border: ui.liveLoc ? "1px solid #3aa0d0" : panelGlass.border, color: ui.liveLoc ? "#3aa0d0" : "#e8cf9a", fontSize: "1.05rem", cursor: "pointer" }}>◉</button>
-      <button title="Fullscreen" onClick={() => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen(); else if (document.exitFullscreen) document.exitFullscreen(); }} style={{ position: "absolute", right: 16, bottom: 72, zIndex: 20, width: 38, height: 38, borderRadius: "50%", ...panelGlass, color: "#e8cf9a", fontSize: "1rem", cursor: "pointer" }}>⤢</button>
+      <button aria-label={ui.liveLoc ? "Hide my live location" : "Show my live location"} title={ui.liveLoc ? "Hide my live location" : "Show my live location"} onClick={toggleLiveLocation} style={{ position: "absolute", right: 16, bottom: 120, zIndex: 20, width: 38, height: 38, borderRadius: "50%", ...panelGlass, border: ui.liveLoc ? "1px solid #3aa0d0" : panelGlass.border, color: ui.liveLoc ? "#3aa0d0" : "#e8cf9a", fontSize: "1.05rem", cursor: "pointer" }}>◉</button>
+      <button aria-label="Toggle fullscreen" title="Fullscreen" onClick={() => { const el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen(); else if (document.exitFullscreen) document.exitFullscreen(); }} style={{ position: "absolute", right: 16, bottom: 72, zIndex: 20, width: 38, height: 38, borderRadius: "50%", ...panelGlass, color: "#e8cf9a", fontSize: "1rem", cursor: "pointer" }}>⤢</button>
       <button onClick={askParkBuddy} style={{ position: "absolute", right: 16, bottom: 18, zIndex: 20, display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0b1710", border: "none", borderRadius: 999, padding: "12px 18px", fontFamily: "inherit", fontWeight: 600, fontSize: ".84rem", cursor: "pointer", boxShadow: "0 14px 32px -14px rgba(0,0,0,.7)" }}>
         <span>✦</span>Ask Park Buddy
       </button>

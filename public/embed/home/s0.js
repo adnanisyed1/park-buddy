@@ -28,28 +28,48 @@ class Component extends DCLogic {
   }
   componentWillUnmount(){ if(this._raf)cancelAnimationFrame(this._raf); if(this._io)this._io.disconnect(); if(this._tick)cancelAnimationFrame(this._tick); if(this._pTimer)clearInterval(this._pTimer); if(this._pinesTimer)clearInterval(this._pinesTimer); if(this._pbType)clearInterval(this._pbType); if(this._pbLike)clearInterval(this._pbLike); if(this._pinesIO)this._pinesIO.disconnect(); window.removeEventListener('scroll',this._onScroll); window.removeEventListener('mousemove',this._onMouse); }
 
-  // Animated Pines/Campfire demo phone — a scripted "how it works" reel that
-  // cycles: Ben sets up his page → posts a Pine → talks in a Campfire. Purely
-  // illustrative (labeled as such); pauses when scrolled out of view.
+  // Animated Pines demo phone — a scripted "how it works" reel that walks every
+  // tab in order: Feed → Places → ＋Post → Talk → Mine, following Ben's story.
+  // A story-style timer bar at the top signals "watch this" and shows progress
+  // per tab; the tab bar lights up the active tab. Purely illustrative (labeled
+  // as such); pauses when scrolled out of view; timers cleaned on unmount.
   buildPinesDemo(){
     var stage=document.getElementById('pbPhone'); if(!stage) return;
     var scenes=[].slice.call(stage.querySelectorAll('.pb-sc')); if(!scenes.length) return;
     var self=this;
     var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    var DUR=reduce?5200:4400; // ms each tab holds — the timer bar fills over this
+    var bars=[].slice.call(stage.querySelectorAll('#pbBars .pb-barfill'));
+    var tabs=[].slice.call(stage.querySelectorAll('#pbTabs .pb-tab'));
     var idx=-1, running=false;
-    var BIO="Weekend peak-bagger. Will hike for an alpine lake.";
-    var typeBio=function(){ var el=stage.querySelector('#pbBio'); if(!el) return; clearInterval(self._pbType); if(reduce){ el.textContent=BIO; return; } el.textContent=''; var i=0; self._pbType=setInterval(function(){ el.textContent=BIO.slice(0,++i); if(i>=BIO.length) clearInterval(self._pbType); },34); };
-    var chips=function(){ var cs=stage.querySelectorAll('#pbChips .pb-chip'); cs.forEach(function(c,i){ c.style.transition='opacity .4s,transform .4s'; if(reduce){ c.style.opacity=1; c.style.transform='none'; return; } c.style.opacity=0; c.style.transform='translateY(6px)'; setTimeout(function(){ c.style.opacity=1; c.style.transform='none'; },520+i*170); }); };
-    var likes=function(){ var el=stage.querySelector('#pbLike'); if(!el) return; clearInterval(self._pbLike); var T=128; if(reduce){ el.textContent=T; return; } var n=90; el.textContent=n; self._pbLike=setInterval(function(){ n+=4; if(n>=T){ n=T; clearInterval(self._pbLike); } el.textContent=n; },45); };
-    var msgs=function(){ var ms=stage.querySelectorAll('#pbChat .pb-msg'); ms.forEach(function(m,i){ m.style.transition='opacity .5s,transform .5s'; if(reduce){ m.style.opacity=1; m.style.transform='none'; return; } m.style.opacity=0; m.style.transform='translateY(8px)'; setTimeout(function(){ m.style.opacity=1; m.style.transform='none'; },350+i*620); }); };
-    var dots=stage.querySelectorAll('#pbDots span');
+
+    var typeInto=function(sel,text,speed){ var el=stage.querySelector(sel); if(!el) return; clearInterval(self._pbType); if(reduce){ el.textContent=text; return; } el.textContent=''; var i=0; self._pbType=setInterval(function(){ el.textContent=text.slice(0,++i); if(i>=text.length) clearInterval(self._pbType); },speed||32); };
+    var revealSeq=function(sel,base,step){ [].slice.call(stage.querySelectorAll(sel)).forEach(function(c,i){ c.style.transition='opacity .45s,transform .45s'; if(reduce){ c.style.opacity=1; c.style.transform='none'; return; } c.style.opacity=0; c.style.transform='translateY(7px)'; setTimeout(function(){ c.style.opacity=1; c.style.transform='none'; },base+i*step); }); };
+    var countTo=function(sel,from,target){ var el=stage.querySelector(sel); if(!el) return; clearInterval(self._pbLike); if(reduce){ el.textContent=target; return; } var n=from; el.textContent=n; self._pbLike=setInterval(function(){ n+=5; if(n>=target){ n=target; clearInterval(self._pbLike); } el.textContent=n; },50); };
+
+    var runAnim=function(tab){
+      if(tab==='feed') countTo('#pbLike',168,207);
+      else if(tab==='places') revealSeq('#pbPlaces .pb-row',280,170);
+      else if(tab==='post') typeInto('#pbCap','Golden hour at Bear Lake 🌄 worth the early start.',30);
+      else if(tab==='talk') revealSeq('#pbChat .pb-msg',300,560);
+      else if(tab==='mine'){ typeInto('#pbBio','Weekend peak-bagger. Will hike for an alpine lake.',30); revealSeq('#pbChips .pb-chip',760,150); }
+    };
+
+    var setBars=function(n){
+      bars.forEach(function(f,i){ f.style.transition='none'; f.style.width=i<n?'100%':'0%'; });
+      void stage.offsetWidth; // reflow so the fill animation restarts cleanly
+      if(bars[n]){ if(reduce){ bars[n].style.width='100%'; } else { bars[n].style.transition='width '+DUR+'ms linear'; bars[n].style.width='100%'; } }
+    };
+
     var show=function(n){
       scenes.forEach(function(s,i){ s.style.opacity=i===n?'1':'0'; s.style.transform=i===n?'none':'translateY(10px)'; });
-      dots.forEach(function(d,i){ d.style.background=i===n?'#e8cf9a':'rgba(217,183,121,.25)'; d.style.width=i===n?'18px':'6px'; });
-      if(n===0){ typeBio(); chips(); } else if(n===1){ likes(); } else if(n===2){ msgs(); }
+      var tab=scenes[n].getAttribute('data-tab');
+      tabs.forEach(function(t){ var on=t.getAttribute('data-tab')===tab; if(t.getAttribute('data-tab')==='post'){ t.style.transform=on?'scale(1.12)':'none'; t.style.boxShadow=on?'0 0 0 4px rgba(217,183,121,.2)':'none'; } else { t.style.color=on?'#e8cf9a':'#7f8a82'; } });
+      setBars(n); runAnim(tab);
     };
+
     var next=function(){ idx=(idx+1)%scenes.length; show(idx); };
-    var start=function(){ if(running) return; running=true; next(); self._pinesTimer=setInterval(next,reduce?6500:4800); };
+    var start=function(){ if(running) return; running=true; next(); self._pinesTimer=setInterval(next,DUR); };
     var stop=function(){ running=false; clearInterval(self._pinesTimer); };
     if('IntersectionObserver' in window){ var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting) start(); else stop(); }); },{threshold:.28}); io.observe(stage); this._pinesIO=io; }
     else start();

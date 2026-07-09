@@ -192,71 +192,112 @@
               <span style="display:inline-flex;align-items:center;gap:5px;font-family:'Cormorant Garamond',serif;font-weight:700;font-size:.98rem;color:#f4f1ea"><svg width="12" height="12" viewBox="0 0 24 24" fill="#e8cf9a"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path><rect x="11" y="18" width="2" height="4"></rect></svg>Pines</span>
               <span style="font-family:'Space Mono',monospace;font-size:.55rem;color:#7f8a82">▲ ●</span>
             </div>
+            <!-- story timer bars (signals "watch this" + shows progress per tab) -->
+            <div id="pbBars" style="display:flex;gap:4px;padding:0 16px 7px;flex:none">
+              <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
+              <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
+              <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
+              <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
+              <span class="pb-barseg" style="flex:1;height:3px;border-radius:999px;background:rgba(217,183,121,.16);overflow:hidden"><span class="pb-barfill" style="display:block;height:100%;width:0;background:linear-gradient(90deg,#e8cf9a,#c9a35f)"></span></span>
+            </div>
             <!-- scene stage -->
             <div style="position:relative;flex:1;min-height:0">
-              <!-- SCENE 0 — profile setup -->
-              <div class="pb-sc" style="position:absolute;inset:0;padding:14px 16px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
-                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Setting up my page</div>
-                <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-                  <span style="width:56px;height:56px;border-radius:50%;flex:none;background:linear-gradient(135deg,#2a6b45,#0e2016);border:2px solid rgba(217,183,121,.4);display:flex;align-items:center;justify-content:center;font-size:1.5rem">🧔🏻</span>
-                  <div><div style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.3rem;color:#f4f1ea;line-height:1">Ben R.</div><div style="font-family:'Space Mono',monospace;font-size:.6rem;color:#c9a35f;margin-top:3px">@benhikes · Colorado</div></div>
+              <!-- SCENE — FEED (Ben's post, advertised) -->
+              <div class="pb-sc" data-tab="feed" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Feed · fresh from the trail</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+                  <span style="width:30px;height:30px;border-radius:50%;flex:none;background:linear-gradient(135deg,#2a6b45,#0e2016);border:1px solid rgba(217,183,121,.4);display:flex;align-items:center;justify-content:center;font-size:.95rem">🧔🏻</span>
+                  <div style="line-height:1.1"><b style="font-size:.82rem;color:#f4f1ea">Ben R.</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">@benhikes · 2h</div></div>
+                  <span style="margin-left:auto;font-size:.6rem;font-weight:700;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:999px;padding:5px 11px">Follow</span>
                 </div>
-                <div style="margin-top:14px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.14);border-radius:12px;padding:11px 12px;min-height:52px">
-                  <div style="font-family:'Space Mono',monospace;font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:#7f8a82;margin-bottom:5px">Bio</div>
-                  <div style="font-size:.82rem;line-height:1.5;color:#e7e3d8"><span id="pbBio"></span><span style="color:#e8cf9a">|</span></div>
+                <div style="position:relative;margin-top:9px;border-radius:14px;overflow:hidden;height:150px;background:linear-gradient(170deg,#1b3d5c 0%,#2f6b7a 42%,#7a9a5f 100%)">
+                  <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="235" cy="42" r="18" fill="#f4dca0" opacity=".85"/><path d="M0 150 L60 96 L104 132 L150 74 L196 128 L246 88 L300 138 L300 200 L0 200 Z" fill="#16321f" opacity=".92"/><path d="M0 170 L46 138 L92 166 L140 120 L188 160 L236 128 L300 164 L300 200 L0 200 Z" fill="#0e2016"/></svg>
+                  <span style="position:absolute;top:8px;left:8px;font-family:'Space Mono',monospace;font-size:.52rem;color:#fff;background:rgba(8,19,13,.72);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px 8px">📍 Bear Lake · RMNP</span>
+                  <span style="position:absolute;top:8px;right:8px;font-family:'Space Mono',monospace;font-size:.52rem;font-weight:700;color:#0b1710;background:#4fd98a;border-radius:999px;padding:3px 8px">GO · 62°</span>
+                  <span style="position:absolute;bottom:8px;left:8px;font-family:'Space Mono',monospace;font-size:.5rem;color:#4fd98a;background:rgba(8,19,13,.72);border:1px solid rgba(79,217,138,.4);border-radius:999px;padding:3px 8px">◉ On-site ✓</span>
                 </div>
-                <div style="font-family:'Space Mono',monospace;font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:#7f8a82;margin:14px 0 8px">Adventures I love</div>
-                <div id="pbChips" style="display:flex;flex-wrap:wrap;gap:7px">
-                  <span class="pb-chip" style="opacity:0;font-size:.72rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:6px 11px">🥾 Hiking</span>
-                  <span class="pb-chip" style="opacity:0;font-size:.72rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:6px 11px">🐻 Wildlife</span>
-                  <span class="pb-chip" style="opacity:0;font-size:.72rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:6px 11px">🛶 Kayaking</span>
-                  <span class="pb-chip" style="opacity:0;font-size:.72rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:6px 11px">📷 Photography</span>
+                <p style="font-size:.78rem;color:#e7e3d8;line-height:1.5;margin-top:8px">Golden hour at Bear Lake 🌄 Glass-calm water, zero wind. Beat the crowd — be at the trailhead by 7.</p>
+                <div style="display:flex;align-items:center;gap:16px;margin-top:8px;font-size:.76rem;color:#aab0ba">
+                  <span style="color:#e08a6a">♥ <span id="pbLike">0</span></span><span>💬 22</span><span>↗</span><span style="margin-left:auto;color:#e8cf9a">🔖</span>
+                </div>
+                <div style="margin-top:8px;font-size:.7rem;color:#9aa7a0;line-height:1.4"><b style="color:#cdd3c0">Dana</b> Unreal 😍 adding this to my list</div>
+              </div>
+              <!-- SCENE — PLACES -->
+              <div class="pb-sc" data-tab="places" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Places · tap into a community</div>
+                <div style="margin-top:10px;display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.16);border-radius:999px;padding:8px 12px;color:#7f8a82;font-size:.74rem">⌕ Search parks, forests, towns…</div>
+                <div id="pbPlaces" style="margin-top:11px;display:flex;flex-direction:column;gap:8px">
+                  <div class="pb-row" style="opacity:0;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.12);border-radius:13px;padding:8px 10px">
+                    <span style="width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(150deg,#2f6b7a,#16321f)"></span>
+                    <div style="min-width:0;line-height:1.15"><b style="font-size:.78rem;color:#f4f1ea">Rocky Mountain NP</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Colorado · 🔥 128 in Campfire</div></div>
+                    <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:.5rem;font-weight:700;color:#4fd98a">GO</span>
+                  </div>
+                  <div class="pb-row" style="opacity:0;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.12);border-radius:13px;padding:8px 10px">
+                    <span style="width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(150deg,#c9a35f,#5c4a24)"></span>
+                    <div style="min-width:0;line-height:1.15"><b style="font-size:.78rem;color:#f4f1ea">Great Sand Dunes NP</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Colorado · 🔥 41 in Campfire</div></div>
+                    <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:.5rem;font-weight:700;color:#4fd98a">GO</span>
+                  </div>
+                  <div class="pb-row" style="opacity:0;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.12);border-radius:13px;padding:8px 10px">
+                    <span style="width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(150deg,#3a6b45,#0e2016)"></span>
+                    <div style="min-width:0;line-height:1.15"><b style="font-size:.78rem;color:#f4f1ea">Roosevelt Nat'l Forest</b><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Colorado · 🔥 17 in Campfire</div></div>
+                    <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:.5rem;font-weight:700;color:#e8cf9a">PREPARE</span>
+                  </div>
                 </div>
               </div>
-              <!-- SCENE 1 — post a Pine -->
-              <div class="pb-sc" style="position:absolute;inset:0;padding:14px 16px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
-                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Ben posts a Pine</div>
-                <div style="position:relative;margin-top:10px;border-radius:16px;overflow:hidden;height:196px;background:linear-gradient(170deg,#1b3d5c 0%,#2f6b7a 42%,#7a9a5f 100%)">
-                  <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="230" cy="46" r="20" fill="#f4dca0" opacity=".85"/><path d="M0 150 L60 96 L104 132 L150 74 L196 128 L246 88 L300 138 L300 200 L0 200 Z" fill="#16321f" opacity=".92"/><path d="M0 170 L46 138 L92 166 L140 120 L188 160 L236 128 L300 164 L300 200 L0 200 Z" fill="#0e2016"/></svg>
-                  <span style="position:absolute;top:10px;left:10px;font-family:'Space Mono',monospace;font-size:.56rem;color:#fff;background:rgba(8,19,13,.72);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 9px">📍 Rocky Mountain NP · Bear Lake</span>
-                  <span style="position:absolute;top:10px;right:10px;font-family:'Space Mono',monospace;font-size:.56rem;font-weight:700;color:#0b1710;background:#4fd98a;border-radius:999px;padding:4px 9px">GO · 62°</span>
-                  <span style="position:absolute;bottom:10px;left:10px;font-family:'Space Mono',monospace;font-size:.54rem;color:#4fd98a;background:rgba(8,19,13,.72);border:1px solid rgba(79,217,138,.4);border-radius:999px;padding:4px 9px">◉ On-site ✓</span>
+              <!-- SCENE — POST (compose) -->
+              <div class="pb-sc" data-tab="post" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">New Pine · on-site only</div>
+                <div style="position:relative;margin-top:10px;border-radius:14px;overflow:hidden;height:118px;background:linear-gradient(170deg,#1b3d5c,#7a9a5f)">
+                  <svg viewBox="0 0 300 160" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="235" cy="36" r="15" fill="#f4dca0" opacity=".85"/><path d="M0 120 L60 78 L104 106 L150 60 L196 102 L246 72 L300 110 L300 160 L0 160 Z" fill="#16321f" opacity=".92"/><path d="M0 138 L46 112 L92 134 L140 96 L188 128 L236 104 L300 132 L300 160 L0 160 Z" fill="#0e2016"/></svg>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;margin-top:11px">
-                  <span style="width:26px;height:26px;border-radius:50%;flex:none;background:linear-gradient(135deg,#2a6b45,#0e2016);display:flex;align-items:center;justify-content:center;font-size:.85rem">🧔🏻</span>
-                  <b style="font-size:.8rem;color:#f4f1ea">Ben R.</b>
-                  <span style="font-family:'Space Mono',monospace;font-size:.54rem;color:#7f8a82;margin-left:auto">just now</span>
+                <div style="margin-top:10px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.16);border-radius:11px;padding:9px 11px">
+                  <span style="font-size:.8rem">📍</span><b style="font-size:.75rem;color:#f4f1ea">Bear Lake · RMNP</b>
+                  <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:.5rem;color:#4fd98a">◉ Verified on-site</span>
                 </div>
-                <p style="font-size:.82rem;color:#e7e3d8;line-height:1.5;margin-top:7px">Golden hour at Bear Lake 🌄 Calm water, no wind — worth the early start.</p>
-                <div style="display:flex;align-items:center;gap:18px;margin-top:9px;font-size:.78rem;color:#aab0ba">
-                  <span style="color:#e08a6a">♥ <span id="pbLike">0</span></span><span>💬 14</span><span>↗ Share</span>
-                </div>
+                <div style="margin-top:8px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.16);border-radius:11px;padding:9px 11px;min-height:38px;font-size:.76rem;color:#e7e3d8;line-height:1.45"><span id="pbCap"></span><span style="color:#e8cf9a">|</span></div>
+                <button style="margin-top:10px;width:100%;border:none;border-radius:11px;padding:10px;font-size:.8rem;font-weight:700;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f)">Post Pine</button>
+                <div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#6f7a72;margin-top:8px;line-height:1.4;text-align:center">Your GPS confirms you were really here.</div>
               </div>
-              <!-- SCENE 2 — campfire -->
-              <div class="pb-sc" style="position:absolute;inset:0;padding:14px 16px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+              <!-- SCENE — TALK (campfire) -->
+              <div class="pb-sc" data-tab="talk" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
                 <div style="display:flex;align-items:center;gap:7px">
                   <span style="font-size:1rem">🔥</span>
-                  <div><div style="font-size:.86rem;font-weight:600;color:#f4f1ea;line-height:1">Rocky Mountain NP</div><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Campfire · 128 nearby</div></div>
+                  <div><div style="font-size:.84rem;font-weight:600;color:#f4f1ea;line-height:1">Rocky Mountain NP</div><div style="font-family:'Space Mono',monospace;font-size:.52rem;color:#7f8a82;margin-top:2px">Campfire · 128 nearby</div></div>
                 </div>
-                <div id="pbChat" style="margin-top:12px;display:flex;flex-direction:column;gap:9px">
-                  <div class="pb-msg" style="opacity:0;align-self:flex-end;max-width:86%;background:linear-gradient(120deg,rgba(232,207,154,.2),rgba(201,163,95,.14));border:1px solid rgba(217,183,121,.3);border-radius:14px 14px 4px 14px;padding:9px 11px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#c9a35f;margin-bottom:3px">Ben R.</div><div style="font-size:.76rem;line-height:1.45;color:#f4f1ea">Saw a black bear near Cub Lake trail this morning 🐻 Gave it plenty of space and it wandered off — heads up if you're headed that way!</div></div>
-                  <div class="pb-msg" style="opacity:0;align-self:flex-start;max-width:82%;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.12);border-radius:14px 14px 14px 4px;padding:9px 11px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#9aa7a0;margin-bottom:3px">Dana</div><div style="font-size:.76rem;line-height:1.45;color:#e7e3d8">Whoa, thanks for the warning 🙏</div></div>
-                  <div class="pb-msg" style="opacity:0;align-self:flex-start;max-width:82%;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.12);border-radius:14px 14px 14px 4px;padding:9px 11px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#9aa7a0;margin-bottom:3px">Marcus</div><div style="font-size:.76rem;line-height:1.45;color:#e7e3d8">Which trailhead did you start from?</div></div>
-                  <div class="pb-msg" style="opacity:0;align-self:flex-end;max-width:82%;background:linear-gradient(120deg,rgba(232,207,154,.2),rgba(201,163,95,.14));border:1px solid rgba(217,183,121,.3);border-radius:14px 14px 4px 14px;padding:9px 11px"><div style="font-size:.76rem;line-height:1.45;color:#f4f1ea">Cub Lake TH, ~7am. Quiet and gorgeous 🌲</div></div>
+                <div id="pbChat" style="margin-top:11px;display:flex;flex-direction:column;gap:8px">
+                  <div class="pb-msg" style="opacity:0;align-self:flex-end;max-width:88%;background:linear-gradient(120deg,rgba(232,207,154,.2),rgba(201,163,95,.14));border:1px solid rgba(217,183,121,.3);border-radius:14px 14px 4px 14px;padding:8px 10px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#c9a35f;margin-bottom:3px">Ben R.</div><div style="font-size:.74rem;line-height:1.4;color:#f4f1ea">Saw a black bear near Cub Lake trail this morning 🐻 Gave it space, it wandered off — heads up if you're headed that way!</div></div>
+                  <div class="pb-msg" style="opacity:0;align-self:flex-start;max-width:82%;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.12);border-radius:14px 14px 14px 4px;padding:8px 10px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#9aa7a0;margin-bottom:3px">Dana</div><div style="font-size:.74rem;line-height:1.4;color:#e7e3d8">Whoa, thanks for the warning 🙏</div></div>
+                  <div class="pb-msg" style="opacity:0;align-self:flex-start;max-width:82%;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.12);border-radius:14px 14px 14px 4px;padding:8px 10px"><div style="font-family:'Space Mono',monospace;font-size:.5rem;color:#9aa7a0;margin-bottom:3px">Marcus</div><div style="font-size:.74rem;line-height:1.4;color:#e7e3d8">Which trailhead did you start from?</div></div>
+                  <div class="pb-msg" style="opacity:0;align-self:flex-end;max-width:82%;background:linear-gradient(120deg,rgba(232,207,154,.2),rgba(201,163,95,.14));border:1px solid rgba(217,183,121,.3);border-radius:14px 14px 4px 14px;padding:8px 10px"><div style="font-size:.74rem;line-height:1.4;color:#f4f1ea">Cub Lake TH, ~7am. Quiet and gorgeous 🌲</div></div>
+                </div>
+              </div>
+              <!-- SCENE — MINE (profile) -->
+              <div class="pb-sc" data-tab="mine" style="position:absolute;inset:0;padding:12px 15px;opacity:0;transform:translateY(10px);transition:opacity .6s cubic-bezier(.16,.8,.24,1),transform .6s cubic-bezier(.16,.8,.24,1);overflow:hidden">
+                <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">Mine · my page</div>
+                <div style="display:flex;align-items:center;gap:11px;margin-top:10px">
+                  <span style="width:50px;height:50px;border-radius:50%;flex:none;background:linear-gradient(135deg,#2a6b45,#0e2016);border:2px solid rgba(217,183,121,.4);display:flex;align-items:center;justify-content:center;font-size:1.4rem">🧔🏻</span>
+                  <div><div style="font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.2rem;color:#f4f1ea;line-height:1">Ben R.</div><div style="font-family:'Space Mono',monospace;font-size:.56rem;color:#c9a35f;margin-top:3px">@benhikes · Colorado</div></div>
+                </div>
+                <div style="font-size:.76rem;line-height:1.45;color:#e7e3d8;margin-top:10px;min-height:34px"><span id="pbBio"></span><span style="color:#e8cf9a">|</span></div>
+                <div id="pbChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+                  <span class="pb-chip" style="opacity:0;font-size:.68rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:5px 10px">🥾 Hiking</span>
+                  <span class="pb-chip" style="opacity:0;font-size:.68rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:5px 10px">🐻 Wildlife</span>
+                  <span class="pb-chip" style="opacity:0;font-size:.68rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:5px 10px">🛶 Kayaking</span>
+                  <span class="pb-chip" style="opacity:0;font-size:.68rem;color:#f4f1ea;background:rgba(217,183,121,.1);border:1px solid rgba(217,183,121,.28);border-radius:999px;padding:5px 10px">📷 Photography</span>
+                </div>
+                <div style="font-family:'Space Mono',monospace;font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:#7f8a82;margin:13px 0 7px">My Pines</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+                  <span style="aspect-ratio:1;border-radius:9px;background:linear-gradient(160deg,#2f6b7a,#16321f)"></span>
+                  <span style="aspect-ratio:1;border-radius:9px;background:rgba(255,255,255,.04);border:1px dashed rgba(217,183,121,.25);display:flex;align-items:center;justify-content:center;color:#7f8a82;font-size:1rem">＋</span>
+                  <span style="aspect-ratio:1;border-radius:9px;background:rgba(255,255,255,.04);border:1px dashed rgba(217,183,121,.25);display:flex;align-items:center;justify-content:center;color:#7f8a82;font-size:1rem">＋</span>
                 </div>
               </div>
             </div>
-            <!-- step dots -->
-            <div id="pbDots" style="display:flex;gap:6px;justify-content:center;padding:4px 0 8px;flex:none">
-              <span style="width:6px;height:6px;border-radius:999px;background:rgba(217,183,121,.25);transition:all .4s"></span>
-              <span style="width:6px;height:6px;border-radius:999px;background:rgba(217,183,121,.25);transition:all .4s"></span>
-              <span style="width:6px;height:6px;border-radius:999px;background:rgba(217,183,121,.25);transition:all .4s"></span>
-            </div>
-            <!-- tab bar -->
-            <div style="display:flex;align-items:center;justify-content:space-around;padding:9px 10px 14px;border-top:1px solid rgba(217,183,121,.12);flex:none;font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.06em;text-transform:uppercase;color:#7f8a82">
-              <span style="color:#e8cf9a">◇ Feed</span><span>◇ Places</span>
-              <span style="width:34px;height:34px;border-radius:50%;background:linear-gradient(120deg,#e8cf9a,#c9a35f);color:#0b1710;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700">＋</span>
-              <span>◇ Talk</span><span>◇ Mine</span>
+            <!-- tab bar (active tab lights up as the demo walks through them) -->
+            <div id="pbTabs" style="display:flex;align-items:center;justify-content:space-around;padding:9px 10px 14px;border-top:1px solid rgba(217,183,121,.12);flex:none;font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.06em;text-transform:uppercase;color:#7f8a82">
+              <span class="pb-tab" data-tab="feed" style="transition:color .4s">◇ Feed</span><span class="pb-tab" data-tab="places" style="transition:color .4s">◇ Places</span>
+              <span class="pb-tab" data-tab="post" style="width:34px;height:34px;border-radius:50%;background:linear-gradient(120deg,#e8cf9a,#c9a35f);color:#0b1710;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;transition:transform .4s,box-shadow .4s">＋</span>
+              <span class="pb-tab" data-tab="talk" style="transition:color .4s">◇ Talk</span><span class="pb-tab" data-tab="mine" style="transition:color .4s">◇ Mine</span>
             </div>
           </div>
         </div>

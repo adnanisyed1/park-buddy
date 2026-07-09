@@ -1,6 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Cache-bust the /embed assets (body.html, s0.js, style.css) on every deploy.
+  // These are fetched with ?v=NEXT_PUBLIC_ASSET_VERSION; if it never changes the
+  // browser serves stale copies forever. Inline a unique value at build time:
+  // Vercel's commit SHA per deploy, or a build timestamp locally.
+  env: {
+    NEXT_PUBLIC_ASSET_VERSION:
+      process.env.NEXT_PUBLIC_ASSET_VERSION ||
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      String(Date.now()),
+  },
   images: {
     // NPS photos come from these hosts — allow next/image to optimize them
     remotePatterns: [

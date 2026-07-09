@@ -24,7 +24,23 @@ class Component extends DCLogic {
     this.initScrolly();
     this.buildMapModal();
     this.buildPinesDemo();
+    this.playHeroVideo();
     this.hydrateAll(document);
+  }
+
+  // The hero <video autoplay> is injected via innerHTML, which browsers DON'T honor
+  // for autoplay — so kick it off in JS (muted play is allowed), with retries on
+  // canplay and first interaction as fallbacks.
+  playHeroVideo(){
+    var v=document.getElementById('heroVideo'); if(!v) return;
+    v.muted=true; v.playsInline=true;
+    var go=function(){ try{ var p=v.play(); if(p&&p.catch) p.catch(function(){}); }catch(e){} };
+    go();
+    v.addEventListener('canplay', go, { once:true });
+    var once=function(){ go(); window.removeEventListener('pointerdown',once); window.removeEventListener('scroll',once); window.removeEventListener('touchstart',once); };
+    window.addEventListener('pointerdown', once, { once:true });
+    window.addEventListener('scroll', once, { once:true });
+    window.addEventListener('touchstart', once, { once:true });
   }
   componentWillUnmount(){ if(this._raf)cancelAnimationFrame(this._raf); if(this._io)this._io.disconnect(); if(this._tick)cancelAnimationFrame(this._tick); if(this._pTimer)clearInterval(this._pTimer); if(this._pinesTimer)clearInterval(this._pinesTimer); if(this._pbType)clearInterval(this._pbType); if(this._pbLike)clearInterval(this._pbLike); if(this._pinesIO)this._pinesIO.disconnect(); window.removeEventListener('scroll',this._onScroll); window.removeEventListener('mousemove',this._onMouse); }
 

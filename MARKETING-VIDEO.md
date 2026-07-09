@@ -158,6 +158,24 @@ at beat 4. It's built in the brand aesthetic — a premium title-card moment, no
 
 ---
 
+## ✅ Assembly checklist (v2 — locked)
+
+Drop these into your editor in order, music under everything:
+
+| # | Clip | Source |
+|---|---|---|
+| 1 | Arrival — Ben hikes to the lake | Runway Shot 1 |
+| 2 | The bear in the meadow | Runway Shot 2 |
+| 3 | Ben raises his phone (blank screen) | Runway Shot 3 |
+| 4 | **The app posts the Pine** | screen-record a beat → **`pines-upload-card.html`** (16:9, fills frame) — *or* composite `pines-phone-screen.html` onto the blank phone from Shot 3 |
+| 5 | Community | Runway Shot 4 (real faces) **or** screen-record `pines-community-card.html` |
+| 6 | Sweeping aerial, lone hiker | Runway Shot 5 |
+| 7 | **End card** | screen-record `endcard.html` |
+
+**To record a beat:** open the file fullscreen in the browser, ⌘⇧5 → record the region, press **space** to replay for a clean take (the on-screen hint is gone now). Trim to the "✓ Posted / Live" hold.
+
+Which app beat to use in #4: **`pines-upload-card.html`** if you're doing simple insert-cuts (it's 16:9, fills the frame). **`pines-phone-screen.html`** (9:16) only if you're compositing the screen onto Ben's actual phone.
+
 ## 📱 Showing the app on the phone in Ben's hand
 
 The premium way to show "Ben posts a Pine" is to have the app appear **on his phone

@@ -562,6 +562,7 @@ function FeedEmpty({ title, body, cta, onCta, goDiscover }) {
       <div style={{ fontSize: "2rem", marginBottom: 8 }}>🌲</div>
       <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", color: "var(--pb-ink)", margin: "0 0 10px" }}>{title}</h2>
       <p style={{ color: "var(--pb-ink-2)", lineHeight: 1.6, margin: "0 0 18px" }}>{body}</p>
+      <FilmCard />
       <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
         <button onClick={onCta} style={goldBtn("auto")}>{cta}</button>
         <button onClick={goDiscover} style={{ ...goldBtn("auto"), background: "transparent", color: "var(--pb-ink)", border: "1px solid var(--pb-line-strong)" }}>Explore Pines</button>
@@ -638,6 +639,19 @@ function PineLightbox({ list, start, user, onClose }) {
 }
 
 /* ---------------- shared ---------------- */
+// The Pines brand film (click-to-play; streams from Supabase, only loads on press).
+function FilmCard() {
+  return (
+    <div style={{ margin: "0 auto 20px", maxWidth: 440 }}>
+      <div style={{ ...micro, color: "var(--pb-gold-soft)", marginBottom: 8 }}>▶ Watch — a minute in the wild</div>
+      <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line-strong)", boxShadow: "0 24px 60px -30px rgba(0,0,0,.8)" }}>
+        <video controls playsInline preload="none" poster="/media/pines-intro-poster.jpg" style={{ width: "100%", display: "block", aspectRatio: "16 / 9", background: "#000" }}>
+          <source src="https://fsgmwersernbtjugkuhk.supabase.co/storage/v1/object/public/pines/pines-intro.mp4" type="video/mp4" />
+        </video>
+      </div>
+    </div>
+  );
+}
 function Center({ children }) { return <div style={{ height: "100%", minHeight: 480, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>{children}</div>; }
 function pad() { return { padding: "22px 15px", color: "var(--pb-muted)", fontSize: ".9rem" }; }
 function goldBtn(w) { return { cursor: "pointer", width: w || "auto", fontFamily: "var(--pb-sans)", fontSize: ".92rem", fontWeight: 700, color: "var(--pb-bg)", background: C.gold, border: "none", borderRadius: 999, padding: "12px 24px" }; }
@@ -648,6 +662,7 @@ function Empty({ user, onPost }) {
       <div style={{ fontSize: "2.4rem", marginBottom: 6 }}>🌲</div>
       <h1 style={{ fontFamily: serif, fontWeight: 500, fontSize: "clamp(2rem,6vw,2.9rem)", lineHeight: 1.04, color: "var(--pb-ink)", margin: "0 0 12px" }}>Reels, but for the wild.</h1>
       <p style={{ color: "var(--pb-ink-2)", fontSize: "1.02rem", lineHeight: 1.6, margin: "0 0 22px" }}>Short, real Adventures from the parks — every one captured on-site, pinned to the exact place, next to today's live conditions. No stock, no fakes.</p>
+      <FilmCard />
       <Waitlist />
       <div style={{ margin: "18px 0 0", display: "flex", alignItems: "center", gap: 12, justifyContent: "center" }}>
         <span style={{ height: 1, width: 40, background: "var(--pb-line)" }} /><span style={micro}>or</span><span style={{ height: 1, width: 40, background: "var(--pb-line)" }} />

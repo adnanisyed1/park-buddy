@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Park Buddy — Pines demo (screen-record me)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(120% 80% at 50% 30%, rgba(217,183,121,.06), transparent 60%), linear-gradient(160deg,#0a1712,#08130d 70%);
+    color:#f4f1ea; font-family:'Inter',system-ui,sans-serif; min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px 12px; overflow:hidden;
+  }
+  #host{ transform-origin:center; }
+  /* reel motion (copied from the embed stylesheet so the injected phone animates) */
+  .pb-reel{animation:pb-kenburns 11s ease-in-out infinite alternate;transform-origin:60% 40%}
+  @keyframes pb-kenburns{from{transform:scale(1.03)}to{transform:scale(1.16) translate(-3%,-3%)}}
+  .pb-scrub{animation:pb-scrubfill 9s linear infinite}
+  @keyframes pb-scrubfill{from{width:5%}to{width:100%}}
+  .pb-playpulse{animation:pb-playpulse 2.6s ease-in-out infinite}
+  @keyframes pb-playpulse{0%,100%{opacity:.9;transform:translate(-50%,-50%) scale(1)}50%{opacity:.4;transform:translate(-50%,-50%) scale(1.1)}}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important}}
+
+  .controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; max-width:640px; }
+  .ctl{ font-family:'Space Mono',monospace; font-size:.62rem; letter-spacing:.08em; text-transform:uppercase;
+    color:#aab0ba; background:rgba(255,255,255,.04); border:1px solid rgba(217,183,121,.22); border-radius:999px;
+    padding:8px 13px; cursor:pointer; transition:all .25s; }
+  .ctl:hover{ color:#f4f1ea; border-color:rgba(217,183,121,.5); }
+  .ctl.on{ color:#0b1710; background:linear-gradient(120deg,#e8cf9a,#c9a35f); border-color:transparent; font-weight:700; }
+  .ctl.play{ color:#e8cf9a; }
+  .hint{ font-family:'Space Mono',monospace; font-size:.58rem; letter-spacing:.1em; color:rgba(170,176,186,.4); }
+</style>
+</head>
+<body>
+  <div id="host" aria-label="Park Buddy Pines demo"></div>
+  <div class="controls" id="controls">
+    <span class="ctl play" id="playBtn">⏸ Pause</span>
+    <span class="ctl" data-jump="feed">Feed</span>
+    <span class="ctl" data-jump="pines">Pines</span>
+    <span class="ctl" data-jump="post">＋ Post</span>
+    <span class="ctl" data-jump="campfire">Campfire</span>
+    <span class="ctl" data-jump="gallery">Gallery</span>
+    <span class="ctl" data-jump="mine">Mine</span>
+  </div>
+  <div class="hint">Auto-plays every tab. Click a tab to hold it for recording · ⌘⇧5 to screen-record this window.</div>
+
+<script>
+(async () => {
+  const host = document.getElementById('host');
+  // Pull the real phone markup from the landing embed so this never drifts from the site.
+  let phone;
+  try {
+    const html = await fetch('/embed/home/body.html').then(r => r.text());
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const src = doc.querySelector('#pbPhone');
+    if (src) { phone = document.importNode(src, true); host.appendChild(phone); }
+  } catch (e) {}
+  if (!phone) { host.innerHTML = '<div style="font-family:monospace;color:#e08a6a">Couldn\'t load the phone markup. Open this page while the dev server is running.</div>'; return; }
+
+  // Blow the phone up to fill most of the viewport height for a crisp recording.
+  function fit(){ const s = Math.min(1.9, Math.max(1, (window.innerHeight - 150) / 604)); host.style.transform = 'scale(' + s + ')'; }
+  fit(); window.addEventListener('resize', fit);
+
+  const stage = phone;
+  const scenes = [].slice.call(stage.querySelectorAll('.pb-sc'));
+  const bars = [].slice.call(stage.querySelectorAll('#pbBars .pb-barfill'));
+  const tabs = [].slice.call(stage.querySelectorAll('#pbTabs .pb-tab'));
+  const DUR = 4400;
+  let idx = -1, timer = null, typeT = null, likeT = null;
+
+  const typeInto = (sel, text, sp) => { const el = stage.querySelector(sel); if (!el) return; clearInterval(typeT); el.textContent=''; let i=0; typeT=setInterval(()=>{ el.textContent=text.slice(0,++i); if(i>=text.length) clearInterval(typeT); }, sp||30); };
+  const revealSeq = (sel, base, step) => [].slice.call(stage.querySelectorAll(sel)).forEach((c,i)=>{ c.style.transition='opacity .45s,transform .45s'; c.style.opacity=0; c.style.transform='translateY(7px)'; setTimeout(()=>{ c.style.opacity=1; c.style.transform='none'; }, base+i*step); });
+  const countTo = (sel, from, to) => { const el=stage.querySelector(sel); if(!el) return; clearInterval(likeT); let n=from; el.textContent=n; likeT=setInterval(()=>{ n+=5; if(n>=to){n=to;clearInterval(likeT);} el.textContent=n; },50); };
+  const runAnim = (tab) => {
+    if (tab==='feed') countTo('#pbLike',168,207);
+    else if (tab==='pines') revealSeq('#pbDiscover .pb-tile',180,150);
+    else if (tab==='post') typeInto('#pbCap','Golden hour at Bear Lake 🌄 worth the early start.',30);
+    else if (tab==='campfire') revealSeq('#pbChat .pb-msg',260,520);
+    else if (tab==='gallery') revealSeq('#pbGallery .pb-cell',100,60);
+    else if (tab==='mine'){ typeInto('#pbBio','Weekend peak-bagger. Will hike for an alpine lake.',30); revealSeq('#pbChips .pb-chip',700,150); }
+  };
+  const setBars = (n, instant) => {
+    bars.forEach((f,i)=>{ f.style.transition='none'; f.style.width = i<n?'100%':'0%'; });
+    void stage.offsetWidth;
+    if (bars[n]) { if (instant) { bars[n].style.width='100%'; } else { bars[n].style.transition='width '+DUR+'ms linear'; bars[n].style.width='100%'; } }
+  };
+  const show = (n, instant) => {
+    scenes.forEach((s,i)=>{ s.style.opacity = i===n?'1':'0'; s.style.transform = i===n?'none':'translateY(10px)'; });
+    const tab = scenes[n].getAttribute('data-tab');
+    tabs.forEach(t=>{ const on=t.getAttribute('data-tab')===tab; if(t.getAttribute('data-tab')==='post'){ t.style.transform=on?'scale(1.12)':'none'; t.style.boxShadow=on?'0 0 0 4px rgba(217,183,121,.2)':'none'; } else { t.style.color=on?'#e8cf9a':'#7f8a82'; } });
+    // reflect on the control chips too
+    document.querySelectorAll('#controls .ctl[data-jump]').forEach(c=>c.classList.toggle('on', c.getAttribute('data-jump')===tab));
+    setBars(n, instant); runAnim(tab);
+  };
+  const next = () => { idx=(idx+1)%scenes.length; show(idx,false); };
+
+  const playBtn = document.getElementById('playBtn');
+  const play = () => { if(timer) return; timer=setInterval(next,DUR); playBtn.textContent='⏸ Pause'; };
+  const pause = () => { clearInterval(timer); timer=null; playBtn.textContent='▶ Play'; };
+  playBtn.addEventListener('click', () => { timer ? pause() : play(); });
+  document.querySelectorAll('#controls .ctl[data-jump]').forEach(c => c.addEventListener('click', () => {
+    pause(); const tab=c.getAttribute('data-jump'); idx=scenes.findIndex(s=>s.getAttribute('data-tab')===tab); show(idx,true);
+  }));
+
+  next(); play();
+})();
+</script>
+</body>
+</html>

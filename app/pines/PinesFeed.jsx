@@ -105,7 +105,7 @@ export default function PinesFeed() {
       </div>
       <FloatingTabs tab={tab} go={go} isWeb={isWeb} />
       {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("mine")} />}
-      {lightbox && <PineLightbox pine={lightbox} user={user} onClose={() => setLightbox(null)} />}
+      {lightbox && <PineLightbox list={lightbox.pines} start={lightbox.i} user={user} onClose={() => setLightbox(null)} />}
     </>
   );
 }
@@ -344,40 +344,82 @@ function HubTabs({ pl, pins }) {
   );
 }
 
-/* ---------------- Campfire (place communities — list → hub) ---------------- */
+/* ---------------- Campfire (place communities — searchable list → hub) ---------------- */
+const cfSlug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+function cfLoadScript(src) { return new Promise((res) => { if (typeof document === "undefined") return res(); if (document.querySelector('script[src="' + src + '"]')) return res(); const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = res; document.body.appendChild(el); }); }
 function Campfire({ openHub }) {
   const [mine, setMine] = useState(null);
+  const [all, setAll] = useState([]);
+  const [q, setQ] = useState("");
   useEffect(() => {
     (async () => {
       try { const t = await getAccessToken(); if (!t) { setMine([]); return; } const r = await fetch("/api/my-alerts", { headers: { Authorization: "Bearer " + t } }); const d = await r.json().catch(() => ({})); setMine((d.alerts || []).map((a) => ({ type: "park", id: a.park_id, name: a.park_name || a.park_id, q: a.park_name }))); } catch { setMine([]); }
     })();
+  }, []);
+  // Load the real, searchable place list once (parks + national forests + gateway towns).
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      try {
+        const [pTxt, fTxt] = await Promise.all([
+          fetch("/trip-data.js").then((r) => r.text()).catch(() => ""),
+          fetch("/forest-data.js").then((r) => r.text()).catch(() => ""),
+        ]);
+        const pm = pTxt.match(/window\.TRIP_PARKS\s*=\s*(\[.*?\]);/);
+        const fm = fTxt.match(/window\.FOREST_DATA\s*=\s*(\[[\s\S]*?\]);/);
+        const rawParks = pm ? JSON.parse(pm[1]) : [];
+        const parks = rawParks.map((p) => ({ type: "park", id: String(p.id), name: p.name + " National Park", q: p.name + " National Park", sub: "National Park" }));
+        const forests = fm ? JSON.parse(fm[1]).map((f) => ({ type: "forest", id: cfSlug(f.name), name: f.name, q: f.name, sub: "National Forest" })) : [];
+        let towns = [];
+        try {
+          await cfLoadScript("/gateway-towns.js");
+          if (typeof window !== "undefined" && window.PB_GATEWAY) {
+            const seen = new Set();
+            towns = rawParks.map((p) => { const t = window.PB_GATEWAY(p.name); if (!t || t.lat == null || seen.has(t.town)) return null; seen.add(t.town); return { type: "town", id: cfSlug(t.town), name: t.town, q: t.town, sub: "Gateway town" }; }).filter(Boolean);
+          }
+        } catch {}
+        if (on) setAll([...parks, ...forests, ...towns]);
+      } catch {}
+    })();
+    return () => { on = false; };
   }, []);
   const popular = [
     { name: "Yosemite National Park", id: "yose", q: "Yosemite Valley" }, { name: "Grand Teton National Park", id: "grte", q: "Grand Teton National Park" },
     { name: "Zion National Park", id: "zion", q: "Zion National Park" }, { name: "Glacier National Park", id: "glac", q: "Glacier National Park (U.S.)" },
     { name: "Rocky Mountain National Park", id: "romo", q: "Rocky Mountain National Park" }, { name: "Acadia National Park", id: "acad", q: "Acadia National Park" },
   ];
+  const term = q.trim().toLowerCase();
+  const results = term ? all.filter((x) => x.name.toLowerCase().includes(term)).slice(0, 40) : null;
   return (
     <div style={{ padding: "50px 0 20px" }}>
       <div style={{ padding: "0 15px 10px" }}>
         <div style={{ ...micro, color: "var(--pb-gold-soft)" }}>One per park, forest &amp; gateway town</div>
         <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", color: "var(--pb-ink)" }}>Campfires</span>
       </div>
-      <div style={{ margin: "0 15px", display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "11px 13px", color: "var(--pb-muted)", fontSize: ".82rem" }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 15, height: 15 }}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>Search parks, forests, towns
+      <div style={{ margin: "0 15px", display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "9px 13px" }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--pb-muted)" strokeWidth="2" style={{ width: 15, height: 15, flex: "none" }}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search parks, forests, towns" style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".9rem" }} />
+        {q && <button onClick={() => setQ("")} aria-label="Clear search" style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-muted)", fontSize: "1rem", lineHeight: 1 }}>×</button>}
       </div>
-      {mine && mine.length > 0 && <>
-        <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Campfires you follow</div>
-        {mine.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} tag="following" />)}
-      </>}
-      <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Popular Campfires</div>
-      {popular.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} />)}
+      {results ? (
+        results.length ? results.map((p) => <PlaceRow key={p.type + p.id} p={p} onClick={() => openHub(p)} />)
+          : <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6, textAlign: "center" }}>{all.length ? "No place matches “" + q.trim() + ".” Try a park, forest or town name." : "Loading places…"}</p>
+      ) : (
+        <>
+          {mine && mine.length > 0 && <>
+            <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Campfires you follow</div>
+            {mine.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} tag="following" />)}
+          </>}
+          <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Popular Campfires</div>
+          {popular.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} />)}
+        </>
+      )}
       <div style={{ height: 14 }} />
     </div>
   );
 }
 function PlaceRow({ p, onClick, tag }) {
-  const sub = p.name.includes("Forest") ? "National Forest" : p.name.toLowerCase().includes("town") ? "Gateway town" : "National Park";
+  const sub = p.sub || (p.name.includes("Forest") ? "National Forest" : p.name.toLowerCase().includes("town") ? "Gateway town" : "National Park");
   return (
     <button onClick={onClick} style={{ cursor: "pointer", width: "calc(100% - 30px)", textAlign: "left", display: "flex", alignItems: "center", gap: 11, margin: "9px 15px 0", padding: 9, border: "1px solid var(--pb-line)", borderRadius: 13, background: "var(--pb-surface)" }}>
       <span style={{ position: "relative", width: 44, height: 44, borderRadius: 10, overflow: "hidden", flex: "none" }}><Photo q={p.q || p.name} /></span>
@@ -528,8 +570,8 @@ function Gallery({ onOpen }) {
       </div>
       {st.loading ? <p style={pad()}>Loading…</p> : !st.pines.length ? <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6 }}>No Pines yet — once Adventures roll in, every photo and reel shows up here to browse and pick from.</p> : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, padding: "0 3px" }}>
-          {st.pines.map((p) => (
-            <button key={p.id} onClick={() => onOpen(p)} style={{ cursor: "pointer", position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000", border: "none", padding: 0 }}>
+          {st.pines.map((p, i) => (
+            <button key={p.id} onClick={() => onOpen({ pines: st.pines, i })} style={{ cursor: "pointer", position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000", border: "none", padding: 0 }}>
               {p.image_url || p.poster_url ? <img src={p.image_url || p.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}
               {p.poster_url && <span style={{ position: "absolute", top: 5, right: 5, color: "#fff", fontSize: ".6rem", textShadow: "0 1px 3px rgba(0,0,0,.8)" }}>▶</span>}
             </button>
@@ -539,15 +581,34 @@ function Gallery({ onOpen }) {
     </div>
   );
 }
-function PineLightbox({ pine, user, onClose }) {
+function PineLightbox({ list, start, user, onClose }) {
+  const pines = list && list.length ? list : [];
+  const [i, setI] = useState(start || 0);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const n = pines.length;
+  const step = (d) => { if (n < 2) return; setCommentsOpen(false); setI((x) => (x + d + n) % n); };
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); else if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [n]); // eslint-disable-line
+  const touch = useRef({ x: 0 });
+  const onTouchStart = (e) => { touch.current.x = e.touches[0].clientX; };
+  const onTouchEnd = (e) => { const dx = e.changedTouches[0].clientX - touch.current.x; if (Math.abs(dx) > 44) step(dx < 0 ? 1 : -1); };
+  const pine = pines[i];
+  if (!pine) return null;
   const src = pine.image_url || pine.poster_url;
   return (
     <div onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(4,7,5,.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ position: "relative", width: "min(440px,100%)", maxHeight: "92dvh", overflow: "hidden", borderRadius: 18, border: "1px solid var(--pb-line-strong)", background: "var(--pb-bg)" }}>
+      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative", width: "min(440px,100%)", maxHeight: "92dvh", overflow: "hidden", borderRadius: 18, border: "1px solid var(--pb-line-strong)", background: "var(--pb-bg)" }}>
         <div style={{ position: "relative", aspectRatio: "4/5", background: "#000" }}>
           {src ? <img src={src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={pine.place_name} />}
-          <button onClick={onClose} aria-label="Close" style={{ cursor: "pointer", position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", background: "rgba(6,14,10,.6)", border: "1px solid rgba(255,255,255,.3)", color: "#fff", fontSize: "1rem" }}>×</button>
+          <button onClick={onClose} aria-label="Close" style={{ cursor: "pointer", position: "absolute", top: 10, right: 10, width: 32, height: 32, borderRadius: "50%", background: "rgba(6,14,10,.6)", border: "1px solid rgba(255,255,255,.3)", color: "#fff", fontSize: "1rem", zIndex: 3 }}>×</button>
+          {n > 1 && <>
+            <button onClick={() => step(-1)} aria-label="Previous" style={{ ...arrowBtn, position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", zIndex: 3 }}>‹</button>
+            <button onClick={() => step(1)} aria-label="Next" style={{ ...arrowBtn, position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", zIndex: 3 }}>›</button>
+            <div style={{ position: "absolute", top: 12, left: 14, zIndex: 3, ...micro, fontSize: ".5rem", color: "#fff", background: "rgba(6,14,10,.5)", borderRadius: 999, padding: "3px 8px" }}>{i + 1} / {n}</div>
+          </>}
           <div style={{ position: "absolute", left: 14, right: 14, bottom: 12 }}><div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.3rem", color: "#fff", textShadow: "0 2px 10px rgba(0,0,0,.6)" }}>📍 {pine.place_name || "Adventure"}</div></div>
         </div>
         <div style={{ padding: "12px 14px" }}>

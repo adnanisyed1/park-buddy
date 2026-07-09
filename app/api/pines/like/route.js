@@ -25,7 +25,8 @@ async function userFromToken(request) {
   try { const a = createClient(sbBase(), ANON); const { data, error } = await a.auth.getUser(token); return error ? null : (data && data.user) || null; } catch { return null; }
 }
 async function likeCount(sb, svc, pineId) {
-  try { const r = await fetch(sb + "/rest/v1/pines?id=eq." + pineId + "&select=like_count", { headers: { apikey: svc, Authorization: "Bearer " + svc } }); const d = await r.json().catch(() => []); return (d[0] && d[0].like_count) || 0; } catch { return 0; }
+  // Return null (not a fabricated 0) on failure so the client keeps its known count.
+  try { const r = await fetch(sb + "/rest/v1/pines?id=eq." + pineId + "&select=like_count", { headers: { apikey: svc, Authorization: "Bearer " + svc } }); if (!r.ok) return null; const d = await r.json().catch(() => null); return Array.isArray(d) && d[0] ? (d[0].like_count || 0) : null; } catch { return null; }
 }
 
 export async function GET(request) {
@@ -56,11 +57,10 @@ export async function POST(request) {
   try { const r = await fetch(sb + "/rest/v1/pine_likes?pine_id=eq." + pineId + "&user_id=eq." + user.id + "&select=pine_id", { headers: auth }); const d = await r.json().catch(() => []); liked = Array.isArray(d) && d.length > 0; } catch {}
 
   try {
-    if (liked) {
-      await fetch(sb + "/rest/v1/pine_likes?pine_id=eq." + pineId + "&user_id=eq." + user.id, { method: "DELETE", headers: auth });
-    } else {
-      await fetch(sb + "/rest/v1/pine_likes", { method: "POST", headers: { ...auth, Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({ pine_id: pineId, user_id: user.id }) });
-    }
+    const w = liked
+      ? await fetch(sb + "/rest/v1/pine_likes?pine_id=eq." + pineId + "&user_id=eq." + user.id, { method: "DELETE", headers: auth })
+      : await fetch(sb + "/rest/v1/pine_likes", { method: "POST", headers: { ...auth, Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({ pine_id: pineId, user_id: user.id }) });
+    if (!w.ok) return Response.json({ error: "Couldn't update like." }, { status: 502 });
   } catch { return Response.json({ error: "Couldn't update like." }, { status: 502 }); }
 
   return Response.json({ liked: !liked, like_count: await likeCount(sb, svc, pineId) });

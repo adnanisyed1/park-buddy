@@ -56,22 +56,29 @@ export async function POST(request) {
   const cf_uid = String(b.uid || "").trim();
   if (!cf_uid) return Response.json({ error: "Missing video." }, { status: 400 });
 
-  const lat = num(b.lat), lng = num(b.lng);
+  const inRange = (v, lo, hi) => (v != null && v >= lo && v <= hi ? v : null);
+  const lat = inRange(num(b.lat), -90, 90), lng = inRange(num(b.lng), -180, 180);
+  const dur = Number(b.duration_s);
+  const PT = new Set(["park", "forest", "state_park", "town", "monument", "lake"]);
+  let captured_at = new Date().toISOString();
+  if (b.captured_at) { const d = new Date(b.captured_at); if (!isNaN(d.getTime())) captured_at = d.toISOString(); }
   // Public display coords are snapped to the place (privacy); precise coords stay private.
   // GPS re-verification against the place boundary lands in Phase 1b — for now we record
   // the stamp and leave verified=false (honest: not yet confirmed on-site).
   const row = {
     user_id: user.id,
+    media_type: "video",
     cf_uid,
-    place_type: String(b.place_type || "").slice(0, 20),
+    place_type: PT.has(String(b.place_type)) ? String(b.place_type) : "park",
     place_id: String(b.place_id || "").slice(0, 60),
     place_name: String(b.place_name || "").slice(0, 120),
-    caption: String(b.caption || "").slice(0, 300),
-    duration_s: Number.isFinite(b.duration_s) ? Math.min(120, Math.max(0, parseInt(b.duration_s, 10))) : null,
-    lat, lng, accuracy_m: num(b.accuracy_m),
-    captured_at: b.captured_at || new Date().toISOString(),
+    caption: (String(b.caption || "").trim() || "Adventure").slice(0, 300),
+    duration_s: Number.isFinite(dur) ? Math.min(120, Math.max(0, Math.round(dur))) : null,
+    lat, lng, accuracy_m: inRange(num(b.accuracy_m), 0, 1e7),
+    location_source: b.location_source === "photo" ? "photo" : "manual",
+    captured_at,
     verified: false,
-    ...playbackUrls(cf_uid), // poster/hls/iframe (usable once encoding completes)
+    ...playbackUrls(cf_uid), // poster_url/hls_url/iframe_url (usable once encoding completes)
     status: "processing",
   };
 
@@ -115,12 +122,16 @@ export async function GET(request) {
   }
   if (place && place.includes(":")) {
     const [pt, pid] = place.split(":");
-    q += "&place_type=eq." + encodeURIComponent(pt) + "&place_id=eq." + encodeURIComponent(pid);
+    // Validate charset so nothing structural reaches the PostgREST filter.
+    if (/^[a-z0-9_-]{1,20}$/i.test(pt) && /^[a-z0-9_-]{1,60}$/i.test(pid)) {
+      q += "&place_type=eq." + encodeURIComponent(pt) + "&place_id=eq." + encodeURIComponent(pid);
+    }
   }
   // Loose match by place name (compose stores the typed name; GPS→park id linkage
-  // is a later step) — lets park pages surface their Pines today.
+  // is a later step) — lets park pages surface their Pines today. Strip PostgREST
+  // pattern metacharacters (*,%,_) and cap length so the ilike can't be abused.
   const placeName = url.searchParams.get("place_name");
-  if (placeName) q += "&place_name=ilike.*" + encodeURIComponent(placeName) + "*";
+  if (placeName) q += "&place_name=ilike.*" + encodeURIComponent(placeName.slice(0, 120).replace(/[*%_,()]/g, " ")) + "*";
 
   try {
     const r = await fetch(q, { headers: { apikey: svc, Authorization: "Bearer " + svc } });

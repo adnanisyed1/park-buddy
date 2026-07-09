@@ -30,11 +30,13 @@ export async function createDirectUpload({ maxDurationSeconds = 60, creator } = 
 }
 
 // Playback + poster URLs for a ready clip. Cloudflare serves these on its own CDN.
+// Keys match the `pines` columns (hls_url/iframe_url/poster_url) so the row insert
+// and webhook PATCH write to real columns — a mismatch here 400s every video Pine.
 export function playbackUrls(uid) {
   return {
-    hls: "https://videodelivery.net/" + uid + "/manifest/video.m3u8",
-    iframe: "https://iframe.videodelivery.net/" + uid,
-    poster: "https://videodelivery.net/" + uid + "/thumbnails/thumbnail.jpg?time=1s&height=1200",
+    hls_url: "https://videodelivery.net/" + uid + "/manifest/video.m3u8",
+    iframe_url: "https://iframe.videodelivery.net/" + uid,
+    poster_url: "https://videodelivery.net/" + uid + "/thumbnails/thumbnail.jpg?time=1s&height=1200",
   };
 }
 

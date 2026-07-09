@@ -18,7 +18,7 @@ export async function POST(request) {
 
   let body; try { body = await request.json(); } catch { return err("Bad request."); }
   const email = String(body.email || "").trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err("Enter a valid email address.");
+  if (email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err("Enter a valid email address.");
 
   try {
     const r = await fetch(sb + "/rest/v1/pines_waitlist?on_conflict=email", {

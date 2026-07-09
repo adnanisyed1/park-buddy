@@ -6,8 +6,12 @@
 // clear the moderation queue.
 //   Body: { id: <pine id>, action: "approve" | "reject" }
 import { fbConfigured, postToPage, pinePostText } from "../../../lib/facebook";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
+
+// Constant-time secret compare (avoids leaking the admin secret via timing).
+function safeEq(a, b) { const A = Buffer.from(String(a || "")); const B = Buffer.from(String(b || "")); return A.length === B.length && crypto.timingSafeEqual(A, B); }
 
 function sbBase() { return (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, ""); }
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://park-buddy-gamma.vercel.app";
@@ -15,7 +19,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://park-buddy-gamma.verce
 export async function POST(request) {
   const sb = sbBase(), svc = process.env.SUPABASE_SERVICE_KEY, secret = process.env.PINES_ADMIN_SECRET;
   if (!sb || !svc || !secret) return Response.json({ error: "Moderation isn't configured." }, { status: 503 });
-  if ((request.headers.get("x-admin-secret") || "") !== secret) return Response.json({ error: "Not authorized." }, { status: 401 });
+  if (!safeEq(request.headers.get("x-admin-secret"), secret)) return Response.json({ error: "Not authorized." }, { status: 401 });
 
   let b; try { b = await request.json(); } catch { return Response.json({ error: "Bad request." }, { status: 400 }); }
   const id = parseInt(b.id, 10);
@@ -25,12 +29,13 @@ export async function POST(request) {
   const auth = { apikey: svc, Authorization: "Bearer " + svc };
 
   // Load the pine (need its fields to compose the FB post).
-  let pine;
+  let pine, backendErr = false;
   try {
     const r = await fetch(sb + "/rest/v1/pines?id=eq." + id + "&select=id,place_name,place_type,place_id,caption,image_url,poster_url,status", { headers: auth });
-    const rows = await r.json().catch(() => []);
-    pine = Array.isArray(rows) && rows[0];
-  } catch {}
+    if (!r.ok) backendErr = true;
+    else { const rows = await r.json().catch(() => []); pine = Array.isArray(rows) && rows[0]; }
+  } catch { backendErr = true; }
+  if (backendErr) return Response.json({ error: "Couldn't reach the backend." }, { status: 502 });
   if (!pine) return Response.json({ error: "Pine not found." }, { status: 404 });
 
   // Flip status.

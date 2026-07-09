@@ -34,19 +34,32 @@ function loadScriptOnce(src) {
 }
 
 // Downscale to <=1440px longest edge → JPEG data URL (also strips EXIF for privacy;
-// we've already pulled the GPS we need before this).
+// we've already pulled the GPS we need before this). Guards: revokes the object URL,
+// clamps to the iOS canvas-area cap so toDataURL can't silently return a blank image,
+// and null-checks the 2D context.
 function downscale(file, max = 1440, quality = 0.85) {
   return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const scale = Math.min(1, max / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
-      const c = document.createElement("canvas"); c.width = w; c.height = h;
-      c.getContext("2d").drawImage(img, 0, 0, w, h);
-      resolve(c.toDataURL("image/jpeg", quality));
+      URL.revokeObjectURL(url);
+      try {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        let w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const MAXPX = 16000000; // iOS Safari canvas area cap (~16.7 MP) — beyond it toDataURL blanks
+        if (w * h > MAXPX) { const f = Math.sqrt(MAXPX / (w * h)); w = Math.round(w * f); h = Math.round(h * f); }
+        if (!w || !h) return reject(new Error("bad-dimensions"));
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        const ctx = c.getContext("2d");
+        if (!ctx) return reject(new Error("no-canvas"));
+        ctx.drawImage(img, 0, 0, w, h);
+        const out = c.toDataURL("image/jpeg", quality);
+        if (!out || out.length < 200) return reject(new Error("empty-encode"));
+        resolve(out);
+      } catch (e) { reject(e); }
     };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode")); };
+    img.src = url;
   });
 }
 
@@ -63,6 +76,13 @@ export default function PinesCompose({ open, onClose, onPosted }) {
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
   const fileRef = useRef(null);
+  const alive = useRef(true); // guards setState after the modal unmounts (close === unmount here)
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+
+  const reset = () => { setDataUrl(""); setGps(null); setCapturedAt(""); setPlace(null); setDetected(false); setQuery(""); setCaption(""); setErr(""); setDone(false); setBusy(false); };
+  const close = () => { reset(); onClose(); };
+  // Escape closes the dialog (only while open + not mid-upload).
+  useEffect(() => { const onKey = (e) => { if (e.key === "Escape" && open && !busy) close(); }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }); // eslint-disable-line
 
   // Load the real place list once (parks + national forests).
   useEffect(() => {
@@ -105,46 +125,62 @@ export default function PinesCompose({ open, onClose, onPosted }) {
 
   if (!open) return null;
 
-  const reset = () => { setDataUrl(""); setGps(null); setCapturedAt(""); setPlace(null); setDetected(false); setQuery(""); setCaption(""); setErr(""); setDone(false); setBusy(false); };
-  const close = () => { reset(); onClose(); };
-
   const pick = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    setErr(""); setPlace(null); setDetected(false); setGps(null);
+    setErr(""); setPlace(null); setDetected(false); setGps(null); setDataUrl("");
+    if (!/^image\//i.test(file.type || "")) { setErr("That's not an image — choose a photo (JPG, PNG or HEIC)."); return; }
+    if (file.size > 25 * 1024 * 1024) { setErr("That photo is over 25 MB — pick a smaller one."); return; }
     try {
       const [g, meta] = await Promise.all([
         exifr.gps(file).catch(() => null),
         exifr.parse(file, ["DateTimeOriginal"]).catch(() => null),
       ]);
+      if (!alive.current) return;
       if (g && isFinite(g.latitude) && isFinite(g.longitude)) setGps({ lat: g.latitude, lng: g.longitude });
       if (meta && meta.DateTimeOriginal) { try { setCapturedAt(new Date(meta.DateTimeOriginal).toISOString()); } catch {} }
-      setDataUrl(await downscale(file));
-    } catch { setErr("Couldn't read that image — try another."); }
+      const url = await downscale(file);
+      if (!alive.current) return;
+      setDataUrl(url);
+    } catch (e2) {
+      if (!alive.current) return;
+      setErr(/decode/.test(String((e2 && e2.message) || "")) ? "Couldn't read that image — if it's an iPhone HEIC, try a screenshot or a JPG." : "Couldn't process that image — try another.");
+    }
   };
 
   const submit = async () => {
     setErr("");
     if (!dataUrl) { setErr("Add a photo first."); return; }
     if (!place) { setErr("Select the location for this Adventure."); return; }
+    const lat = gps ? gps.lat : place.lat, lng = gps ? gps.lng : place.lng;
+    if (!place.id || lat == null || lng == null) { setErr("That place is missing coordinates — pick another."); return; }
     setBusy(true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 45000);
     try {
       const t = await getAccessToken();
-      if (!t) { setErr("Sign in to post."); setBusy(false); return; }
+      if (!t) { if (alive.current) { setErr("Sign in to post."); setBusy(false); } return; }
       const body = {
         imageBase64: dataUrl,
-        caption: caption.trim() || "Adventure",
+        caption: caption.trim().slice(0, 300) || "Adventure",
         place_type: place.type, place_id: place.id, place_name: place.name,
         location_source: gps && detected ? "photo" : "manual",
         captured_at: capturedAt || undefined,
-        lat: gps ? gps.lat : place.lat, lng: gps ? gps.lng : place.lng,
+        lat, lng,
       };
-      const r = await fetch("/api/pines/photo", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch("/api/pines/photo", { method: "POST", signal: ctrl.signal, headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
+      if (!alive.current) return;
       if (r.ok) { setDone(true); if (onPosted) onPosted(); }
-      else setErr(d.error || "Couldn't post your Pine.");
-    } catch { setErr("Couldn't post your Pine."); }
-    setBusy(false);
+      else if (r.status === 401) setErr("Your session expired — sign in again to post.");
+      else setErr(d.error || "Couldn't post your Pine. Try again.");
+    } catch (e3) {
+      if (!alive.current) return;
+      setErr(e3 && e3.name === "AbortError" ? "That took too long — check your connection and try again." : "Couldn't reach the server — check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+      if (alive.current) setBusy(false);
+    }
   };
 
   const filtered = query.trim()
@@ -154,7 +190,7 @@ export default function PinesCompose({ open, onClose, onPosted }) {
   return createPortal(
     <div onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
       style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(4,7,5,.72)", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "clamp(16px,6vh,80px) 16px", overflowY: "auto", fontFamily: "var(--pb-sans)" }}>
-      <div style={{ width: "100%", maxWidth: 420, background: "var(--pb-bg)", border: "1px solid var(--pb-line-strong)", borderRadius: 16, boxShadow: "var(--pb-shadow)", padding: "clamp(20px,4vw,26px)", position: "relative" }}>
+      <div role="dialog" aria-modal="true" aria-label="Post a Pine" style={{ width: "100%", maxWidth: 420, background: "var(--pb-bg)", border: "1px solid var(--pb-line-strong)", borderRadius: 16, boxShadow: "var(--pb-shadow)", padding: "clamp(20px,4vw,26px)", position: "relative" }}>
         <button onClick={close} aria-label="Close" style={{ position: "absolute", top: 14, right: 14, cursor: "pointer", width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "transparent", color: "var(--pb-ink-2)", fontSize: "1rem" }}>×</button>
 
         {done ? (
@@ -171,8 +207,8 @@ export default function PinesCompose({ open, onClose, onPosted }) {
 
             <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={pick} style={{ display: "none" }} />
             {dataUrl ? (
-              <button onClick={() => fileRef.current && fileRef.current.click()} style={{ width: "100%", border: "1px solid var(--pb-line)", borderRadius: 12, overflow: "hidden", cursor: "pointer", background: "#000", padding: 0, display: "block" }}>
-                <img src={dataUrl} alt="" style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }} />
+              <button onClick={() => fileRef.current && fileRef.current.click()} aria-label="Change photo" style={{ width: "100%", border: "1px solid var(--pb-line)", borderRadius: 12, overflow: "hidden", cursor: "pointer", background: "#000", padding: 0, display: "block" }}>
+                <img src={dataUrl} alt="Selected photo preview" style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }} />
               </button>
             ) : (
               <button onClick={() => fileRef.current && fileRef.current.click()} style={{ width: "100%", minHeight: 160, border: "1px dashed var(--pb-line-strong)", borderRadius: 12, cursor: "pointer", background: "rgba(255,255,255,.03)", color: "var(--pb-ink-2)", fontFamily: "inherit", fontSize: ".92rem", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
@@ -195,7 +231,7 @@ export default function PinesCompose({ open, onClose, onPosted }) {
                   </div>
                 ) : (
                   <div>
-                    <input style={field} placeholder="Search a park or forest…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+                    <input style={field} placeholder="Search a park or forest…" aria-label="Search for a place to tag" value={query} onChange={(e) => setQuery(e.target.value)} />
                     {query.trim() && (
                       <div style={{ marginTop: 6, maxHeight: 190, overflowY: "auto", border: "1px solid var(--pb-line)", borderRadius: 11, background: "var(--pb-surface)" }}>
                         {filtered.length ? filtered.map((pl) => (
@@ -209,7 +245,7 @@ export default function PinesCompose({ open, onClose, onPosted }) {
                     {gps && <div style={{ ...micro, letterSpacing: ".04em", textTransform: "none", color: "var(--pb-muted)", marginTop: 7 }}>This photo has GPS but isn't near a park we recognize — pick the closest real place.</div>}
                   </div>
                 )}
-                <input style={{ ...field, marginTop: 10 }} placeholder="Caption — Adventure" value={caption} onChange={(e) => setCaption(e.target.value)} />
+                <input style={{ ...field, marginTop: 10 }} placeholder="Caption — Adventure" aria-label="Caption" maxLength={300} value={caption} onChange={(e) => setCaption(e.target.value)} />
               </div>
             )}
 

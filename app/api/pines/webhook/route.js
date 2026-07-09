@@ -29,11 +29,14 @@ export async function POST(request) {
   Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
 
   try {
-    await fetch(sb + "/rest/v1/pines?cf_uid=eq." + encodeURIComponent(uid), {
+    const r = await fetch(sb + "/rest/v1/pines?cf_uid=eq." + encodeURIComponent(uid), {
       method: "PATCH",
       headers: { apikey: svc, Authorization: "Bearer " + svc, "Content-Type": "application/json", Prefer: "return=minimal" },
       body: JSON.stringify(patch),
     });
-  } catch { /* Cloudflare retries on non-2xx; swallow + 200 to avoid storms once written */ }
+    // If the write failed, return non-2xx so Cloudflare retries — otherwise the Pine
+    // would be stuck in 'processing' forever (the webhook is the only thing that advances it).
+    if (!r.ok) return Response.json({ error: "update failed" }, { status: 502 });
+  } catch { return Response.json({ error: "backend unreachable" }, { status: 502 }); }
   return Response.json({ ok: true });
 }

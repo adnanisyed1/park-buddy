@@ -29,7 +29,8 @@ function usePhoto(q) {
   const key = q || "";
   const [url, setUrl] = useState(photoCache[key] || null);
   useEffect(() => {
-    if (!key || photoCache[key] !== undefined && photoCache[key]) { if (photoCache[key]) setUrl(photoCache[key]); return; }
+    if (!key) return;
+    if (photoCache[key] !== undefined) { if (photoCache[key]) setUrl(photoCache[key]); return; } // cached (incl. failed "") — don't refetch
     let on = true;
     fetch("/api/photo?q=" + encodeURIComponent(key) + "&w=900")
       .then((r) => (r.ok ? r.json() : null))
@@ -147,17 +148,27 @@ function Discover({ onPost, user, isWeb }) {
   const [like, setLike] = useState({ liked: false, count: 0 });
   const [commentsOpen, setCommentsOpen] = useState(false);
   useEffect(() => { let on = true; fetch("/api/pines?limit=20").then((r) => r.json()).then((d) => on && setSt({ loading: false, pines: d.pines || [] })).catch(() => on && setSt({ loading: false, pines: [] })); return () => { on = false; }; }, []);
-  const p = st.pines[idx];
-  useEffect(() => { setVerdict(null); if (p && p.display_lat != null && p.display_lng != null) fetchVerdict(p.display_lat, p.display_lng).then(setVerdict); }, [p && p.id]);
+  // Clamp the index if the list shrinks, and never dereference an out-of-range pine.
+  useEffect(() => { setIdx((i) => (st.pines.length && i >= st.pines.length ? 0 : i)); }, [st.pines.length]);
+  const p = st.pines[idx] || st.pines[0];
+  useEffect(() => { let on = true; setVerdict(null); if (p && p.display_lat != null && p.display_lng != null) fetchVerdict(p.display_lat, p.display_lng).then((v) => { if (on) setVerdict(v); }); return () => { on = false; }; }, [p && p.id]);
   // real like state for the active pine
   useEffect(() => {
     if (!p) return; setLike({ liked: false, count: p.like_count || 0 });
     (async () => { try { const t = await getAccessToken(); const r = await fetch("/api/pines/like?pine_id=" + p.id, t ? { headers: { Authorization: "Bearer " + t } } : {}); const d = await r.json().catch(() => ({})); setLike({ liked: !!d.liked, count: d.like_count != null ? d.like_count : (p.like_count || 0) }); } catch {} })();
   }, [p && p.id]);
   const toggleLike = async () => {
-    if (!user) { openAuth(); return; }
-    setLike((l) => ({ liked: !l.liked, count: l.count + (l.liked ? -1 : 1) })); // optimistic
-    try { const t = await getAccessToken(); const r = await fetch("/api/pines/like", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: p.id }) }); const d = await r.json().catch(() => ({})); if (d.like_count != null) setLike({ liked: !!d.liked, count: d.like_count }); } catch {}
+    if (!user || !p) { openAuth(); return; }
+    const prev = like;
+    setLike((l) => ({ liked: !l.liked, count: Math.max(0, l.count + (l.liked ? -1 : 1)) })); // optimistic
+    try {
+      const t = await getAccessToken();
+      if (!t) { setLike(prev); openAuth(); return; } // never send "Bearer null"
+      const r = await fetch("/api/pines/like", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: p.id }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setLike(prev); return; } // roll back on server rejection
+      if (d.like_count != null) setLike({ liked: !!d.liked, count: d.like_count });
+    } catch { setLike(prev); }
   };
 
   // Advance/rewind through the feed — by tap, wheel/trackpad scroll, ↑/↓ keys, or swipe (phone).
@@ -172,10 +183,11 @@ function Discover({ onPost, user, isWeb }) {
   // Touch swipe (vertical) — reels-style up/down on phones. Tracks the drag and
   // flags it so the tap-to-advance overlay doesn't also fire on release.
   const touch = useRef({ y: 0, swiped: false });
-  const onTouchStart = (e) => { touch.current = { y: e.touches[0].clientY, swiped: false }; };
-  const onTouchMove = (e) => { if (Math.abs(e.touches[0].clientY - touch.current.y) > 12) touch.current.swiped = true; };
+  const onTouchStart = (e) => { const t = e.touches && e.touches[0]; if (!t) return; touch.current = { y: t.clientY, swiped: false }; };
+  const onTouchMove = (e) => { const t = e.touches && e.touches[0]; if (t && Math.abs(t.clientY - touch.current.y) > 12) touch.current.swiped = true; };
   const onTouchEnd = (e) => {
-    const dy = e.changedTouches[0].clientY - touch.current.y;
+    const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+    const dy = t.clientY - touch.current.y;
     if (Math.abs(dy) > 42) advance(dy < 0 ? 1 : -1); // swipe up → next
   };
   useEffect(() => {
@@ -207,9 +219,9 @@ function Discover({ onPost, user, isWeb }) {
         </div>
       )}
       <div style={{ position: "absolute", right: 12, bottom: 150, zIndex: 6, display: "flex", flexDirection: "column", gap: 18, alignItems: "center", color: "#fff" }}>
-        <RailBtn label={like.count} onClick={toggleLike} active={like.liked}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></RailBtn>
-        <RailBtn label={p.comment_count || 0} onClick={() => setCommentsOpen(true)}><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z" /></RailBtn>
-        <RailBtn onClick={() => { try { navigator.share ? navigator.share({ title: "Park Buddy Pines", url: location.href }) : navigator.clipboard.writeText(location.href); } catch {} }}><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></RailBtn>
+        <RailBtn aria={like.liked ? "Unlike" : "Like"} label={like.count} onClick={toggleLike} active={like.liked}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></RailBtn>
+        <RailBtn aria="Comments" label={p.comment_count || 0} onClick={() => setCommentsOpen(true)}><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z" /></RailBtn>
+        <RailBtn aria="Share" onClick={() => { try { const u = location.origin + "/pines?pine=" + p.id; navigator.share ? navigator.share({ title: "Park Buddy Pines", url: u }).catch(() => {}) : (navigator.clipboard && navigator.clipboard.writeText(u).catch(() => {})); } catch {} }}><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></RailBtn>
       </div>
       {commentsOpen && <CommentsSheet pine={p} user={user} onClose={() => setCommentsOpen(false)} />}
       <div style={{ position: "absolute", left: 16, right: 70, bottom: 96, zIndex: 6 }}>
@@ -217,18 +229,18 @@ function Discover({ onPost, user, isWeb }) {
           <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "#fff", textShadow: "0 2px 12px rgba(0,0,0,.6)" }}>📍 {p.place_name || "Adventure"}</span>
           {p.verified && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, ...micro, fontSize: ".5rem", color: C.go, border: "1px solid " + C.go + "88", borderRadius: 999, padding: "3px 8px", background: "rgba(6,14,10,.4)" }}>✓ On-site</span>}
         </div>
-        {p.caption && <div style={{ color: "rgba(255,255,255,.94)", fontSize: ".86rem", lineHeight: 1.5, margin: "9px 0 11px", textShadow: "0 1px 8px rgba(0,0,0,.5)" }}>{p.caption}</div>}
+        {p.caption && <div style={{ color: "rgba(255,255,255,.94)", fontSize: ".86rem", lineHeight: 1.5, margin: "9px 0 11px", textShadow: "0 1px 8px rgba(0,0,0,.5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.caption}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/build-trip" style={{ fontSize: ".76rem", fontWeight: 700, background: C.gold, color: "var(--pb-bg)", borderRadius: 999, padding: "8px 14px", textDecoration: "none" }}>＋ Add to trip</Link>
           {p.place_type === "park" && <Link href={"/parks/" + p.place_id} style={{ fontSize: ".76rem", fontWeight: 600, background: "rgba(255,255,255,.14)", color: "#fff", border: "1px solid rgba(255,255,255,.24)", borderRadius: 999, padding: "8px 14px", textDecoration: "none" }}>Conditions</Link>}
         </div>
       </div>
-      {st.pines.length > 1 && <button onClick={() => { if (touch.current.swiped) { touch.current.swiped = false; return; } setIdx((idx + 1) % st.pines.length); }} aria-label="Next" style={{ cursor: "pointer", position: "absolute", left: 0, right: 0, top: 90, bottom: 210, zIndex: 5, background: "transparent", border: "none" }} />}
+      {st.pines.length > 1 && <button onClick={() => { if (touch.current.swiped) { touch.current.swiped = false; return; } setIdx((i) => (i + 1) % st.pines.length); }} aria-label="Next Pine" tabIndex={-1} style={{ cursor: "pointer", position: "absolute", left: 0, right: 0, top: 90, bottom: 210, zIndex: 5, background: "transparent", border: "none" }} />}
     </div>
   );
 }
-function RailBtn({ children, label, onClick, active }) {
-  return <button onClick={onClick} style={{ cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", fontSize: ".6rem", fontWeight: 600 }}><svg viewBox="0 0 24 24" fill={active ? C.like : "none"} stroke={active ? C.like : "#fff"} strokeWidth="2" style={{ width: 26, height: 26, filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}>{children}</svg>{label != null && label !== 0 ? <span>{label}</span> : null}</button>;
+function RailBtn({ children, label, onClick, active, aria }) {
+  return <button onClick={onClick} aria-label={aria} style={{ cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", fontSize: ".6rem", fontWeight: 600 }}><svg viewBox="0 0 24 24" fill={active ? C.like : "none"} stroke={active ? C.like : "#fff"} strokeWidth="2" style={{ width: 26, height: 26, filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}>{children}</svg>{label != null && label !== 0 ? <span>{label}</span> : null}</button>;
 }
 
 function CommentsSheet({ pine, user, onClose }) {
@@ -237,6 +249,7 @@ function CommentsSheet({ pine, user, onClose }) {
   const [busy, setBusy] = useState(false);
   const load = () => fetch("/api/pines/comments?pine_id=" + pine.id).then((r) => r.json()).then((d) => setComments(d.comments || [])).catch(() => setComments([]));
   useEffect(() => { load(); }, [pine.id]); // eslint-disable-line
+  useEffect(() => { const onKey = (e) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [onClose]);
   const post = async () => {
     if (!user) { openAuth(); return; }
     const body = text.trim(); if (!body) return;
@@ -263,7 +276,7 @@ function CommentsSheet({ pine, user, onClose }) {
             ))}
         </div>
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--pb-line)" }}>
-          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && post()} placeholder={user ? "Add a comment…" : "Sign in to comment"} style={{ flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "10px 14px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".88rem", outline: "none" }} />
+          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && post()} maxLength={600} aria-label="Add a comment" placeholder={user ? "Add a comment…" : "Sign in to comment"} style={{ flex: 1, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "10px 14px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".88rem", outline: "none" }} />
           <button onClick={post} disabled={busy} style={{ ...goldBtn(), padding: "10px 18px", flex: "none" }}>Post</button>
         </div>
       </div>
@@ -286,7 +299,7 @@ function Hub({ place, onBack }) {
       <div style={{ position: "relative", height: 170 }}>
         <Photo q={pl.q || pl.name} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg,var(--pb-bg),transparent 65%)" }} />
-        <button onClick={onBack} style={{ cursor: "pointer", position: "absolute", top: 20, left: 14, width: 32, height: 32, borderRadius: "50%", background: "rgba(6,14,10,.5)", border: "1px solid rgba(255,255,255,.3)", color: "#fff", fontSize: "1rem" }}>‹</button>
+        <button onClick={onBack} aria-label="Back to Campfires" style={{ cursor: "pointer", position: "absolute", top: 20, left: 14, width: 32, height: 32, borderRadius: "50%", background: "rgba(6,14,10,.5)", border: "1px solid rgba(255,255,255,.3)", color: "#fff", fontSize: "1rem" }}>‹</button>
       </div>
       <div style={{ padding: "0 15px", marginTop: -40, position: "relative", zIndex: 2 }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
@@ -383,11 +396,10 @@ function Campfire({ openHub }) {
     })();
     return () => { on = false; };
   }, []);
-  const popular = [
-    { name: "Yosemite National Park", id: "yose", q: "Yosemite Valley" }, { name: "Grand Teton National Park", id: "grte", q: "Grand Teton National Park" },
-    { name: "Zion National Park", id: "zion", q: "Zion National Park" }, { name: "Glacier National Park", id: "glac", q: "Glacier National Park (U.S.)" },
-    { name: "Rocky Mountain National Park", id: "romo", q: "Rocky Mountain National Park" }, { name: "Acadia National Park", id: "acad", q: "Acadia National Park" },
-  ];
+  // Popular Campfires derived from the REAL park list so ids stay numeric — the same
+  // scheme /parks/:id resolves and pines are tagged with (avoids 404s + empty hubs).
+  const POPULAR = ["Yosemite", "Grand Teton", "Zion", "Glacier", "Rocky Mountain", "Yellowstone"];
+  const popular = POPULAR.map((nm) => all.find((x) => x.type === "park" && x.name === nm + " National Park")).filter(Boolean);
   const term = q.trim().toLowerCase();
   const results = term ? all.filter((x) => x.name.toLowerCase().includes(term)).slice(0, 40) : null;
   return (
@@ -398,7 +410,7 @@ function Campfire({ openHub }) {
       </div>
       <div style={{ margin: "0 15px", display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "9px 13px" }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="var(--pb-muted)" strokeWidth="2" style={{ width: 15, height: 15, flex: "none" }}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search parks, forests, towns" style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".9rem" }} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={60} aria-label="Search parks, forests, towns" placeholder="Search parks, forests, towns" style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".9rem" }} />
         {q && <button onClick={() => setQ("")} aria-label="Clear search" style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-muted)", fontSize: "1rem", lineHeight: 1 }}>×</button>}
       </div>
       {results ? (
@@ -408,10 +420,10 @@ function Campfire({ openHub }) {
         <>
           {mine && mine.length > 0 && <>
             <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Campfires you follow</div>
-            {mine.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} tag="following" />)}
+            {mine.map((p) => <PlaceRow key={"mine-" + p.id} p={p} onClick={() => openHub(p)} tag="following" />)}
           </>}
           <div style={{ ...micro, color: "var(--pb-gold-soft)", padding: "18px 15px 4px" }}>Popular Campfires</div>
-          {popular.map((p) => <PlaceRow key={p.id} p={p} onClick={() => openHub(p)} />)}
+          {popular.length ? popular.map((p) => <PlaceRow key={"pop-" + p.id} p={p} onClick={() => openHub(p)} />) : <p style={pad()}>Loading places…</p>}
         </>
       )}
       <div style={{ height: 14 }} />
@@ -571,7 +583,7 @@ function Gallery({ onOpen }) {
       {st.loading ? <p style={pad()}>Loading…</p> : !st.pines.length ? <p style={{ ...pad(), color: "var(--pb-ink-2)", lineHeight: 1.6 }}>No Pines yet — once Adventures roll in, every photo and reel shows up here to browse and pick from.</p> : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, padding: "0 3px" }}>
           {st.pines.map((p, i) => (
-            <button key={p.id} onClick={() => onOpen({ pines: st.pines, i })} style={{ cursor: "pointer", position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000", border: "none", padding: 0 }}>
+            <button key={p.id + ":" + i} aria-label={"Open Pine from " + (p.place_name || "a place")} onClick={() => onOpen({ pines: st.pines, i })} style={{ cursor: "pointer", position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000", border: "none", padding: 0 }}>
               {p.image_url || p.poster_url ? <img src={p.image_url || p.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}
               {p.poster_url && <span style={{ position: "absolute", top: 5, right: 5, color: "#fff", fontSize: ".6rem", textShadow: "0 1px 3px rgba(0,0,0,.8)" }}>▶</span>}
             </button>
@@ -663,7 +675,7 @@ function Waitlist() {
   return (
     <>
       <form onSubmit={submit} style={{ display: "flex", flexWrap: "wrap", gap: 8, maxWidth: 380, margin: "0 auto", justifyContent: "center" }}>
-        <input type="email" placeholder="you@email.com" value={email} onChange={(e) => { setEmail(e.target.value); setState(""); }}
+        <input type="email" placeholder="you@email.com" aria-label="Email for Pines early access" maxLength={254} value={email} onChange={(e) => { setEmail(e.target.value); setState(""); }}
           style={{ flex: "1 1 170px", minWidth: 0, background: "rgba(255,255,255,.04)", border: "1px solid " + (state === "error" ? "var(--pb-hold)" : "var(--pb-line-strong)"), borderRadius: 999, padding: "12px 16px", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontSize: ".9rem", outline: "none" }} />
         <button type="submit" disabled={state === "busy"} style={{ ...goldBtn(), padding: "12px 20px", flex: "1 1 auto", whiteSpace: "nowrap" }}>{state === "busy" ? "…" : "Get early access"}</button>
       </form>

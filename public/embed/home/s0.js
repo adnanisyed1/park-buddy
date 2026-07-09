@@ -584,7 +584,7 @@ class Component extends DCLogic {
     {k:'The living verdict',t:'Every park carries a GO, PREPARE or HOLD verdict — a plain read on whether today is the day. It fuses NWS weather, NPS closures, air quality and crowd patterns into one honest call, and it refreshes all day long.',v:'verdict'},
     {k:'63 and counting',t:'From 6,000-acre Gateway Arch to 8-million-acre Wrangell–St. Elias, there are 63 designated national parks. Park Buddy charts every one — plus 900+ trails, 141 scenic byways, 100+ national forests and thousands of lakes between them.',v:'count'},
     {k:'An agent that plans',t:'Ask in plain words and the AI companion reads live conditions across the whole system, then hands back a real itinerary — routed, timed, checklisted, and ready to book through partners.',v:'ai'},
-    {k:'Offline by design',t:'Trail navigation keeps working past the last bar of signal. Routes, waypoints and your live position are cached before you lose the road, so the map never goes dark at the trailhead.',v:'offline'},
+    {k:'Guidance past the last bar',t:'Trail navigation keeps working when signal drops. Your route, waypoints and live position run on GPS alone — loaded before you leave the road — so the guidance never quits, even where the map imagery needs a connection.',v:'offline'},
     {k:'Roads with a rank',t:'Scenic byways carry federal designations for scenery, nature, history, culture and recreation. The rarest — All-American Roads — are destinations in their own right, and Park Buddy tracks whether each is open.',v:'byway'}
   ];
   buildLearn(){

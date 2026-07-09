@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Park Buddy — end card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08130d; --bg2:#0a1712; --ink:#f4f1ea; --muted:#aab0ba;
+    --gold-a:#e8cf9a; --gold-b:#c9a35f; --gold-soft:#d9b779;
+  }
+  *{margin:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% 42%, rgba(217,183,121,.10), transparent 60%),
+      linear-gradient(160deg, var(--bg2), var(--bg) 70%);
+    color:var(--ink); font-family:'Cormorant Garamond',Georgia,serif;
+    display:flex; align-items:center; justify-content:center;
+    height:100vh; overflow:hidden; cursor:pointer;
+  }
+  /* 16:9 stage so it frames cleanly when screen-recorded fullscreen */
+  .stage{ width:min(100vw,177.78vh); aspect-ratio:16/9; position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; }
+
+  .emblem{ width:clamp(56px,7vw,96px); height:auto; opacity:0; transform:translateY(14px) scale(.9);
+    filter:drop-shadow(0 8px 30px rgba(217,183,121,.35)); }
+  .wordmark{ font-weight:600; font-size:clamp(2.6rem,7vw,5.4rem); line-height:1; letter-spacing:.01em;
+    margin-top:clamp(14px,2.4vh,26px); opacity:0; transform:translateY(16px);
+    background:linear-gradient(120deg,var(--gold-a),var(--gold-b)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .motto{ font-family:'Space Mono',monospace; font-size:clamp(.7rem,1.5vw,1.05rem);
+    letter-spacing:.32em; text-transform:uppercase; color:var(--gold-soft);
+    margin-top:clamp(16px,2.6vh,26px); opacity:0; transform:translateY(10px); }
+  .rule{ width:0; height:1px; background:linear-gradient(90deg,transparent,rgba(217,183,121,.6),transparent);
+    margin-top:clamp(16px,2.4vh,24px); }
+  .url{ font-family:'Space Mono',monospace; font-size:clamp(.6rem,1.2vw,.82rem); letter-spacing:.22em;
+    color:var(--muted); margin-top:clamp(14px,2vh,22px); opacity:0; }
+
+  /* sequence */
+  .play .emblem{ animation:rise .9s .2s cubic-bezier(.16,.8,.24,1) forwards; }
+  .play .wordmark{ animation:rise 1s .7s cubic-bezier(.16,.8,.24,1) forwards; }
+  .play .motto{ animation:rise 1s 1.5s cubic-bezier(.16,.8,.24,1) forwards; }
+  .play .rule{ animation:grow 1.1s 1.7s cubic-bezier(.16,.8,.24,1) forwards; }
+  .play .url{ animation:fade 1s 2.3s ease forwards; }
+  @keyframes rise{ to{ opacity:1; transform:translateY(0) scale(1); } }
+  @keyframes grow{ to{ width:min(300px,42%); } }
+  @keyframes fade{ to{ opacity:1; } }
+
+  .hint{ position:fixed; bottom:14px; left:0; right:0; text-align:center;
+    font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.1em; color:rgba(170,176,186,.35); }
+  @media(prefers-reduced-motion:reduce){ .emblem,.wordmark,.motto,.url{opacity:1;transform:none} .rule{width:min(300px,42%)} }
+</style>
+</head>
+<body>
+  <div class="stage play" id="stage">
+    <svg class="emblem" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8cf9a"/><stop offset="1" stop-color="#c9a35f"/></linearGradient></defs><path d="M12 2l5 9h-3l5 9H5l5-9H7z" fill="url(#g)"/><rect x="11" y="18" width="2" height="4" fill="url(#g)"/></svg>
+    <div class="wordmark">Park Buddy</div>
+    <!-- BUDDY LINE — swap this one line for any motto you pick -->
+    <div class="motto">Your buddy in every park</div>
+    <div class="rule"></div>
+    <div class="url">theparkbuddy.com</div>
+  </div>
+  <div class="hint">click / press space to replay</div>
+  <script>
+    // Replay the sequence on click or space — handy for re-recording clean takes.
+    var stage=document.getElementById('stage');
+    function replay(){ stage.classList.remove('play'); void stage.offsetWidth; stage.classList.add('play'); }
+    document.body.addEventListener('click', replay);
+    document.body.addEventListener('keydown', function(e){ if(e.code==='Space'){ e.preventDefault(); replay(); } });
+  </script>
+</body>
+</html>

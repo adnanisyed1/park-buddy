@@ -94,6 +94,41 @@ Seed image: a real on-site park photo.
 6. Keep AI clips tagged in your asset folder as `ai-promo/` so they never get
    mistaken for real feed content.
 
+---
+
+## ⭐ "Ben opens Pines" — promo storyboard (detailed)
+
+Goal: it feels like **Ben is a Park Buddy user who opens Pines**, ending on the
+**Park Buddy emblem + a buddy-line motto**. Runway makes the cinematic outdoor
+shots; the app parts are **screen recordings of the real app** (accurate UI);
+the outro is the built end card (`public/media/endcard.html`).
+
+Target ~30–35s, vertical 9:16 for social (or 16:9 for the site hero — you have a
+16:9 Runway clip already, great for the site version).
+
+| # | ~time | Source | What's on screen | Caption (gold, lower third) |
+|---|---|---|---|---|
+| 1 | 0–4s | **Runway (have it)** | Ben hiking the gravel trail toward the alpine lake, golden hour | *"Meet Ben."* |
+| 2 | 4–7s | Runway (Shot 2) | Ben reaches the lakeshore, raises his phone | *"He found something worth sharing."* |
+| 3 | 7–14s | **Screen recording** | Cut to the phone: he opens **Pines**, the feed reel plays, he posts his Bear Lake clip | *"So he opened Pines."* → *"Filmed on-site. GPS-verified."* |
+| 4 | 14–20s | **Screen recording** | **Campfire** — Ben warns about the bear; replies come in | *"His Campfire had his back."* |
+| 5 | 20–26s | Runway (Shot 4/5) | Ben at the overlook at dusk, smiling at his phone | *"Real people. Real trails."* |
+| 6 | 26–33s | **End card** (`endcard.html`) | Emblem → Park Buddy → motto → theparkbuddy.com | — |
+
+**Production notes**
+- Record the app parts at 9:16 (phone) or use the animated phone demo on the
+  landing as a stand-in while the real app screens are being built.
+- Keep music soft; let the end card's motto land in silence or on a final chord.
+- The end card is 16:9; for a 9:16 cut, open it in a portrait browser window —
+  the stage recenters. Or tell me and I'll add a `?ratio=9x16` variant.
+
+### Buddy-line mottos (pick one — swap the single `.motto` line in endcard.html)
+1. **Your buddy in every park.** ← current default
+2. Never hit the trail alone.
+3. Every park. One buddy.
+4. Adventure's better with a buddy.
+5. Find your park. Bring a buddy.
+
 ## Legal / honesty checklist
 
 - [ ] Clip is promotional, not presented as a live/real condition read.

@@ -211,10 +211,14 @@
                   <span style="margin-left:auto;font-size:.6rem;font-weight:700;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:999px;padding:5px 11px">Follow</span>
                 </div>
                 <div style="position:relative;margin-top:9px;border-radius:14px;overflow:hidden;height:150px;background:linear-gradient(170deg,#1b3d5c 0%,#2f6b7a 42%,#7a9a5f 100%)">
-                  <svg viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="235" cy="42" r="18" fill="#f4dca0" opacity=".85"/><path d="M0 150 L60 96 L104 132 L150 74 L196 128 L246 88 L300 138 L300 200 L0 200 Z" fill="#16321f" opacity=".92"/><path d="M0 170 L46 138 L92 166 L140 120 L188 160 L236 128 L300 164 L300 200 L0 200 Z" fill="#0e2016"/></svg>
+                  <svg class="pb-reel" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="235" cy="42" r="18" fill="#f4dca0" opacity=".85"/><path d="M0 150 L60 96 L104 132 L150 74 L196 128 L246 88 L300 138 L300 200 L0 200 Z" fill="#16321f" opacity=".92"/><path d="M0 170 L46 138 L92 166 L140 120 L188 160 L236 128 L300 164 L300 200 L0 200 Z" fill="#0e2016"/></svg>
                   <span style="position:absolute;top:8px;left:8px;font-family:'Space Mono',monospace;font-size:.52rem;color:#fff;background:rgba(8,19,13,.72);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px 8px">📍 Bear Lake · RMNP</span>
                   <span style="position:absolute;top:8px;right:8px;font-family:'Space Mono',monospace;font-size:.52rem;font-weight:700;color:#0b1710;background:#4fd98a;border-radius:999px;padding:3px 8px">GO · 62°</span>
-                  <span style="position:absolute;bottom:8px;left:8px;font-family:'Space Mono',monospace;font-size:.5rem;color:#4fd98a;background:rgba(8,19,13,.72);border:1px solid rgba(79,217,138,.4);border-radius:999px;padding:3px 8px">◉ On-site ✓</span>
+                  <!-- reel affordances: soft play glyph + duration + on-site + scrubber -->
+                  <span class="pb-playpulse" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:rgba(8,19,13,.5);border:1px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.8rem;padding-left:2px">▶</span>
+                  <span style="position:absolute;bottom:11px;left:8px;font-family:'Space Mono',monospace;font-size:.5rem;color:#4fd98a;background:rgba(8,19,13,.72);border:1px solid rgba(79,217,138,.4);border-radius:999px;padding:3px 8px">◉ On-site ✓</span>
+                  <span style="position:absolute;bottom:11px;right:8px;font-family:'Space Mono',monospace;font-size:.5rem;color:#fff;background:rgba(8,19,13,.6);border-radius:999px;padding:3px 8px">🔊 0:14</span>
+                  <span style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.22)"><span class="pb-scrub" style="display:block;height:100%;width:5%;background:#fff"></span></span>
                 </div>
                 <p style="font-size:.78rem;color:#e7e3d8;line-height:1.5;margin-top:8px">Golden hour at Bear Lake 🌄 Glass-calm water, zero wind. Beat the crowd — be at the trailhead by 7.</p>
                 <div style="display:flex;align-items:center;gap:16px;margin-top:8px;font-size:.76rem;color:#aab0ba">
@@ -249,6 +253,8 @@
                 <div style="font-family:'Space Mono',monospace;font-size:.5rem;letter-spacing:.18em;text-transform:uppercase;color:#7f8a82">New Pine · on-site only</div>
                 <div style="position:relative;margin-top:10px;border-radius:14px;overflow:hidden;height:118px;background:linear-gradient(170deg,#1b3d5c,#7a9a5f)">
                   <svg viewBox="0 0 300 160" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%"><circle cx="235" cy="36" r="15" fill="#f4dca0" opacity=".85"/><path d="M0 120 L60 78 L104 106 L150 60 L196 102 L246 72 L300 110 L300 160 L0 160 Z" fill="#16321f" opacity=".92"/><path d="M0 138 L46 112 L92 134 L140 96 L188 128 L236 104 L300 132 L300 160 L0 160 Z" fill="#0e2016"/></svg>
+                  <span class="pb-playpulse" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;background:rgba(8,19,13,.5);border:1px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;padding-left:2px">▶</span>
+                  <span style="position:absolute;bottom:7px;right:7px;font-family:'Space Mono',monospace;font-size:.48rem;color:#fff;background:rgba(8,19,13,.6);border-radius:999px;padding:2px 7px">0:14 clip</span>
                 </div>
                 <div style="margin-top:10px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.16);border-radius:11px;padding:9px 11px">
                   <span style="font-size:.8rem">📍</span><b style="font-size:.75rem;color:#f4f1ea">Bear Lake · RMNP</b>
@@ -287,7 +293,7 @@
                 </div>
                 <div style="font-family:'Space Mono',monospace;font-size:.48rem;letter-spacing:.14em;text-transform:uppercase;color:#7f8a82;margin:13px 0 7px">My Pines</div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
-                  <span style="aspect-ratio:1;border-radius:9px;background:linear-gradient(160deg,#2f6b7a,#16321f)"></span>
+                  <span style="position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;background:linear-gradient(160deg,#2f6b7a,#16321f);display:flex;align-items:center;justify-content:center"><span style="width:20px;height:20px;border-radius:50%;background:rgba(8,19,13,.5);border:1px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.5rem;padding-left:1px">▶</span></span>
                   <span style="aspect-ratio:1;border-radius:9px;background:rgba(255,255,255,.04);border:1px dashed rgba(217,183,121,.25);display:flex;align-items:center;justify-content:center;color:#7f8a82;font-size:1rem">＋</span>
                   <span style="aspect-ratio:1;border-radius:9px;background:rgba(255,255,255,.04);border:1px dashed rgba(217,183,121,.25);display:flex;align-items:center;justify-content:center;color:#7f8a82;font-size:1rem">＋</span>
                 </div>
@@ -301,7 +307,7 @@
             </div>
           </div>
         </div>
-        <div style="text-align:center;font-family:'Space Mono',monospace;font-size:.52rem;letter-spacing:.06em;color:#6f7a72;margin-top:12px">A peek at how it works — real Pines are posted on-site.</div>
+        <div style="text-align:center;font-family:'Space Mono',monospace;font-size:.52rem;letter-spacing:.06em;color:#6f7a72;margin-top:12px">A peek at how it works — real Pines are captured on-site.</div>
       </div>
     </div>
   </section>

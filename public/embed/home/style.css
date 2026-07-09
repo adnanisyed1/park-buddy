@@ -19,5 +19,12 @@ body{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased
 .pb-back{transform:rotateY(180deg)}
 .pb-chip{cursor:pointer;transition:all .5s cubic-bezier(.16,.8,.24,1)}
 .pb-mag{transition:transform .4s cubic-bezier(.16,.8,.24,1)}
+/* Pines demo reel: Ken-Burns motion + a playing scrubber so the Feed reads as video */
+.pb-reel{animation:pb-kenburns 11s ease-in-out infinite alternate;transform-origin:60% 40%}
+@keyframes pb-kenburns{from{transform:scale(1.03)}to{transform:scale(1.16) translate(-3%,-3%)}}
+.pb-scrub{animation:pb-scrubfill 9s linear infinite}
+@keyframes pb-scrubfill{from{width:5%}to{width:100%}}
+.pb-playpulse{animation:pb-playpulse 2.6s ease-in-out infinite}
+@keyframes pb-playpulse{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:.4;transform:scale(1.1)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.001s!important}.pb-rise{opacity:1;transform:none}}
 html,body{margin:0;padding:0}

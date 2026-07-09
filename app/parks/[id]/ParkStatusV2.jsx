@@ -240,7 +240,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
               <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(2.4rem,5vw,3.4rem)", lineHeight: 1, color: vColor }}>{verdict ? (verdict.word || bucket.toUpperCase()) : "…"}</span>
               <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.4rem", color: "#e7e3d8" }}>{VHEAD[bucket]}</span>
             </div>
-            <p style={{ fontSize: ".96rem", color: "#d3d8d1", lineHeight: 1.5, marginTop: 6 }}>{verdict ? verdict.sub : "Reading today's conditions from the National Weather Service…"}</p>
+            <p style={{ fontSize: ".96rem", color: "#d3d8d1", lineHeight: 1.5, marginTop: 6 }}>{verdict ? verdict.sub : "Let me read today's conditions from the National Weather Service…"}</p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
               {temp != null && <span style={chip()}>☀ {temp}°F {verdict.sky || ""}</span>}
               {verdict && typeof verdict.wind === "number" ? <span style={chip()}>🌬 {Math.round(verdict.wind)} mph</span> : null}
@@ -266,10 +266,10 @@ export default function ParkStatusV2({ id, kind = "park" }) {
 
       {/* STICKY TABS */}
       <div id="ps-tabnav" style={{ position: "sticky", top: 56, zIndex: 50, background: "rgba(10,23,18,.85)", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", borderBottom: "1px solid var(--pb-line)", marginTop: 14 }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, padding: "0 clamp(16px,4vw,40px)", overflowX: "auto" }}>
+        <div role="tablist" aria-label="Park sections" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, padding: "0 clamp(16px,4vw,40px)", overflowX: "auto" }}>
           {TABS.map(([k, label]) => {
             const on = tab === k;
-            return <button key={k} onClick={() => { setTab(k); scrollToTabs(); }} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".84rem", fontWeight: 600, color: on ? "#f4f1ea" : "#8a938b", background: "transparent", border: "none", borderBottom: "2px solid " + (on ? "#e8cf9a" : "transparent"), padding: "15px 16px", whiteSpace: "nowrap" }}>{label}</button>;
+            return <button key={k} role="tab" aria-selected={on} onClick={() => { setTab(k); scrollToTabs(); }} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".84rem", fontWeight: 600, color: on ? "#f4f1ea" : "#8a938b", background: "transparent", border: "none", borderBottom: "2px solid " + (on ? "#e8cf9a" : "transparent"), padding: "15px 16px", whiteSpace: "nowrap" }}>{label}</button>;
           })}
         </div>
       </div>
@@ -364,7 +364,7 @@ function Overview({ park, nps, isForest }) {
         <div>
           <h2 style={{ ...H2, fontSize: "clamp(1.6rem,3.4vw,2.3rem)" }}>{isForest ? "About the forest" : "About the park"}</h2>
           <p style={{ color: "var(--pb-ink-2)", fontSize: "1rem", lineHeight: 1.75, fontWeight: 300, marginTop: 12 }}>
-            {p && p.description ? p.description : isForest ? forestAbout : "Loading park overview from NPS.gov…"}
+            {p && p.description ? p.description : isForest ? forestAbout : "Pulling this park's story from NPS.gov…"}
           </p>
           {p && (p.activities || []).length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18 }}>
@@ -401,13 +401,15 @@ function Overview({ park, nps, isForest }) {
 
 /* ---------------- CONDITIONS ---------------- */
 function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alertsRef, isForest }) {
+  const [now, setNow] = useState(null); // client-only clock — avoids SSR/hydration drift on sun/moon
+  useEffect(() => { setNow(new Date()); }, []);
   const alerts = (cond && cond.weatherAlerts) || [];
   const fires = (cond && cond.wildfires) || [];
   const aqi = cond && cond.airQuality;
   const floodWatch = alerts.find((a) => /flood/i.test(a.event || ""));
   const gauge = river && river.found ? river.gauge : null;
-  const sun = park ? getSunTimes(new Date(), park.lat, park.lng) : null;
-  const moon = getMoon(new Date());
+  const sun = (park && now) ? getSunTimes(now, park.lat, park.lng) : null;
+  const moon = now ? getMoon(now) : null;
   const roadText = road && (road.summary || road.status || (road.roads && road.roads[0] && road.roads[0].status));
   return (
     <>
@@ -467,7 +469,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
               </div>
             ))}
           </div>
-        ) : <Loading text="Loading hourly forecast from weather.gov…" />}
+        ) : <Loading text="Grabbing the next hours from weather.gov…" />}
       </div>
 
       {/* 7-day */}
@@ -494,8 +496,8 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
           <Row k="☀ Sunrise" v={fmtTime(sun && sun.sunrise, tz)} />
           <Row k="🌇 Sunset" v={fmtTime(sun && sun.sunset, tz)} />
           <Row k="📸 Golden hour" v={fmtTime(sun && sun.goldenHour, tz)} />
-          <Row k="🌙 Moon" v={moon.name + " · " + Math.round(moon.fraction * 100) + "%"} />
-          {moon.fraction < 0.35 && <div style={{ marginTop: 12, background: "rgba(90,134,201,.1)", border: "1px solid rgba(90,134,201,.3)", borderRadius: 10, padding: "9px 11px", fontSize: ".78rem", color: "#a9c2e0" }}>🔭 Dark-sky night — great for stargazing.</div>}
+          <Row k="🌙 Moon" v={moon ? moon.name + " · " + Math.round(moon.fraction * 100) + "%" : "…"} />
+          {moon && moon.fraction < 0.35 && <div style={{ marginTop: 12, background: "rgba(90,134,201,.1)", border: "1px solid rgba(90,134,201,.3)", borderRadius: 10, padding: "9px 11px", fontSize: ".78rem", color: "#a9c2e0" }}>🔭 Dark-sky night — great for stargazing.</div>}
         </div>
         <div style={card}>
           <div style={microLabel}>{gauge ? gauge.name + " · USGS" : "River flow · USGS"}</div>
@@ -698,10 +700,10 @@ function CompactCamp({ c, park, recId }) {
   }, [recId]);
   const soon = avail && avail.soonest ? new Date(avail.soonest.date + "T00:00:00Z").toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }) : null;
   const open = avail && avail.openDayCount > 0;
-  const summary = avail === undefined ? "Checking availability…"
-    : !avail ? "Availability on Recreation.gov"
+  const summary = avail === undefined ? "Checking the calendar…"
+    : !avail ? "Check dates on Recreation.gov"
     : avail.total === 0 ? "No bookable sites this month"
-    : open ? "Up to " + (avail.peakOpen || 0) + " of " + avail.total + " open" + (soon ? " · soonest " + soon : "")
+    : open ? ((avail.peakOpen ? "Up to " + avail.peakOpen + " of " + avail.total + " open" : "Open nights this month") + (soon ? " · soonest " + soon : ""))
     : "No open nights this month";
   return (
     <div style={{ ...card, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>

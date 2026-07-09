@@ -142,7 +142,7 @@ UI capture. Carried by music, mostly wordless.
 1. **Arrival** (0–7s) — Ben hikes toward the ridge, golden hour. Music: solo guitar/piano, sparse.
 2. **The moment** (7–15s) — he stops; cut to what he sees (bear across the meadow / vista). Let natural sound breathe, music begins to swell.
 3. **The capture** (15–22s) — low / over-the-shoulder of Ben **raising his phone to film the real scene** (show the gesture, never the screen). Text: *"Capture the moment."*
-4. **The share** (22–30s) — cut to the **designed beat** → `public/media/pines-post-card.html` (screen-record ~7s): his clip, tagged 📍 Bear Lake · GO 62° · On-site, lifting into 🔥 Rocky Mountain Campfire with hearts floating up. *This replaces the screen recording.*
+4. **He posts it** (22–31s) — cut to the **designed upload beat** → `public/media/pines-upload-card.html` (screen-record ~8s): his clip tagged 📍 Bear Lake · ◉ Verified on-site + caption, then **Post Pine ↑ → Uploading… → ✓ Posted → 🔥 Live in Rocky Mountain Campfire.** This is the actual "Ben uploads the Pine" moment — replaces the screen recording. *(A shorter alt that skips the upload progress lives in `pines-post-card.html`.)*
 5. **The community** (30–40s) — the Campfire *feeling*. If you can shoot real people (hikers at a trailhead, faces in golden light), use that. Otherwise use the **designed community beat** → `public/media/pines-community-card.html` (screen-record ~7s): a warm fire glow, messages gathering, resolving on "Find your people." Music peaks here.
 6. **Resolve** (40–48s) — the hero ridge shot → the **end card** (`endcard.html`). Music lands warm.
 

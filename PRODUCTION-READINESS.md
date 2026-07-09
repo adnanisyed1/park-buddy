@@ -133,6 +133,14 @@ Everything below is the full detail, by track.
 - **Domain:** attach `theparkbuddy.com` in Vercel.
 - **Abuse:** create an hCaptcha/Turnstile account (site + secret keys) for the public forms.
 
+## J. Brand & IP (logo / trademark)  — *general info, not legal advice*
+
+- **The tree logo is safe to use.** It's an original, hand-drawn inline SVG (simple pine + trunk), not copied from an icon library or another brand — confirmed in code. Simple tree motifs aren't anyone's exclusive property, and an original mark is yours.
+- **[P1] Clear the NAME before scaling.** The real risk is trademark confusion on **"Park Buddy"**, not the tree. Run a free **USPTO search** ([tmsearch.uspto.gov]) for "Park Buddy" + close variants in the relevant classes: **9 (apps/software), 39 (travel/trip services), 42 (SaaS)**. Do this *before* paying to file.
+- **[P1] Avoid official insignia.** Don't use or evoke the **NPS arrowhead** or other government/park-agency marks; keep the "not affiliated with NPS" disclaimer (now in /terms + /attributions).
+- **[P2] Register when there's traction.** Registration is what makes it *"the emblem just for us"* (lets you stop others). Cost ballpark (US, verify current fees): **DIY ~$250–$350 gov fee/class**, **filing service ~$400–$800/class**, **attorney ~$1,000–$2,000+/class** (worth it for office actions). ~8–12 months to the ® ; you may use ™ now for free.
+- **[P2] Lock ONE name.** The app still mixes "Park Buddy" and "ParkBuddy" in a few places — pick one (I unified the metadata to "Park Buddy") and use it consistently across brand, domain, and any filing.
+
 ## ❓ Open questions for you
 
 1. **"The emblem just for us"** — did you mean a proper **logo / brand mark (+ trademark)**, an **official/verified badge**, or a **favicon/app icon**? This also ties to the P2 brand-name inconsistency (Park Buddy vs ParkBuddy) — worth locking one name + mark before launch.

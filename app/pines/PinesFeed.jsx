@@ -160,7 +160,7 @@ function Discover({ onPost, user, isWeb }) {
     try { const t = await getAccessToken(); const r = await fetch("/api/pines/like", { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify({ pine_id: p.id }) }); const d = await r.json().catch(() => ({})); if (d.like_count != null) setLike({ liked: !!d.liked, count: d.like_count }); } catch {}
   };
 
-  // Advance/rewind through the feed — by tap, wheel/trackpad scroll, or ↑/↓ keys.
+  // Advance/rewind through the feed — by tap, wheel/trackpad scroll, ↑/↓ keys, or swipe (phone).
   const n = st.pines.length;
   const advance = (dir) => { if (n < 2) return; setIdx((i) => (i + dir + n) % n); };
   const wheelLock = useRef(false);
@@ -168,6 +168,15 @@ function Discover({ onPost, user, isWeb }) {
     if (Math.abs(e.deltaY) < 24 || wheelLock.current) return;
     wheelLock.current = true; advance(e.deltaY > 0 ? 1 : -1);
     setTimeout(() => { wheelLock.current = false; }, 520);
+  };
+  // Touch swipe (vertical) — reels-style up/down on phones. Tracks the drag and
+  // flags it so the tap-to-advance overlay doesn't also fire on release.
+  const touch = useRef({ y: 0, swiped: false });
+  const onTouchStart = (e) => { touch.current = { y: e.touches[0].clientY, swiped: false }; };
+  const onTouchMove = (e) => { if (Math.abs(e.touches[0].clientY - touch.current.y) > 12) touch.current.swiped = true; };
+  const onTouchEnd = (e) => {
+    const dy = e.changedTouches[0].clientY - touch.current.y;
+    if (Math.abs(dy) > 42) advance(dy < 0 ? 1 : -1); // swipe up → next
   };
   useEffect(() => {
     const onKey = (e) => { if (e.key === "ArrowDown") advance(1); else if (e.key === "ArrowUp") advance(-1); };
@@ -181,7 +190,7 @@ function Discover({ onPost, user, isWeb }) {
   const src = p.image_url || p.poster_url;
   const vc = verdict ? vColor(verdict.v) : "#aab0ba";
   return (
-    <div onWheel={onWheel} style={{ position: "relative", width: "100%", height: "100%", minHeight: 480, background: "#000", overflow: "hidden", borderRadius: isWeb ? 20 : 0, border: isWeb ? "1px solid var(--pb-line)" : "none", marginTop: isWeb ? 18 : 0 }}>
+    <div onWheel={onWheel} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{ position: "relative", width: "100%", height: "100%", minHeight: 480, background: "#000", overflow: "hidden", touchAction: "pan-y", borderRadius: isWeb ? 20 : 0, border: isWeb ? "1px solid var(--pb-line)" : "none", marginTop: isWeb ? 18 : 0 }}>
       {src ? <img src={src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}
       {isWeb && n > 1 && (
         <div style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", zIndex: 7, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -214,7 +223,7 @@ function Discover({ onPost, user, isWeb }) {
           {p.place_type === "park" && <Link href={"/parks/" + p.place_id} style={{ fontSize: ".76rem", fontWeight: 600, background: "rgba(255,255,255,.14)", color: "#fff", border: "1px solid rgba(255,255,255,.24)", borderRadius: 999, padding: "8px 14px", textDecoration: "none" }}>Conditions</Link>}
         </div>
       </div>
-      {st.pines.length > 1 && <button onClick={() => setIdx((idx + 1) % st.pines.length)} aria-label="Next" style={{ cursor: "pointer", position: "absolute", left: 0, right: 0, top: 90, bottom: 210, zIndex: 5, background: "transparent", border: "none" }} />}
+      {st.pines.length > 1 && <button onClick={() => { if (touch.current.swiped) { touch.current.swiped = false; return; } setIdx((idx + 1) % st.pines.length); }} aria-label="Next" style={{ cursor: "pointer", position: "absolute", left: 0, right: 0, top: 90, bottom: 210, zIndex: 5, background: "transparent", border: "none" }} />}
     </div>
   );
 }

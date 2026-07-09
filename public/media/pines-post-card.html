@@ -25,7 +25,7 @@
     border:1px solid rgba(217,183,121,.3); box-shadow:0 30px 80px -34px rgba(0,0,0,.9);
     opacity:0; transform:translateY(24px) scale(.96);
     animation:clipIn 1s .4s cubic-bezier(.16,.8,.24,1) forwards, clipLift 1.2s 3.4s cubic-bezier(.16,.8,.24,1) forwards; }
-  .clip img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .clip video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .clip .shade{ position:absolute; inset:0; background:linear-gradient(180deg,rgba(6,14,10,.35),transparent 40%,rgba(6,14,10,.75)); }
   .play{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:12%; aspect-ratio:1; border-radius:50%;
     background:rgba(8,19,13,.5); border:1px solid rgba(255,255,255,.6); display:flex; align-items:center; justify-content:center; color:#fff;
@@ -68,7 +68,7 @@
       <b class="e2">…and shared it to the Campfire</b>
     </div>
     <div class="clip">
-      <img src="/media/pines-intro-poster.jpg" alt="">
+      <video src="/media/pines-clip.mp4" autoplay muted loop playsinline poster="/media/pines-intro-poster.jpg"></video>
       <div class="shade"></div>
       <div class="play">▶</div>
       <div class="rec"><span class="dot">●</span> REC</div>
@@ -81,7 +81,6 @@
     <div class="reacts"><span class="heart">♥</span><span class="heart">♥</span><span class="heart">♥</span></div>
     <div class="fire">🔥 <span class="name">Rocky Mountain</span> <span class="sent">· shared ✓</span></div>
   </div>
-  <div class="hint">click / press space to replay · screen-record ~7s</div>
   <script>
     var s=document.getElementById('stage');
     function replay(){ s.style.display='none'; void s.offsetWidth; s.style.display='flex';

@@ -20,7 +20,7 @@
     padding:1.1em; box-shadow:0 34px 90px -40px rgba(0,0,0,.9); opacity:0; transform:translateY(22px) scale(.97);
     animation:cardIn 1s .4s cubic-bezier(.16,.8,.24,1) forwards; }
   .clip{ position:relative; width:100%; aspect-ratio:16/10; border-radius:12px; overflow:hidden; }
-  .clip img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .clip video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .clip .play{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:13%; aspect-ratio:1; border-radius:50%;
     background:rgba(8,19,13,.5); border:1px solid rgba(255,255,255,.6); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1vw; animation:pulse 2.4s ease-in-out infinite; }
   .clip .dur{ position:absolute; right:.6em; bottom:.6em; font-size:clamp(.45rem,.9vw,.66rem); color:#fff; background:rgba(8,19,13,.6); border-radius:999px; padding:.2em .6em; }
@@ -61,7 +61,7 @@
   <div class="stage" id="stage">
     <div class="eyebrow">Post a Pine · on-site only</div>
     <div class="card">
-      <div class="clip"><img src="/media/pines-intro-poster.jpg" alt=""><div class="play">▶</div><div class="dur">0:14</div></div>
+      <div class="clip"><video src="/media/pines-clip.mp4" autoplay muted loop playsinline poster="/media/pines-intro-poster.jpg"></video><div class="play">▶</div><div class="dur">0:14</div></div>
       <div class="loc">📍 <b>Bear Lake · Rocky Mountain NP</b> <span class="site">◉ Verified on-site</span></div>
       <div class="cap">Golden hour at Bear Lake 🌄<span class="cur">|</span></div>
       <div class="btn">
@@ -73,7 +73,6 @@
     </div>
     <div class="live"><span class="pill">🔥 Live in <b>Rocky Mountain</b> Campfire</span></div>
   </div>
-  <div class="hint">click / press space to replay · screen-record ~7s</div>
   <script>
     var s=document.getElementById('stage');
     function replay(){ s.style.display='none'; void s.offsetWidth; s.style.display='flex';

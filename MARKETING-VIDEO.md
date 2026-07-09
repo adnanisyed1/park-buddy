@@ -156,6 +156,35 @@ at beat 4. It's built in the brand aesthetic — a premium title-card moment, no
 - **Sync:** natural sound (wind, a distant bear) for beats 1–3, then let music take over from the capture; put the peak on the community beat, the resolve on the end card. Keep it under any VO.
 - Search terms that land this: "cinematic acoustic uplifting," "warm folk build," "hopeful ambient guitar."
 
+---
+
+## 📱 Showing the app on the phone in Ben's hand
+
+The premium way to show "Ben posts a Pine" is to have the app appear **on his phone
+screen, in-shot** — not a full-screen cut. Runway/your footage supplies the hand +
+phone; the app screen is composited **in your editor** (Runway can't render our UI).
+
+**The asset:** `public/media/pines-phone-screen.html` — a portrait **9:16, full-bleed
+phone screen** (no bezel, no helper text) that plays a real clip → tags it → **Post
+Pine ↑ → Uploading… → ✓ Posted → Live in Rocky Mountain Campfire**, looping every ~9s.
+Open it fullscreen and screen-record one loop.
+
+**Two ways to put it on his phone:**
+- **A) Screen replacement (best):** in After Effects (Mocha), DaVinci Resolve *(free,
+  Fusion planar tracker)*, or CapCut, place the screen recording over the footage and
+  **corner-pin/track it to the 4 corners of his phone screen** so it follows his hand.
+  Tip when filming/generating: a plain bright or single-color phone screen tracks best.
+- **B) Insert cut (simplest, no tracking):** cut from "Ben raises his phone" to the
+  phone-screen beat full-frame (as if we see what he sees), then back.
+
+**"Add the Pine" note:** the in-phone clip is a real raw scenic clip
+(`public/media/pines-clip.mp4`). Swap it for **Ben's actual footage** in your editor,
+or drop his file in at that path. The designed full-screen beats
+(`pines-upload-card.html`, `pines-post-card.html`) now play that same real clip too.
+
+**Heads-up:** the current landing intro video (`pines-intro.mp4`) is your **v1 edit
+(with the screen recordings)** — swap it for the v2 cut when it's done and I'll re-point it.
+
 ## Legal / honesty checklist
 
 - [ ] Clip is promotional, not presented as a live/real condition read.

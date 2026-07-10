@@ -714,9 +714,10 @@ export default function ExploreApp() {
       const b = map.getBounds();
       if (!b) return;
       const sw = b.getSouthWest(), ne = b.getNorthEast();
-      const cLat = (sw.lat() + ne.lat()) / 2, cLng = (sw.lng() + ne.lng()) / 2;
-      const radius = Math.min(200, Math.max(15, Math.round(milesBetween({ lat: sw.lat(), lng: sw.lng() }, { lat: ne.lat(), lng: ne.lng() }) / 2)));
-      const d = await fetch("/api/gateway?townsNear=1&lat=" + cLat.toFixed(4) + "&lng=" + cLng.toFixed(4) + "&radius=" + radius).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      // Query by the actual viewport rectangle so EVERY town in view shows (not a
+      // nearest-N sample around the center).
+      const bbox = sw.lng().toFixed(3) + "," + sw.lat().toFixed(3) + "," + ne.lng().toFixed(3) + "," + ne.lat().toFixed(3);
+      const d = await fetch("/api/gateway?townsNear=1&bbox=" + bbox).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (!uiRef.current.destTowns) { clearTownMarkers(); return; } // toggled off mid-fetch
       clearTownMarkers();
       const towns = (d && d.towns) || [];

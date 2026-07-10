@@ -169,8 +169,43 @@ async function townsNear(lat, lng, radiusMi) {
   } catch { return { towns: [] }; }
 }
 
+// Map mode: EVERY basecamp town inside a viewport rectangle (not just near a point),
+// deduped + annotated with the places each serves. This is what the Explore layer
+// uses so all towns in view appear, not a nearest-N sample.
+async function townsInBbox(bbox) {
+  const sb = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const svc = process.env.SUPABASE_SERVICE_KEY;
+  if (!sb || !svc) return { towns: [], configured: false };
+  const p = String(bbox).split(",").map(Number);
+  if (p.length !== 4 || p.some((n) => !isFinite(n))) return { towns: [] };
+  const [minLng, minLat, maxLng, maxLat] = p;
+  const sel = "select=name,bare_name,lat,lng,place_id,destinations(name,type)";
+  const url = sb + "/rest/v1/gateway_towns?" + sel +
+    "&lat=gte." + minLat + "&lat=lte." + maxLat + "&lng=gte." + minLng + "&lng=lte." + maxLng + "&limit=1500";
+  try {
+    const r = await fetch(url, { headers: { apikey: svc, Authorization: "Bearer " + svc }, cache: "no-store" });
+    if (!r.ok) return { towns: [] };
+    const rows = await r.json();
+    const map = new Map();
+    for (const t of Array.isArray(rows) ? rows : []) {
+      if (typeof t.lat !== "number" || typeof t.lng !== "number") continue;
+      // one pin per town: same name at ~same spot (a town serving several parks) merges.
+      const key = (t.bare_name || t.name || "").toLowerCase() + "@" + t.lat.toFixed(1) + "," + t.lng.toFixed(1);
+      const place = t.destinations ? { name: t.destinations.name, type: t.destinations.type } : null;
+      let e = map.get(key);
+      if (!e) { e = { name: t.name, bareName: t.bare_name, lat: t.lat, lng: t.lng, places: [] }; map.set(key, e); }
+      if (place && !e.places.some((x) => x.name === place.name)) e.places.push(place);
+    }
+    return { towns: [...map.values()].slice(0, 700), credit: "Basecamp towns: curated + USGS GNIS (public domain)." };
+  } catch { return { towns: [] }; }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
+  // Map mode: all basecamp towns in a viewport bbox (no lat/lng needed).
+  if (searchParams.get("townsNear") && searchParams.get("bbox")) {
+    return Response.json(await townsInBbox(searchParams.get("bbox")));
+  }
   const lat = num(searchParams.get("lat"));
   const lng = num(searchParams.get("lng"));
   const stateName = (searchParams.get("state") || "").trim();
@@ -180,7 +215,7 @@ export async function GET(request) {
     return Response.json({ error: "lat and lng query params are required." }, { status: 400 });
   }
 
-  // Town-centric mode: all basecamp towns near a location (not tied to one park).
+  // Town-centric mode: nearest basecamp towns to a point (Ask Park Buddy uses this).
   if (searchParams.get("townsNear")) {
     const radius = Math.min(200, Math.max(5, num(searchParams.get("radius")) || 60));
     return Response.json(await townsNear(lat, lng, radius));

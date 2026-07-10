@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./studio.css";
 import { MARKUP, mountStudio } from "./studioSource";
+import SiteHeader from "../components/SiteHeader";
 import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
 import { getPhotos, getStory, distMiles, addCrumb } from "../lib/tripmode";
@@ -148,7 +149,23 @@ export default function TripBook() {
 
     const el = rootRef.current;
     if (!el) return;
-    el.innerHTML = MARKUP;
+    // Recolor the ported studio to the Park Buddy palette: its near-black base and
+    // top-bar glass → dark-green (--pb-bg #0a1712). Gold accents, cream book pages
+    // and the Cormorant serif already match Park Buddy, so this is all it takes.
+    el.innerHTML = MARKUP
+      .split("#0e0e0c").join("#0a1712")
+      .split("rgba(14,14,12").join("rgba(10,23,18");
+    // The studio ships its own "Trip Book" top bar; the page now renders the real
+    // Park Buddy header above it, so demote the studio bar to a sub-bar — hide its
+    // brand block and drop it below the site header, keeping the stepper + action.
+    try {
+      const hdr = el.querySelector("header");
+      if (hdr) {
+        hdr.style.top = "56px";
+        hdr.style.zIndex = "30";
+        if (hdr.firstElementChild) hdr.firstElementChild.style.display = "none";
+      }
+    } catch {}
     let studio;
     let watchId = null;
     try {
@@ -299,6 +316,7 @@ export default function TripBook() {
 
   return (
     <>
+      <SiteHeader acctSlot />
       <div className="tbstudio" ref={rootRef} />
       {reserve && <ReserveModal data={reserve} onClose={() => setReserve(null)} />}
     </>

@@ -239,13 +239,14 @@ class Studio {
   pageNum(n,right){ return '<span style="position:absolute;bottom:12px;'+(right?'right:16px':'left:16px')+';z-index:4;'+this.ms('.48rem','.1em',this.T().soft)+'">'+n+'</span>'; }
   renderSpread(i){ var s=this.spreads[i]; document.getElementById('pageL').innerHTML=s.l+this.pageNum(i*2+1); document.getElementById('pageR').innerHTML=s.r+this.pageNum(i*2+2,true); document.getElementById('pageLabel').textContent=this.open?(s.lab+' · '+(i+1)+'/'+this.spreads.length):'Cover'; this.hydrateAll(); }
   openBook(){ if(this.open)return; this.open=true; document.getElementById('book').style.transform='translateX(0)'; document.getElementById('pageL').style.visibility='visible'; document.getElementById('spine').style.opacity='1'; if(this.S.ribbon)document.getElementById('ribbon').style.opacity='1'; this.renderSpread(0); document.getElementById('cover').style.transform='rotateY(-158deg)'; document.getElementById('bookStatus').textContent='Use ‹ › or the arrow keys to turn pages'; var self=this; setTimeout(function(){ var c=document.getElementById('cover'); c.style.pointerEvents='none'; c.style.opacity='0'; },1100); }
-  flip(dir){ if(!this.open||this.anim)return; var ni=this.idx+dir; if(ni<0||ni>=this.spreads.length)return; this.anim=true; var leaf=document.getElementById('leaf'),t=this.T(); var frontHTML,backHTML,origin,toDeg,side;
-    if(dir>0){ side='right:0'; origin='left center'; toDeg=-178; frontHTML=this.spreads[this.idx].r; backHTML=this.spreads[ni].l; }
-    else { side='left:0'; origin='right center'; toDeg=178; frontHTML=this.spreads[this.idx].l; backHTML=this.spreads[ni].r; }
-    leaf.style.cssText='position:absolute;top:0;bottom:0;width:50%;'+side+';transform-style:preserve-3d;z-index:8;transform-origin:'+origin+';transform:rotateY(0deg);transition:transform .8s cubic-bezier(.4,0,.2,1)';
-    leaf.innerHTML='<div style="position:absolute;inset:0;background:'+t.bg+';overflow:hidden;-webkit-backface-visibility:hidden;backface-visibility:hidden">'+frontHTML+'</div><div style="position:absolute;inset:0;background:'+t.bg+';overflow:hidden;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:rotateY(180deg)">'+backHTML+'</div>';
-    leaf.style.display='block'; this.hydrateAll(); var self=this; void leaf.offsetWidth; leaf.style.transform='rotateY('+toDeg+'deg)';
-    setTimeout(function(){ self.idx=ni; self.renderSpread(ni); leaf.style.display='none'; leaf.innerHTML=''; self.anim=false; },820);
+  flip(dir){ if(!this.open||this.anim)return; var ni=this.idx+dir; if(ni<0||ni>=this.spreads.length)return; this.anim=true; var self=this;
+    // Robust page-turn: crossfade the spread in place — the same swap the Step 2
+    // preview uses. The old 3D rotateY "leaf" ghosted (the outgoing image lingered
+    // on the facing page) and janked on slower devices; a plain opacity swap doesn't.
+    var pl=document.getElementById('pageL'), pr=document.getElementById('pageR'); if(!pl||!pr){ this.anim=false; return; }
+    var leaf=document.getElementById('leaf'); if(leaf){ leaf.style.display='none'; leaf.innerHTML=''; }
+    pl.style.transition=pr.style.transition='opacity .16s ease'; pl.style.opacity=pr.style.opacity='0';
+    setTimeout(function(){ self.idx=ni; self.renderSpread(ni); pl.style.opacity=pr.style.opacity='1'; self.anim=false; },160);
   }
 
   wire(){ var self=this;

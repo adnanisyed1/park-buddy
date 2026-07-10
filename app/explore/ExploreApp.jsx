@@ -460,6 +460,7 @@ export default function ExploreApp() {
   const [lakesData, setLakesData] = useState({}); // name -> /api/water payload's lakes[] — per-park, not the whole-map viewport pattern
   const [trailsData, setTrailsData] = useState({}); // name -> /api/trails payload ({hiking,offroad,ski}) — feeds the Trails tab list
   const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
+  const [selGateways, setSelGateways] = useState(null); // full stored gateway towns for the selected park/forest
   const [ui, setUi] = useState({
     panelOpen: true, filtersOpen: true, radius: 150, mapStyle: "dark",
     stateFilter: "", liveLoc: false,
@@ -1173,6 +1174,19 @@ export default function ExploreApp() {
   // Isolated basecamp-towns layer: load/clear when its toggle flips (own markers).
   useEffect(() => { loadViewportTowns(); }, [ui.destTowns]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Full stored gateway towns for the selected park/forest (all of them, not just the
+  // single curated one PB_GATEWAY knows about). Powers the detail panel's town list.
+  useEffect(() => {
+    const p = parksRef.current.find((x) => x.name === ui.selectedName);
+    if (!p || p.lat == null || p.lng == null) { setSelGateways(null); return; }
+    let on = true;
+    fetch("/api/gateway?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&state=" + encodeURIComponent(p.state || ""))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (on) setSelGateways((d && d.towns) || []); })
+      .catch(() => { if (on) setSelGateways([]); });
+    return () => { on = false; };
+  }, [ui.selectedName]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ---------------- misc actions ---------------- */
 
   function saveKey() {
@@ -1644,11 +1658,17 @@ export default function ExploreApp() {
                 </div>
               )}
 
-              {gateway && (
+              {(gateway || (selGateways && selGateways.length > 0)) && (
                 <div style={{ background: "rgba(217,183,121,.1)", border: "1px solid rgba(217,183,121,.28)", borderRadius: 12, padding: "11px 13px", marginBottom: 14 }}>
-                  <div style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".12em", textTransform: "uppercase", color: "#d9b779", marginBottom: 3 }}>🏘 Gateway town</div>
-                  <b style={{ fontSize: ".86rem", color: "#f4f1ea", display: "block" }}>{gateway.town}</b>
-                  <div style={{ fontSize: ".76rem", color: "#8a938b", marginTop: 3, lineHeight: 1.4 }}>{gateway.blurb}</div>
+                  <div style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".12em", textTransform: "uppercase", color: "#d9b779", marginBottom: 3 }}>🏘 Gateway town{(selGateways && selGateways.length > 1) ? "s" : ""}</div>
+                  <b style={{ fontSize: ".86rem", color: "#f4f1ea", display: "block" }}>{(gateway && gateway.town) || (selGateways && selGateways[0] && selGateways[0].name)}</b>
+                  {gateway && gateway.blurb && <div style={{ fontSize: ".76rem", color: "#8a938b", marginTop: 3, lineHeight: 1.4 }}>{gateway.blurb}</div>}
+                  {selGateways && selGateways.length > 1 && (
+                    <div style={{ fontSize: ".74rem", color: "#a9b1a8", marginTop: 6, lineHeight: 1.5 }}>
+                      <span style={{ color: "#7f8a82" }}>Also nearby: </span>
+                      {selGateways.filter((t) => !(gateway && gateway.town && gateway.town.indexOf(t.bareName) > -1)).slice(0, 4).map((t) => t.name + " (" + t.distanceMi + " mi)").join(" · ")}
+                    </div>
+                  )}
                 </div>
               )}
 

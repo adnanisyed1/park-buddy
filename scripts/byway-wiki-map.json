@@ -1,0 +1,17 @@
+{
+  "_comment": "Hand-curated map: byway id (in public/byways-data.js) -> the Wikipedia ROAD article whose junction/exit table + history we ingest. List-page discovery is noisy, so we pin the road article per byway. If a byway is absent here the generator falls back to its wiki[]/link. Pilot batch first (national All-American Roads), then extend.",
+  "byId": {
+    "zion-park-scenic-byway": { "road": "Utah State Route 9", "list": "List of Utah State Scenic Byways" },
+    "a1a-scenic-and-historic-coastal-byway": { "road": "Florida State Road A1A" },
+    "san-juan-skyway": { "road": "San Juan Skyway" },
+    "beartooth-highway": { "road": "Beartooth Highway" },
+    "historic-columbia-river-highway": { "road": "Historic Columbia River Highway" },
+    "pacific-coast-scenic-byway": { "road": "Oregon Coast Highway" },
+    "cherohala-skyway": { "road": "Cherohala Skyway" },
+    "red-rock-scenic-byway": { "road": "Arizona State Route 179" },
+    "kancamagus-scenic-byway": { "road": "New Hampshire Route 112" },
+    "top-of-the-rockies": { "road": "Top of the Rockies" },
+    "san-luis-obispo-north-coast-byway": { "road": "California State Route 1" },
+    "blue-ridge-parkway": { "road": "Blue Ridge Parkway" }
+  }
+}

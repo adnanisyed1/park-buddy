@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ensureMapsLoaded } from "../../lib/googleMapsLoader";
 import { usePhoto } from "../../components/PhotoThumb";
 import SiteHeader from "../../components/SiteHeader";
+import RouteItinerary from "./RouteItinerary";
 
 // /scenic-drives/<id> detail — ported 1:1 from the Claude-design spec. Real
 // data: federal byway record (name/tier/states/length/qualities/blurb), live
@@ -88,7 +89,12 @@ function CrossTile({ c }) {
   );
 }
 
-export default function ScenicDrive({ drive, cross, heroFallback }) {
+export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
+  // Wikipedia-derived record (traveler itinerary, history, references, CC BY-SA
+  // attribution) when this drive has been enriched; null otherwise (page renders
+  // its baseline). Route line + highlights prefer curated data, then the record.
+  const routeEndpoints = drive.endpoints || (detail && detail.endpoints) || null;
+  const parkCode = drive.parkCode || (detail && detail.parkCode) || null;
   // Name-only (no geo fallback): a byway is linear, so a geo-search near one
   // coordinate returns junk (a church, a brewery, a photo of Earth from orbit).
   // But many byways have no Wikipedia lead image, so fall back to a nearby national
@@ -109,18 +115,21 @@ export default function ScenicDrive({ drive, cross, heroFallback }) {
 
   // Live road status
   useEffect(() => {
-    if (!drive.parkCode) { setRoad(null); return; }
+    if (!parkCode) { setRoad(null); return; }
     let on = true;
-    fetch("/api/roadstatus?parkCode=" + drive.parkCode + "&road=" + encodeURIComponent(drive.name))
+    fetch("/api/roadstatus?parkCode=" + parkCode + "&road=" + encodeURIComponent(drive.name))
       .then((r) => (r.ok ? r.json() : null)).then((d) => { if (on) setRoad(d); }).catch(() => { if (on) setRoad(null); });
     return () => { on = false; };
-  }, [drive.parkCode, drive.name]);
+  }, [parkCode, drive.name]);
 
   // Highlights: curated (flagships) or derived from real named features on the
   // route. Skip derivation when the drive only has an APPROXIMATE (state-level)
   // location — features around a state centroid wouldn't be on the actual road.
   useEffect(() => {
     if (drive.highlights && drive.highlights.length) { setHighlights(drive.highlights); return; }
+    // Wikipedia-derived corridor highlights (real coords) beat the crude ±0.12° box.
+    const dh = (detail && detail.highlights || []).filter((h) => h.lat != null);
+    if (dh.length) { setHighlights(dh); return; }
     if (drive.approxLoc) { setHighlights([]); return; }
     let on = true;
     const pad = 0.12;
@@ -213,7 +222,7 @@ export default function ScenicDrive({ drive, cross, heroFallback }) {
 
     // Build a Directions request: curated endpoints win; else route through overlooks.
     let req = null;
-    const e = drive.endpoints;
+    const e = routeEndpoints;
     if (e && e.from && e.to) {
       req = { origin: e.from, destination: e.to, waypoints: (e.via || []).map((v) => ({ location: v, stopover: false })) };
     } else if (pts.length >= 2) {
@@ -237,7 +246,7 @@ export default function ScenicDrive({ drive, cross, heroFallback }) {
     if (pts.length >= 2) dashedConnector();
     else if (pts.length === 1) { map.setCenter({ lat: pts[0].lat, lng: pts[0].lng }); map.setZoom(drive.approxLoc ? 8 : 11); }
     else anchorPin();
-  }, [highlights, mapsLoaded, drive.endpoints, drive.lat, drive.lng, drive.approxLoc, drive.name]);
+  }, [highlights, mapsLoaded, routeEndpoints, drive.lat, drive.lng, drive.approxLoc, drive.name]);
 
   // Two-way hover link: restyle the hovered marker. Skip when the map only holds
   // the single anchor pin (no numbered overlooks to hover).
@@ -253,7 +262,7 @@ export default function ScenicDrive({ drive, cross, heroFallback }) {
 
   const hl = highlights || [];
   const hasOverlooks = hl.some((h) => h.lat != null); // real overlook coords → numbered markers
-  const hasRoute = hasOverlooks || !!(drive.endpoints && drive.endpoints.from && drive.endpoints.to); // a line gets drawn
+  const hasRoute = hasOverlooks || !!(routeEndpoints && routeEndpoints.from && routeEndpoints.to); // a line gets drawn
   const ti = TIER_INFO[drive.tier] || TIER_INFO.byway;
   const pill = (k, v) => (
     <span style={{ display: "inline-flex", flexDirection: "column", background: "rgba(10,26,18,.5)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 15, padding: "10px 16px" }}>
@@ -408,6 +417,34 @@ export default function ScenicDrive({ drive, cross, heroFallback }) {
           </div>
         </section>
 
+        {/* ROUTE ITINERARY — traveler-friendly stops from the Wikipedia junction list */}
+        {detail && detail.itinerary && detail.itinerary.length >= 2 && (
+          <section style={{ padding: "clamp(20px,3vh,32px) clamp(16px,4vw,40px) 6px" }}>
+            <div style={{ maxWidth: 820, margin: "0 auto" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.4rem,3vw,1.9rem)", color: "var(--pb-ink)" }}>The drive, stop by stop</h2>
+                <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>West → east · from the road log</span>
+              </div>
+              <RouteItinerary itinerary={detail.itinerary} />
+            </div>
+          </section>
+        )}
+
+        {/* HISTORY — from the Wikipedia article (CC BY-SA; attributed in Sources) */}
+        {detail && detail.history && detail.history.paragraphs && detail.history.paragraphs.length > 0 && (
+          <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) 6px" }}>
+            <div style={{ maxWidth: 820, margin: "0 auto" }}>
+              <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>The story of the road</div>
+              <h2 style={{ fontFamily: serif, fontWeight: 800, fontSize: "clamp(1.5rem,3.2vw,2.1rem)", color: "var(--pb-ink)", lineHeight: 1.12, marginTop: 6 }}>History</h2>
+              <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
+                {detail.history.paragraphs.map((p, i) => (
+                  <p key={i} style={{ fontSize: "clamp(.98rem,1.4vw,1.08rem)", color: "var(--pb-ink-2)", lineHeight: 1.72 }}>{p}</p>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* FILMSTRIP */}
         {film.length > 0 && (
           <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) 6px" }}>
@@ -464,6 +501,45 @@ export default function ScenicDrive({ drive, cross, heroFallback }) {
           </section>
         )}
 
+        {/* SOURCES & ATTRIBUTION — every enriched fact is traced (CC BY-SA compliance) */}
+        {detail && (detail.attribution || (detail.references && detail.references.length) || (detail.sources && detail.sources.length)) && (
+          <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) 6px" }}>
+            <div style={{ maxWidth: 820, margin: "0 auto" }}>
+              <div style={{ background: "var(--pb-surface)", border: "1px solid rgba(217,183,121,.16)", borderRadius: 22, padding: "clamp(18px,2.6vw,26px)" }}>
+                <div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>Where this comes from</div>
+                <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.2rem,2.6vw,1.6rem)", color: "var(--pb-ink)", marginTop: 6 }}>Sources</h2>
+                {detail.sources && detail.sources.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                    {detail.sources.map((s, i) => (
+                      <a key={i} href={s.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, background: "var(--pb-surface-2)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 999, padding: "6px 13px", fontSize: ".78rem", fontWeight: 700, color: "var(--pb-ink)" }}>
+                        {s.name}<span style={{ color: "var(--pb-gold)" }}>↗</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {detail.attribution && detail.attribution.text && (
+                  <p style={{ fontSize: ".82rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 14 }}>
+                    {detail.attribution.text}{" "}
+                    <a href={detail.attribution.licenseUrl} target="_blank" rel="noreferrer" style={{ color: "var(--pb-gold)", fontWeight: 700, textDecoration: "none" }}>{detail.attribution.license} ↗</a>
+                  </p>
+                )}
+                {detail.references && detail.references.length > 0 && (
+                  <details style={{ marginTop: 14 }}>
+                    <summary style={{ cursor: "pointer", fontFamily: mono, fontSize: ".62rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{detail.references.length} cited references</summary>
+                    <ol style={{ margin: "12px 0 0", paddingLeft: 20, display: "grid", gap: 7 }}>
+                      {detail.references.map((r, i) => (
+                        <li key={i} style={{ fontSize: ".78rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>
+                          {r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: "var(--pb-ink-2)", textDecorationColor: "rgba(217,183,121,.5)" }}>{r.text}</a> : r.text}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* PLAN */}
         <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) clamp(40px,6vh,60px)" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -487,7 +563,7 @@ export default function ScenicDrive({ drive, cross, heroFallback }) {
           </div>
         </section>
 
-        <footer style={{ textAlign: "center", fontFamily: mono, fontSize: ".62rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", padding: 22, borderTop: "1px solid rgba(217,183,121,.16)" }}>Designation &amp; qualities from federal byway records · Photos via Wikimedia · Road status via NPS · ParkBuddy</footer>
+        <footer style={{ textAlign: "center", fontFamily: mono, fontSize: ".62rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", padding: 22, borderTop: "1px solid rgba(217,183,121,.16)" }}>Designation from federal byway records · {detail ? "Route & history via Wikipedia (CC BY-SA) · " : ""}Photos via Wikimedia · Road status via NPS · ParkBuddy</footer>
       </div>
     </div>
   );

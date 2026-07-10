@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getByway, getNearby, getParks, nearestPark } from "../../lib/statusData";
+import { getByway, getBywayDetail, getNearby, getParks, nearestPark } from "../../lib/statusData";
 import ScenicDrive from "./ScenicDrive";
 
 export async function generateMetadata({ params }) {
@@ -29,9 +29,10 @@ export default async function ScenicDriveDetailPage({ params }) {
 
   // Real cross-links along the route: the nearest national park + nearby trails,
   // lakes, and campgrounds — all internal, all photo-tiled.
-  const [nearby, parks] = await Promise.all([
+  const [nearby, parks, detail] = await Promise.all([
     getNearby(drive.lat, drive.lng, {}),
     getParks(),
+    getBywayDetail(params.id),
   ]);
   const park = nearestPark(parks, drive.lat, drive.lng);
   const cross = [];
@@ -57,5 +58,5 @@ export default async function ScenicDriveDetailPage({ params }) {
   // from a byway even when they're adjacent, e.g. Beartooth↔Yellowstone) when the
   // byway itself has no Wikipedia lead image, so the hero is never a blank panel.
   const heroFallback = park && park.dist <= 120 ? parkFallback : "";
-  return <ScenicDrive drive={drive} cross={cross.slice(0, 8)} heroFallback={heroFallback} />;
+  return <ScenicDrive drive={drive} detail={detail} cross={cross.slice(0, 8)} heroFallback={heroFallback} />;
 }

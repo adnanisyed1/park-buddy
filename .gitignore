@@ -8,3 +8,6 @@ out
 
 .netlify
 .claude/settings.local.json
+
+# byway ingest geocode cache (build-time)
+scripts/.cache/

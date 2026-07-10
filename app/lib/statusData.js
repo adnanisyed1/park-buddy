@@ -71,7 +71,7 @@ export async function getByways() {
   try {
     // ?v bumps the Next Data Cache key so a data change (e.g. new route endpoints)
     // is picked up on deploy instead of waiting out the 24h revalidate. Bump on edit.
-    const r = await fetch(origin() + "/byways-data.js?v=3", { next: { revalidate: 86400 } });
+    const r = await fetch(origin() + "/byways-data.js?v=4", { next: { revalidate: 86400 } });
     if (!r.ok) return [];
     const text = await r.text();
     const m = text.match(/window\.BYWAYS_DATA\s*=\s*(\[[\s\S]*?\]);/);
@@ -84,6 +84,22 @@ export async function getByway(id) {
   if (!id) return null;
   const list = await getByways();
   return list.find((d) => d.id === id) || null;
+}
+
+// Heavy per-drive record (traveler itinerary, history, images, references, CC
+// BY-SA attribution) generated from Wikipedia by scripts/build-byway-details.mjs
+// and written to public/byways/detail/<id>.json. Loaded only on the detail page;
+// returns null when a drive isn't enriched yet (page renders its baseline). It's
+// real JSON (unlike the window.X=[] script files) so a plain r.json() suffices.
+export async function getBywayDetail(id) {
+  if (!id) return null;
+  try {
+    const r = await fetch(origin() + "/byways/detail/" + encodeURIComponent(id) + ".json?v=1", { next: { revalidate: 86400 } });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
 }
 
 // Scenic drives related to a point — any whose parkCode matches, plus the

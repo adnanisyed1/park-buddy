@@ -25,6 +25,9 @@ export default function AttributionsPage() {
       <h2>Photos</h2>
       <p>Representative photos come from <b>Wikipedia / Wikimedia Commons</b> and are licensed <b>CC BY-SA</b>; each is credited to its author where shown. Some park images come from the NPS (public domain). User-posted Pines belong to the people who took them.</p>
 
+      <h2>Scenic-drive routes, itineraries & history</h2>
+      <p>For scenic drives, the route stops, junction details, and history text are adapted from the matching <b>Wikipedia</b> article, by Wikipedia contributors, licensed <b>CC BY-SA 4.0</b> — each drive page links its source article, revision, and cited references. Official designation (All-American Road / National Scenic Byway) comes from the <b>Federal Highway Administration</b> and live road status from the <b>National Park Service</b> (both public domain).</p>
+
       <h2>Maps</h2>
       <p>Maps are provided by <b>Google Maps</b> and used under the Google Maps Platform Terms of Service.</p>
 

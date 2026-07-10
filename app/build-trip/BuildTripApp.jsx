@@ -98,7 +98,7 @@ export default function BuildTripApp() {
   const [addSel, setAddSel] = useState("");
   const [addrInput, setAddrInput] = useState("");
   const [addrMsg, setAddrMsg] = useState("");
-  const [budgetOverride, setBudgetOverride] = useState({ fuel: 168, lodging: 1040, food: 560, passes: 72, flights: null }); // design preset seeds
+  const [budgetOverride, setBudgetOverride] = useState({ fuel: 168, lodging: 1040, food: 560, passes: 72, flights: null, rental: null }); // design preset seeds
   const travelers = adults + infants; // party size (for lodging/food/per-person)
   const [editingBudget, setEditingBudget] = useState(null); // key being edited
   const [verdicts, setVerdicts] = useState({}); // name -> {status, note}
@@ -153,14 +153,17 @@ export default function BuildTripApp() {
     return d.toISOString().slice(0, 10);
   })();
 
+  const tripDays = totalNights > 0 ? totalNights + 1 : 0; // days you hold a rental
+  const isRental = transport.type === "rental" || transport.type === "fly";
   const budget = {
     flights: budgetOverride.flights ?? (arrivalMode === "fly" ? adults * 320 : 0), // rough domestic RT/adult; tap to enter real cost
+    rental: budgetOverride.rental ?? (isRental && transport.rentalDaily ? Math.round(transport.rentalDaily * tripDays) : 0), // rate/day × days from the setup wizard
     fuel: budgetOverride.fuel ?? Math.round(totalMiles * FUEL_PER_MI),
     lodging: budgetOverride.lodging ?? totalNights * LODGING_PER_NIGHT,
     food: budgetOverride.food ?? adults * totalNights * FOOD_PER_PERSON_DAY, // infants ~ free
     passes: budgetOverride.passes ?? Math.min(stops.length * 35, 80),
   };
-  const totalCost = budget.flights + budget.fuel + budget.lodging + budget.food + budget.passes;
+  const totalCost = budget.flights + budget.rental + budget.fuel + budget.lodging + budget.food + budget.passes;
 
   // day ranges per stop ("Days 1–2", "Day 5") + arrive dates
   const dayRanges = (() => {
@@ -241,7 +244,7 @@ export default function BuildTripApp() {
   function useDefaults() {
     userEditedRef.current = true;
     setAdults(2); setInfants(0); setArrivalMode("drive"); setTripScope("regional"); setCar("Midsize SUV");
-    setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null });
+    setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
   }
 
   // Auto-open the setup wizard on first visit (once per browser).
@@ -923,7 +926,10 @@ export default function BuildTripApp() {
                   <div style={{ fontSize: ".74rem", color: "var(--pb-muted)", marginBottom: 12 }}>Tap any amount to enter your real price.</div>
                   <div>
                     <div style={budgetRow}><span style={{ color: "var(--pb-ink-2)" }}>✈️ Flights · {adults} adult{adults === 1 ? "" : "s"}{arrivalMode === "drive" ? " (driving)" : ""}</span><BudgetAmount k="flights" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>⛽ Fuel</span><BudgetAmount k="fuel" /></div>
+                    {(budget.rental > 0 || budgetOverride.rental != null) && (
+                      <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>{transport.type === "rv" ? "🚐 RV rental" : "🚙 Rental car"}{transport.rentalDaily ? " · $" + transport.rentalDaily + "/day × " + tripDays : ""}</span><BudgetAmount k="rental" /></div>
+                    )}
+                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>⛽ Fuel{transport.type === "own" ? " · own car" : transport.type === "rv" ? " · RV" : ""}</span><BudgetAmount k="fuel" /></div>
                     <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🏨 Lodging · {totalNights} nights</span><BudgetAmount k="lodging" /></div>
                     <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🍔 Food · {adults} adult{adults === 1 ? "" : "s"}{infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : ""}</span><BudgetAmount k="food" /></div>
                     <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🎟️ Park passes</span><BudgetAmount k="passes" /></div>

@@ -19,6 +19,7 @@ export default function LegalShell({ title, updated, children }) {
           <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid var(--pb-line)", display: "flex", gap: 18, flexWrap: "wrap", fontSize: ".85rem" }}>
             <Link href="/privacy" style={{ color: "var(--pb-gold)", textDecoration: "none" }}>Privacy</Link>
             <Link href="/terms" style={{ color: "var(--pb-gold)", textDecoration: "none" }}>Terms</Link>
+            <Link href="/affiliate-disclosure" style={{ color: "var(--pb-gold)", textDecoration: "none" }}>Affiliate disclosure</Link>
             <Link href="/attributions" style={{ color: "var(--pb-gold)", textDecoration: "none" }}>Data &amp; attributions</Link>
             <Link href="/" style={{ color: "var(--pb-ink-2)", textDecoration: "none" }}>← Back to Park Buddy</Link>
           </div>

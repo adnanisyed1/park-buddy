@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
+import AffiliateDisclosure from "../components/AffiliateDisclosure";
 import { usePhoto } from "../components/PhotoThumb";
 
 const serif = "var(--pb-serif)";
@@ -148,7 +149,7 @@ export default function ShopStore() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
             {DEPTS.map((c, i) => <DeptCard key={c.t} c={c} i={i} />)}
           </div>
-          <p className="pb-rise" style={{ textAlign: "center", fontFamily: mono, fontSize: ".58rem", letterSpacing: ".05em", color: "var(--pb-muted)", marginTop: 22, lineHeight: 1.6 }}>Prices &amp; stock come live from each partner at checkout. Park Buddy may earn a commission — it never changes your price.<br />We show real products only; no invented reviews or ratings.</p>
+          <div className="pb-rise" style={{ marginTop: 22 }}><AffiliateDisclosure variant="mono" /></div>
         </div>
       </section>
 

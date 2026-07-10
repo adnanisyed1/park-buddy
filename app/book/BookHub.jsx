@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
+import AffiliateDisclosure from "../components/AffiliateDisclosure";
 import { usePhoto } from "../components/PhotoThumb";
 
 const serif = "var(--pb-serif)";
@@ -203,7 +204,7 @@ export default function BookHub() {
             <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "6px 12px" }}>Coming soon</span>
           </div>
 
-          <p className="pb-rise" style={{ textAlign: "center", fontFamily: mono, fontSize: ".58rem", letterSpacing: ".05em", color: "var(--pb-muted)", marginTop: 22, lineHeight: 1.6 }}>Park Buddy may earn a commission from partner bookings — it never changes your price.<br />Availability &amp; pricing come live from each partner. We never invent inventory or reviews.</p>
+          <div className="pb-rise" style={{ marginTop: 22 }}><AffiliateDisclosure variant="mono" /></div>
         </div>
       </section>
 

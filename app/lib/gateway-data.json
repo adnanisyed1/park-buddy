@@ -1,0 +1,2464 @@
+{
+  "generatedAt": "2026-07-10T06:15:16.224Z",
+  "source": "usgs-gnis+curated",
+  "parks": {
+    "1": {
+      "name": "Denali",
+      "state": "Alaska",
+      "lat": 63.1148,
+      "lng": -151.1926,
+      "towns": [
+        {
+          "name": "Nikolai, AK",
+          "bareName": "Nikolai",
+          "lat": 63.00952622524783,
+          "lng": -154.3763479776751,
+          "distanceMi": 100,
+          "source": "gnis"
+        },
+        {
+          "name": "Anderson, AK",
+          "bareName": "Anderson",
+          "lat": 64.30739640266505,
+          "lng": -149.1562045907534,
+          "distanceMi": 103,
+          "source": "gnis"
+        },
+        {
+          "name": "Nenana, AK",
+          "bareName": "Nenana",
+          "lat": 64.53836808964499,
+          "lng": -149.08557544176992,
+          "distanceMi": 117,
+          "source": "gnis"
+        }
+      ]
+    },
+    "2": {
+      "name": "Gates of the Arctic",
+      "state": "Alaska",
+      "lat": 67.7806,
+      "lng": -153.3006,
+      "towns": [
+        {
+          "name": "Anaktuvuk Pass, AK",
+          "bareName": "Anaktuvuk Pass",
+          "lat": 68.1500017259392,
+          "lng": -151.71621058493477,
+          "distanceMi": 48,
+          "source": "gnis"
+        }
+      ]
+    },
+    "3": {
+      "name": "Glacier Bay",
+      "state": "Alaska",
+      "lat": 58.6658,
+      "lng": -136.9002,
+      "towns": [
+        {
+          "name": "Gustavus, AK",
+          "bareName": "Gustavus",
+          "lat": 58.41491865022557,
+          "lng": -135.73410815325977,
+          "distanceMi": 45,
+          "source": "gnis"
+        },
+        {
+          "name": "Pelican, AK",
+          "bareName": "Pelican",
+          "lat": 57.957690184601894,
+          "lng": -136.21776777401735,
+          "distanceMi": 55,
+          "source": "gnis"
+        },
+        {
+          "name": "Hoonah, AK",
+          "bareName": "Hoonah",
+          "lat": 58.11114532763286,
+          "lng": -135.42789099526627,
+          "distanceMi": 66,
+          "source": "gnis"
+        },
+        {
+          "name": "Sitka, AK",
+          "bareName": "Sitka",
+          "lat": 57.179779881028765,
+          "lng": -135.30498510517907,
+          "distanceMi": 118,
+          "source": "gnis"
+        }
+      ]
+    },
+    "4": {
+      "name": "Katmai",
+      "state": "Alaska",
+      "lat": 58.5,
+      "lng": -154,
+      "towns": [
+        {
+          "name": "Aievak, AK",
+          "bareName": "Aievak",
+          "lat": 58.563439775162,
+          "lng": -153.9746101608623,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Kukak, AK",
+          "bareName": "Kukak",
+          "lat": 58.31777896094159,
+          "lng": -154.1875211141114,
+          "distanceMi": 14,
+          "source": "gnis"
+        },
+        {
+          "name": "Port Lions, AK",
+          "bareName": "Port Lions",
+          "lat": 57.87514902902741,
+          "lng": -152.86061718877542,
+          "distanceMi": 60,
+          "source": "gnis"
+        },
+        {
+          "name": "Ouzinkie, AK",
+          "bareName": "Ouzinkie",
+          "lat": 57.92275056253628,
+          "lng": -152.46970066023314,
+          "distanceMi": 69,
+          "source": "gnis"
+        }
+      ]
+    },
+    "5": {
+      "name": "Kenai Fjords",
+      "state": "Alaska",
+      "lat": 59.9187,
+      "lng": -150.1533,
+      "towns": [
+        {
+          "name": "Seward, AK",
+          "bareName": "Seward",
+          "lat": 60.10883488588363,
+          "lng": -149.39500847864906,
+          "distanceMi": 29,
+          "source": "gnis"
+        },
+        {
+          "name": "Lowell Point, AK",
+          "bareName": "Lowell Point",
+          "lat": 60.07250178572628,
+          "lng": -149.44113338151567,
+          "distanceMi": 27,
+          "source": "gnis"
+        },
+        {
+          "name": "Fox River, AK",
+          "bareName": "Fox River",
+          "lat": 59.8583348562276,
+          "lng": -150.95835542499097,
+          "distanceMi": 28,
+          "source": "gnis"
+        },
+        {
+          "name": "Kachemak, AK",
+          "bareName": "Kachemak",
+          "lat": 59.674536213988205,
+          "lng": -151.43636498397123,
+          "distanceMi": 48,
+          "source": "gnis"
+        }
+      ]
+    },
+    "6": {
+      "name": "Kobuk Valley",
+      "state": "Alaska",
+      "lat": 67.3561,
+      "lng": -159.1229,
+      "towns": [
+        {
+          "name": "Ambler, AK",
+          "bareName": "Ambler",
+          "lat": 67.08969895557985,
+          "lng": -157.87256996922875,
+          "distanceMi": 38,
+          "source": "gnis"
+        },
+        {
+          "name": "Kiana, AK",
+          "bareName": "Kiana",
+          "lat": 66.97258581249284,
+          "lng": -160.43439130498746,
+          "distanceMi": 44,
+          "source": "gnis"
+        },
+        {
+          "name": "Selawik, AK",
+          "bareName": "Selawik",
+          "lat": 66.59882467943581,
+          "lng": -159.9995790016336,
+          "distanceMi": 57,
+          "source": "gnis"
+        },
+        {
+          "name": "Shungnak, AK",
+          "bareName": "Shungnak",
+          "lat": 66.88052007945099,
+          "lng": -157.14997131622755,
+          "distanceMi": 62,
+          "source": "gnis"
+        }
+      ]
+    },
+    "7": {
+      "name": "Lake Clark",
+      "state": "Alaska",
+      "lat": 60.9728,
+      "lng": -153.4169,
+      "towns": [
+        {
+          "name": "Kenai, AK",
+          "bareName": "Kenai",
+          "lat": 60.5615272107374,
+          "lng": -151.20841287496344,
+          "distanceMi": 80,
+          "source": "gnis"
+        },
+        {
+          "name": "Nondalton, AK",
+          "bareName": "Nondalton",
+          "lat": 59.97108703551568,
+          "lng": -154.86271328993246,
+          "distanceMi": 85,
+          "source": "gnis"
+        },
+        {
+          "name": "Soldotna, AK",
+          "bareName": "Soldotna",
+          "lat": 60.48625447576849,
+          "lng": -151.06677783254952,
+          "distanceMi": 86,
+          "source": "gnis"
+        },
+        {
+          "name": "Newhalen, AK",
+          "bareName": "Newhalen",
+          "lat": 59.726983524366275,
+          "lng": -154.89701148311312,
+          "distanceMi": 100,
+          "source": "gnis"
+        }
+      ]
+    },
+    "8": {
+      "name": "Wrangell–St. Elias",
+      "state": "Alaska",
+      "lat": 61.4937,
+      "lng": -142.6028,
+      "towns": [
+        {
+          "name": "Kennicott, AK",
+          "bareName": "Kennicott",
+          "lat": 61.48639167171592,
+          "lng": -142.88641202678872,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "May Creek, AK",
+          "bareName": "May Creek",
+          "lat": 61.3486139095184,
+          "lng": -142.69335631977054,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "McCarthy, AK",
+          "bareName": "McCarthy",
+          "lat": 61.43333606827158,
+          "lng": -142.92168979056586,
+          "distanceMi": 11,
+          "source": "gnis"
+        }
+      ]
+    },
+    "9": {
+      "name": "Grand Canyon",
+      "state": "Arizona",
+      "lat": 36.0544,
+      "lng": -112.1401,
+      "towns": [
+        {
+          "name": "Tusayan / Grand Canyon Village, AZ",
+          "bareName": "Tusayan",
+          "lat": 35.9803,
+          "lng": -112.1235,
+          "distanceMi": 5,
+          "source": "curated"
+        },
+        {
+          "name": "Grand Canyon, AZ",
+          "bareName": "Grand Canyon",
+          "lat": 36.054432757184,
+          "lng": -112.13934725035858,
+          "distanceMi": 0,
+          "source": "gnis"
+        },
+        {
+          "name": "Coconino, AZ",
+          "bareName": "Coconino",
+          "lat": 35.99443334621755,
+          "lng": -112.19823735624466,
+          "distanceMi": 5,
+          "source": "gnis"
+        },
+        {
+          "name": "Apex, AZ",
+          "bareName": "Apex",
+          "lat": 35.94304634021317,
+          "lng": -112.18573634864855,
+          "distanceMi": 8,
+          "source": "gnis"
+        }
+      ]
+    },
+    "10": {
+      "name": "Petrified Forest",
+      "state": "Arizona",
+      "lat": 34.9828,
+      "lng": -109.788,
+      "towns": [
+        {
+          "name": "Adamana, AZ",
+          "bareName": "Adamana",
+          "lat": 34.9766975505903,
+          "lng": -109.82234898741302,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "Paulcell Place, AZ",
+          "bareName": "Paulcell Place",
+          "lat": 34.96197574828293,
+          "lng": -109.82595978725709,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "Holbrook, AZ",
+          "bareName": "Holbrook",
+          "lat": 34.90438228924526,
+          "lng": -110.16724373698835,
+          "distanceMi": 22,
+          "source": "gnis"
+        },
+        {
+          "name": "Goodwater, AZ",
+          "bareName": "Goodwater",
+          "lat": 34.99197444592043,
+          "lng": -109.9448508143871,
+          "distanceMi": 9,
+          "source": "gnis"
+        }
+      ]
+    },
+    "11": {
+      "name": "Saguaro",
+      "state": "Arizona",
+      "lat": 32.2967,
+      "lng": -111.1666,
+      "towns": [
+        {
+          "name": "Tucson, AZ",
+          "bareName": "Tucson",
+          "lat": 32.2226,
+          "lng": -110.9747,
+          "distanceMi": 12,
+          "source": "curated"
+        },
+        {
+          "name": "Marana, AZ",
+          "bareName": "Marana",
+          "lat": 32.43550123777131,
+          "lng": -111.15584812437609,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "South Tucson, AZ",
+          "bareName": "South Tucson",
+          "lat": 32.195479221392326,
+          "lng": -110.96916492404964,
+          "distanceMi": 13,
+          "source": "gnis"
+        },
+        {
+          "name": "Oro Valley, AZ",
+          "bareName": "Oro Valley",
+          "lat": 32.42050939311723,
+          "lng": -110.97669078851443,
+          "distanceMi": 14,
+          "source": "gnis"
+        }
+      ]
+    },
+    "12": {
+      "name": "Hot Springs",
+      "state": "Arkansas",
+      "lat": 34.5217,
+      "lng": -93.0424,
+      "towns": [
+        {
+          "name": "Hot Springs, AR",
+          "bareName": "Hot Springs",
+          "lat": 34.48911353609505,
+          "lng": -93.05006832932706,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "Mountain Pine, AR",
+          "bareName": "Mountain Pine",
+          "lat": 34.569322019062234,
+          "lng": -93.1725661228655,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Diamondhead, AR",
+          "bareName": "Diamondhead",
+          "lat": 34.43591622255992,
+          "lng": -92.95836662886782,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Fountain Lake, AR",
+          "bareName": "Fountain Lake",
+          "lat": 34.60985411783411,
+          "lng": -92.91977819328132,
+          "distanceMi": 9,
+          "source": "gnis"
+        }
+      ]
+    },
+    "13": {
+      "name": "Channel Islands",
+      "state": "California",
+      "lat": 34.0069,
+      "lng": -119.7785,
+      "towns": [
+        {
+          "name": "Santa Barbara, CA",
+          "bareName": "Santa Barbara",
+          "lat": 34.39980609172688,
+          "lng": -119.71308990397611,
+          "distanceMi": 27,
+          "source": "gnis"
+        },
+        {
+          "name": "Las Positas Y La Calera, CA",
+          "bareName": "Las Positas Y La Calera",
+          "lat": 34.42611350815252,
+          "lng": -119.76737286877355,
+          "distanceMi": 29,
+          "source": "gnis"
+        },
+        {
+          "name": "Pueblo Lands of Santa Barbara, CA",
+          "bareName": "Pueblo Lands of Santa Barbara",
+          "lat": 34.42222411234775,
+          "lng": -119.69236895669579,
+          "distanceMi": 29,
+          "source": "gnis"
+        },
+        {
+          "name": "Carpinteria, CA",
+          "bareName": "Carpinteria",
+          "lat": 34.37740862765514,
+          "lng": -119.51359804822158,
+          "distanceMi": 30,
+          "source": "gnis"
+        }
+      ]
+    },
+    "14": {
+      "name": "Death Valley",
+      "state": "California",
+      "lat": 36.5323,
+      "lng": -116.9325,
+      "towns": [
+        {
+          "name": "Furnace Creek, CA",
+          "bareName": "Furnace Creek",
+          "lat": 36.4642,
+          "lng": -116.8694,
+          "distanceMi": 6,
+          "source": "curated"
+        },
+        {
+          "name": "Beatty Junction, CA",
+          "bareName": "Beatty Junction",
+          "lat": 36.58800851219354,
+          "lng": -116.94312449627743,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Park Village, CA",
+          "bareName": "Park Village",
+          "lat": 36.51106420993751,
+          "lng": -116.85562057283522,
+          "distanceMi": 5,
+          "source": "gnis"
+        },
+        {
+          "name": "Indian Village, CA",
+          "bareName": "Indian Village",
+          "lat": 36.44912030193445,
+          "lng": -116.87423177007693,
+          "distanceMi": 7,
+          "source": "gnis"
+        }
+      ]
+    },
+    "15": {
+      "name": "Joshua Tree",
+      "state": "California",
+      "lat": 33.8734,
+      "lng": -115.901,
+      "towns": [
+        {
+          "name": "Joshua Tree / Twentynine Palms, CA",
+          "bareName": "Joshua Tree",
+          "lat": 34.1347,
+          "lng": -116.3131,
+          "distanceMi": 30,
+          "source": "curated"
+        },
+        {
+          "name": "Coachella, CA",
+          "bareName": "Coachella",
+          "lat": 33.69038470375817,
+          "lng": -116.14313544974667,
+          "distanceMi": 19,
+          "source": "gnis"
+        },
+        {
+          "name": "Twentynine Palms, CA",
+          "bareName": "Twentynine Palms",
+          "lat": 34.147824006161436,
+          "lng": -116.06597466740038,
+          "distanceMi": 21,
+          "source": "gnis"
+        },
+        {
+          "name": "Indio, CA",
+          "bareName": "Indio",
+          "lat": 33.73461158611744,
+          "lng": -116.23464176034341,
+          "distanceMi": 21,
+          "source": "gnis"
+        }
+      ]
+    },
+    "16": {
+      "name": "Kings Canyon",
+      "state": "California",
+      "lat": 36.8879,
+      "lng": -118.5551,
+      "towns": [
+        {
+          "name": "Three Rivers, CA",
+          "bareName": "Three Rivers",
+          "lat": 36.4386,
+          "lng": -118.9023,
+          "distanceMi": 37,
+          "source": "curated"
+        },
+        {
+          "name": "Kanawyers, CA",
+          "bareName": "Kanawyers",
+          "lat": 36.79522182457219,
+          "lng": -118.58483389952455,
+          "distanceMi": 7,
+          "source": "gnis"
+        },
+        {
+          "name": "Cedar Grove, CA",
+          "bareName": "Cedar Grove",
+          "lat": 36.790779518020194,
+          "lng": -118.67039041287303,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Bishop, CA",
+          "bareName": "Bishop",
+          "lat": 37.36653945916003,
+          "lng": -118.3958489351658,
+          "distanceMi": 34,
+          "source": "gnis"
+        }
+      ]
+    },
+    "17": {
+      "name": "Lassen Volcanic",
+      "state": "California",
+      "lat": 40.4977,
+      "lng": -121.4207,
+      "towns": [
+        {
+          "name": "Drakesbad, CA",
+          "bareName": "Drakesbad",
+          "lat": 40.44433263811345,
+          "lng": -121.4044332038628,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Summertown, CA",
+          "bareName": "Summertown",
+          "lat": 40.54433073214595,
+          "lng": -121.56749624404243,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Manzanita Lake, CA",
+          "bareName": "Manzanita Lake",
+          "lat": 40.53544203186598,
+          "lng": -121.56082924175278,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Childs Meadows, CA",
+          "bareName": "Childs Meadows",
+          "lat": 40.36016452441162,
+          "lng": -121.49193530552161,
+          "distanceMi": 10,
+          "source": "gnis"
+        }
+      ]
+    },
+    "18": {
+      "name": "Pinnacles",
+      "state": "California",
+      "lat": 36.4906,
+      "lng": -121.1825,
+      "towns": [
+        {
+          "name": "Soledad, CA",
+          "bareName": "Soledad",
+          "lat": 36.430483119503585,
+          "lng": -121.32177729936275,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Los Coches, CA",
+          "bareName": "Los Coches",
+          "lat": 36.3805259015778,
+          "lng": -121.29744089267696,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "San Lorenzo, CA",
+          "bareName": "San Lorenzo",
+          "lat": 36.36663631462061,
+          "lng": -121.08659515907956,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Arroyo Seco, CA",
+          "bareName": "Arroyo Seco",
+          "lat": 36.32691529859407,
+          "lng": -121.27799508417954,
+          "distanceMi": 12,
+          "source": "gnis"
+        }
+      ]
+    },
+    "19": {
+      "name": "Redwood",
+      "state": "California",
+      "lat": 41.2132,
+      "lng": -124.0046,
+      "towns": [
+        {
+          "name": "Trinidad, CA",
+          "bareName": "Trinidad",
+          "lat": 41.05784635566165,
+          "lng": -124.14317566511039,
+          "distanceMi": 13,
+          "source": "gnis"
+        },
+        {
+          "name": "Blue Lake, CA",
+          "bareName": "Blue Lake",
+          "lat": 40.88157852379402,
+          "lng": -123.99393498154625,
+          "distanceMi": 23,
+          "source": "gnis"
+        },
+        {
+          "name": "Orick, CA",
+          "bareName": "Orick",
+          "lat": 41.286794671792386,
+          "lng": -124.05980762745709,
+          "distanceMi": 6,
+          "source": "gnis"
+        },
+        {
+          "name": "Arcata, CA",
+          "bareName": "Arcata",
+          "lat": 40.86167449261101,
+          "lng": -124.07524891170796,
+          "distanceMi": 25,
+          "source": "gnis"
+        }
+      ]
+    },
+    "20": {
+      "name": "Sequoia",
+      "state": "California",
+      "lat": 36.4864,
+      "lng": -118.5658,
+      "towns": [
+        {
+          "name": "Three Rivers, CA",
+          "bareName": "Three Rivers",
+          "lat": 36.4386,
+          "lng": -118.9023,
+          "distanceMi": 19,
+          "source": "curated"
+        },
+        {
+          "name": "Mineral King, CA",
+          "bareName": "Mineral King",
+          "lat": 36.45077978912166,
+          "lng": -118.59482796518253,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "Silver City, CA",
+          "bareName": "Silver City",
+          "lat": 36.46605868694594,
+          "lng": -118.6459402749807,
+          "distanceMi": 5,
+          "source": "gnis"
+        },
+        {
+          "name": "Cabin Cove, CA",
+          "bareName": "Cabin Cove",
+          "lat": 36.46550338659127,
+          "lng": -118.65399597657986,
+          "distanceMi": 5,
+          "source": "gnis"
+        }
+      ]
+    },
+    "21": {
+      "name": "Yosemite",
+      "state": "California",
+      "lat": 37.8651,
+      "lng": -119.5383,
+      "towns": [
+        {
+          "name": "Mariposa / El Portal, CA",
+          "bareName": "Mariposa",
+          "lat": 37.4849,
+          "lng": -119.9663,
+          "distanceMi": 35,
+          "source": "curated"
+        },
+        {
+          "name": "White Wolf, CA",
+          "bareName": "White Wolf",
+          "lat": 37.86937225343699,
+          "lng": -119.65018329301249,
+          "distanceMi": 6,
+          "source": "gnis"
+        },
+        {
+          "name": "Big Tree, CA",
+          "bareName": "Big Tree",
+          "lat": 37.50994262381835,
+          "lng": -119.60210904418273,
+          "distanceMi": 25,
+          "source": "gnis"
+        },
+        {
+          "name": "Aspen Valley, CA",
+          "bareName": "Aspen Valley",
+          "lat": 37.827428941426476,
+          "lng": -119.7712994084737,
+          "distanceMi": 13,
+          "source": "gnis"
+        }
+      ]
+    },
+    "22": {
+      "name": "Black Canyon of the Gunnison",
+      "state": "Colorado",
+      "lat": 38.5754,
+      "lng": -107.7416,
+      "towns": [
+        {
+          "name": "Montrose, CO",
+          "bareName": "Montrose",
+          "lat": 38.46892798123568,
+          "lng": -107.85902815076034,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Crawford, CO",
+          "bareName": "Crawford",
+          "lat": 38.70505018279105,
+          "lng": -107.60960664692358,
+          "distanceMi": 11,
+          "source": "gnis"
+        },
+        {
+          "name": "Olathe, CO",
+          "bareName": "Olathe",
+          "lat": 38.60839087286213,
+          "lng": -107.9833112003989,
+          "distanceMi": 13,
+          "source": "gnis"
+        },
+        {
+          "name": "Hotchkiss, CO",
+          "bareName": "Hotchkiss",
+          "lat": 38.79899773471069,
+          "lng": -107.71339344668048,
+          "distanceMi": 16,
+          "source": "gnis"
+        }
+      ]
+    },
+    "23": {
+      "name": "Great Sand Dunes",
+      "state": "Colorado",
+      "lat": 37.7325,
+      "lng": -105.5945,
+      "towns": [
+        {
+          "name": "Hooper, CO",
+          "bareName": "Hooper",
+          "lat": 37.74598199366306,
+          "lng": -105.87774541915331,
+          "distanceMi": 16,
+          "source": "gnis"
+        },
+        {
+          "name": "Crestone, CO",
+          "bareName": "Crestone",
+          "lat": 37.99453470959689,
+          "lng": -105.69621589673098,
+          "distanceMi": 19,
+          "source": "gnis"
+        },
+        {
+          "name": "Blanca, CO",
+          "bareName": "Blanca",
+          "lat": 37.43927368616493,
+          "lng": -105.51355365622756,
+          "distanceMi": 21,
+          "source": "gnis"
+        },
+        {
+          "name": "Alamosa, CO",
+          "bareName": "Alamosa",
+          "lat": 37.47604130656267,
+          "lng": -105.87775688255465,
+          "distanceMi": 24,
+          "source": "gnis"
+        }
+      ]
+    },
+    "24": {
+      "name": "Mesa Verde",
+      "state": "Colorado",
+      "lat": 37.1853,
+      "lng": -108.4896,
+      "towns": [
+        {
+          "name": "Cortez, CO",
+          "bareName": "Cortez",
+          "lat": 37.35037864111793,
+          "lng": -108.57667339177527,
+          "distanceMi": 12,
+          "source": "gnis"
+        },
+        {
+          "name": "Mancos, CO",
+          "bareName": "Mancos",
+          "lat": 37.346646934085314,
+          "lng": -108.29385124377905,
+          "distanceMi": 15,
+          "source": "gnis"
+        },
+        {
+          "name": "Dolores, CO",
+          "bareName": "Dolores",
+          "lat": 37.47409863424141,
+          "lng": -108.49989917964858,
+          "distanceMi": 20,
+          "source": "gnis"
+        },
+        {
+          "name": "Kirtland, CO",
+          "bareName": "Kirtland",
+          "lat": 36.74327499435595,
+          "lng": -108.35827503918895,
+          "distanceMi": 31,
+          "source": "gnis"
+        }
+      ]
+    },
+    "25": {
+      "name": "Rocky Mountain",
+      "state": "Colorado",
+      "lat": 40.3428,
+      "lng": -105.6836,
+      "towns": [
+        {
+          "name": "Estes Park, CO",
+          "bareName": "Estes Park",
+          "lat": 40.3772,
+          "lng": -105.5217,
+          "distanceMi": 9,
+          "source": "curated"
+        },
+        {
+          "name": "Grand Lake, CO",
+          "bareName": "Grand Lake",
+          "lat": 40.25301879719196,
+          "lng": -105.83265861302228,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Ward, CO",
+          "bareName": "Ward",
+          "lat": 40.07217164070384,
+          "lng": -105.51389515437606,
+          "distanceMi": 21,
+          "source": "gnis"
+        },
+        {
+          "name": "Jamestown, CO",
+          "bareName": "Jamestown",
+          "lat": 40.11834863382529,
+          "lng": -105.39164194873328,
+          "distanceMi": 22,
+          "source": "gnis"
+        }
+      ]
+    },
+    "26": {
+      "name": "Biscayne",
+      "state": "Florida",
+      "lat": 25.4824,
+      "lng": -80.43,
+      "towns": [
+        {
+          "name": "Homestead, FL",
+          "bareName": "Homestead",
+          "lat": 25.466453776675298,
+          "lng": -80.44722053778136,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "Florida City, FL",
+          "bareName": "Florida City",
+          "lat": 25.441829338513013,
+          "lng": -80.46843455235482,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Cutler Bay, FL",
+          "bareName": "Cutler Bay",
+          "lat": 25.57648716249763,
+          "lng": -80.33567008321576,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Palmetto Bay, FL",
+          "bareName": "Palmetto Bay",
+          "lat": 25.621946546436185,
+          "lng": -80.3221680020502,
+          "distanceMi": 12,
+          "source": "gnis"
+        }
+      ]
+    },
+    "27": {
+      "name": "Dry Tortugas",
+      "state": "Florida",
+      "lat": 24.6283,
+      "lng": -82.8733,
+      "towns": [
+        {
+          "name": "Fort Jefferson, FL",
+          "bareName": "Fort Jefferson",
+          "lat": 24.62793444106377,
+          "lng": -82.87290152837673,
+          "distanceMi": 0,
+          "source": "gnis"
+        }
+      ]
+    },
+    "28": {
+      "name": "Everglades",
+      "state": "Florida",
+      "lat": 25.2866,
+      "lng": -80.8987,
+      "towns": [
+        {
+          "name": "Flamingo, FL",
+          "bareName": "Flamingo",
+          "lat": 25.14179591026148,
+          "lng": -80.92535197838275,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Florida City, FL",
+          "bareName": "Florida City",
+          "lat": 25.441829338513013,
+          "lng": -80.46843455235482,
+          "distanceMi": 29,
+          "source": "gnis"
+        },
+        {
+          "name": "Islamorada, Village of Islands, FL",
+          "bareName": "Islamorada, Village of Islands",
+          "lat": 24.952511106178168,
+          "lng": -80.58406127421885,
+          "distanceMi": 30,
+          "source": "gnis"
+        },
+        {
+          "name": "Homestead, FL",
+          "bareName": "Homestead",
+          "lat": 25.466453776675298,
+          "lng": -80.44722053778136,
+          "distanceMi": 31,
+          "source": "gnis"
+        }
+      ]
+    },
+    "29": {
+      "name": "Haleakalā",
+      "state": "Hawaii",
+      "lat": 20.7204,
+      "lng": -156.1552,
+      "towns": [
+        {
+          "name": "Kaupō, HI",
+          "bareName": "Kaupō",
+          "lat": 20.700003435031622,
+          "lng": -156.1666811653296,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "Nuʻu, HI",
+          "bareName": "Nuʻu",
+          "lat": 20.685836735118546,
+          "lng": -156.1744588652978,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "Papaʻanui, HI",
+          "bareName": "Papaʻanui",
+          "lat": 20.725836734354726,
+          "lng": -156.22112556367182,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Naholoku, HI",
+          "bareName": "Naholoku",
+          "lat": 20.66444783600923,
+          "lng": -156.14723666657582,
+          "distanceMi": 4,
+          "source": "gnis"
+        }
+      ]
+    },
+    "30": {
+      "name": "Hawai'i Volcanoes",
+      "state": "Hawaii",
+      "lat": 19.4194,
+      "lng": -155.2885,
+      "towns": [
+        {
+          "name": "Keauhou, HI",
+          "bareName": "Keauhou",
+          "lat": 19.409447879435266,
+          "lng": -155.26057011432493,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "ʻŌlaʻa Summer Lots, HI",
+          "bareName": "ʻŌlaʻa Summer Lots",
+          "lat": 19.44000347736056,
+          "lng": -155.23529231364557,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Kilauea Settlement Lots, HI",
+          "bareName": "Kilauea Settlement Lots",
+          "lat": 19.45222567698757,
+          "lng": -155.24140341328456,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "ʻĀpua, HI",
+          "bareName": "ʻĀpua",
+          "lat": 19.321114581488597,
+          "lng": -155.2033478170021,
+          "distanceMi": 9,
+          "source": "gnis"
+        }
+      ]
+    },
+    "31": {
+      "name": "Indiana Dunes",
+      "state": "Indiana",
+      "lat": 41.653,
+      "lng": -87.0524,
+      "towns": [
+        {
+          "name": "Porter, IN",
+          "bareName": "Porter",
+          "lat": 41.627553157880655,
+          "lng": -87.07978528038447,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "Dune Acres, IN",
+          "bareName": "Dune Acres",
+          "lat": 41.64909012334964,
+          "lng": -87.09665513207548,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "Burns Harbor, IN",
+          "bareName": "Burns Harbor",
+          "lat": 41.61893254862839,
+          "lng": -87.12587523968486,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Chesterton, IN",
+          "bareName": "Chesterton",
+          "lat": 41.59975010627071,
+          "lng": -87.05489606035432,
+          "distanceMi": 4,
+          "source": "gnis"
+        }
+      ]
+    },
+    "32": {
+      "name": "Mammoth Cave",
+      "state": "Kentucky",
+      "lat": 37.1862,
+      "lng": -86.1003,
+      "towns": [
+        {
+          "name": "Park City, KY",
+          "bareName": "Park City",
+          "lat": 37.09340321456459,
+          "lng": -86.04857240847889,
+          "distanceMi": 7,
+          "source": "gnis"
+        },
+        {
+          "name": "Cave City, KY",
+          "bareName": "Cave City",
+          "lat": 37.139991962555044,
+          "lng": -85.96465970430252,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Brownsville, KY",
+          "bareName": "Brownsville",
+          "lat": 37.195177222135015,
+          "lng": -86.26907913578313,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Horse Cave, KY",
+          "bareName": "Horse Cave",
+          "lat": 37.17386097084489,
+          "lng": -85.91455936733315,
+          "distanceMi": 10,
+          "source": "gnis"
+        }
+      ]
+    },
+    "33": {
+      "name": "Acadia",
+      "state": "Maine",
+      "lat": 44.3386,
+      "lng": -68.2733,
+      "towns": [
+        {
+          "name": "Bar Harbor, ME",
+          "bareName": "Bar Harbor",
+          "lat": 44.3876,
+          "lng": -68.2039,
+          "distanceMi": 5,
+          "source": "curated"
+        },
+        {
+          "name": "T7 SD BPP, ME",
+          "bareName": "T7 SD BPP",
+          "lat": 44.545651369225354,
+          "lng": -68.04558080998432,
+          "distanceMi": 18,
+          "source": "gnis"
+        },
+        {
+          "name": "Ellsworth, ME",
+          "bareName": "Ellsworth",
+          "lat": 44.58419242626195,
+          "lng": -68.48714629011468,
+          "distanceMi": 20,
+          "source": "gnis"
+        },
+        {
+          "name": "T9 SD BPP, ME",
+          "bareName": "T9 SD BPP",
+          "lat": 44.618464077991426,
+          "lng": -68.15285044996295,
+          "distanceMi": 20,
+          "source": "gnis"
+        }
+      ]
+    },
+    "34": {
+      "name": "Isle Royale",
+      "state": "Michigan",
+      "lat": 48,
+      "lng": -88.8327,
+      "towns": [
+        {
+          "name": "Windigo, MI",
+          "bareName": "Windigo",
+          "lat": 47.91184389798101,
+          "lng": -89.1567606577635,
+          "distanceMi": 16,
+          "source": "gnis"
+        },
+        {
+          "name": "Rock Harbor Lodge, MI",
+          "bareName": "Rock Harbor Lodge",
+          "lat": 48.14571547688054,
+          "lng": -88.48368758523982,
+          "distanceMi": 19,
+          "source": "gnis"
+        },
+        {
+          "name": "Ahmeek, MI",
+          "bareName": "Ahmeek",
+          "lat": 47.29845658602988,
+          "lng": -88.39711863283691,
+          "distanceMi": 53,
+          "source": "gnis"
+        },
+        {
+          "name": "Copper City, MI",
+          "bareName": "Copper City",
+          "lat": 47.284208071070495,
+          "lng": -88.38755525995033,
+          "distanceMi": 54,
+          "source": "gnis"
+        }
+      ]
+    },
+    "35": {
+      "name": "Voyageurs",
+      "state": "Minnesota",
+      "lat": 48.4839,
+      "lng": -92.8387,
+      "towns": [
+        {
+          "name": "Ranier, MN",
+          "bareName": "Ranier",
+          "lat": 48.60660195367515,
+          "lng": -93.35301938542403,
+          "distanceMi": 25,
+          "source": "gnis"
+        },
+        {
+          "name": "International Falls, MN",
+          "bareName": "International Falls",
+          "lat": 48.58802345889352,
+          "lng": -93.40836137500823,
+          "distanceMi": 27,
+          "source": "gnis"
+        },
+        {
+          "name": "Kabetogama, MN",
+          "bareName": "Kabetogama",
+          "lat": 48.43770318767168,
+          "lng": -93.0273817163898,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Kettle Falls, MN",
+          "bareName": "Kettle Falls",
+          "lat": 48.50269192564001,
+          "lng": -92.63960411255434,
+          "distanceMi": 9,
+          "source": "gnis"
+        }
+      ]
+    },
+    "36": {
+      "name": "Gateway Arch",
+      "state": "Missouri",
+      "lat": 38.6247,
+      "lng": -90.1851,
+      "towns": [
+        {
+          "name": "Brooklyn, MO",
+          "bareName": "Brooklyn",
+          "lat": 38.65425439885396,
+          "lng": -90.16787862729343,
+          "distanceMi": 2,
+          "source": "gnis"
+        },
+        {
+          "name": "Sauget, MO",
+          "bareName": "Sauget",
+          "lat": 38.58421716559044,
+          "lng": -90.16080471692618,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "Venice, MO",
+          "bareName": "Venice",
+          "lat": 38.6719847249972,
+          "lng": -90.16907182445104,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "East Saint Louis, MO",
+          "bareName": "East Saint Louis",
+          "lat": 38.61557065772875,
+          "lng": -90.13051091953302,
+          "distanceMi": 3,
+          "source": "gnis"
+        }
+      ]
+    },
+    "37": {
+      "name": "Glacier",
+      "state": "Montana",
+      "lat": 48.7596,
+      "lng": -113.787,
+      "towns": [
+        {
+          "name": "Whitefish / West Glacier, MT",
+          "bareName": "Whitefish",
+          "lat": 48.4111,
+          "lng": -114.3376,
+          "distanceMi": 35,
+          "source": "curated"
+        },
+        {
+          "name": "Crystal Point, MT",
+          "bareName": "Crystal Point",
+          "lat": 48.75164891257772,
+          "lng": -113.78763219302638,
+          "distanceMi": 1,
+          "source": "gnis"
+        },
+        {
+          "name": "Packers Roost, MT",
+          "bareName": "Packers Roost",
+          "lat": 48.74581541294508,
+          "lng": -113.780131890123,
+          "distanceMi": 1,
+          "source": "gnis"
+        },
+        {
+          "name": "Red Rock Point, MT",
+          "bareName": "Red Rock Point",
+          "lat": 48.69525790526178,
+          "lng": -113.81624298505665,
+          "distanceMi": 5,
+          "source": "gnis"
+        }
+      ]
+    },
+    "38": {
+      "name": "Great Basin",
+      "state": "Nevada",
+      "lat": 38.9831,
+      "lng": -114.3006,
+      "towns": [
+        {
+          "name": "Hogum, NV",
+          "bareName": "Hogum",
+          "lat": 39.05633925756693,
+          "lng": -114.41140191030753,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Osceola, NV",
+          "bareName": "Osceola",
+          "lat": 39.09050576283746,
+          "lng": -114.38556810995948,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Baker, NV",
+          "bareName": "Baker",
+          "lat": 39.01328577385046,
+          "lng": -114.12278145066433,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Shoshone, NV",
+          "bareName": "Shoshone",
+          "lat": 38.84856493505195,
+          "lng": -114.40778768518724,
+          "distanceMi": 11,
+          "source": "gnis"
+        }
+      ]
+    },
+    "39": {
+      "name": "Carlsbad Caverns",
+      "state": "New Mexico",
+      "lat": 32.1479,
+      "lng": -104.5567,
+      "towns": [
+        {
+          "name": "Carlsbad, NM",
+          "bareName": "Carlsbad",
+          "lat": 32.40098415400833,
+          "lng": -104.23883725940611,
+          "distanceMi": 26,
+          "source": "gnis"
+        },
+        {
+          "name": "Loving, NM",
+          "bareName": "Loving",
+          "lat": 32.28620450750069,
+          "lng": -104.09756757619128,
+          "distanceMi": 28,
+          "source": "gnis"
+        },
+        {
+          "name": "State Line, NM",
+          "bareName": "State Line",
+          "lat": 31.998178458560773,
+          "lng": -104.53467823177597,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Whites City, NM",
+          "bareName": "Whites City",
+          "lat": 32.1756776958804,
+          "lng": -104.37662300825114,
+          "distanceMi": 11,
+          "source": "gnis"
+        }
+      ]
+    },
+    "40": {
+      "name": "White Sands",
+      "state": "New Mexico",
+      "lat": 32.7791,
+      "lng": -106.1717,
+      "towns": [
+        {
+          "name": "Alamogordo, NM",
+          "bareName": "Alamogordo",
+          "lat": 32.88399257584576,
+          "lng": -105.9622964967133,
+          "distanceMi": 14,
+          "source": "gnis"
+        },
+        {
+          "name": "Point of Sands, NM",
+          "bareName": "Point of Sands",
+          "lat": 32.74703640553737,
+          "lng": -106.19583654899651,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "Tularosa, NM",
+          "bareName": "Tularosa",
+          "lat": 33.07525878459892,
+          "lng": -106.01751482152055,
+          "distanceMi": 22,
+          "source": "gnis"
+        },
+        {
+          "name": "Cloudcroft, NM",
+          "bareName": "Cloudcroft",
+          "lat": 32.953162432524195,
+          "lng": -105.73253575295013,
+          "distanceMi": 28,
+          "source": "gnis"
+        }
+      ]
+    },
+    "41": {
+      "name": "Great Smoky Mountains",
+      "state": "NC / Tennessee",
+      "lat": 35.6532,
+      "lng": -83.507,
+      "towns": [
+        {
+          "name": "Gatlinburg / Townsend, TN",
+          "bareName": "Gatlinburg",
+          "lat": 35.7143,
+          "lng": -83.5102,
+          "distanceMi": 4,
+          "source": "curated"
+        },
+        {
+          "name": "Pittman Center",
+          "bareName": "Pittman Center",
+          "lat": 35.759512268900394,
+          "lng": -83.3884915646857,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Pigeon Forge",
+          "bareName": "Pigeon Forge",
+          "lat": 35.798012115172206,
+          "lng": -83.56378892690807,
+          "distanceMi": 11,
+          "source": "gnis"
+        },
+        {
+          "name": "Townsend",
+          "bareName": "Townsend",
+          "lat": 35.676326213118315,
+          "lng": -83.75299931809748,
+          "distanceMi": 14,
+          "source": "gnis"
+        }
+      ]
+    },
+    "42": {
+      "name": "Theodore Roosevelt",
+      "state": "North Dakota",
+      "lat": 46.9789,
+      "lng": -103.5387,
+      "towns": [
+        {
+          "name": "Medora, ND",
+          "bareName": "Medora",
+          "lat": 46.91231651502683,
+          "lng": -103.52522937516306,
+          "distanceMi": 5,
+          "source": "gnis"
+        },
+        {
+          "name": "Dehli, ND",
+          "bareName": "Dehli",
+          "lat": 46.99307701577581,
+          "lng": -103.83382122332193,
+          "distanceMi": 14,
+          "source": "gnis"
+        },
+        {
+          "name": "Sentinel Butte, ND",
+          "bareName": "Sentinel Butte",
+          "lat": 46.91952032938881,
+          "lng": -103.83998343620229,
+          "distanceMi": 15,
+          "source": "gnis"
+        },
+        {
+          "name": "Belfield, ND",
+          "bareName": "Belfield",
+          "lat": 46.8862247242128,
+          "lng": -103.19558023161687,
+          "distanceMi": 17,
+          "source": "gnis"
+        }
+      ]
+    },
+    "43": {
+      "name": "Cuyahoga Valley",
+      "state": "Ohio",
+      "lat": 41.2808,
+      "lng": -81.5678,
+      "towns": [
+        {
+          "name": "Peninsula, OH",
+          "bareName": "Peninsula",
+          "lat": 41.237950782623194,
+          "lng": -81.55186380217033,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "Brecksville, OH",
+          "bareName": "Brecksville",
+          "lat": 41.30795868292945,
+          "lng": -81.61916594527763,
+          "distanceMi": 3,
+          "source": "gnis"
+        },
+        {
+          "name": "Macedonia, OH",
+          "bareName": "Macedonia",
+          "lat": 41.31476573282165,
+          "lng": -81.49889655665041,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Boston Heights, OH",
+          "bareName": "Boston Heights",
+          "lat": 41.25386714903172,
+          "lng": -81.50896020042039,
+          "distanceMi": 4,
+          "source": "gnis"
+        }
+      ]
+    },
+    "44": {
+      "name": "Crater Lake",
+      "state": "Oregon",
+      "lat": 42.9446,
+      "lng": -122.109,
+      "towns": [
+        {
+          "name": "Chiloquin, OR",
+          "bareName": "Chiloquin",
+          "lat": 42.57642248941279,
+          "lng": -121.86776647670163,
+          "distanceMi": 28,
+          "source": "gnis"
+        },
+        {
+          "name": "Diamond Lake, OR",
+          "bareName": "Diamond Lake",
+          "lat": 43.17874297182295,
+          "lng": -122.13893415169626,
+          "distanceMi": 16,
+          "source": "gnis"
+        },
+        {
+          "name": "Union Creek, OR",
+          "bareName": "Union Creek",
+          "lat": 42.90707502483056,
+          "lng": -122.44560675104725,
+          "distanceMi": 17,
+          "source": "gnis"
+        },
+        {
+          "name": "Butte Falls, OR",
+          "bareName": "Butte Falls",
+          "lat": 42.54141500287997,
+          "lng": -122.56909420505949,
+          "distanceMi": 36,
+          "source": "gnis"
+        }
+      ]
+    },
+    "45": {
+      "name": "Congaree",
+      "state": "South Carolina",
+      "lat": 33.7948,
+      "lng": -80.782,
+      "towns": [
+        {
+          "name": "Eastover, SC",
+          "bareName": "Eastover",
+          "lat": 33.877896616018084,
+          "lng": -80.69492892921846,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Saint Matthews, SC",
+          "bareName": "Saint Matthews",
+          "lat": 33.664054535698966,
+          "lng": -80.77799227809034,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Cameron, SC",
+          "bareName": "Cameron",
+          "lat": 33.557961045114055,
+          "lng": -80.71503741861281,
+          "distanceMi": 17,
+          "source": "gnis"
+        },
+        {
+          "name": "Columbia, SC",
+          "bareName": "Columbia",
+          "lat": 34.03754115403383,
+          "lng": -80.90369129090729,
+          "distanceMi": 18,
+          "source": "gnis"
+        }
+      ]
+    },
+    "46": {
+      "name": "Badlands",
+      "state": "South Dakota",
+      "lat": 43.8554,
+      "lng": -102.3397,
+      "towns": [
+        {
+          "name": "Wall, SD",
+          "bareName": "Wall",
+          "lat": 43.9933,
+          "lng": -102.2411,
+          "distanceMi": 11,
+          "source": "curated"
+        },
+        {
+          "name": "Quinn, SD",
+          "bareName": "Quinn",
+          "lat": 43.98658758201666,
+          "lng": -102.12635586172611,
+          "distanceMi": 14,
+          "source": "gnis"
+        },
+        {
+          "name": "Wasta, SD",
+          "bareName": "Wasta",
+          "lat": 44.069538056625234,
+          "lng": -102.44637848531282,
+          "distanceMi": 16,
+          "source": "gnis"
+        },
+        {
+          "name": "Cedar, SD",
+          "bareName": "Cedar",
+          "lat": 43.85722069487609,
+          "lng": -101.95516192377153,
+          "distanceMi": 19,
+          "source": "gnis"
+        }
+      ]
+    },
+    "47": {
+      "name": "Wind Cave",
+      "state": "South Dakota",
+      "lat": 43.5569,
+      "lng": -103.4784,
+      "towns": [
+        {
+          "name": "Pringle, SD",
+          "bareName": "Pringle",
+          "lat": 43.60900097411411,
+          "lng": -103.59459203344487,
+          "distanceMi": 7,
+          "source": "gnis"
+        },
+        {
+          "name": "Buffalo Gap, SD",
+          "bareName": "Buffalo Gap",
+          "lat": 43.49216974508689,
+          "lng": -103.31530111791477,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Hot Springs, SD",
+          "bareName": "Hot Springs",
+          "lat": 43.42720781748534,
+          "lng": -103.50881684320682,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Beaver, SD",
+          "bareName": "Beaver",
+          "lat": 43.427211436347825,
+          "lng": -103.27159698519435,
+          "distanceMi": 14,
+          "source": "gnis"
+        }
+      ]
+    },
+    "48": {
+      "name": "Big Bend",
+      "state": "Texas",
+      "lat": 29.1275,
+      "lng": -103.242,
+      "towns": [
+        {
+          "name": "Pettits, TX",
+          "bareName": "Pettits",
+          "lat": 28.998546380267122,
+          "lng": -103.28407109184093,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Woodsons, TX",
+          "bareName": "Woodsons",
+          "lat": 29.00632378127559,
+          "lng": -103.29490479482867,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Pantera, TX",
+          "bareName": "Pantera",
+          "lat": 28.987436381012337,
+          "lng": -103.20406837321066,
+          "distanceMi": 10,
+          "source": "gnis"
+        },
+        {
+          "name": "Solis, TX",
+          "bareName": "Solis",
+          "lat": 29.061323898362417,
+          "lng": -103.09962055264353,
+          "distanceMi": 10,
+          "source": "gnis"
+        }
+      ]
+    },
+    "49": {
+      "name": "Guadalupe Mountains",
+      "state": "Texas",
+      "lat": 31.923,
+      "lng": -104.8714,
+      "towns": [
+        {
+          "name": "Dell City, TX",
+          "bareName": "Dell City",
+          "lat": 31.93489426409017,
+          "lng": -105.19982513796784,
+          "distanceMi": 19,
+          "source": "gnis"
+        },
+        {
+          "name": "Pine Springs, TX",
+          "bareName": "Pine Springs",
+          "lat": 31.892621428789997,
+          "lng": -104.81551238918384,
+          "distanceMi": 4,
+          "source": "gnis"
+        },
+        {
+          "name": "Nickel Creek Station, TX",
+          "bareName": "Nickel Creek Station",
+          "lat": 31.92178823643454,
+          "lng": -104.74662307478478,
+          "distanceMi": 7,
+          "source": "gnis"
+        },
+        {
+          "name": "Brownfeld Corner, TX",
+          "bareName": "Brownfeld Corner",
+          "lat": 31.983728929865798,
+          "lng": -105.12913116475686,
+          "distanceMi": 16,
+          "source": "gnis"
+        }
+      ]
+    },
+    "50": {
+      "name": "Arches",
+      "state": "Utah",
+      "lat": 38.683,
+      "lng": -109.5925,
+      "towns": [
+        {
+          "name": "Moab, UT",
+          "bareName": "Moab",
+          "lat": 38.5733,
+          "lng": -109.5498,
+          "distanceMi": 8,
+          "source": "curated"
+        },
+        {
+          "name": "Castle Valley, UT",
+          "bareName": "Castle Valley",
+          "lat": 38.63212510009555,
+          "lng": -109.39606078970534,
+          "distanceMi": 11,
+          "source": "gnis"
+        },
+        {
+          "name": "Spanish Valley, UT",
+          "bareName": "Spanish Valley",
+          "lat": 38.49332314395108,
+          "lng": -109.45846005375606,
+          "distanceMi": 15,
+          "source": "gnis"
+        },
+        {
+          "name": "Dewey, UT",
+          "bareName": "Dewey",
+          "lat": 38.810268995912324,
+          "lng": -109.30179375681452,
+          "distanceMi": 18,
+          "source": "gnis"
+        }
+      ]
+    },
+    "51": {
+      "name": "Bryce Canyon",
+      "state": "Utah",
+      "lat": 37.593,
+      "lng": -112.1871,
+      "towns": [
+        {
+          "name": "Bryce Canyon City / Tropic, UT",
+          "bareName": "Bryce Canyon City",
+          "lat": 37.6705,
+          "lng": -112.1573,
+          "distanceMi": 6,
+          "source": "curated"
+        },
+        {
+          "name": "Tropic, UT",
+          "bareName": "Tropic",
+          "lat": 37.629414697586235,
+          "lng": -112.09138196986773,
+          "distanceMi": 6,
+          "source": "gnis"
+        },
+        {
+          "name": "Cannonville, UT",
+          "bareName": "Cannonville",
+          "lat": 37.58208994732076,
+          "lng": -112.05830763693855,
+          "distanceMi": 7,
+          "source": "gnis"
+        },
+        {
+          "name": "Henrieville, UT",
+          "bareName": "Henrieville",
+          "lat": 37.56389667370531,
+          "lng": -112.00191675197074,
+          "distanceMi": 10,
+          "source": "gnis"
+        }
+      ]
+    },
+    "52": {
+      "name": "Canyonlands",
+      "state": "Utah",
+      "lat": 38.2,
+      "lng": -109.93,
+      "towns": [
+        {
+          "name": "Moab, UT",
+          "bareName": "Moab",
+          "lat": 38.5733,
+          "lng": -109.5498,
+          "distanceMi": 33,
+          "source": "curated"
+        },
+        {
+          "name": "Monticello, UT",
+          "bareName": "Monticello",
+          "lat": 37.86854032544795,
+          "lng": -109.33621139987682,
+          "distanceMi": 40,
+          "source": "gnis"
+        },
+        {
+          "name": "Castle Valley, UT",
+          "bareName": "Castle Valley",
+          "lat": 38.63212510009555,
+          "lng": -109.39606078970534,
+          "distanceMi": 42,
+          "source": "gnis"
+        },
+        {
+          "name": "Hanksville, UT",
+          "bareName": "Hanksville",
+          "lat": 38.37244024928362,
+          "lng": -110.71379619933285,
+          "distanceMi": 44,
+          "source": "gnis"
+        }
+      ]
+    },
+    "53": {
+      "name": "Capitol Reef",
+      "state": "Utah",
+      "lat": 38.0877,
+      "lng": -111.1495,
+      "towns": [
+        {
+          "name": "Torrey, UT",
+          "bareName": "Torrey",
+          "lat": 38.2989,
+          "lng": -111.4194,
+          "distanceMi": 21,
+          "source": "curated"
+        },
+        {
+          "name": "Boulder, UT",
+          "bareName": "Boulder",
+          "lat": 37.92280259660911,
+          "lng": -111.43186847068779,
+          "distanceMi": 19,
+          "source": "gnis"
+        },
+        {
+          "name": "Bicknell, UT",
+          "bareName": "Bicknell",
+          "lat": 38.34066217350619,
+          "lng": -111.54418999238086,
+          "distanceMi": 28,
+          "source": "gnis"
+        },
+        {
+          "name": "Notom, UT",
+          "bareName": "Notom",
+          "lat": 38.23331979703913,
+          "lng": -111.1185106682812,
+          "distanceMi": 10,
+          "source": "gnis"
+        }
+      ]
+    },
+    "54": {
+      "name": "Zion",
+      "state": "Utah",
+      "lat": 37.2982,
+      "lng": -113.0263,
+      "towns": [
+        {
+          "name": "Springdale, UT",
+          "bareName": "Springdale",
+          "lat": 37.1888,
+          "lng": -112.9986,
+          "distanceMi": 8,
+          "source": "curated"
+        },
+        {
+          "name": "Rockville, UT",
+          "bareName": "Rockville",
+          "lat": 37.14782530174881,
+          "lng": -113.05480338453413,
+          "distanceMi": 11,
+          "source": "gnis"
+        },
+        {
+          "name": "Virgin, UT",
+          "bareName": "Virgin",
+          "lat": 37.19474144152545,
+          "lng": -113.20554725050422,
+          "distanceMi": 12,
+          "source": "gnis"
+        },
+        {
+          "name": "La Verkin, UT",
+          "bareName": "La Verkin",
+          "lat": 37.231540027223744,
+          "lng": -113.25056171081383,
+          "distanceMi": 13,
+          "source": "gnis"
+        }
+      ]
+    },
+    "55": {
+      "name": "Shenandoah",
+      "state": "Virginia",
+      "lat": 38.2928,
+      "lng": -78.6795,
+      "towns": [
+        {
+          "name": "Luray, VA",
+          "bareName": "Luray",
+          "lat": 38.6651,
+          "lng": -78.4594,
+          "distanceMi": 28,
+          "source": "curated"
+        },
+        {
+          "name": "Grottoes, VA",
+          "bareName": "Grottoes",
+          "lat": 38.26914776936722,
+          "lng": -78.82519497412407,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Elkton, VA",
+          "bareName": "Elkton",
+          "lat": 38.410611892979574,
+          "lng": -78.61619608961422,
+          "distanceMi": 9,
+          "source": "gnis"
+        },
+        {
+          "name": "Stanardsville, VA",
+          "bareName": "Stanardsville",
+          "lat": 38.29906374368136,
+          "lng": -78.43682843209339,
+          "distanceMi": 13,
+          "source": "gnis"
+        }
+      ]
+    },
+    "56": {
+      "name": "Mount Rainier",
+      "state": "Washington",
+      "lat": 46.8523,
+      "lng": -121.7603,
+      "towns": [
+        {
+          "name": "Ashford, WA",
+          "bareName": "Ashford",
+          "lat": 46.7593,
+          "lng": -122.0331,
+          "distanceMi": 14,
+          "source": "curated"
+        },
+        {
+          "name": "Carbonado, WA",
+          "bareName": "Carbonado",
+          "lat": 47.08061619373866,
+          "lng": -122.05373022530017,
+          "distanceMi": 21,
+          "source": "gnis"
+        },
+        {
+          "name": "Wilkeson, WA",
+          "bareName": "Wilkeson",
+          "lat": 47.10342795012778,
+          "lng": -122.04956065178983,
+          "distanceMi": 22,
+          "source": "gnis"
+        },
+        {
+          "name": "Paradise, WA",
+          "bareName": "Paradise",
+          "lat": 46.786225636379534,
+          "lng": -121.7353864065541,
+          "distanceMi": 5,
+          "source": "gnis"
+        }
+      ]
+    },
+    "57": {
+      "name": "North Cascades",
+      "state": "Washington",
+      "lat": 48.7718,
+      "lng": -121.2985,
+      "towns": [
+        {
+          "name": "Newhalem, WA",
+          "bareName": "Newhalem",
+          "lat": 48.673742593271825,
+          "lng": -121.24736097980391,
+          "distanceMi": 7,
+          "source": "gnis"
+        },
+        {
+          "name": "Concrete, WA",
+          "bareName": "Concrete",
+          "lat": 48.53705705145296,
+          "lng": -121.75095029107831,
+          "distanceMi": 26,
+          "source": "gnis"
+        },
+        {
+          "name": "Diablo, WA",
+          "bareName": "Diablo",
+          "lat": 48.71346730728783,
+          "lng": -121.14124797105923,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Portage, WA",
+          "bareName": "Portage",
+          "lat": 48.58401617272445,
+          "lng": -121.39041998130057,
+          "distanceMi": 14,
+          "source": "gnis"
+        }
+      ]
+    },
+    "58": {
+      "name": "Olympic",
+      "state": "Washington",
+      "lat": 47.8021,
+      "lng": -123.6044,
+      "towns": [
+        {
+          "name": "Port Angeles, WA",
+          "bareName": "Port Angeles",
+          "lat": 48.1181,
+          "lng": -123.4307,
+          "distanceMi": 23,
+          "source": "curated"
+        },
+        {
+          "name": "Sequim, WA",
+          "bareName": "Sequim",
+          "lat": 48.074573957853296,
+          "lng": -123.09444221809166,
+          "distanceMi": 30,
+          "source": "gnis"
+        },
+        {
+          "name": "Whiskey Bend, WA",
+          "bareName": "Whiskey Bend",
+          "lat": 47.96842789632419,
+          "lng": -123.58298237860133,
+          "distanceMi": 12,
+          "source": "gnis"
+        },
+        {
+          "name": "Olympic Hot Springs, WA",
+          "bareName": "Olympic Hot Springs",
+          "lat": 47.976204783626336,
+          "lng": -123.68826459662516,
+          "distanceMi": 13,
+          "source": "gnis"
+        }
+      ]
+    },
+    "59": {
+      "name": "New River Gorge",
+      "state": "West Virginia",
+      "lat": 38.0742,
+      "lng": -80.9998,
+      "towns": [
+        {
+          "name": "Fayetteville, WV",
+          "bareName": "Fayetteville",
+          "lat": 38.06301672705874,
+          "lng": -81.10831731944617,
+          "distanceMi": 6,
+          "source": "gnis"
+        },
+        {
+          "name": "Ansted, WV",
+          "bareName": "Ansted",
+          "lat": 38.136199765448175,
+          "lng": -81.1028651700007,
+          "distanceMi": 7,
+          "source": "gnis"
+        },
+        {
+          "name": "Oak Hill, WV",
+          "bareName": "Oak Hill",
+          "lat": 37.978471179276134,
+          "lng": -81.09441873179567,
+          "distanceMi": 8,
+          "source": "gnis"
+        },
+        {
+          "name": "Thurmond, WV",
+          "bareName": "Thurmond",
+          "lat": 37.958969696227186,
+          "lng": -81.07904797517608,
+          "distanceMi": 9,
+          "source": "gnis"
+        }
+      ]
+    },
+    "60": {
+      "name": "Grand Teton",
+      "state": "Wyoming",
+      "lat": 43.7904,
+      "lng": -110.6818,
+      "towns": [
+        {
+          "name": "Jackson, WY",
+          "bareName": "Jackson",
+          "lat": 43.4799,
+          "lng": -110.7624,
+          "distanceMi": 22,
+          "source": "curated"
+        },
+        {
+          "name": "Driggs, WY",
+          "bareName": "Driggs",
+          "lat": 43.73025758534508,
+          "lng": -111.10407046029476,
+          "distanceMi": 21,
+          "source": "gnis"
+        },
+        {
+          "name": "Tetonia, WY",
+          "bareName": "Tetonia",
+          "lat": 43.81458448805452,
+          "lng": -111.15867615563779,
+          "distanceMi": 24,
+          "source": "gnis"
+        },
+        {
+          "name": "Victor, WY",
+          "bareName": "Victor",
+          "lat": 43.60155715729828,
+          "lng": -111.11083498818321,
+          "distanceMi": 25,
+          "source": "gnis"
+        }
+      ]
+    },
+    "61": {
+      "name": "Yellowstone",
+      "state": "Wyoming",
+      "lat": 44.428,
+      "lng": -110.5885,
+      "towns": [
+        {
+          "name": "West Yellowstone, MT",
+          "bareName": "West Yellowstone",
+          "lat": 44.6621,
+          "lng": -111.1041,
+          "distanceMi": 30,
+          "source": "curated"
+        },
+        {
+          "name": "West Thumb, WY",
+          "bareName": "West Thumb",
+          "lat": 44.415501738674585,
+          "lng": -110.57549662312844,
+          "distanceMi": 1,
+          "source": "gnis"
+        },
+        {
+          "name": "Lake, WY",
+          "bareName": "Lake",
+          "lat": 44.55828136884307,
+          "lng": -110.39660170851748,
+          "distanceMi": 13,
+          "source": "gnis"
+        },
+        {
+          "name": "Three River Junction, WY",
+          "bareName": "Three River Junction",
+          "lat": 44.28910329720924,
+          "lng": -110.89300366927223,
+          "distanceMi": 18,
+          "source": "gnis"
+        }
+      ]
+    },
+    "62": {
+      "name": "Virgin Islands",
+      "state": "U.S. Virgin Islands",
+      "lat": 18.3458,
+      "lng": -64.7281,
+      "towns": [
+        {
+          "name": "Estate Carolina",
+          "bareName": "Estate Carolina",
+          "lat": 18.34662350159566,
+          "lng": -64.72180104721917,
+          "distanceMi": 0,
+          "source": "gnis"
+        },
+        {
+          "name": "Estate Annaberg",
+          "bareName": "Estate Annaberg",
+          "lat": 18.360511904851116,
+          "lng": -64.730134749551,
+          "distanceMi": 1,
+          "source": "gnis"
+        },
+        {
+          "name": "Estate Hope",
+          "bareName": "Estate Hope",
+          "lat": 18.339679299051408,
+          "lng": -64.74124595290978,
+          "distanceMi": 1,
+          "source": "gnis"
+        },
+        {
+          "name": "Estate Little Plantation",
+          "bareName": "Estate Little Plantation",
+          "lat": 18.33805249680441,
+          "lng": -64.71627692026155,
+          "distanceMi": 1,
+          "source": "gnis"
+        }
+      ]
+    },
+    "63": {
+      "name": "Nat. Park of American Samoa",
+      "state": "American Samoa",
+      "lat": -14.2592,
+      "lng": -170.0807,
+      "towns": [
+        {
+          "name": "Ofu",
+          "bareName": "Ofu",
+          "lat": -14.17004288164693,
+          "lng": -169.6732072892422,
+          "distanceMi": 28,
+          "source": "gnis"
+        },
+        {
+          "name": "Alao",
+          "bareName": "Alao",
+          "lat": -14.289317446196833,
+          "lng": -170.52342098520464,
+          "distanceMi": 30,
+          "source": "gnis"
+        },
+        {
+          "name": "Tula",
+          "bareName": "Tula",
+          "lat": -14.23001814874444,
+          "lng": -170.54916365685702,
+          "distanceMi": 31,
+          "source": "gnis"
+        },
+        {
+          "name": "Olosega",
+          "bareName": "Olosega",
+          "lat": -14.20140743926236,
+          "lng": -169.60025198606823,
+          "distanceMi": 32,
+          "source": "gnis"
+        }
+      ]
+    }
+  },
+  "forests": {},
+  "scope": "parks"
+}

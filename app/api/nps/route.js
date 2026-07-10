@@ -37,6 +37,35 @@ export async function GET(request) {
     return Response.json({ keyDetected: !!key, keyLength: key ? key.length : 0, npsStatus });
   }
 
+  // Bulk reference index of EVERY NPS unit — /api/nps?index=1 → slim list of
+  // { parkCode, name, fullName, designation, states, lat, lng }. Public reference
+  // data (names/codes/coords); used to build our canonical national_parks +
+  // nps_units tables. Paginated so it captures all ~470 units.
+  if (searchParams.get("index")) {
+    if (!key) return Response.json({ error: "NPS_API_KEY not set." }, { status: 500 });
+    const units = [];
+    let total = 0;
+    for (let start = 0; start < 1000; start += 500) {
+      const d = await getJSON(BASE + "/parks?limit=500&start=" + start + "&fields=designation");
+      const data = (d && d.data) || [];
+      total = parseInt(d && d.total, 10) || total;
+      for (const p of data) {
+        units.push({
+          parkCode: p.parkCode || "",
+          name: p.name || "",
+          fullName: p.fullName || "",
+          designation: p.designation || "",
+          states: p.states || "",
+          lat: parseFloat(p.latitude) || null,
+          lng: parseFloat(p.longitude) || null,
+        });
+      }
+      if (data.length < 500) break;
+    }
+    const nationalParks = units.filter((u) => u.designation === "National Park" || u.designation === "National Park & Preserve" || /National Park/i.test(u.designation)).length;
+    return Response.json({ total: units.length, npsReportedTotal: total, nationalParkish: nationalParks, units });
+  }
+
   if (!key) {
     return Response.json(
       { error: "NPS_API_KEY is not set in the project environment variables." },

@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
 import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
 import SiteHeader from "../components/SiteHeader";
+import TripSetupWizard from "./TripSetupWizard";
 
 /* ---------------- constants (verbatim from the design) ---------------- */
 
@@ -103,6 +104,11 @@ export default function BuildTripApp() {
   const [verdicts, setVerdicts] = useState({}); // name -> {status, note}
   const [keyOverlay, setKeyOverlay] = useState(false);
   const [keyMsg, setKeyMsg] = useState("Paste a Google Maps JavaScript API key to load the live map.");
+  // Step-by-step setup wizard (Trip details → Transportation). Auto-opens on first
+  // visit, reopens from the "Trip settings" button.
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [endDateOverride, setEndDateOverride] = useState(null); // wizard-set end date wins over the nights-derived one
+  const [transport, setTransport] = useState({ type: "own", flightNo: "", rentalDaily: null, rentalWhere: "", fuelState: "" });
 
   // Explore-style filters — the full set. Destination types put clickable markers on
   // the map (tap to add to the trip); the "on the map" layers draw campgrounds, lakes
@@ -141,7 +147,7 @@ export default function BuildTripApp() {
   const legSum = stops.reduce((a, s) => a + (s.legMi || 0), 0);
   const totalMiles = totalMilesOverride != null ? totalMilesOverride : Math.round(legSum);
   const driveHrs = Math.round(totalMiles / 60);
-  const endDate = (() => {
+  const endDate = endDateOverride || (() => {
     const d = new Date(startDate + "T12:00:00");
     d.setDate(d.getDate() + totalNights);
     return d.toISOString().slice(0, 10);
@@ -238,6 +244,25 @@ export default function BuildTripApp() {
     setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null });
   }
 
+  // Auto-open the setup wizard on first visit (once per browser).
+  useEffect(() => {
+    try { if (!localStorage.getItem("pb_trip_setup_seen")) setSetupOpen(true); } catch {}
+  }, []);
+
+  // Apply the wizard's answers back into the planner (dates, transport, budget).
+  function applySetup(x) {
+    userEditedRef.current = true;
+    try { localStorage.setItem("pb_trip_setup_seen", "1"); } catch {}
+    if (x.tripName) setTripName(x.tripName);
+    if (x.startDate) setStartDate(x.startDate);
+    setEndDateOverride(x.endDate || null);
+    setArrivalMode(x.transportType === "fly" ? "fly" : "drive");
+    if (x.transportType === "rv") setCar("RV / Camper"); else if (x.carType) setCar(x.carType);
+    setTransport({ type: x.transportType || "own", flightNo: x.flightNo || "", rentalDaily: x.rentalDaily ?? null, rentalWhere: x.rentalWhere || "", fuelState: x.fuelState || "" });
+    // Fuel estimate → the budget's fuel line; rental day-rate → its own line, added in a later phase.
+    setBudgetOverride((o) => ({ ...o, fuel: x.fuelEstimate != null ? x.fuelEstimate : o.fuel }));
+  }
+
   // drag-to-reorder (⠿ handle rows are draggable)
   const onDragStart = (i) => () => { dragIdxRef.current = i; };
   const onDragOver = (e) => e.preventDefault();
@@ -310,8 +335,8 @@ export default function BuildTripApp() {
     const managed = new Set(stops.map((s) => s.name));
     const preserved = tripStops().filter((s) => !managed.has(s.name));
     tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom })), ...preserved]);
-    tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate });
-  }, [stops, tripName, startDate, adults, infants, arrivalMode, tripScope, endDate]); // eslint-disable-line react-hooks/exhaustive-deps
+    tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate, transport });
+  }, [stops, tripName, startDate, adults, infants, arrivalMode, tripScope, endDate, transport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadGoogle(key) {
     window.gm_authFailure = () => {
@@ -657,6 +682,9 @@ export default function BuildTripApp() {
           <p style={{ color: "rgba(251,246,234,.84)", fontSize: "clamp(.98rem,1.5vw,1.16rem)", margin: "18px 0 0", maxWidth: "62ch", lineHeight: 1.55, textShadow: "0 2px 16px rgba(0,0,0,.4)", animation: "bt-fade .9s ease .12s both" }}>
             Load a ready-made route or build your own. Add parks, set your dates and rental car, and get a day-by-day plan that follows real roads — each stop carrying today&apos;s live go / no-go call.
           </p>
+          <button onClick={() => setSetupOpen(true)} style={{ marginTop: 22, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 9, fontFamily: "inherit", fontSize: ".92rem", fontWeight: 800, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "13px 24px", boxShadow: "0 14px 34px -16px rgba(217,183,121,.7)", animation: "bt-fade 1s ease .18s both" }}>
+            ⚙ Set up your trip →
+          </button>
         </section>
 
         {/* prebuilt rail */}
@@ -950,6 +978,15 @@ export default function BuildTripApp() {
           </footer>
         </div>
       </div>
+
+      <TripSetupWizard
+        open={setupOpen}
+        onClose={() => { setSetupOpen(false); try { localStorage.setItem("pb_trip_setup_seen", "1"); } catch {} }}
+        initial={{ tripName, startDate, endDate, transportType: transport.type, carType: car === "RV / Camper" ? "Midsize SUV" : car, flightNo: transport.flightNo, rentalDaily: transport.rentalDaily, rentalWhere: transport.rentalWhere, fuelState: transport.fuelState }}
+        miles={totalMiles}
+        mainState=""
+        onSave={applySetup}
+      />
     </div>
   );
 }

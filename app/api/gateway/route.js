@@ -108,6 +108,35 @@ async function gnisTowns(lat, lng) {
   return inc.concat(pop);
 }
 
+// SOLID FIRST: known parks/forests have precomputed gateway towns in Supabase
+// (destinations + gateway_towns). Match the request coords to a stored place and
+// return its towns instantly — no live OSM/GNIS call, so a flaky upstream can never
+// blank out a known park's gateways. Falls back to live only for coordinates we
+// don't have stored (arbitrary user locations, state parks).
+async function storedTowns(lat, lng) {
+  const sb = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const svc = process.env.SUPABASE_SERVICE_KEY;
+  if (!sb || !svc) return null;
+  const h = { apikey: svc, Authorization: "Bearer " + svc };
+  const d = 0.06; // ~4mi bbox; callers pass the place's own coords so this matches exactly
+  try {
+    const dUrl = sb + "/rest/v1/destinations?select=id,lat,lng&type=in.(national_park,national_forest)" +
+      "&lat=gte." + (lat - d) + "&lat=lte." + (lat + d) + "&lng=gte." + (lng - d) + "&lng=lte." + (lng + d);
+    const dr = await fetch(dUrl, { headers: h, cache: "no-store" });
+    if (!dr.ok) return null;
+    const rows = await dr.json();
+    if (!Array.isArray(rows) || !rows.length) return null;
+    let best = null, bestD = Infinity;
+    for (const r of rows) { const dm = distMi(lat, lng, r.lat, r.lng); if (dm < bestD) { bestD = dm; best = r; } }
+    if (!best || bestD > 3) return null;
+    const gUrl = sb + "/rest/v1/gateway_towns?place_id=eq." + encodeURIComponent(best.id) + "&order=rank.asc&select=name,bare_name,lat,lng,distance_mi";
+    const gr = await fetch(gUrl, { headers: h, cache: "no-store" });
+    if (!gr.ok) return null;
+    const towns = (await gr.json() || []).map((t) => ({ name: t.name, bareName: t.bare_name, lat: t.lat, lng: t.lng, distanceMi: t.distance_mi }));
+    return towns.length ? towns : null;
+  } catch { return null; }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const lat = num(searchParams.get("lat"));
@@ -117,6 +146,18 @@ export async function GET(request) {
 
   if (lat == null || lng == null) {
     return Response.json({ error: "lat and lng query params are required." }, { status: 400 });
+  }
+
+  // Serve the stored, verified towns first — instant, no upstream dependency.
+  const stored = await storedTowns(lat, lng);
+  if (stored) {
+    return Response.json({
+      towns: stored,
+      blurb: "Closest towns for lodging, food, gas and outfitters — nearest first.",
+      dynamic: false,
+      source: "stored",
+      credit: "Gateway towns: curated + USGS GNIS (public domain).",
+    });
   }
 
   // Widen the search only if the first pass comes up short (remote forests / deserts).

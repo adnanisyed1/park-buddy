@@ -137,6 +137,38 @@ async function storedTowns(lat, lng) {
   } catch { return null; }
 }
 
+// TOWN-CENTRIC search: every basecamp town near a location, regardless of which
+// park/forest it's tied to. Dedupes towns that serve several places (Estes Park →
+// Rocky Mountain NP + Arapaho-Roosevelt NF) and annotates each with the places it's
+// a gateway for. Reads the stored gateway_towns (with a join to destinations).
+async function townsNear(lat, lng, radiusMi) {
+  const sb = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const svc = process.env.SUPABASE_SERVICE_KEY;
+  if (!sb || !svc) return { towns: [], configured: false };
+  const dLat = radiusMi / 69, dLng = radiusMi / (69 * Math.max(0.2, Math.cos(lat * Math.PI / 180)));
+  const sel = "select=name,bare_name,lat,lng,distance_mi,place_id,destinations(name,type)";
+  const url = sb + "/rest/v1/gateway_towns?" + sel +
+    "&lat=gte." + (lat - dLat) + "&lat=lte." + (lat + dLat) + "&lng=gte." + (lng - dLng) + "&lng=lte." + (lng + dLng) + "&limit=600";
+  try {
+    const r = await fetch(url, { headers: { apikey: svc, Authorization: "Bearer " + svc }, cache: "no-store" });
+    if (!r.ok) return { towns: [] };
+    const rows = await r.json();
+    const map = new Map();
+    for (const t of Array.isArray(rows) ? rows : []) {
+      const dm = distMi(lat, lng, t.lat, t.lng);
+      if (dm > radiusMi) continue;
+      const key = (t.bare_name || t.name).toLowerCase();
+      const place = t.destinations ? { name: t.destinations.name, type: t.destinations.type } : null;
+      let e = map.get(key);
+      if (!e) { e = { name: t.name, bareName: t.bare_name, lat: t.lat, lng: t.lng, distanceMi: Math.round(dm), places: [] }; map.set(key, e); }
+      if (dm < e.distanceMi) { e.distanceMi = Math.round(dm); e.name = t.name; e.lat = t.lat; e.lng = t.lng; }
+      if (place && !e.places.some((p) => p.name === place.name)) e.places.push(place);
+    }
+    const towns = [...map.values()].sort((a, b) => a.distanceMi - b.distanceMi).slice(0, 30);
+    return { towns, credit: "Basecamp towns: curated + USGS GNIS (public domain)." };
+  } catch { return { towns: [] }; }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const lat = num(searchParams.get("lat"));
@@ -146,6 +178,12 @@ export async function GET(request) {
 
   if (lat == null || lng == null) {
     return Response.json({ error: "lat and lng query params are required." }, { status: 400 });
+  }
+
+  // Town-centric mode: all basecamp towns near a location (not tied to one park).
+  if (searchParams.get("townsNear")) {
+    const radius = Math.min(200, Math.max(5, num(searchParams.get("radius")) || 60));
+    return Response.json(await townsNear(lat, lng, radius));
   }
 
   // Serve the stored, verified towns first — instant, no upstream dependency.

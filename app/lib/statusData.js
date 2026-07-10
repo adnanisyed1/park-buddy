@@ -71,7 +71,7 @@ export async function getByways() {
   try {
     // ?v bumps the Next Data Cache key so a data change (e.g. new route endpoints)
     // is picked up on deploy instead of waiting out the 24h revalidate. Bump on edit.
-    const r = await fetch(origin() + "/byways-data.js?v=2", { next: { revalidate: 86400 } });
+    const r = await fetch(origin() + "/byways-data.js?v=3", { next: { revalidate: 86400 } });
     if (!r.ok) return [];
     const text = await r.text();
     const m = text.match(/window\.BYWAYS_DATA\s*=\s*(\[[\s\S]*?\]);/);

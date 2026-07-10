@@ -1397,7 +1397,9 @@ export default function ExploreApp() {
 
   const toggle = (key) => () => patch((s) => ({ [key]: !s[key] }));
   const Switch = ({ on, onClick }) => (
-    <button onClick={onClick} style={{ position: "relative", width: 40, height: 22, borderRadius: 999, flex: "none", cursor: "pointer", padding: 0, background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.09)", border: on ? "1px solid transparent" : "1px solid rgba(217,183,121,.22)", transition: "background .3s" }}>
+    // stopPropagation: the switch sits inside a clickable TogRow, so without this a
+    // click on the switch fires the toggle twice (button + bubbling row) → no net change.
+    <button type="button" onClick={(e) => { e.stopPropagation(); if (onClick) onClick(); }} style={{ position: "relative", width: 40, height: 22, borderRadius: 999, flex: "none", cursor: "pointer", padding: 0, background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.09)", border: on ? "1px solid transparent" : "1px solid rgba(217,183,121,.22)", transition: "background .3s" }}>
       <span style={{ position: "absolute", top: 2, left: 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transform: on ? "translateX(18px)" : "translateX(0)", transition: "transform .3s" }} />
     </button>
   );

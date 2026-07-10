@@ -12,7 +12,7 @@ export default function CampgroundsPage() {
       title="Sleep under"
       emphasis="the stars."
       blurb="Federal and state campgrounds with live availability, amenities, and a real booking hand-off to Recreation.gov. Browse them around any park on the map today; a full campgrounds index is on the way."
-      photoQ="Campsite|Moraine Park Campground|Camping"
+      photoQ="Camping|Campsite|Yosemite National Park"
       mode="map"
       features={["Live availability", "Amenities & hookups", "Book on Recreation.gov"]}
     />

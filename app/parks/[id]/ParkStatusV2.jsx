@@ -212,6 +212,11 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const bucket = verdict ? verdict.bucket : "loading";
   const vColor = VC[bucket];
   const temp = verdict && typeof verdict.temp === "number" ? Math.round(verdict.temp) : null;
+  // Reliable last-resort photo candidates for trail/campground tiles: this place's
+  // own article (national parks need the " National Park" suffix; forests & state
+  // parks already carry theirs). Used as usePhoto `fallback` so a tile shows its
+  // park instead of a blank frame when the specific name + geo photo both fail.
+  const areaQ = park ? (isNP ? park.name + " National Park|" + park.name : park.name) : "";
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
@@ -291,8 +296,8 @@ export default function ParkStatusV2({ id, kind = "park" }) {
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {tab === "overview" && <Overview park={park} nps={nps} isForest={isForest} isStatePark={isStatePark} />}
           {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} river={river} tz={tz} alertsRef={alertsRef} isForest={isForest} isStatePark={isStatePark} />}
-          {tab === "trails" && <TrailsPermits park={park} trails={trails} isForest={isForest} isStatePark={isStatePark} />}
-          {tab === "plan" && <Plan park={park} nps={nps} places={places} isForest={isForest} isStatePark={isStatePark} />}
+          {tab === "trails" && <TrailsPermits park={park} trails={trails} isForest={isForest} isStatePark={isStatePark} areaQ={areaQ} />}
+          {tab === "plan" && <Plan park={park} nps={nps} places={places} isForest={isForest} isStatePark={isStatePark} areaQ={areaQ} />}
           {tab === "nearby" && <Nearby park={park} nearby={nearby} radius={radius} setRadius={setRadius} />}
         </div>
       </main>
@@ -685,9 +690,9 @@ function SubscribeCard({ park, alertsRef }) {
 /* ---------------- TRAILS & PERMITS ---------------- */
 // A compact trail row with a small photo (famous trails have one; others fall
 // back to a geotagged photo at the trailhead, or the tasteful hatch placeholder).
-function TrailRow({ t, park, diff }) {
+function TrailRow({ t, park, diff, areaQ }) {
   const pt = (t.path && t.path[0]) || null;
-  const photo = usePhoto(t.name + " " + (park ? park.name : "") + "|" + t.name, pt ? pt[0] : null, pt ? pt[1] : null, undefined, 360);
+  const photo = usePhoto(t.name + " " + (park ? park.name : "") + "|" + t.name, pt ? pt[0] : null, pt ? pt[1] : null, undefined, 360, areaQ);
   const href = t.id != null && park && park.npsCode ? "/trail-status?trail=" + t.id + "&park=" + park.npsCode : null;
   const inner = (
     <div style={{ display: "flex", alignItems: "center", gap: 11, ...card, padding: 8 }}>
@@ -707,8 +712,8 @@ function TrailRow({ t, park, diff }) {
 // Compact campground card — photo + a one-line live availability SUMMARY (soonest
 // opening / sites open) + Book. Replaces the full 6-month calendar per campground,
 // which ate the whole tab; the deep calendar still lives on Recreation.gov.
-function CompactCamp({ c, park, recId }) {
-  const photo = usePhoto(c.name + "|" + c.name + " campground|" + (park ? park.name : ""), c.lat, c.lng, undefined, 700);
+function CompactCamp({ c, park, recId, areaQ }) {
+  const photo = usePhoto(c.name + "|" + c.name + " campground|" + (park ? park.name : ""), c.lat, c.lng, undefined, 700, areaQ);
   const [avail, setAvail] = useState(recId ? undefined : null);
   useEffect(() => {
     if (!recId) return;
@@ -741,29 +746,52 @@ function CompactCamp({ c, park, recId }) {
   );
 }
 
-function TrailsPermits({ park, trails, isForest, isStatePark }) {
+function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
   const isNP = !isForest && !isStatePark;
   const [filter, setFilter] = useState("all");
   const list = trails ? [].concat(trails.hiking || [], trails.offroad || [], trails.ski || []) : null;
   const diffOf = (t) => (t.lengthMi > 6 ? "Hard" : t.lengthMi > 2.5 ? "Moderate" : "Easy");
   const shown = list ? list.filter((t) => filter === "all" || diffOf(t) === filter) : null;
+  const hasTrails = !!(list && list.length); // real trails exist (regardless of the active filter)
+  const altSearch = "https://www.alltrails.com/search?q=" + encodeURIComponent(park ? park.name : "");
   return (
     <>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
         <h2 style={H2}>Trails</h2>
         <span style={{ ...microLabel, letterSpacing: ".12em" }}>{isNP ? "Live from NPS trail data" : "Live from OpenStreetMap"}</span>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-        {["all", "Easy", "Moderate", "Hard"].map((f) => {
-          const on = filter === f;
-          return <button key={f} onClick={() => setFilter(f)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".78rem", fontWeight: 600, borderRadius: 999, padding: "7px 14px", border: on ? "none" : "1px solid var(--pb-line-strong)", background: on ? "var(--pb-grad-gold)" : "rgba(255,255,255,.03)", color: on ? "#0b1710" : "#c3c8d0" }}>{f === "all" ? "All" : f}</button>;
-        })}
-      </div>
-      {shown && shown.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 10 }}>
-          {shown.slice(0, 30).map((t, i) => <TrailRow key={i} t={t} park={park} diff={diffOf(t)} />)}
+      {/* Difficulty filter — only when there's something to filter. */}
+      {hasTrails && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          {["all", "Easy", "Moderate", "Hard"].map((f) => {
+            const on = filter === f;
+            return <button key={f} onClick={() => setFilter(f)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".78rem", fontWeight: 600, borderRadius: 999, padding: "7px 14px", border: on ? "none" : "1px solid var(--pb-line-strong)", background: on ? "var(--pb-grad-gold)" : "rgba(255,255,255,.03)", color: on ? "#0b1710" : "#c3c8d0" }}>{f === "all" ? "All" : f}</button>;
+          })}
         </div>
-      ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>{trails ? "No mapped trails within range yet." : "Loading trails…"}</div>}
+      )}
+      {!list ? (
+        <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>Loading trails…</div>
+      ) : shown.length > 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 10 }}>
+          {shown.slice(0, 30).map((t, i) => <TrailRow key={i} t={t} park={park} diff={diffOf(t)} areaQ={areaQ} />)}
+        </div>
+      ) : hasTrails ? (
+        <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>No {filter} trails here — try another filter.</div>
+      ) : (
+        // Honest, compact empty state — our trail source genuinely lists none here,
+        // rather than a misleading "within range" note that ate the whole tab.
+        <div style={{ ...card, padding: "18px 20px" }}>
+          <div style={{ fontFamily: serif, fontSize: "1.15rem", color: "#f4f1ea", marginBottom: 6 }}>No mapped trails here yet</div>
+          <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", lineHeight: 1.6, maxWidth: "56ch" }}>
+            {isNP
+              ? "We map trails from the National Park Service's public trail dataset, and it doesn't list any inside this park yet — the deep backcountry often isn't digitized."
+              : isForest
+              ? "We map trails from OpenStreetMap, and none are tagged along this forest yet. National-forest trails are best found on the ranger district's own map."
+              : "We map trails from OpenStreetMap, and none are tagged for this state park yet."}
+          </div>
+          <a href={altSearch} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, fontSize: ".82rem", fontWeight: 600, color: "var(--pb-gold)", textDecoration: "none" }}>Find trails on AllTrails ↗</a>
+        </div>
+      )}
 
       <div style={{ marginTop: 32 }}>
         <h2 style={{ ...H2, marginBottom: 14 }}>Permits &amp; reservations</h2>
@@ -787,7 +815,7 @@ function TrailsPermits({ park, trails, isForest, isStatePark }) {
 }
 
 /* ---------------- PLAN ---------------- */
-function Plan({ park, nps, places, isForest, isStatePark }) {
+function Plan({ park, nps, places, isForest, isStatePark, areaQ }) {
   const isNP = !isForest && !isStatePark;
   const camps = places ? (places.facilities || []).filter((f) => /camp/i.test((f.name || "") + " " + (f.type || ""))) : null;
   const p = nps && nps.park;
@@ -807,7 +835,7 @@ function Plan({ park, nps, places, isForest, isStatePark }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
           {camps.slice(0, 9).map((c, i) => {
             const recId = (c.url && (c.url.match(/campgrounds\/(\d+)/) || [])[1]) || null;
-            return <CompactCamp key={i} c={c} park={park} recId={recId} />;
+            return <CompactCamp key={i} c={c} park={park} recId={recId} areaQ={areaQ} />;
           })}
         </div>
       ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>{places ? "No campgrounds found within range." : "Loading campgrounds…"}</div>}

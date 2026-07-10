@@ -36,12 +36,15 @@ export default async function CampgroundStatusPage({ searchParams }) {
   const detail = searchParams.detail || "";
   const reservable = searchParams.reservable === "1";
 
-  const [parks, nearby, photoInfo] = await Promise.all([
+  const [parks, nearby] = await Promise.all([
     getParks(),
     getNearby(lat, lng, { excludeName: name }),
-    getPhotoInfo(name, null, { lat, lng }), // geotagged fallback when the campground has no article
   ]);
   const park = nearestPark(parks, lat, lng);
+  // Photo: the campground's own name → a real geotagged nearby photo → and finally
+  // the nearest national park's article, so the hero is never a blank frame.
+  const parkFallback = park && park.dist <= 60 ? ((/national park/i.test(park.name) ? park.name : park.name + " National Park") + "|" + park.name) : "";
+  const photoInfo = await getPhotoInfo(name, null, { lat, lng, fallback: parkFallback });
   const parkHref = park ? "/parks/" + park.id : null;
   const contact = park && park.dist <= 60 ? await getParkContact(park.npsCode) : null;
   const photoUrl = photoInfo?.url || null;

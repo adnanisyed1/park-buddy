@@ -36,6 +36,26 @@ const QUAL_META = {
 
 const FEATURE_NOTE = { peak: "A named summit near the route", pass: "A named pass on the drive", saddle: "A saddle on the ridge", water: "A lake beside the route", waterfall: "A waterfall near the road", glacier: "A glacier along the route", viewpoint: "A marked viewpoint", ridge: "A named ridge", spring: "A spring near the road" };
 
+// Factual explainer of what each designation means (National Scenic Byways Program,
+// FHWA / U.S. DOT). Displayed on every drive so the page explains the badge.
+const TIER_INFO = {
+  "all-american": {
+    label: "All-American Road",
+    lead: "the highest honor in the National Scenic Byways Program",
+    body: "To be named an All-American Road, a route has to possess multiple intrinsic qualities that are nationally significant, with features so exceptional you can't find them anywhere else. The road is considered a destination unto itself — reason enough to make the trip. Only about 40 roads in the country hold this designation.",
+  },
+  landmark: {
+    label: "National Historic Landmark",
+    lead: "a nationally significant historic road",
+    body: "This drive carries a national historic designation rather than an FHWA byway title — recognized for its engineering, its history, or the landscape it opens up, and protected as part of America's heritage.",
+  },
+  byway: {
+    label: "National Scenic Byway",
+    lead: "a nationally recognized scenic byway",
+    body: "A National Scenic Byway is recognized for one or more intrinsic qualities that are regionally significant — a road worth slowing down for, chosen for what you can see, learn, and experience along the way.",
+  },
+};
+
 function Badge({ tier }) {
   const meta = tier === "all-american"
     ? { grad: "linear-gradient(135deg,#e8cf9a,var(--pb-gold-2))", ink: "#4a3410", label: "All-American Road", sub: "Top tier · unique in the nation" }
@@ -55,7 +75,7 @@ function Badge({ tier }) {
 }
 
 function CrossTile({ c }) {
-  const photo = usePhoto(c.q, c.lat, c.lng);
+  const photo = usePhoto(c.q, c.lat, c.lng, undefined, undefined, c.fallback);
   const routeCol = { "National Park": "#1d4a37", "National Forest": "#3f6a4a", "State Park": "#6b7a3f", Trail: "#b3862d", Lake: "#2f6d7a", Campground: "#7a5a2f" };
   const col = routeCol[c.type] || "#1d4a37";
   return (
@@ -81,6 +101,8 @@ export default function ScenicDrive({ drive, cross }) {
   const mapDivRef = useRef(null);
   const mapObjRef = useRef(null);
   const markersRef = useRef([]);
+  const routeLineRef = useRef(null);
+  const dirServiceRef = useRef(null);
   const filmTimer = useRef(null);
 
   // Live road status
@@ -146,32 +168,80 @@ export default function ScenicDrive({ drive, cross }) {
     map.setZoom(drive.approxLoc ? 6 : 9); // approximate location → show the region
   }, [mapsLoaded, drive.lat, drive.lng, drive.approxLoc]);
 
-  // (Re)draw markers when highlights resolve.
+  // Draw the drive: numbered overlook markers where we have them, PLUS a real driving
+  // route (Google Directions) — from curated endpoints when present, else routed
+  // through the overlooks. Falls back to a dashed connector, then a single anchor pin,
+  // so the map is never empty and, wherever possible, shows a route on the road.
   useEffect(() => {
     const map = mapObjRef.current;
     if (!map || !window.google) return;
+    const g = window.google;
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
+    if (routeLineRef.current) { routeLineRef.current.setMap(null); routeLineRef.current = null; }
     const pts = (highlights || []).filter((h) => h.lat != null);
-    if (!pts.length) return;
-    const bounds = new window.google.maps.LatLngBounds();
+
+    // numbered overlook markers (two-way hover-linked to the highlight cards)
     pts.forEach((h, i) => {
-      const mk = new window.google.maps.Marker({
+      const mk = new g.maps.Marker({
         position: { lat: h.lat, lng: h.lng }, map,
         label: { text: String(i + 1), color: "var(--pb-bg)", fontSize: "12px", fontWeight: "800" },
-        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 12, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 },
+        icon: { path: g.maps.SymbolPath.CIRCLE, scale: 12, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 },
       });
       mk.addListener("mouseover", () => setHoverIdx(i));
       mk.addListener("mouseout", () => setHoverIdx(null));
       markersRef.current.push(mk);
-      bounds.extend({ lat: h.lat, lng: h.lng });
     });
-    map.fitBounds(bounds, 60);
-  }, [highlights, mapsLoaded]);
 
-  // Two-way hover link: restyle the hovered marker.
+    const fitTo = (coords) => { if (!coords.length) return; const b = new g.maps.LatLngBounds(); coords.forEach((c) => b.extend(c)); map.fitBounds(b, 60); };
+    const solidRoute = (path) => {
+      if (routeLineRef.current) routeLineRef.current.setMap(null);
+      // soft outer casing + bright inner line so the route reads clearly on terrain
+      routeLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#e8cf9a", strokeOpacity: 0.95, strokeWeight: 5, zIndex: 5 });
+      fitTo(path);
+    };
+    const dashedConnector = () => {
+      routeLineRef.current = new g.maps.Polyline({ path: pts.map((h) => ({ lat: h.lat, lng: h.lng })), map, geodesic: true, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeColor: "#e8cf9a", strokeOpacity: 0.9, scale: 3 }, offset: "0", repeat: "13px" }] });
+      fitTo(pts.map((h) => ({ lat: h.lat, lng: h.lng })));
+    };
+    const anchorPin = () => {
+      markersRef.current.push(new g.maps.Marker({ position: { lat: drive.lat, lng: drive.lng }, map, title: drive.name, icon: { path: g.maps.SymbolPath.CIRCLE, scale: 11, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 } }));
+      map.setCenter({ lat: drive.lat, lng: drive.lng }); map.setZoom(drive.approxLoc ? 7 : 10);
+    };
+
+    // Build a Directions request: curated endpoints win; else route through overlooks.
+    let req = null;
+    const e = drive.endpoints;
+    if (e && e.from && e.to) {
+      req = { origin: e.from, destination: e.to, waypoints: (e.via || []).map((v) => ({ location: v, stopover: false })) };
+    } else if (pts.length >= 2) {
+      req = { origin: { lat: pts[0].lat, lng: pts[0].lng }, destination: { lat: pts[pts.length - 1].lat, lng: pts[pts.length - 1].lng }, waypoints: pts.slice(1, -1).map((h) => ({ location: { lat: h.lat, lng: h.lng }, stopover: false })) };
+    }
+
+    if (req) {
+      if (pts.length) fitTo(pts.map((h) => ({ lat: h.lat, lng: h.lng }))); // frame something while Directions resolves
+      if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
+      dirServiceRef.current.route({ ...req, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
+        if (mapObjRef.current !== map) return; // component/map changed under us
+        if (status === "OK" && res.routes && res.routes[0]) {
+          solidRoute(res.routes[0].overview_path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() })));
+        } else if (pts.length >= 2) dashedConnector();
+        else if (pts.length === 1) { map.setCenter({ lat: pts[0].lat, lng: pts[0].lng }); map.setZoom(drive.approxLoc ? 8 : 11); }
+        else anchorPin();
+      });
+      return;
+    }
+
+    if (pts.length >= 2) dashedConnector();
+    else if (pts.length === 1) { map.setCenter({ lat: pts[0].lat, lng: pts[0].lng }); map.setZoom(drive.approxLoc ? 8 : 11); }
+    else anchorPin();
+  }, [highlights, mapsLoaded, drive.endpoints, drive.lat, drive.lng, drive.approxLoc, drive.name]);
+
+  // Two-way hover link: restyle the hovered marker. Skip when the map only holds
+  // the single anchor pin (no numbered overlooks to hover).
   useEffect(() => {
     if (!window.google) return;
+    if (!(highlights || []).some((h) => h.lat != null)) return;
     markersRef.current.forEach((mk, i) => {
       const on = i === hoverIdx;
       mk.setIcon({ path: window.google.maps.SymbolPath.CIRCLE, scale: on ? 17 : 12, fillColor: on ? "#1d4a37" : "#e8cf9a", fillOpacity: 1, strokeColor: on ? "#e8cf9a" : "#0a1712", strokeWeight: on ? 3 : 2 });
@@ -180,6 +250,9 @@ export default function ScenicDrive({ drive, cross }) {
   }, [hoverIdx]);
 
   const hl = highlights || [];
+  const hasOverlooks = hl.some((h) => h.lat != null); // real overlook coords → numbered markers
+  const hasRoute = hasOverlooks || !!(drive.endpoints && drive.endpoints.from && drive.endpoints.to); // a line gets drawn
+  const ti = TIER_INFO[drive.tier] || TIER_INFO.byway;
   const pill = (k, v) => (
     <span style={{ display: "inline-flex", flexDirection: "column", background: "rgba(10,26,18,.5)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 15, padding: "10px 16px" }}>
       <span style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(217,183,121,.65)" }}>{k}</span>
@@ -280,16 +353,55 @@ export default function ScenicDrive({ drive, cross }) {
           </div>
         </section>
 
+        {/* ABOUT THE DESIGNATION — real National Scenic Byways Program facts, on every drive */}
+        <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) 6px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div style={{ position: "relative", overflow: "hidden", background: "var(--pb-surface)", border: "1px solid rgba(217,183,121,.16)", borderRadius: 24, padding: "clamp(20px,3vw,32px)", boxShadow: "0 22px 54px -34px rgba(28,46,34,.5)" }}>
+              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(90% 120% at 92% 0%,rgba(228,190,120,.1),transparent 55%)", pointerEvents: "none" }} />
+              <div style={{ position: "relative" }}>
+                <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>What the designation means</div>
+                <h2 style={{ fontFamily: serif, fontWeight: 800, fontSize: "clamp(1.5rem,3.2vw,2.2rem)", color: "var(--pb-ink)", lineHeight: 1.12, marginTop: 8 }}>
+                  {ti.label}<span style={{ color: "var(--pb-muted)", fontWeight: 600 }}> — {ti.lead}</span>
+                </h2>
+                <p style={{ fontSize: "clamp(.98rem,1.4vw,1.08rem)", color: "var(--pb-ink-2)", lineHeight: 1.72, marginTop: 12, maxWidth: "72ch" }}>{ti.body}</p>
+                <p style={{ fontSize: ".92rem", color: "var(--pb-muted)", lineHeight: 1.7, marginTop: 12, maxWidth: "72ch" }}>
+                  America&rsquo;s Byways are designated by the U.S. Secretary of Transportation under the National Scenic Byways Program — created by Congress in 1991 and administered by the Federal Highway Administration. A road earns its place by demonstrating one or more of six intrinsic qualities:
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 10, marginTop: 16 }}>
+                  {Object.keys(QUAL_META).map((q) => {
+                    const m = QUAL_META[q];
+                    const owned = (drive.qualities || []).includes(q);
+                    return (
+                      <div key={q} style={{ display: "flex", alignItems: "flex-start", gap: 11, background: owned ? "linear-gradient(145deg,rgba(232,207,154,.16),rgba(217,183,121,.05))" : "var(--pb-surface-2)", border: "1px solid " + (owned ? "rgba(217,183,121,.42)" : "rgba(217,183,121,.12)"), borderRadius: 14, padding: "12px 14px" }}>
+                        <span style={{ width: 30, height: 30, flex: "none", borderRadius: 9, background: "linear-gradient(145deg,#e8cf9a,var(--pb-gold))", color: "#5a3f12", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".95rem" }}>{m.ic}</span>
+                        <div style={{ lineHeight: 1.25 }}>
+                          <b style={{ fontFamily: serif, fontWeight: 700, fontSize: ".98rem", color: "var(--pb-ink)" }}>{q}{owned ? " ✓" : ""}</b>
+                          <div style={{ fontSize: ".74rem", color: "var(--pb-muted)", marginTop: 2 }}>{m.d}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {(drive.qualities && drive.qualities.length > 0) && (
+                  <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", marginTop: 16, lineHeight: 1.6 }}>
+                    <b style={{ color: "var(--pb-gold-soft)" }}>{drive.name}</b> is recognized for its {drive.qualities.map((q) => q.toLowerCase()).join(", ")} {drive.qualities.length === 1 ? "quality" : "qualities"} — marked ✓ above.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ROUTE MAP */}
         <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) 6px" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
               <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.4rem,3vw,1.9rem)", color: "var(--pb-ink)" }}>The route</h2>
-              <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{drive.approxLoc ? "Approximate area" : "Hover an overlook ↔ its map marker"}</span>
+              <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{hasOverlooks ? "Hover an overlook ↔ its map marker" : hasRoute ? "The drive, on the road" : drive.approxLoc ? "Approximate area" : "Route overview"}</span>
             </div>
             <figure style={{ position: "relative", margin: "14px 0 0", height: "clamp(300px,44vh,460px)", overflow: "hidden", borderRadius: 24, border: "1px solid rgba(217,183,121,.16)", background: "var(--pb-surface)" }}>
               <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
-              <figcaption style={{ position: "absolute", left: 14, bottom: 14, zIndex: 3, background: "rgba(21,36,28,.82)", color: "var(--pb-ink)", fontSize: ".72rem", fontWeight: 700, borderRadius: 999, padding: "6px 14px", pointerEvents: "none" }}>{drive.mapCap || (drive.approxLoc ? "Approximate area — see the official page for the route" : drive.states)}</figcaption>
+              <figcaption style={{ position: "absolute", left: 14, bottom: 14, zIndex: 3, background: "rgba(21,36,28,.82)", color: "var(--pb-ink)", fontSize: ".72rem", fontWeight: 700, borderRadius: 999, padding: "6px 14px", pointerEvents: "none" }}>{drive.mapCap || (hasOverlooks ? drive.states + " · overlooks along the route" : hasRoute ? drive.states + " · driving route" : drive.approxLoc ? "Approximate area — see the official page for the turn-by-turn route" : drive.states + " · see the official page for the full route")}</figcaption>
             </figure>
           </div>
         </section>

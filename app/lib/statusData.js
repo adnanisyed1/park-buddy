@@ -338,6 +338,9 @@ export async function getPhotoInfo(name, state, coords) {
       qs.set("lat", coords.lat);
       qs.set("lng", coords.lng);
     }
+    // Last-resort candidate(s) — e.g. the containing park — so a campground/trail
+    // hero shows its area instead of a blank frame when name + geo both miss.
+    if (coords && coords.fallback) qs.set("fallback", coords.fallback);
     // Bounded: the geo fallback inside /api/photo can take ~12s worst case —
     // never let a photo lookup hold the whole SSR page render hostage.
     const r = await fetch(origin() + "/api/photo?" + qs.toString(), { next: { revalidate: 604800 }, signal: AbortSignal.timeout(14000) });

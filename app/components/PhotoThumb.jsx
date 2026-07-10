@@ -56,8 +56,8 @@ function cacheLookup(key, q) {
   return v ? { url: v.u, geo: !!v.g, date: v.d || null } : null;
 }
 
-export function usePhoto(q, lat, lng, ref, w) {
-  const key = q ? q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "") + (w ? "~" + w : "") : "";
+export function usePhoto(q, lat, lng, ref, w, fallback) {
+  const key = q ? q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "") + (w ? "~" + w : "") + (fallback ? "^" + fallback : "") : "";
   // Start undefined on BOTH server and first client render — reading localStorage
   // in the initializer made the client's first paint differ from the server HTML
   // (no <img> on the server, an <img> on the client when the cache had the photo),
@@ -98,7 +98,7 @@ export function usePhoto(q, lat, lng, ref, w) {
     if (cached !== undefined) { setPhoto(cached); return; }
     if (!inView) return; // viewport-gated: wait until the tile nears the screen
     let on = true;
-    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + (w ? "&w=" + w : "") + "&v=6")
+    gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + (w ? "&w=" + w : "") + (fallback ? "&fallback=" + encodeURIComponent(fallback) : "") + "&v=6")
       .then(async (r) => {
         // A transient upstream failure (503) or a network error must NOT be
         // cached — otherwise a momentary blip poisons this tile's localStorage

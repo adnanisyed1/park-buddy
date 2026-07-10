@@ -199,7 +199,12 @@ export async function GET(request) {
   // name-based photo exists (most trails, small lakes, towns).
   const lat = num(searchParams.get("lat"));
   const lng = num(searchParams.get("lng"));
-  if (!name && !q && lat == null) return Response.json({ error: "name, q, or lat/lng required" }, { status: 400 });
+  // Last-resort candidates (pipe-separated) — e.g. the containing park/area for a
+  // campground or trail. Tried ONLY after the specific name and a real geotagged
+  // nearby photo both fail, so a location tile shows a relevant photo (its park)
+  // rather than a blank frame, without overriding a more specific match.
+  const fallback = (searchParams.get("fallback") || "").trim();
+  if (!name && !q && lat == null && !fallback) return Response.json({ error: "name, q, or lat/lng required" }, { status: 400 });
 
   // Caller candidates first, then variants of `name` for disambiguation.
   const tries = q ? q.split("|").map((s) => s.trim()).filter(Boolean) : [];
@@ -242,11 +247,26 @@ export async function GET(request) {
       if (gp && gp.found) return Response.json(gp);
       if (gp && gp.error) sawError = true;
     }
-    // A TRANSIENT upstream failure (429/timeout) must NOT be returned as a 200
-    // `found:false` — the client would cache that as a permanent "no photo".
-    // Return 503 so both usePhoto and ExploreApp's fetcher skip caching and retry.
-    if (sawError) return Response.json({ found: false, degraded: true }, { status: 503 });
-    return Response.json({ found: false });
+    // Last resort: the containing park / area (a reliably-illustrated Wikipedia
+    // article). Only reached when the specific name AND a real nearby geo-photo
+    // both came up empty — so campground/trail tiles show their park instead of a
+    // blank frame. Falls through to the normal success return below when it hits.
+    if (fallback) {
+      for (const fb of fallback.split("|").map((s) => s.trim()).filter(Boolean)) {
+        try {
+          const s = await summary(fb);
+          const img = s ? (s.originalimage && s.originalimage.source) || (s.thumbnail && s.thumbnail.source) || "" : "";
+          if (img && !badFile(img)) { d = s; image = img; break; }
+        } catch (e) { if (e && e.transient) sawError = true; }
+      }
+    }
+    if (!image) {
+      // A TRANSIENT upstream failure (429/timeout) must NOT be returned as a 200
+      // `found:false` — the client would cache that as a permanent "no photo".
+      // Return 503 so both usePhoto and ExploreApp's fetcher skip caching and retry.
+      if (sawError) return Response.json({ found: false, degraded: true }, { status: 503 });
+      return Response.json({ found: false });
+    }
   }
 
   // IMPORTANT: never rewrite the thumbnail width. Wikimedia only reliably serves

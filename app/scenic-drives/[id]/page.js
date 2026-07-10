@@ -35,19 +35,22 @@ export default async function ScenicDriveDetailPage({ params }) {
   ]);
   const park = nearestPark(parks, drive.lat, drive.lng);
   const cross = [];
+  // Reliable photo backstop for the location tiles (trails, lakes, camps rarely have
+  // their own article) — the nearest national park's article, which always does.
+  const parkFallback = park ? ((/national park/i.test(park.name) ? park.name : park.name + " National Park") + "|" + park.name) : "";
   if (park && park.dist <= 60) {
     const full = /national park/i.test(park.name) ? park.name : park.name + " National Park";
     cross.push({ name: full, type: "National Park", href: "/parks/" + park.id, q: [full, park.name].join("|"), lat: park.lat, lng: park.lng });
   }
   (nearby.trails || []).slice(0, 3).forEach((t) => {
     const m = mid(t.path);
-    cross.push({ name: t.name, type: "Trail", href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || drive.parkCode || ""), q: [t.name, t.unitName || ""].filter(Boolean).join("|"), lat: m ? m[0] : null, lng: m ? m[1] : null });
+    cross.push({ name: t.name, type: "Trail", href: "/trail-status?trail=" + t.id + "&park=" + encodeURIComponent(t.unitCode || drive.parkCode || ""), q: [t.name, t.unitName || ""].filter(Boolean).join("|"), lat: m ? m[0] : null, lng: m ? m[1] : null, fallback: parkFallback });
   });
   (nearby.lakes || []).slice(0, 2).forEach((l) => {
-    cross.push({ name: l.name, type: "Lake", href: "/lake-status?" + new URLSearchParams({ name: l.name, lat: l.lat, lng: l.lng, kind: l.kind || "lake" }).toString(), q: l.name, lat: l.lat, lng: l.lng });
+    cross.push({ name: l.name, type: "Lake", href: "/lake-status?" + new URLSearchParams({ name: l.name, lat: l.lat, lng: l.lng, kind: l.kind || "lake" }).toString(), q: l.name, lat: l.lat, lng: l.lng, fallback: parkFallback });
   });
   (nearby.camps || []).slice(0, 2).forEach((c) => {
-    cross.push({ name: c.name, type: "Campground", href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString(), q: c.name, lat: c.lat, lng: c.lng });
+    cross.push({ name: c.name, type: "Campground", href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString(), q: c.name, lat: c.lat, lng: c.lng, fallback: parkFallback });
   });
 
   return <ScenicDrive drive={drive} cross={cross.slice(0, 8)} />;

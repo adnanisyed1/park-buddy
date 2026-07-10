@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { getStops, getMeta, setMeta, removeStop, setNights, moveStop, subscribeTrip } from "../lib/trip";
+import { saveCurrentTrip } from "../lib/savedTrips";
 import loadScript from "./load-script";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 
@@ -47,6 +48,7 @@ export default function TripModal() {
   const [stops, setStops] = useState([]);
   const [meta, setMetaState] = useState({ tripName: "", startDate: "", travelers: 2 });
   const [justAdded, setJustAdded] = useState(null);
+  const [saved, setSaved] = useState(false); // "Save this trip" confirmation
   const [coordMap, setCoordMap] = useState(null); // name → {lat,lng} for the mini map
   const [mapFail, setMapFail] = useState(false); // true → fall back to the SVG sketch
   const mapDivRef = useRef(null);
@@ -274,6 +276,17 @@ export default function TripModal() {
               <span style={fieldLabel}>Itinerary</span>
               <span style={{ fontFamily: serif, fontSize: "1.05rem", color: "var(--pb-ink)", fontWeight: 600 }}>{stops.length} stop{stops.length > 1 ? "s" : ""} · {days} day{days > 1 ? "s" : ""}</span>
             </div>
+          </div>
+        )}
+
+        {/* save / library */}
+        {stops.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px 0" }}>
+            <button onClick={() => { saveCurrentTrip(meta.tripName); setSaved(true); clearTimeout(window.__pbSavedT); window.__pbSavedT = setTimeout(() => setSaved(false), 2400); }}
+              style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 700, color: saved ? "var(--pb-go)" : "var(--pb-ink-2)", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>
+              {saved ? "Saved ✓" : "💾 Save this trip"}
+            </button>
+            <Link href="/trips" onClick={() => setOpen(false)} style={{ fontSize: ".82rem", fontWeight: 700, color: "var(--pb-gold-soft)", textDecoration: "none" }}>📚 My trips →</Link>
           </div>
         )}
 

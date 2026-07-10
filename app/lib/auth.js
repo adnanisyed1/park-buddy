@@ -11,7 +11,7 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://fsgmwersernbtjugkuh
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_XWefJHwU9mPJ9frijodnfQ_XBXFEUnn";
 
 // localStorage keys mirrored to Supabase `user_data` per signed-in user.
-const TRACK = ["pp_trip2", "pp_map_trip", "pp_favorites", "pp_prefs", "pp_stamped", "pp_passports", "pb_trip", "pb_trip_meta", "pb_trip_checklist", "pb_trip_story"];
+const TRACK = ["pp_trip2", "pp_map_trip", "pp_favorites", "pp_prefs", "pp_stamped", "pp_passports", "pb_trip", "pb_trip_meta", "pb_trip_checklist", "pb_trip_story", "pb_saved_trips"];
 
 let supa = null, user = null, ready = false, modalOpen = false, pushT = null, inited = false;
 const subs = new Set();
@@ -41,9 +41,10 @@ async function pullCloud() {
     const { data } = await s.from("user_data").select("data").eq("id", user.id).maybeSingle();
     const d = data && data.data;
     if (!d || !Object.keys(d).length) { pushCloud(); return; }
-    let tripChanged = false;
-    TRACK.forEach((k) => { if (d[k] != null) { const nv = JSON.stringify(d[k]); if (localStorage.getItem(k) !== nv) { localStorage.setItem(k, nv); if (k.indexOf("pb_trip") === 0) tripChanged = true; } } });
+    let tripChanged = false, savedChanged = false;
+    TRACK.forEach((k) => { if (d[k] != null) { const nv = JSON.stringify(d[k]); if (localStorage.getItem(k) !== nv) { localStorage.setItem(k, nv); if (k.indexOf("pb_trip") === 0) tripChanged = true; if (k === "pb_saved_trips") savedChanged = true; } } });
     if (tripChanged) { try { window.dispatchEvent(new CustomEvent("pb:trip")); window.dispatchEvent(new CustomEvent("pb:tripmode")); } catch {} }
+    if (savedChanged) { try { window.dispatchEvent(new Event("pb:saved-trips")); } catch {} }
     notify();
   } catch {}
 }

@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useAuth, getAccessToken } from "../lib/auth";
+import TripLibrary from "./TripLibrary";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const micro = { fontFamily: mono, fontSize: ".54rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)" };
@@ -91,7 +92,7 @@ export default function AccountPanel() {
             </div>
           )}
           {view === "prefs" && <Preferences auth={auth} />}
-          {view === "trips" && <Soon title="My Itineraries" body="Save multiple named trips and jump back into any of them. Building this next — it needs the multi-trip save we're adding." link={{ href: "/build-trip", label: "Build a trip →" }} onClose={closeAuth} />}
+          {view === "trips" && <TripLibrary onNavigate={closeAuth} />}
           {view === "orders" && <Orders onClose={closeAuth} />}
           {view === "alerts" && <Alerts onClose={closeAuth} />}
           {view === "passport" && <Soon title="Trip Passport" body="A real travel log that auto-stamps the places you actually visit (from Trip Mode's live location) — no manual check-ins. Building the visited-places record next." link={{ href: "/trip-mode", label: "Open Trip Mode →" }} onClose={closeAuth} />}

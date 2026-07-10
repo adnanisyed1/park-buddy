@@ -7,6 +7,8 @@
 // "Coming soon / Notify me". No invented inventory, prices, or ratings.
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
 import { usePhoto } from "../components/PhotoThumb";
 
@@ -35,13 +37,25 @@ function partnerUrl(kind, parkLabel) {
 }
 
 const CATS = [
-  { ic: "🏡", t: "Stays", d: "In-park lodges, cabins, vacation rentals & glamping near the gateway.", cta: "Search stays", live: true, partner: "Booking.com · Expedia", kind: "stays" },
-  { ic: "🏕", t: "Campgrounds & RV", d: "Recreation.gov campsites plus private RV parks — live availability.", cta: "Check campsites", live: true, partner: "Recreation.gov", kind: "camp" },
-  { ic: "🚗", t: "Rental cars", d: "For the road trip and scenic drives. Pick up near the park or airport.", cta: "Find a car", live: true, partner: "Rentalcars.com", kind: "cars" },
-  { ic: "⚓", t: "Cruises", d: "Reach the parks by sea — Glacier Bay, Kenai Fjords, the Inside Passage.", cta: "Browse cruises", live: false, partner: "", href: "/cruises" },
-  { ic: "🧭", t: "Tours & experiences", d: "Guided hikes, rafting, climbing guides, dive charters, ranger programs.", cta: "See experiences", live: true, partner: "Viator · local outfitters", kind: "tours" },
-  { ic: "🎫", t: "Permits & reservations", d: "Timed-entry and wilderness permits — required at many parks.", cta: "Get permits", live: true, partner: "Recreation.gov", kind: "permits" },
-  { ic: "🚌", t: "Shuttles & transport", d: "Park shuttles and gateway-town transfers to skip the parking scramble.", cta: "Plan transport", live: false, partner: "" },
+  { slug: "stays", ic: "🏡", t: "Stays", d: "In-park lodges, cabins, vacation rentals & glamping near the gateway.", cta: "Search stays", live: true, partner: "Booking.com · Expedia", kind: "stays" },
+  { slug: "camp", ic: "🏕", t: "Campgrounds & RV", d: "Recreation.gov campsites plus private RV parks — live availability.", cta: "Check campsites", live: true, partner: "Recreation.gov", kind: "camp" },
+  { slug: "cars", ic: "🚗", t: "Rental cars", d: "For the road trip and scenic drives. Pick up near the park or airport.", cta: "Find a car", live: true, partner: "Rentalcars.com", kind: "cars" },
+  { slug: "cruises", ic: "⚓", t: "Cruises", d: "Reach the parks by sea — Glacier Bay, Kenai Fjords, the Inside Passage.", cta: "Browse cruises", live: false, partner: "", href: "/cruises" },
+  { slug: "tours", ic: "🧭", t: "Tours & experiences", d: "Guided hikes, rafting, climbing guides, dive charters, ranger programs.", cta: "See experiences", live: true, partner: "Viator · local outfitters", kind: "tours" },
+  { slug: "permits", ic: "🎫", t: "Permits & reservations", d: "Timed-entry and wilderness permits — required at many parks.", cta: "Get permits", live: true, partner: "Recreation.gov", kind: "permits" },
+  { slug: "shuttles", ic: "🚌", t: "Shuttles & transport", d: "Park shuttles and gateway-town transfers to skip the parking scramble.", cta: "Plan transport", live: false, partner: "" },
+];
+
+// The category sub-nav (matches the Book ▾ header dropdown). "All" shows the full grid.
+const CAT_TABS = [
+  { slug: "all", label: "All" },
+  { slug: "stays", label: "Stays" },
+  { slug: "camp", label: "Campgrounds & RV" },
+  { slug: "cars", label: "Cars" },
+  { slug: "cruises", label: "Cruises" },
+  { slug: "tours", label: "Tours" },
+  { slug: "permits", label: "Permits" },
+  { slug: "shuttles", label: "Shuttles" },
 ];
 
 // Scroll-reveal, matching the design's .bk-rise fade-up.
@@ -92,6 +106,20 @@ export default function BookHub() {
   const hero = usePhoto(park.q, null, null);
   useReveal(rootRef);
 
+  // Active category comes from ?cat= (set by the Book ▾ header dropdown) and the
+  // on-page tab bar. Clicking a tab updates the URL in place (shareable, no reload).
+  const search = useSearchParams();
+  const [cat, setCat] = useState("all");
+  useEffect(() => {
+    const c = (search.get("cat") || "all").toLowerCase();
+    setCat(CAT_TABS.some((t) => t.slug === c) ? c : "all");
+  }, [search]);
+  const pick = (slug) => {
+    setCat(slug);
+    if (typeof window !== "undefined") window.history.replaceState(null, "", slug === "all" ? "/book" : "/book?cat=" + slug);
+  };
+  const shown = cat === "all" ? CATS : CATS.filter((c) => c.slug === cat);
+
   return (
     <div ref={rootRef} style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <style>{`
@@ -120,16 +148,49 @@ export default function BookHub() {
         </div>
       </section>
 
+      {/* CATEGORY SUB-NAV — sticks below the header; mirrors the Book ▾ dropdown */}
+      <div style={{ position: "sticky", top: 60, zIndex: 40, background: "rgba(8,19,13,.82)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", borderBottom: "1px solid var(--pb-line)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 8, overflowX: "auto", padding: "11px clamp(16px,4vw,40px)", scrollbarWidth: "none" }}>
+          {CAT_TABS.map((t) => {
+            const on = cat === t.slug;
+            return (
+              <button
+                key={t.slug}
+                onClick={() => pick(t.slug)}
+                aria-pressed={on}
+                style={{ cursor: "pointer", flex: "none", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, whiteSpace: "nowrap", color: on ? "#0b1710" : "var(--pb-ink-2)", background: on ? "var(--pb-grad-gold)" : "transparent", border: on ? "1px solid transparent" : "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "7px 15px", transition: "color .2s, background .2s" }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* CATEGORY GRID */}
       <section style={{ padding: "clamp(20px,3vh,40px) clamp(16px,4vw,40px) clamp(30px,5vh,60px)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div className="pb-rise" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
-            <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.5rem,3.2vw,2.1rem)" }}>Book near <span style={{ color: "var(--pb-gold)" }}>{park.label}</span></h2>
+            <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.5rem,3.2vw,2.1rem)" }}>{cat === "all" ? <>Book near <span style={{ color: "var(--pb-gold)" }}>{park.label}</span></> : <><span style={{ color: "var(--pb-gold)" }}>{(CAT_TABS.find((t) => t.slug === cat) || {}).label}</span> near {park.label}</>}</h2>
             <span style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Partner-powered · honest availability</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14 }}>
-            {CATS.map((c, i) => <CatCard key={c.t} c={c} parkLabel={park.label} i={i} />)}
+          <div style={{ display: "grid", gridTemplateColumns: cat === "all" ? "repeat(auto-fit,minmax(280px,1fr))" : "repeat(auto-fit,minmax(280px,360px))", gap: 14 }}>
+            {shown.map((c, i) => <CatCard key={c.t} c={c} parkLabel={park.label} i={i} />)}
           </div>
+
+          {/* Trip Book lives in the Shop — cross-linked here for hikers planning a trip. */}
+          {cat === "all" && (
+            <Link href="/trip-book" className="pb-rise" style={{ textDecoration: "none", marginTop: 14, background: "linear-gradient(120deg,rgba(217,183,121,.16),rgba(9,22,15,.7))", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "clamp(18px,3vw,28px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <span style={{ fontSize: "1.6rem" }}>📖</span>
+                <div>
+                  <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.3rem", color: "var(--pb-ink)" }}>Turn the trip into a book</div>
+                  <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", fontWeight: 300, marginTop: 2 }}>After you travel, print your photos & stops as a keepsake Trip Book — in the Shop.</div>
+                </div>
+              </div>
+              <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold)", border: "1px solid var(--pb-gold-2)", borderRadius: 999, padding: "6px 12px" }}>Open Trip Book →</span>
+            </Link>
+          )}
 
           <div className="pb-rise" style={{ marginTop: 14, background: "linear-gradient(120deg,rgba(31,94,70,.16),rgba(9,22,15,.7))", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "clamp(18px,3vw,28px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>

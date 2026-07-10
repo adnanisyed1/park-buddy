@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import BookHub from "./BookHub";
 
 export const metadata = {
@@ -8,5 +9,10 @@ export const metadata = {
 };
 
 export default function BookPage() {
-  return <BookHub />;
+  // BookHub reads ?cat= via useSearchParams → needs a Suspense boundary.
+  return (
+    <Suspense>
+      <BookHub />
+    </Suspense>
+  );
 }

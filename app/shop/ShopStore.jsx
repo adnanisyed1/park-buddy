@@ -8,6 +8,7 @@
 // their real search. No invented reviews or ratings.
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
 import { usePhoto } from "../components/PhotoThumb";
 
@@ -107,8 +108,25 @@ export default function ShopStore() {
         </div>
       </section>
 
+      {/* FEATURED: TRIP BOOK — a Park Buddy Original you make from your own trip */}
+      <section style={{ padding: "clamp(8px,1.5vh,18px) clamp(16px,4vw,40px)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <Link href="/trip-book" className="pb-rise" style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap", background: "linear-gradient(120deg,rgba(217,183,121,.2),rgba(31,94,70,.14) 55%,rgba(9,22,15,.75))", border: "1px solid var(--pb-line-strong)", borderRadius: 22, padding: "clamp(20px,3.4vw,34px)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
+              <span style={{ flex: "none", width: 60, height: 74, borderRadius: 8, background: "var(--pb-grad-gold)", boxShadow: "0 10px 30px -10px rgba(217,183,121,.6), inset -6px 0 12px -6px rgba(0,0,0,.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.9rem" }}>📖</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Park Buddy original · you make it</div>
+                <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.5rem,3.2vw,2.2rem)", lineHeight: 1.05, marginTop: 6, color: "var(--pb-ink)" }}>Your trip, printed &amp; bound.</h2>
+                <p style={{ fontSize: ".9rem", color: "var(--pb-ink-2)", fontWeight: 300, lineHeight: 1.5, marginTop: 6, maxWidth: "52ch" }}>Turn the parks you visited, the photos you took and the stops you saved into a real keepsake book — laid out for you, shipped to your door.</p>
+              </div>
+            </div>
+            <span style={{ flex: "none", fontSize: ".9rem", fontWeight: 700, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 12, padding: "12px 22px" }}>Start your Trip Book →</span>
+          </Link>
+        </div>
+      </section>
+
       {/* FEATURED ORIGINALS */}
-      <section style={{ padding: "clamp(14px,2vh,26px) clamp(16px,4vw,40px) clamp(20px,3vh,36px)" }}>
+      <section id="shop-originals" style={{ scrollMarginTop: 84, padding: "clamp(14px,2vh,26px) clamp(16px,4vw,40px) clamp(20px,3vh,36px)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div className="pb-rise" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
             <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.4rem,3vw,2rem)" }}>Park Buddy Originals</h2>
@@ -121,7 +139,7 @@ export default function ShopStore() {
       </section>
 
       {/* DEPARTMENTS */}
-      <section style={{ padding: "clamp(20px,3vh,40px) clamp(16px,4vw,40px) clamp(30px,5vh,60px)" }}>
+      <section id="shop-depts" style={{ scrollMarginTop: 84, padding: "clamp(20px,3vh,40px) clamp(16px,4vw,40px) clamp(30px,5vh,60px)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div className="pb-rise" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
             <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.4rem,3vw,2rem)" }}>Shop by department</h2>

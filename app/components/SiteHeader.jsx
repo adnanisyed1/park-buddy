@@ -35,10 +35,33 @@ const EXPLORE_MENU = [
 ];
 const EXPLORE_KEYS = ["explore", "drives", "cruises", "diving", "climbing"];
 
+// Book ▾ — everything you can reserve, split by category. "All bookings" is the
+// full hub; each category deep-links to /book?cat=… which filters the grid there.
+const BOOK_MENU = [
+  { icon: "🗂", label: "All bookings", desc: "Everything you can reserve", href: "/book" },
+  { icon: "🏡", label: "Stays", desc: "Lodges, cabins & vacation rentals", href: "/book?cat=stays" },
+  { icon: "🏕", label: "Campgrounds & RV", desc: "Recreation.gov sites + RV parks", href: "/book?cat=camp" },
+  { icon: "🚗", label: "Rental cars", desc: "For the drive & scenic byways", href: "/book?cat=cars" },
+  { icon: "⚓", label: "Cruises", desc: "Reach the parks by sea", href: "/book?cat=cruises" },
+  { icon: "🧭", label: "Tours & experiences", desc: "Guided hikes, rafting, climbs", href: "/book?cat=tours" },
+  { icon: "🎫", label: "Permits & reservations", desc: "Timed-entry & wilderness permits", href: "/book?cat=permits" },
+  { icon: "🚌", label: "Shuttles & transport", desc: "Park shuttles & gateway transfers", href: "/book?cat=shuttles" },
+];
+
+// Shop ▾ — the store, with Trip Book living here (a printed keepsake, not a
+// reservation). Passes/Prints jump to their sections on the shop page.
+const SHOP_MENU = [
+  { icon: "🛍", label: "The Shop", desc: "Gear, passes, prints & more", href: "/shop" },
+  { icon: "📖", label: "Trip Book", desc: "Your trip, printed & bound", href: "/trip-book" },
+  { icon: "🎟", label: "Passes", desc: "America the Beautiful + park passes", href: "/shop#shop-depts" },
+  { icon: "🖼", label: "Prints & Originals", desc: "Posters worth framing", href: "/shop#shop-originals" },
+];
+
+// Plain top-nav links (dropdowns for Explore/Book/Shop are rendered separately).
 const LINKS = [
   { key: "pines", label: "Pines", href: "/pines" },
-  { key: "book", label: "Book", href: "/book" },
-  { key: "shop", label: "Shop", href: "/shop" },
+  { key: "book", label: "Book", href: "/book", menu: BOOK_MENU },
+  { key: "shop", label: "Shop", href: "/shop", menu: SHOP_MENU },
   { key: "pro", label: "Pro", href: "/#pro" },
   { key: "learn", label: "Learn", href: "/#learn" },
 ];
@@ -54,8 +77,45 @@ function Logo() {
   );
 }
 
+// A hover dropdown for the top nav — the parent link is still clickable (goes to
+// the hub), and hovering reveals the category menu. Used by Explore/Book/Shop.
+function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
+  return (
+    <div onMouseEnter={onOpen} onMouseLeave={onClose} style={{ position: "relative" }}>
+      <Link href={href} style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", color: isActive ? "var(--pb-gold)" : "inherit", transition: "color .3s", cursor: "pointer" }}>
+        {label} <span style={{ fontSize: ".6rem", opacity: 0.8, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
+      </Link>
+      {open && (
+        <div style={{ position: "absolute", top: "100%", left: -14, paddingTop: 12 }}>
+          <div style={{ width: 300, background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: 8, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
+            {menu.map((m) => (
+              <Link
+                key={m.href}
+                href={m.href}
+                onClick={onClose}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(217,183,121,.08)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 11px", borderRadius: 11, textDecoration: "none", transition: "background .2s" }}
+              >
+                <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".86rem", fontWeight: 600, color: "var(--pb-ink)" }}>
+                    {m.label}
+                    {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
+                  </span>
+                  <span style={{ display: "block", fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false }) {
-  const [exOpen, setExOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(null); // which top-nav dropdown is open ("explore" | "book" | "shop")
   const [menuOpen, setMenuOpen] = useState(false);
   const exActive = EXPLORE_KEYS.includes(active);
 
@@ -120,38 +180,11 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       <Logo />
       <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 26, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
         {/* Explore ▾ — the ways to experience the parks */}
-        <div onMouseEnter={() => setExOpen(true)} onMouseLeave={() => setExOpen(false)} style={{ position: "relative" }}>
-          <Link href="/explore" style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", color: exActive ? "var(--pb-gold)" : "inherit", transition: "color .3s", cursor: "pointer" }}>
-            Explore <span style={{ fontSize: ".6rem", opacity: 0.8, transform: exOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
-          </Link>
-          {exOpen && (
-            <div style={{ position: "absolute", top: "100%", left: -14, paddingTop: 12 }}>
-              <div style={{ width: 300, background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: 8, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
-                {EXPLORE_MENU.map((m) => (
-                  <Link
-                    key={m.href}
-                    href={m.href}
-                    onClick={() => setExOpen(false)}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(217,183,121,.08)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 11px", borderRadius: 11, textDecoration: "none", transition: "background .2s" }}
-                  >
-                    <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".86rem", fontWeight: 600, color: "var(--pb-ink)" }}>
-                        {m.label}
-                        {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
-                      </span>
-                      <span style={{ display: "block", fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={exActive} open={openKey === "explore"} onOpen={() => setOpenKey("explore")} onClose={() => setOpenKey(null)} />
         {LINKS.map((l) => (
-          l.key === "pines" ? (
+          l.menu ? (
+            <NavDropdown key={l.key} label={l.label} href={l.href} menu={l.menu} isActive={active === l.key} open={openKey === l.key} onOpen={() => setOpenKey(l.key)} onClose={() => setOpenKey(null)} />
+          ) : l.key === "pines" ? (
             <Link
               key={l.key}
               href={l.href}
@@ -225,21 +258,26 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           className="pb-mobile-menu"
           style={{ position: "absolute", top: "100%", left: 0, right: 0, maxHeight: "calc(100vh - 70px)", overflowY: "auto", background: "rgba(7,10,16,.98)", WebkitBackdropFilter: "blur(20px) saturate(1.3)", backdropFilter: "blur(20px) saturate(1.3)", borderBottom: "1px solid var(--pb-line)", padding: "10px clamp(16px,4vw,54px) 22px", display: "flex", flexDirection: "column", gap: 4 }}
         >
-          <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", padding: "12px 4px 6px" }}>Explore</div>
-          {EXPLORE_MENU.map((m) => (
-            <Link key={m.href} href={m.href} onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 6px", borderRadius: 11, textDecoration: "none" }}>
-              <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".95rem", fontWeight: 600, color: "var(--pb-ink)" }}>
-                  {m.label}
-                  {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
-                </span>
-                <span style={{ display: "block", fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
-              </span>
-            </Link>
+          {[{ label: "Explore", menu: EXPLORE_MENU }, { label: "Book", menu: BOOK_MENU }, { label: "Shop", menu: SHOP_MENU }].map((sec, si) => (
+            <div key={sec.label}>
+              {si > 0 && <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />}
+              <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", padding: "12px 4px 6px" }}>{sec.label}</div>
+              {sec.menu.map((m) => (
+                <Link key={m.href} href={m.href} onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 6px", borderRadius: 11, textDecoration: "none" }}>
+                  <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".95rem", fontWeight: 600, color: "var(--pb-ink)" }}>
+                      {m.label}
+                      {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
+                    </span>
+                    <span style={{ display: "block", fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
           ))}
           <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />
-          {LINKS.map((l) => (
+          {LINKS.filter((l) => !l.menu).map((l) => (
             <Link key={l.key} href={l.href} onClick={() => setMenuOpen(false)} style={{ padding: "12px 6px", textDecoration: "none", fontSize: "1rem", fontWeight: 600, color: active === l.key ? "var(--pb-gold)" : "var(--pb-ink)" }}>
               {l.label}
             </Link>

@@ -173,6 +173,9 @@ export default function ParkStatusV2({ id, kind = "park" }) {
       setNearby((prev) => ({ ...(prev || {}), parks: others }));
       j("/api/water?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=161").then((d) => on && setNearby((prev) => ({ ...(prev || {}), lakes: (d && d.lakes) || [] })));
       j("/api/gateway?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&state=" + encodeURIComponent(p.state || "")).then((d) => on && setNearby((prev) => ({ ...(prev || {}), towns: (d && (d.towns || d)) || [] })));
+      // Other NPS units nearby (monuments, historic sites, seashores…) — a separate
+      // category, surfaced as a cross-link, never mixed into the 63 national parks.
+      j("/api/destinations?lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) + "&radius=150&type=nps_unit&limit=12").then((d) => on && setNearby((prev) => ({ ...(prev || {}), npsUnits: (d && d.destinations) || [] })));
     })();
     return () => { on = false; };
   }, [id]);
@@ -832,7 +835,9 @@ function NearbyTile({ o, href, pq }) {
       <figcaption style={{ position: "absolute", left: 12, right: 12, bottom: 10, fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "#f7f4ec", textShadow: "0 2px 10px rgba(0,0,0,.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</figcaption>
     </figure>
   );
-  return href ? <a href={href} style={{ textDecoration: "none", display: "block" }}>{tile}</a> : tile;
+  if (!href) return tile;
+  const external = /^https?:/.test(href);
+  return <a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} style={{ textDecoration: "none", display: "block" }}>{tile}</a>;
 }
 
 function Nearby({ park, nearby, radius, setRadius }) {
@@ -841,6 +846,7 @@ function Nearby({ park, nearby, radius, setRadius }) {
     ["Other parks", (nearby && nearby.parks) || [], (o) => "/parks/" + o.id, "🏔", (o) => o.name + " National Park|" + o.name],
     ["Lakes", (nearby && nearby.lakes) || [], (o) => "/lake-status?" + new URLSearchParams({ name: o.name, lat: o.lat || "", lng: o.lng || "" }), "💧", (o) => o.name],
     ["Gateway towns", (nearby && nearby.towns) || [], () => null, "🏘", (o) => o.name + (o.state || st ? ", " + (o.state || st) : "")],
+    ["NPS monuments & sites", (nearby && nearby.npsUnits) || [], (o) => "https://www.nps.gov/" + String(o.id || "").replace(/^nps:/, "") + "/", "🏛", (o) => o.name],
   ];
   return (
     <>

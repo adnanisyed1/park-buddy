@@ -214,10 +214,16 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
       strip per Recreation.gov campground (populates in prod w/ RIDB key). ✅ shipped
 
 ## 🔷 Commerce (Book / Shop)
+- [ ] **Forest stays — cabins only, NO hotels** (decided 2026-07-10) — reframe the Book
+      "Stays" category to **Cabins & Lodges** and re-point deep-links to cabin/glamping
+      inventory near the park: **Vrbo** (all rentals) + **Booking.com constrained to
+      chalets/lodges/cabins** + **Hipcamp / Glamping Hub** + **Rec.gov cabins & fire
+      lookouts**. Airbnb is OUT (affiliate closed). Plan-only for now — build after
+      partner IDs land. Full plan → **`AFFILIATE-STAYS.md`**.
 - [ ] **Affiliate program setup** — real affiliate IDs for Booking / Rentalcars /
-      Viator / REI / Garmin / B&H so partner hand-offs actually earn commission
-      (currently honest deep-links, no commission). Add the FTC disclosure component
-      (Amazon needs the exact "As an Amazon Associate…" phrase).
+      Viator / REI / Garmin / B&H (+ Vrbo/Hipcamp/Glamping Hub, see above) so partner
+      hand-offs actually earn commission (currently honest deep-links, no commission).
+      Add the FTC disclosure component (Amazon needs the exact "As an Amazon Associate…" phrase).
 - [ ] **Shop "Park Buddy Originals" store** — stand up print-on-demand (Printful /
       Gelato) so the WPA posters / merch become real products (currently "Coming
       soon"). Confirm sales-tax handling with the POD provider before launch.

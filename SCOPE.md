@@ -24,7 +24,7 @@ Don't think of this as five businesses bolted together. There is **one spine: th
    GUIDE (free)          BOOK (affiliate)      SHOP (owned)
    the trust engine      commission revenue    margin + commission
       │                     │                     │
-  • live verdict        • stays (lodges/hotels) • souvenirs, posters
+  • live verdict        • forest stays (cabins) • souvenirs, posters
   • trails + nav        • rental cars           • printed park maps
   • scenic drives       • (later) tours         • branded merch/apparel
   • lakes, campgrounds  • lodge "list with us"  • gear (affiliate curation)
@@ -47,7 +47,7 @@ Don't think of this as five businesses bolted together. There is **one spine: th
 | **E-commerce cart** | **Snipcart** | Drops into our existing Next.js/Netlify app via a script tag + HTML `data-` attributes — **no replatforming**. Handles PCI compliance, never stores card data. Sells **both physical goods and digital maps** natively. Cost: **2% per transaction** + gateway fees at ≥$1,000/mo sales; **flat $20/mo** under $1,000. | ✅ Verified |
 | **Merch & maps (print-on-demand)** | **Printful** (quality/US apparel) + **Gelato** (posters, large-format maps) | POD = zero inventory, print-on-order. Attaches to Snipcart via a small JS integration. Printify = cheapest base cost (best margin, 900+ products) if margin matters more than control. Printful + Printify are merging (announced Nov 2024) but stay separate brands. | ✅ Verified |
 | **Gear** | **Affiliate, never inventory** — Amazon Associates to start, AvantLink/Impact (REI, Backcountry, Public Lands) once approved | Amazon = 3% on "Outdoors/Tools/Sports," instant huge catalog, easy approval. AvantLink/Impact = real outdoor brands, higher commissions, needs approval. "Recommend gear" = curated affiliate lists, not a store we stock. | ✅ Verified (rates) |
-| **Lodging** | **Affiliate via Travelpayouts aggregator** (Booking.com ~4%, Expedia ~3.4%) | One signup exposes many hotel brands. Booking.com pays ~4% of booking price. Hand-off, no payment on our side. | ✅ Verified |
+| **Lodging (FOREST STAYS — no hotels)** | **Cabins / lodges / glamping only** — Vrbo (all rentals, native Cabins) + Booking.com **constrained to chalets/lodges/cabins/tree houses** + Hipcamp & Glamping Hub (on-brand specialists) + Rec.gov cabins/fire-lookouts (free credibility). **Airbnb is out** (affiliate program closed). | On-brand: a Hampton Inn is off-brand, an A-frame in the pines is the brand. Every deep-link must land on cabin inventory near the park, never a hotel list. Full plan → **`AFFILIATE-STAYS.md`**. | ⚠️ Pivot 2026-07-10; partner IDs pending |
 | **Rental cars** | **Discover Cars affiliate** | Pays **70% of rental profit + 30% of full-coverage revenue (~$20/booking)**, with a **365-day cookie** — unusually generous. | ✅ Verified |
 | **Lodge self-listing** | **Intake form → featured/lead-gen listing, NOT a transactional marketplace (at first)** | The moment third parties _sell through us_, marketplace-facilitator tax law can make **us** liable to collect & remit sales tax. Keep listings as lead-gen (they pay for placement / we affiliate-link them) to avoid that until it's worth the compliance cost. | ✅ Verified (risk) |
 | **Off-road / OHV routes** | **USFS Motor Vehicle Use Map (MVUM)** ArcGIS feature layers (roads + trails) | **Free, open, government** GIS — accessed programmatically, exactly like our existing NPS trails / USGS lakes pattern. BLM publishes motorized-road GIS too. **Buildable now.** | ✅ Verified (source + access) |
@@ -61,7 +61,7 @@ Don't think of this as five businesses bolted together. There is **one spine: th
 ## 4. The three revenue lines, concretely
 
 ### A. BOOK (affiliate hand-off) — fastest to revenue, zero PCI
-- **Stays**: search widget → Travelpayouts (Booking.com + Expedia) deep-link, anchored to the park's **gateway town** (we already compute these).
+- **Forest stays (cabins/glamping, NO hotels)**: deep-link to cabin/lodge/glamping inventory near the park — Vrbo (all rentals) + cabin-filtered Booking.com + Hipcamp/Glamping Hub + Rec.gov cabins/lookouts — anchored to the park's **gateway town** (we already compute these). Full plan → **`AFFILIATE-STAYS.md`**.
 - **Rental cars**: Discover Cars deep-link, anchored to the **nearest airport / park approach**.
 - **Tours & experiences** (later): Viator/GetYourGuide affiliate.
 - Every affiliate surface carries a **visible FTC disclosure** (see §5).

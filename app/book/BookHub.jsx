@@ -73,8 +73,24 @@ function useReveal(ref) {
 }
 
 function CatCard({ c, parkLabel, i }) {
-  const [notified, setNotified] = useState(false);
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
   const open = () => { const u = partnerUrl(c.kind, parkLabel); if (u) window.open(u, "_blank", "noopener,noreferrer"); };
+  // Coming-soon categories capture real interest (was a fake local-only toggle that
+  // claimed "you're on the list" but stored nothing). Reuses the pines_waitlist table.
+  const notify = async (e) => {
+    e.preventDefault();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setErr("Enter a valid email."); return; }
+    setBusy(true); setErr("");
+    try {
+      const r = await fetch("/api/pines-waitlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim(), source: "book-" + (c.slug || c.t) }) });
+      if (r.ok) setSent(true);
+      else { const d = await r.json().catch(() => ({})); setErr(d.error || "Couldn't save just now — try again."); }
+    } catch { setErr("Couldn't reach the list — try again."); }
+    setBusy(false);
+  };
   return (
     <div className="pb-rise" style={{ transitionDelay: i * 0.05 + "s", display: "flex", flexDirection: "column", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 20, padding: 22 }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
@@ -93,9 +109,15 @@ function CatCard({ c, parkLabel, i }) {
           <button onClick={open} style={{ cursor: "pointer", width: "100%", fontSize: ".85rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", border: "none", borderRadius: 12, padding: 11, fontFamily: "inherit" }}>{c.cta} ↗</button>
         ) : c.href ? (
           <a href={c.href} style={{ display: "block", textAlign: "center", textDecoration: "none", fontSize: ".85rem", fontWeight: 600, color: "var(--pb-ink)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: 11 }}>Notify me →</a>
+        ) : sent ? (
+          <div style={{ textAlign: "center", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-go)", padding: "10px 0" }}>✓ On the list — we&apos;ll email you when it opens.</div>
         ) : (
-          <button onClick={() => setNotified(true)} disabled={notified} style={{ cursor: notified ? "default" : "pointer", width: "100%", fontSize: ".85rem", fontWeight: 600, color: notified ? "var(--pb-go)" : "var(--pb-ink)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: 11, fontFamily: "inherit" }}>{notified ? "✓ You're on the list" : "Notify me"}</button>
+          <form onSubmit={notify} style={{ display: "flex", gap: 6 }}>
+            <input type="email" required value={email} onChange={(e) => { setEmail(e.target.value); if (err) setErr(""); }} placeholder="Email me when it's live" aria-label={"Email me when " + c.t + " is live"} style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "10px 12px", color: "var(--pb-ink)", fontFamily: "inherit", fontSize: ".82rem", outline: "none" }} />
+            <button type="submit" disabled={busy} aria-label="Notify me" style={{ cursor: busy ? "default" : "pointer", flex: "none", fontWeight: 700, color: "#0b1710", background: "var(--pb-grad-gold)", border: "none", borderRadius: 12, padding: "0 14px", fontFamily: "inherit" }}>{busy ? "…" : "→"}</button>
+          </form>
         )}
+        {err && <div style={{ marginTop: 8, color: "var(--pb-hold)", fontSize: ".76rem" }}>{err}</div>}
       </div>
     </div>
   );
@@ -112,7 +134,12 @@ export default function BookHub() {
   const search = useSearchParams();
   const [cat, setCat] = useState("all");
   useEffect(() => {
-    const c = (search.get("cat") || "all").toLowerCase();
+    // Read the real URL (window.location.search) rather than the useSearchParams
+    // value — on a statically-prerendered page the hook can come back empty on a
+    // hard load, which left ?cat=… unapplied. `search` stays as the dependency so a
+    // client-side nav from the Book ▾ dropdown still re-runs this.
+    const raw = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : search;
+    const c = (raw.get("cat") || "all").toLowerCase();
     setCat(CAT_TABS.some((t) => t.slug === c) ? c : "all");
   }, [search]);
   const pick = (slug) => {

@@ -88,10 +88,12 @@ function CrossTile({ c }) {
   );
 }
 
-export default function ScenicDrive({ drive, cross }) {
+export default function ScenicDrive({ drive, cross, heroFallback }) {
   // Name-only (no geo fallback): a byway is linear, so a geo-search near one
   // coordinate returns junk (a church, a brewery, a photo of Earth from orbit).
-  const heroPhoto = usePhoto([...(drive.wiki || []), drive.name].join("|"), null, null);
+  // But many byways have no Wikipedia lead image, so fall back to a nearby national
+  // park's photo (passed from the server) rather than leaving the hero blank.
+  const heroPhoto = usePhoto([...(drive.wiki || []), drive.name].join("|"), null, null, undefined, undefined, heroFallback);
   const [road, setRoad] = useState(undefined);
   const [highlights, setHighlights] = useState(drive.highlights || null);
   const [film, setFilm] = useState([]);

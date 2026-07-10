@@ -273,7 +273,17 @@ class Studio {
   toast(msg){ var t=document.getElementById('st-toast'); if(!t){ t=document.createElement('div'); t.id='st-toast'; t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:200;background:#f4f1ea;color:#0e0e0c;font-size:.84rem;font-weight:700;padding:11px 18px;border-radius:999px;box-shadow:0 16px 40px -16px rgba(0,0,0,.6);opacity:0;transition:opacity .3s,transform .3s;pointer-events:none'; document.body.appendChild(t); } t.textContent=msg; t.style.opacity='1'; t.style.transform='translateX(-50%) translateY(0)'; clearTimeout(t._h); t._h=setTimeout(function(){ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(20px)'; },2400); }
 
   /* photo pipeline — server-cached /api/photo (Wikipedia/Wikimedia + NPS) */
-  hydrate(scope){ var self=this; scope.querySelectorAll('img[data-wiki]').forEach(function(img,i){ var w=img.getAttribute('data-wiki'); if(img.getAttribute('data-done')===w)return; img.setAttribute('data-done',w); setTimeout(function(){ if(self._dead)return; fetch('/api/photo?q='+encodeURIComponent(w)+'&w=1200&v=6').then(function(r){return r.ok?r.json():null;}).then(function(d){ if(d&&d.found){ var src=d.image||d.thumb; if(!src)return; img.onload=function(){img.style.opacity='1';}; img.onerror=function(){img.style.opacity='0';}; img.src=src; } }).catch(function(){}); }, i*40); }); }
+  hydrate(scope){ var self=this; scope.querySelectorAll('img[data-wiki]').forEach(function(img,i){ var w=img.getAttribute('data-wiki'); if(img.getAttribute('data-done')===w||img.getAttribute('data-loading')==='1')return; self.loadWiki(img,w,0,i*40); }); }
+  // Resolve one book photo. CRITICAL: only stamp data-done on SUCCESS — the old code
+  // set it up-front, so a single transient failure (a 500/503 during the burst of
+  // spread photos) permanently left that frame blank with no retry. Now failures
+  // retry with backoff and re-attempt on the next render, so interior pages fill in.
+  loadWiki(img,w,attempt,delay){ var self=this; setTimeout(function(){ if(self._dead||!img.isConnected)return; if(img.getAttribute('data-wiki')!==w)return; img.setAttribute('data-loading','1');
+    fetch('/api/photo?q='+encodeURIComponent(w)+'&w=1200&v=6').then(function(r){return r.ok?r.json():null;}).then(function(d){
+      if(d&&d.found&&(d.image||d.thumb)){ img.removeAttribute('data-loading'); img.setAttribute('data-done',w); img.onload=function(){img.style.opacity='1';}; img.onerror=function(){img.style.opacity='0';}; img.src=d.image||d.thumb; return; }
+      img.removeAttribute('data-loading'); if(attempt<3) self.loadWiki(img,w,attempt+1,700*(attempt+1)); // transient/miss → back off & retry
+    }).catch(function(){ img.removeAttribute('data-loading'); if(attempt<3) self.loadWiki(img,w,attempt+1,700*(attempt+1)); });
+  }, delay); }
   hydrateAll(){ this.hydrate(document); }
 }
 

@@ -53,5 +53,9 @@ export default async function ScenicDriveDetailPage({ params }) {
     cross.push({ name: c.name, type: "Campground", href: "/campground-status?" + new URLSearchParams({ name: c.name, lat: c.lat, lng: c.lng, type: c.type || "", url: c.url || "" }).toString(), q: c.name, lat: c.lat, lng: c.lng, fallback: parkFallback });
   });
 
-  return <ScenicDrive drive={drive} cross={cross.slice(0, 8)} />;
+  // Hero photo backstop: a regional national park (≤120 mi — park centroids sit far
+  // from a byway even when they're adjacent, e.g. Beartooth↔Yellowstone) when the
+  // byway itself has no Wikipedia lead image, so the hero is never a blank panel.
+  const heroFallback = park && park.dist <= 120 ? parkFallback : "";
+  return <ScenicDrive drive={drive} cross={cross.slice(0, 8)} heroFallback={heroFallback} />;
 }

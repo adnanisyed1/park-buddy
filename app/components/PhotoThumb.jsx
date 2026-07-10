@@ -58,17 +58,21 @@ function cacheLookup(key, q) {
 
 export function usePhoto(q, lat, lng, ref, w) {
   const key = q ? q + (lat != null ? "@" + Number(lat).toFixed(2) + "," + Number(lng).toFixed(2) : "") + (w ? "~" + w : "") : "";
-  const [photo, setPhoto] = useState(() => cacheLookup(key, q));
-  // Re-sync from cache when the KEY changes — e.g. q went from null → a real
-  // query once the parent's data loaded (the park-status hero photo case). Without
-  // this the fetch effect below (which only runs when photo === undefined) would
-  // never fire for that case, leaving the photo blank forever.
+  // Start undefined on BOTH server and first client render — reading localStorage
+  // in the initializer made the client's first paint differ from the server HTML
+  // (no <img> on the server, an <img> on the client when the cache had the photo),
+  // which triggered a hydration mismatch. The effect below hydrates from cache (or
+  // fetches) after mount, so server and client agree on render #1.
+  const [photo, setPhoto] = useState(undefined);
+  // When the KEY changes — e.g. q went from null → a real query once the parent's
+  // data loaded (the park-status hero case) — reset to undefined so the effect below
+  // re-runs for the new key (it only acts when photo === undefined).
   const keyRef = useRef(key);
   useEffect(() => {
     if (keyRef.current === key) return;
     keyRef.current = key;
-    setPhoto(cacheLookup(key, q));
-  }, [key, q]);
+    setPhoto(undefined);
+  }, [key]);
   // Optional viewport gate: when the caller passes an element ref, defer the
   // fetch until that element scrolls near the screen. On a page with many tiles
   // (e.g. the 141 scenic drives) this spreads requests out as the user scrolls
@@ -86,7 +90,13 @@ export function usePhoto(q, lat, lng, ref, w) {
     return () => io.disconnect();
   }, [ref, inView]);
   useEffect(() => {
-    if (photo !== undefined || !q || !inView) return;
+    if (photo !== undefined || !q) return;
+    // Cache hydration happens here (not in useState) to stay SSR-safe. A hit —
+    // including a cached "no photo" (null) — resolves without any network call, so
+    // returning visitors don't re-stampede /api/photo.
+    const cached = cacheLookup(key, q);
+    if (cached !== undefined) { setPhoto(cached); return; }
+    if (!inView) return; // viewport-gated: wait until the tile nears the screen
     let on = true;
     gatedPhotoFetch("/api/photo?q=" + encodeURIComponent(q) + (lat != null ? "&lat=" + lat + "&lng=" + lng : "") + (w ? "&w=" + w : "") + "&v=6")
       .then(async (r) => {

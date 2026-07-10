@@ -1658,19 +1658,26 @@ export default function ExploreApp() {
                 </div>
               )}
 
-              {(gateway || (selGateways && selGateways.length > 0)) && (
-                <div style={{ background: "rgba(217,183,121,.1)", border: "1px solid rgba(217,183,121,.28)", borderRadius: 12, padding: "11px 13px", marginBottom: 14 }}>
-                  <div style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".12em", textTransform: "uppercase", color: "#d9b779", marginBottom: 3 }}>🏘 Gateway town{(selGateways && selGateways.length > 1) ? "s" : ""}</div>
-                  <b style={{ fontSize: ".86rem", color: "#f4f1ea", display: "block" }}>{(gateway && gateway.town) || (selGateways && selGateways[0] && selGateways[0].name)}</b>
-                  {gateway && gateway.blurb && <div style={{ fontSize: ".76rem", color: "#8a938b", marginTop: 3, lineHeight: 1.4 }}>{gateway.blurb}</div>}
-                  {selGateways && selGateways.length > 1 && (
-                    <div style={{ fontSize: ".74rem", color: "#a9b1a8", marginTop: 6, lineHeight: 1.5 }}>
-                      <span style={{ color: "#7f8a82" }}>Also nearby: </span>
-                      {selGateways.filter((t) => !(gateway && gateway.town && gateway.town.indexOf(t.bareName) > -1)).slice(0, 4).map((t) => t.name + " (" + t.distanceMi + " mi)").join(" · ")}
-                    </div>
-                  )}
-                </div>
-              )}
+              {(gateway || (selGateways && selGateways.length > 0)) && (() => {
+                const rest = (selGateways || []).filter((t) => !(gateway && gateway.town && gateway.town.indexOf(t.bareName) > -1));
+                return (
+                  <div style={{ background: "rgba(217,183,121,.1)", border: "1px solid rgba(217,183,121,.28)", borderRadius: 12, padding: "11px 13px", marginBottom: 14 }}>
+                    <div style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".12em", textTransform: "uppercase", color: "#d9b779", marginBottom: 3 }}>🏘 Gateway {(selGateways && selGateways.length > 1) ? "towns · " + selGateways.length : "town"}</div>
+                    <b style={{ fontSize: ".86rem", color: "#f4f1ea", display: "block" }}>{(gateway && gateway.town) || (selGateways && selGateways[0] && selGateways[0].name)}</b>
+                    {gateway && gateway.blurb && <div style={{ fontSize: ".76rem", color: "#8a938b", marginTop: 3, lineHeight: 1.4 }}>{gateway.blurb}</div>}
+                    {rest.length > 0 && (
+                      <div style={{ marginTop: 8, maxHeight: 148, overflowY: "auto", borderTop: "1px solid rgba(217,183,121,.15)", paddingTop: 6 }}>
+                        {rest.map((t, i) => (
+                          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: ".76rem", color: "#c3c8d0", padding: "3px 0" }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
+                            <span style={{ color: "#7f8a82", flex: "none" }}>{t.distanceMi} mi</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
                 {[["live", "☀ Live"], ["about", "ⓘ About"], ["trails", "🥾 Trails"]].map(([t, lbl]) => {

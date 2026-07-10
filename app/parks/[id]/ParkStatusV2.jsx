@@ -859,7 +859,9 @@ function Nearby({ park, nearby, radius, setRadius }) {
         </div>
       </div>
       {secs.map(([title, items, href, icon, pqFn]) => {
-        const within = items.map((o) => ({ ...o, distMi: o.distMi != null ? o.distMi : (park && o.lat != null ? Math.round(milesBetween(park, o)) : null) })).filter((o) => o.distMi != null && o.distMi <= radius).sort((a, b) => a.distMi - b.distMi).slice(0, 8);
+        // Gateway towns are radius-driven — show ALL within the slider (not capped at 8).
+        const cap = title === "Gateway towns" ? 60 : 8;
+        const within = items.map((o) => ({ ...o, distMi: o.distMi != null ? o.distMi : (park && o.lat != null ? Math.round(milesBetween(park, o)) : null) })).filter((o) => o.distMi != null && o.distMi <= radius).sort((a, b) => a.distMi - b.distMi).slice(0, cap);
         return (
           <div key={title} style={{ marginBottom: 24 }}>
             <div style={{ ...microLabel, letterSpacing: ".12em", marginBottom: 12 }}>{icon} {title}</div>

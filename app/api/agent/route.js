@@ -92,6 +92,19 @@ const TOOLS = [
     },
   },
   {
+    name: "find_basecamp_towns",
+    description:
+      "Find the real basecamp / gateway towns near a location (for lodging, food, gas, outfitters), independent of any single park — deduped, each labeled with the parks/forests it serves. Use when the user asks 'what towns can I stay in near X', 'basecamp near me', or wants somewhere to base a trip. Pass a place name (city, town, park, or landmark); coordinates are looked up automatically. Optional radius in miles (default 60).",
+    input_schema: {
+      type: "object",
+      properties: {
+        location: { type: "string", description: "Place to search near, e.g. 'Denver, CO', 'Moab', or 'Rocky Mountain National Park'." },
+        radius: { type: "number", description: "Search radius in miles (default 60)." },
+      },
+      required: ["location"],
+    },
+  },
+  {
     name: "build_itinerary",
     description: "Build or replace the user's trip on the page with an ordered list of national parks. Use for multi-park trips. Optionally set start date, number of travelers, and a trip name.",
     input_schema: {
@@ -184,6 +197,25 @@ async function getPlaces({ lat, lng, query }, request) {
   } catch (e) {
     return { error: "places request failed" };
   }
+}
+
+// Basecamp-towns tool — geocodes a place name, then reads the town-centric gateway
+// search (all basecamp towns near a location, deduped + labeled with what they serve).
+async function findBasecampTowns({ location, radius }, request) {
+  try {
+    const origin = new URL(request.url).origin;
+    const g = await fetch(origin + "/api/geocode?q=" + encodeURIComponent(location || "")).then((r) => r.json()).catch(() => null);
+    if (!g || !g.found || g.lat == null) return { found: false, note: "Couldn't locate '" + (location || "") + "'." };
+    const rad = Math.min(200, Math.max(5, radius || 60));
+    const d = await fetch(origin + "/api/gateway?townsNear=1&lat=" + g.lat + "&lng=" + g.lng + "&radius=" + rad).then((r) => r.json()).catch(() => null);
+    const towns = (d && d.towns) || [];
+    return {
+      near: g.name || location,
+      radiusMi: rad,
+      towns: towns.slice(0, 12).map((t) => ({ name: t.name, distanceMi: t.distanceMi, basecampFor: (t.places || []).map((p) => p.name) })),
+      note: towns.length ? "" : "No stored basecamp towns within " + rad + " mi.",
+    };
+  } catch { return { found: false, note: "Basecamp lookup failed." }; }
 }
 
 // Live conditions tool — calls our own /api/conditions (NWS alerts + NIFC wildfire + AirNow).
@@ -334,6 +366,8 @@ export async function POST(request) {
             result = await getPlaces(tu.input || {}, request);
           } else if (tu.name === "search_trails") {
             result = await getTrails(tu.input || {}, request);
+          } else if (tu.name === "find_basecamp_towns") {
+            result = await findBasecampTowns(tu.input || {}, request);
           } else if (ACTION_TOOLS[tu.name]) {
             // Record for the browser to apply; ack optimistically so the model continues.
             actions.push({ name: tu.name, input: tu.input || {} });

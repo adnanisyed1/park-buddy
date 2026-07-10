@@ -5,6 +5,7 @@ import Link from "next/link";
 import TripModal from "./TripModal";
 import AuthModal from "./AuthModal";
 import AccountPanel from "./AccountPanel";
+import loadScript from "./load-script";
 import { useAuth } from "../lib/auth";
 import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 
@@ -130,6 +131,13 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   }, []);
   const count = tripCount != null ? tripCount : storeCount;
   const showTrip = tripCount != null || storeCount > 0;
+
+  // Load the self-contained Ask Park Buddy assistant on every page that has the
+  // header, so the flagship AI is reachable in-context (no full reload to /#ask).
+  // loadScript is idempotent (once per session) and the widget guards its own
+  // double-init; we hide its off-brand teal FAB below and open it from the gold
+  // header button instead — matching how Explore already drives it.
+  useEffect(() => { loadScript("/ask-parkbuddy.js"); }, []);
   // My Trip pill: pages with their own trip UI (Explore) pass onTripClick; every
   // other page opens the shared trip planner modal.
   const openTrip = () => { if (onTripClick) onTripClick(); else if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("pb:trip-open")); };
@@ -156,10 +164,15 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   const displayName = user ? ((user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0]) : "";
   const avatar = user && user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture);
 
-  const askBuddy = () => {
-    // Trigger the global Ask Park Buddy assistant if it's mounted; otherwise send
-    // the visitor to the home hero where the assistant lives.
-    const fab = typeof document !== "undefined" && document.querySelector(".pbask-fab, #askPill");
+  const askBuddy = async () => {
+    // Open the assistant in-context. Ensure its script is loaded (idempotent) before
+    // clicking, so it works even if the mount effect hasn't resolved yet — and only
+    // fall back to the home hero if the widget genuinely can't be brought up.
+    let fab = typeof document !== "undefined" && document.querySelector(".pbask-fab, #askPill");
+    if (!fab && typeof window !== "undefined") {
+      await loadScript("/ask-parkbuddy.js");
+      fab = document.querySelector(".pbask-fab, #askPill");
+    }
     if (fab) fab.click();
     else if (typeof window !== "undefined") window.location.href = "/#ask";
   };
@@ -306,6 +319,10 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           .pb-nav-actions { display: none !important; }
           .pb-hamburger { display: inline-flex !important; }
         }
+        /* The assistant loads globally so it's reachable everywhere, but we hide its
+           own teal FAB (off-brand vs the --pb-* system) and open it from the gold
+           "Ask Park Buddy" button in this header instead. */
+        .pbask-fab { display: none !important; }
       `}</style>
 
       {/* Platform-wide trip planner dialog — auto-opens on any add-to-trip. */}

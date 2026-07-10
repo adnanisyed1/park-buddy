@@ -1,12 +1,18 @@
+import { Suspense } from "react";
 import ShopStore from "./ShopStore";
 
 export const metadata = {
   title: "The Park Buddy Shop",
   description:
-    "Park Buddy Originals — posters, prints and merch — plus gear, camping equipment, navigation & safety, maps and guides, optics, and the America the Beautiful park pass. Affiliate, partner-fulfilled, honest.",
+    "The Park Buddy Store — posters, prints and merch — plus gear, camping equipment, navigation & safety, maps and guides, optics, and the America the Beautiful park pass. Opening in stages; Trip Book is live now.",
   alternates: { canonical: "/shop" },
 };
 
 export default function ShopPage() {
-  return <ShopStore />;
+  // ShopStore reads ?cat= via useSearchParams → needs a Suspense boundary.
+  return (
+    <Suspense>
+      <ShopStore />
+    </Suspense>
+  );
 }

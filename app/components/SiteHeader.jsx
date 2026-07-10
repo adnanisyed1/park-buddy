@@ -49,13 +49,18 @@ const BOOK_MENU = [
   { icon: "🚌", label: "Shuttles & transport", desc: "Park shuttles & gateway transfers", href: "/book?cat=shuttles" },
 ];
 
-// Shop ▾ — the store, with Trip Book living here (a printed keepsake, not a
-// reservation). Passes/Prints jump to their sections on the shop page.
+// Shop ▾ — the store by category. Trip Book lives here and is the one live product;
+// The Park Buddy Store + the affiliate departments are opening in stages (Soon).
 const SHOP_MENU = [
-  { icon: "🛍", label: "The Shop", desc: "Gear, passes, prints & more", href: "/shop" },
-  { icon: "📖", label: "Trip Book", desc: "Your trip, printed & bound", href: "/trip-book" },
-  { icon: "🎟", label: "Passes", desc: "America the Beautiful + park passes", href: "/shop#shop-depts" },
-  { icon: "🖼", label: "Prints & Originals", desc: "Posters worth framing", href: "/shop#shop-originals" },
+  { icon: "🛍", label: "All of the shop", desc: "Everything in the store", href: "/shop" },
+  { icon: "📖", label: "Trip Book", desc: "Your trip, printed & bound — live", href: "/trip-book" },
+  { icon: "🏔", label: "The Park Buddy Store", desc: "Posters, prints & merch", href: "/shop?cat=store", soon: true },
+  { icon: "🎟", label: "Passes", desc: "America the Beautiful + park passes", href: "/shop?cat=passes", soon: true },
+  { icon: "🎒", label: "Gear & Apparel", desc: "Packs, layers, footwear", href: "/shop?cat=gear", soon: true },
+  { icon: "⛺", label: "Camp & Cook", desc: "Tents, bags, stoves", href: "/shop?cat=camp", soon: true },
+  { icon: "🧭", label: "Navigation & Safety", desc: "GPS, satellite, first-aid", href: "/shop?cat=nav", soon: true },
+  { icon: "🗺", label: "Maps & Guides", desc: "Topo maps & guidebooks", href: "/shop?cat=maps", soon: true },
+  { icon: "🔭", label: "Optics & Cameras", desc: "Binoculars & scopes", href: "/shop?cat=optics", soon: true },
 ];
 
 // Plain top-nav links (dropdowns for Explore/Book/Shop are rendered separately).
@@ -319,9 +324,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           .pb-nav-actions { display: none !important; }
           .pb-hamburger { display: inline-flex !important; }
         }
-        /* The assistant loads globally so it's reachable everywhere, but we hide its
-           own teal FAB (off-brand vs the --pb-* system) and open it from the gold
-           "Ask Park Buddy" button in this header instead. */
+        /* The assistant loads globally so it is reachable everywhere; we hide its own
+           teal FAB (off-brand vs the --pb-* system) and open it from the gold header
+           button instead. */
         .pbask-fab { display: none !important; }
       `}</style>
 

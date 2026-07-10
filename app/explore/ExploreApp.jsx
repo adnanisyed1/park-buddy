@@ -1368,6 +1368,8 @@ export default function ExploreApp() {
         ? "/parks/" + p.id
         : p.type === "national_forest"
         ? "/forests/" + p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+        : p.type === "state_park" && p.destId
+        ? "/state-parks/" + encodeURIComponent(p.destId)
         : p.destId
         ? "/park-status?dest=" + encodeURIComponent(p.destId)
         : null

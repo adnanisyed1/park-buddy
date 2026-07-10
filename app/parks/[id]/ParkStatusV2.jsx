@@ -67,7 +67,9 @@ const ALERT_DEFS = [
 
 export default function ParkStatusV2({ id, kind = "park" }) {
   const isForest = kind === "forest";
-  const KIND_LABEL = isForest ? "National Forest" : "National Park";
+  const isStatePark = kind === "state_park";
+  const isNP = !isForest && !isStatePark; // national park (NPS) mode
+  const KIND_LABEL = isForest ? "National Forest" : isStatePark ? "State Park" : "National Park";
   const [park, setPark] = useState(undefined); // undefined loading, null not found
   const [tab, setTab] = useState("overview");
   const [verdict, setVerdict] = useState(null); // {bucket, ...full}
@@ -86,7 +88,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const [added, setAdded] = useState(false);
   const alertsRef = useRef(null);
 
-  const hero = usePhoto(park ? (isForest ? park.name + "|" + park.name : park.name + " National Park|" + park.name) : null, null, null, undefined, 1600);
+  const hero = usePhoto(park ? (isNP ? park.name + " National Park|" + park.name : park.name + "|" + park.name) : null, null, null, undefined, 1600);
 
   // ---- boot: resolve park + fetch everything ----
   useEffect(() => {
@@ -111,6 +113,14 @@ export default function ParkStatusV2({ id, kind = "park" }) {
         const f0 = list.find((x) => base(x.name) === base(id)) || list.find((x) => base(x.name).startsWith(base(id)) || base(id).startsWith(base(x.name))) || null;
         if (!f0) { setPark(null); return; }
         p = { ...f0, npsCode: "" };
+      } else if (isStatePark) {
+        // State parks: resolve from the Supabase destinations table by namespaced id
+        // (e.g. state:me-baxter-state-park). Not NPS — live data is all lat/lng-based.
+        const dd = await fetch("/api/destinations?id=" + encodeURIComponent(id)).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        if (!on) return;
+        const row = dd && dd.destinations && dd.destinations[0];
+        if (!row) { setPark(null); return; }
+        p = { ...row, npsCode: "" };
       } else {
         // URL param is a string; park ids in trip-data are numbers — compare loosely.
         // Also accept a name-slug (e.g. /parks/zion) for friendlier links.
@@ -134,8 +144,8 @@ export default function ParkStatusV2({ id, kind = "park" }) {
 
       // live data (parallel, all best-effort)
       const j = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-      // NPS unit data + road-closure feed are national-park only (forests aren't NPS units).
-      if (!isForest) {
+      // NPS unit data + road-closure feed are national-park only (forests & state parks aren't NPS units).
+      if (isNP) {
         j("/api/nps?name=" + encodeURIComponent(p.name)).then((d) => on && d && d.park && setNps(d));
         j("/api/roadstatus?park=" + encodeURIComponent(p.id) + "&lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4)).then((d) => on && setRoad(d || {}));
       }
@@ -191,8 +201,8 @@ export default function ParkStatusV2({ id, kind = "park" }) {
       <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
         <SiteHeader acctSlot />
         <div style={{ maxWidth: 640, margin: "0 auto", padding: "140px 20px", textAlign: "center" }}>
-          <h1 style={{ fontFamily: serif, fontSize: "2.4rem", fontWeight: 600 }}>Park not found</h1>
-          <p style={{ color: "var(--pb-ink-2)", marginTop: 10 }}>We couldn&apos;t find a national park with that id.</p>
+          <h1 style={{ fontFamily: serif, fontSize: "2.4rem", fontWeight: 600 }}>{KIND_LABEL} not found</h1>
+          <p style={{ color: "var(--pb-ink-2)", marginTop: 10 }}>We couldn&apos;t find a {KIND_LABEL.toLowerCase()} with that id.</p>
           <a href="/explore" style={{ display: "inline-block", marginTop: 18, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "11px 20px", fontWeight: 600, textDecoration: "none" }}>Explore the map →</a>
         </div>
       </div>
@@ -279,17 +289,17 @@ export default function ParkStatusV2({ id, kind = "park" }) {
 
       <main style={{ padding: "clamp(28px,4vh,48px) clamp(16px,4vw,40px) 8px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          {tab === "overview" && <Overview park={park} nps={nps} isForest={isForest} />}
-          {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} river={river} tz={tz} alertsRef={alertsRef} isForest={isForest} />}
-          {tab === "trails" && <TrailsPermits park={park} trails={trails} isForest={isForest} />}
-          {tab === "plan" && <Plan park={park} nps={nps} places={places} isForest={isForest} />}
+          {tab === "overview" && <Overview park={park} nps={nps} isForest={isForest} isStatePark={isStatePark} />}
+          {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} river={river} tz={tz} alertsRef={alertsRef} isForest={isForest} isStatePark={isStatePark} />}
+          {tab === "trails" && <TrailsPermits park={park} trails={trails} isForest={isForest} isStatePark={isStatePark} />}
+          {tab === "plan" && <Plan park={park} nps={nps} places={places} isForest={isForest} isStatePark={isStatePark} />}
           {tab === "nearby" && <Nearby park={park} nearby={nearby} radius={radius} setRadius={setRadius} />}
         </div>
       </main>
 
       <footer style={{ maxWidth: 1200, margin: "0 auto", padding: "clamp(30px,5vh,54px) clamp(16px,4vw,40px)" }}>
         <div style={{ borderTop: "1px solid var(--pb-line)", paddingTop: 24 }}>
-          <div style={{ ...microLabel, letterSpacing: ".1em", lineHeight: 1.8 }}>Sources: {isForest ? "USDA Forest Service" : "National Park Service"} · National Weather Service · USGS · AirNow — public domain / official feeds.</div>
+          <div style={{ ...microLabel, letterSpacing: ".1em", lineHeight: 1.8 }}>Sources: {isForest ? "USDA Forest Service" : isStatePark ? "State park agencies" : "National Park Service"} · National Weather Service · USGS · AirNow — public domain / official feeds.</div>
           <div style={{ fontSize: ".86rem", color: "var(--pb-muted)", fontWeight: 300, marginTop: 8, maxWidth: "60ch" }}>We show live conditions honestly — GO, PREPARE, or HOLD, with the reasons behind it. When data is thin, we say so. We never invent a rating, photo, or condition.</div>
         </div>
       </footer>
@@ -355,19 +365,24 @@ function PinesRail({ park }) {
   );
 }
 
-function Overview({ park, nps, isForest }) {
+function Overview({ park, nps, isForest, isStatePark }) {
   const p = nps && nps.park;
   const forestAbout = park
     ? park.name + " is one of the United States' national forests — public land managed by the USDA Forest Service for recreation, timber, watershed and wildlife. The live conditions below come from the nearest weather, wildfire and air-quality stations; check the forest's ranger district for road closures, dispersed-camping rules and any permits."
     : "";
+  const stateAbout = park
+    ? park.name + " is a state park managed by " + (park.state || "the state") + "'s park agency. The live conditions below come from the nearest National Weather Service, wildfire and air-quality stations; check the park's official page for hours, fees, closures and any reservations."
+    : "";
+  const aboutHead = isForest ? "About the forest" : isStatePark ? "About this state park" : "About the park";
+  const aboutBody = p && p.description ? p.description : isForest ? forestAbout : isStatePark ? stateAbout : "Pulling this park's story from NPS.gov…";
   return (
     <>
       <PinesRail park={park} />
       <div style={{ display: "grid", gap: "clamp(20px,4vw,40px)" }} className="ps-grid">
         <div>
-          <h2 style={{ ...H2, fontSize: "clamp(1.6rem,3.4vw,2.3rem)" }}>{isForest ? "About the forest" : "About the park"}</h2>
+          <h2 style={{ ...H2, fontSize: "clamp(1.6rem,3.4vw,2.3rem)" }}>{aboutHead}</h2>
           <p style={{ color: "var(--pb-ink-2)", fontSize: "1rem", lineHeight: 1.75, fontWeight: 300, marginTop: 12 }}>
-            {p && p.description ? p.description : isForest ? forestAbout : "Pulling this park's story from NPS.gov…"}
+            {aboutBody}
           </p>
           {p && (p.activities || []).length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18 }}>
@@ -375,6 +390,7 @@ function Overview({ park, nps, isForest }) {
             </div>
           )}
           {p && p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 18, textDecoration: "none", fontSize: ".86rem", fontWeight: 600, color: "var(--pb-gold)" }}>More on NPS.gov →</a>}
+          {isStatePark && park && <a href={park.url || ("https://www.google.com/search?q=" + encodeURIComponent(park.name + " " + (park.state || "") + " official site"))} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 18, textDecoration: "none", fontSize: ".86rem", fontWeight: 600, color: "var(--pb-gold)" }}>Official park site →</a>}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ ...card, borderRadius: 16 }}>
@@ -403,7 +419,7 @@ function Overview({ park, nps, isForest }) {
 }
 
 /* ---------------- CONDITIONS ---------------- */
-function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alertsRef, isForest }) {
+function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alertsRef, isForest, isStatePark }) {
   const [now, setNow] = useState(null); // client-only clock — avoids SSR/hydration drift on sun/moon
   useEffect(() => { setNow(new Date()); }, []);
   const alerts = (cond && cond.weatherAlerts) || [];
@@ -426,6 +442,8 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
         <StatCard label="Air quality · AirNow" value={aqi ? String(aqi.aqi) : (cond ? "—" : "…")} valueColor={aqi && aqi.aqi <= 50 ? "#7fe3a6" : "#e8cf9a"} note={aqi ? (aqi.category + (aqi.parameter ? " · " + aqi.parameter : "")) : "Air-quality reading unavailable for this area."} />
         {isForest ? (
           <StatCard label="Roads · USFS" value="Check district" valueColor="#e8cf9a" note="Forest & FS/MVUM roads close seasonally and after storms — check the ranger district before you go." />
+        ) : isStatePark ? (
+          <StatCard label="Roads &amp; access" value="Check the park" valueColor="#e8cf9a" note="Park roads, gates and day-use areas close seasonally and after storms — check the park's official page before you go." />
         ) : (
           <StatCard label="Roads · NPS" value={roadText ? "See note" : (road ? "Open" : "…")} valueColor="#e8cf9a" note={roadText || "No road closures reported. Always check NPS.gov before you go."} />
         )}
@@ -723,7 +741,8 @@ function CompactCamp({ c, park, recId }) {
   );
 }
 
-function TrailsPermits({ park, trails, isForest }) {
+function TrailsPermits({ park, trails, isForest, isStatePark }) {
+  const isNP = !isForest && !isStatePark;
   const [filter, setFilter] = useState("all");
   const list = trails ? [].concat(trails.hiking || [], trails.offroad || [], trails.ski || []) : null;
   const diffOf = (t) => (t.lengthMi > 6 ? "Hard" : t.lengthMi > 2.5 ? "Moderate" : "Easy");
@@ -732,7 +751,7 @@ function TrailsPermits({ park, trails, isForest }) {
     <>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
         <h2 style={H2}>Trails</h2>
-        <span style={{ ...microLabel, letterSpacing: ".12em" }}>{isForest ? "Live from OpenStreetMap" : "Live from NPS trail data"}</span>
+        <span style={{ ...microLabel, letterSpacing: ".12em" }}>{isNP ? "Live from NPS trail data" : "Live from OpenStreetMap"}</span>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
         {["all", "Easy", "Moderate", "Hard"].map((f) => {
@@ -750,16 +769,16 @@ function TrailsPermits({ park, trails, isForest }) {
         <h2 style={{ ...H2, marginBottom: 14 }}>Permits &amp; reservations</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 12 }}>
           <div style={{ ...card, padding: 20 }}>
-            <div style={microLabel}>Permits &amp; {isForest ? "passes" : "timed entry"}</div>
+            <div style={microLabel}>Permits &amp; {isNP ? "timed entry" : "passes"}</div>
             <div style={{ fontFamily: serif, fontSize: "1.3rem", marginTop: 8 }}>Varies by {isForest ? "district" : "park"}</div>
-            <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 6 }}>{isForest ? "Many forests need permits for wilderness areas, dispersed camping, campfires or day-use in season. We link you to the official source rather than guess the current rules." : "Many parks require timed-entry or wilderness permits in season. We link you to the official source rather than guess the current rules."}</div>
-            <a href={"https://www.recreation.gov/search?q=" + encodeURIComponent((park ? park.name : "") + (isForest ? "" : " National Park"))} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>Check permits on Recreation.gov ↗</a>
+            <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 6 }}>{isForest ? "Many forests need permits for wilderness areas, dispersed camping, campfires or day-use in season. We link you to the official source rather than guess the current rules." : isStatePark ? "Many state parks require day-use reservations, campground bookings or activity permits in season. We link you to the official source rather than guess the current rules." : "Many parks require timed-entry or wilderness permits in season. We link you to the official source rather than guess the current rules."}</div>
+            <a href={"https://www.recreation.gov/search?q=" + encodeURIComponent((park ? park.name : "") + (isNP ? " National Park" : ""))} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>Check permits on Recreation.gov ↗</a>
           </div>
           <div style={{ ...card, padding: 20 }}>
             <div style={microLabel}>Official {isForest ? "forest" : "park"} rules</div>
-            <div style={{ fontFamily: serif, fontSize: "1.3rem", marginTop: 8 }}>{isForest ? "fs.usda.gov" : "NPS.gov"}</div>
-            <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 6 }}>{isForest ? "Fees, closures and fire restrictions change through the year — the forest's own Forest Service page is always current." : "Entrance fees, reservation systems and closures change through the year — the park's own page is always current."}</div>
-            <a href={isForest ? "https://www.fs.usda.gov/" : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#f4f1ea", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
+            <div style={{ fontFamily: serif, fontSize: "1.3rem", marginTop: 8 }}>{isForest ? "fs.usda.gov" : isStatePark ? "State park site" : "NPS.gov"}</div>
+            <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 6 }}>{isForest ? "Fees, closures and fire restrictions change through the year — the forest's own Forest Service page is always current." : isStatePark ? "Fees, hours and closures change through the year — the park's own state-agency page is always current." : "Entrance fees, reservation systems and closures change through the year — the park's own page is always current."}</div>
+            <a href={isForest ? "https://www.fs.usda.gov/" : isStatePark ? (park && park.url ? park.url : "https://www.google.com/search?q=" + encodeURIComponent((park ? park.name : "") + " " + (park ? park.state : "") + " official site")) : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#f4f1ea", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
           </div>
         </div>
       </div>
@@ -768,7 +787,8 @@ function TrailsPermits({ park, trails, isForest }) {
 }
 
 /* ---------------- PLAN ---------------- */
-function Plan({ park, nps, places, isForest }) {
+function Plan({ park, nps, places, isForest, isStatePark }) {
+  const isNP = !isForest && !isStatePark;
   const camps = places ? (places.facilities || []).filter((f) => /camp/i.test((f.name || "") + " " + (f.type || ""))) : null;
   const p = nps && nps.park;
   const SAFETY = [
@@ -809,8 +829,8 @@ function Plan({ park, nps, places, isForest }) {
           <div style={microLabel}>Getting there</div>
           <div style={{ fontFamily: serif, fontSize: "1.6rem", marginTop: 8 }}>{park ? park.state : ""}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-            <a href={"https://maps.google.com/?q=" + encodeURIComponent((park ? park.name : "") + (isForest ? "" : " National Park"))} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>Directions ↗</a>
-            <a href={isForest ? "https://www.fs.usda.gov/" : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#f4f1ea", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
+            <a href={"https://maps.google.com/?q=" + encodeURIComponent((park ? park.name : "") + (isNP ? " National Park" : ""))} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>Directions ↗</a>
+            <a href={isForest ? "https://www.fs.usda.gov/" : isStatePark ? (park && park.url ? park.url : "https://www.google.com/search?q=" + encodeURIComponent((park ? park.name : "") + " " + (park ? park.state : "") + " official site")) : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#f4f1ea", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
           </div>
         </div>
         {p && (p.activities || []).length > 0 && (

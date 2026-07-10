@@ -42,6 +42,7 @@ const TYPE_META = {
   national_forest: { label: "National Forest", icon: "🌲", color: "#3f5d2f" },
   lake:            { label: "Lake",           icon: "💧", color: "#2c6b8f" },
   campground:      { label: "Campground",     icon: "🏕️", color: "#b9823f" },
+  basecamp_town:   { label: "Basecamp Town",  icon: "🏘️", color: "#d9a441" },
 };
 
 // State parks and national forests are NOT hardcoded — they load live from the
@@ -156,6 +157,7 @@ function markerIconUrl(type, color) {
     state_park: '<polygon points="9,2 16,9 9,16 2,9" fill="' + color + '" stroke="#fffdf7" stroke-width="1.5"/>',
     national_forest: '<polygon points="9,2 16,16 2,16" fill="' + color + '" stroke="#fffdf7" stroke-width="1.5"/>',
     lake: '<path d="M9,2 C5,8 3,11 3,13.2 A6,5.6 0 0,0 15,13.2 C15,11 13,8 9,2 Z" fill="' + color + '" stroke="#fffdf7" stroke-width="1.5"/>',
+    basecamp_town: '<rect x="4" y="4" width="10" height="10" rx="2.5" fill="' + color + '" stroke="#fffdf7" stroke-width="1.5"/>',
   };
   const svg = shapes[type] || shapes.national_park;
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">' + svg + "</svg>");
@@ -467,7 +469,7 @@ export default function ExploreApp() {
     // opts in. Once on, clicking any pin loads them immediately (see
     // maybeLoadCampgrounds / maybeLoadTrails / maybeLoadLakes), and turning one
     // on while already viewing a pin loads it right then too.
-    campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false, destLake: false,
+    campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false, destLake: false, destTowns: false,
     anchor: null, // { lat, lng, label, isUser }
     view: "browse", // browse | detail | trip | trail
     listMode: false, selectedName: null, detailTab: "live",
@@ -499,6 +501,7 @@ export default function ExploreApp() {
   const gatewayMarkerRef = useRef(null);
   const infoWindowRef = useRef(null);
   const seenDestRef = useRef(new Set()); // dedupe live destinations across pans
+  const townMarkersRef = useRef([]); // isolated "basecamp towns" layer (own markers, off by default)
   const lakesLoadedRef = useRef(false); // lakes fetched for the CURRENT focus?
   const idleTimerRef = useRef(null); // debounce for map idle → viewport loads
   const uiRef = useRef(ui);
@@ -648,7 +651,7 @@ export default function ExploreApp() {
     map.addListener("idle", () => {
       // debounce: only fetch after the map has settled for a beat
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(() => loadViewportDestinations(), 700);
+      idleTimerRef.current = setTimeout(() => { loadViewportDestinations(); loadViewportTowns(); }, 700);
     });
     applyVisibility();
     patch({ keyOverlay: false });
@@ -692,6 +695,51 @@ export default function ExploreApp() {
     const merged = parksRef.current.concat(adds);
     parksRef.current = merged;
     setParks(merged);
+  }
+
+  // ISOLATED "basecamp towns" layer — its own marker array, fully guarded, OFF by
+  // default. It never touches the parks model / verdict system, so a failure here
+  // can't affect the rest of the map (worst case: no town pins appear). Reads the
+  // town-centric gateway search (all basecamp towns in view, deduped + annotated).
+  function clearTownMarkers() {
+    try { townMarkersRef.current.forEach((m) => m.setMap(null)); } catch {}
+    townMarkersRef.current = [];
+  }
+  async function loadViewportTowns() {
+    const g = window.google, map = mapObjRef.current;
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    if (!g || !map) return;
+    if (!uiRef.current || !uiRef.current.destTowns) { clearTownMarkers(); return; }
+    try {
+      const b = map.getBounds();
+      if (!b) return;
+      const sw = b.getSouthWest(), ne = b.getNorthEast();
+      const cLat = (sw.lat() + ne.lat()) / 2, cLng = (sw.lng() + ne.lng()) / 2;
+      const radius = Math.min(200, Math.max(15, Math.round(milesBetween({ lat: sw.lat(), lng: sw.lng() }, { lat: ne.lat(), lng: ne.lng() }) / 2)));
+      const d = await fetch("/api/gateway?townsNear=1&lat=" + cLat.toFixed(4) + "&lng=" + cLng.toFixed(4) + "&radius=" + radius).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      if (!uiRef.current.destTowns) { clearTownMarkers(); return; } // toggled off mid-fetch
+      clearTownMarkers();
+      const towns = (d && d.towns) || [];
+      const meta = TYPE_META.basecamp_town;
+      for (const t of towns) {
+        if (typeof t.lat !== "number" || typeof t.lng !== "number") continue;
+        const forNames = (t.places || []).map((p) => p.name).join(" · ");
+        const m = new g.maps.Marker({
+          position: { lat: t.lat, lng: t.lng }, map,
+          icon: markerIcon(g, "basecamp_town", meta.color),
+          title: t.name + (forNames ? " — basecamp for " + forNames : ""), zIndex: 20,
+        });
+        m.addListener("click", () => {
+          const iw = infoWindowRef.current || (infoWindowRef.current = new g.maps.InfoWindow());
+          iw.setContent('<div style="font-family:Inter,sans-serif;min-width:160px"><div style="font-weight:700;color:#0b1710;font-size:.95rem">' + esc(t.name) + '</div>' +
+            (forNames ? '<div style="color:#3a5a44;font-size:.75rem;margin-top:2px">Basecamp for ' + esc(forNames) + '</div>' : '') +
+            '<a href="/book?cat=stays" style="display:inline-block;margin-top:8px;font-size:.78rem;font-weight:700;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:8px;padding:6px 12px;text-decoration:none">Find stays →</a></div>');
+          iw.setPosition({ lat: t.lat, lng: t.lng });
+          iw.open(map);
+        });
+        townMarkersRef.current.push(m);
+      }
+    } catch { /* isolated — never breaks the map */ }
   }
 
   // Live verdict sweep — same pattern as the embed's s3.js: throttled queue,
@@ -1121,6 +1169,9 @@ export default function ExploreApp() {
     applyVisibility();
   }, [ui.destNational, ui.destState, ui.destForest, ui.destLake, ui.campgrounds, ui.layerHiking, ui.layerOffroad, ui.layerSki, ui.anchor, ui.radius, parks]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Isolated basecamp-towns layer: load/clear when its toggle flips (own markers).
+  useEffect(() => { loadViewportTowns(); }, [ui.destTowns]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ---------------- misc actions ---------------- */
 
   function saveKey() {
@@ -1507,6 +1558,7 @@ export default function ExploreApp() {
                   <TogRow glyph="●" color="#4f9e6a" label="National Parks" on={ui.destNational} onClick={toggle("destNational")} />
                   <TogRow glyph="◆" color="#d9a441" label="State Parks" on={ui.destState} onClick={toggle("destState")} />
                   <TogRow glyph="▲" color="#6f9e5a" label="National Forests" on={ui.destForest} onClick={toggle("destForest")} />
+                  <TogRow glyph="■" color="#d9a441" label="Basecamp Towns" on={ui.destTowns} onClick={toggle("destTowns")} />
                 </div>
 
                 <div style={{ ...monoLabel, marginBottom: 6 }}>On the map</div>

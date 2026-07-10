@@ -1470,7 +1470,9 @@ export default function ExploreApp() {
 
       {/* Shared platform header — with My Trip + the real account/Sign-in slot in it
           (matches the prototype banner; nothing floats below the header for those). */}
-      <SiteHeader active="explore" tripCount={ui.trip.length} onTripClick={() => patch({ view: "trip", panelOpen: true })} acctSlot />
+      {/* My Trip opens the shared TripModal (real route map + full planner) — same
+          experience as every other page — instead of a bare in-page list. */}
+      <SiteHeader active="explore" tripCount={ui.trip.length} acctSlot />
 
       {/* map fills the whole viewport */}
       <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />

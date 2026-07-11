@@ -322,6 +322,40 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
       </section>
 
       <div style={{ position: "relative", zIndex: 5, background: "var(--pb-bg)", borderRadius: "30px 30px 0 0", marginTop: -30, boxShadow: "0 -30px 70px -34px rgba(8,18,12,.6)" }}>
+        {/* THE ROAD — which real, signed route this byway is, and where it runs */}
+        {detail && detail.source && detail.source.roadArticle && itinerary.length >= 2 && (() => {
+          const dec = (s) => String(s || "").replace(/&#0?39;/g, "’").replace(/&amp;/g, "&").replace(/&quot;/g, '"');
+          const road = dec(detail.source.roadArticle);
+          const first = itinerary[0], last = itinerary[itinerary.length - 1];
+          const totalMi = last.mileFromStart != null ? Math.round(last.mileFromStart) : drive.lengthMi;
+          return (
+            <section style={{ padding: "clamp(18px,2.6vh,26px) clamp(16px,4vw,40px) 0" }}>
+              <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "clamp(12px,2vw,20px)", flexWrap: "wrap", background: "linear-gradient(135deg,var(--pb-surface),var(--pb-surface-2))", border: "1px solid rgba(217,183,121,.26)", borderRadius: 18, padding: "clamp(12px,1.8vw,16px) clamp(14px,2.2vw,20px)", boxShadow: "0 18px 44px -30px rgba(28,46,34,.5)" }}>
+                  <span aria-hidden style={{ flex: "none", width: 46, height: 46, borderRadius: 12, background: "linear-gradient(145deg,#e8cf9a,var(--pb-gold))", color: "#5a3f12", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", boxShadow: "0 6px 16px -6px rgba(0,0,0,.5)" }}>🛣️</span>
+                  <div style={{ flex: "1 1 auto", minWidth: 180 }}>
+                    <div style={{ fontFamily: mono, fontSize: ".56rem", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>The road you follow</div>
+                    <div style={{ fontFamily: serif, fontWeight: 800, fontSize: "clamp(1.15rem,2.4vw,1.55rem)", color: "var(--pb-ink)", lineHeight: 1.15, marginTop: 2 }}>{road}</div>
+                  </div>
+                  <div style={{ flex: "none", alignSelf: "stretch", width: 1, background: "rgba(217,183,121,.22)" }} />
+                  <div style={{ flex: "none", display: "flex", alignItems: "center", gap: "clamp(8px,1.4vw,14px)", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+                      <span style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Runs</span>
+                      <span style={{ fontSize: ".92rem", fontWeight: 700, color: "var(--pb-ink)" }}>{first.place} <span style={{ color: "var(--pb-gold)" }}>→</span> {last.place}</span>
+                    </div>
+                    {totalMi ? (
+                      <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+                        <span style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Length</span>
+                        <span style={{ fontSize: ".92rem", fontWeight: 700, color: "var(--pb-ink)" }}>~{totalMi} mi</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
+
         {/* ROAD STATUS */}
         <section style={{ padding: "clamp(22px,3.5vh,34px) clamp(16px,4vw,40px) 6px" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>

@@ -7,6 +7,7 @@ import { usePhoto } from "../../components/PhotoThumb";
 import SiteHeader from "../../components/SiteHeader";
 import RouteItinerary from "./RouteItinerary";
 import RouteAttractions from "./RouteAttractions";
+import RoutePhotos from "./RoutePhotos";
 
 // /scenic-drives/<id> detail — ported 1:1 from the Claude-design spec. Real
 // data: federal byway record (name/tier/states/length/qualities/blurb), live
@@ -138,6 +139,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   const markersRef = useRef([]);
   const routeLineRef = useRef(null);
   const routeCasingRef = useRef(null);
+  const routeGlowRef = useRef(null);
   const dirServiceRef = useRef(null);
   const filmTimer = useRef(null);
 
@@ -217,8 +219,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
     const g = window.google;
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
-    if (routeLineRef.current) { routeLineRef.current.setMap(null); routeLineRef.current = null; }
-    if (routeCasingRef.current) { routeCasingRef.current.setMap(null); routeCasingRef.current = null; }
+    [routeGlowRef, routeCasingRef, routeLineRef].forEach((r) => { if (r.current) { r.current.setMap(null); r.current = null; } });
 
     // Marker source: the named itinerary's geocoded stops (numbered by their seq,
     // so the map pins match the itinerary list) when enriched; else curated/derived
@@ -256,11 +257,13 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
 
     const fitTo = (coords) => { if (!coords.length) return; const b = new g.maps.LatLngBounds(); coords.forEach((c) => b.extend(c)); map.fitBounds(b, 60); };
     const solidRoute = (path) => {
-      [routeCasingRef, routeLineRef].forEach((r) => { if (r.current) { r.current.setMap(null); r.current = null; } });
-      // Cased road (OSM-style): dark outer casing + bright gold inner line so the
-      // route traces the road clearly on terrain, like a Wikimedia/OSM route map.
-      routeCasingRef.current = new g.maps.Polyline({ path, map, strokeColor: "#0a1712", strokeOpacity: 0.5, strokeWeight: 9, zIndex: 4 });
-      routeLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#e8cf9a", strokeOpacity: 0.98, strokeWeight: 5, zIndex: 5 });
+      [routeGlowRef, routeCasingRef, routeLineRef].forEach((r) => { if (r.current) { r.current.setMap(null); r.current = null; } });
+      // Three-layer cased road for a prominent yet refined line, like a good print
+      // map: a soft gold glow, a dark casing that lifts it off the terrain, and a
+      // bright warm-gold core on top.
+      routeGlowRef.current = new g.maps.Polyline({ path, map, strokeColor: "#f0d693", strokeOpacity: 0.22, strokeWeight: 15, zIndex: 3 });
+      routeCasingRef.current = new g.maps.Polyline({ path, map, strokeColor: "#0b1a13", strokeOpacity: 0.9, strokeWeight: 8.5, zIndex: 4 });
+      routeLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#f2d98f", strokeOpacity: 1, strokeWeight: 4.5, zIndex: 5 });
       fitTo(path);
     };
     const dashedConnector = () => {
@@ -326,6 +329,20 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   const hasItinerary = itinerary.filter((s) => s.lat != null).length >= 2; // named itinerary drives the map
   const hasOverlooks = hasItinerary || hl.some((h) => h.lat != null); // numbered markers on the map
   const hasRoute = hasOverlooks || !!(routeEndpoints && routeEndpoints.from && routeEndpoints.to); // a line gets drawn
+
+  // Photo gallery candidates: the drive's marquee scenic POIs (most photogenic
+  // first) then its towns — each name resolves to a Commons image via /api/photo.
+  const stateHint = (drive.states || "").split(/[·,/]/)[0].trim();
+  const photoItems = [];
+  if (detail) {
+    const ORDER = { pass: 0, waterfall: 1, lake: 2, overlook: 3, peak: 4 };
+    (detail.pois || []).filter((p) => ORDER[p.type] != null && !/^(scenic overlook|falls)$/i.test(p.name))
+      .sort((a, b) => (ORDER[a.type] - ORDER[b.type]) || ((a.mile ?? 0) - (b.mile ?? 0)))
+      .forEach((p) => photoItems.push({ q: p.name + (stateHint ? "|" + p.name + " " + stateHint : ""), cap: p.name, kind: p.type }));
+    itinerary.filter((s) => s.place && s.kind !== "crossing").forEach((s) => photoItems.push({ q: s.place + (stateHint ? "|" + s.place + ", " + stateHint : ""), cap: s.place, kind: s.kind === "park-entrance" ? "park" : "town" }));
+  }
+  const seenPhoto = new Set();
+  const photoItemsUniq = photoItems.filter((it) => { const k = it.cap.toLowerCase(); if (seenPhoto.has(k)) return false; seenPhoto.add(k); return true; });
   const ti = TIER_INFO[drive.tier] || TIER_INFO.byway;
   const pill = (k, v) => (
     <span style={{ display: "inline-flex", flexDirection: "column", background: "rgba(10,26,18,.5)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 15, padding: "10px 16px" }}>
@@ -564,6 +581,9 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
 
         {/* SCENIC STOPS & ATTRACTIONS — every roadside point from OSM */}
         {detail && detail.pois && detail.pois.length >= 3 && <RouteAttractions pois={detail.pois} />}
+
+        {/* PHOTOS ALONG THE DRIVE — real images of the places you pass */}
+        {photoItemsUniq.length >= 3 && <RoutePhotos items={photoItemsUniq} />}
 
         {/* FILMSTRIP */}
         {film.length > 0 && (

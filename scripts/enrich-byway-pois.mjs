@@ -36,14 +36,16 @@ async function overpass(q) {
 
 function lineMiles(line) { let m = 0; for (let i = 1; i < line.length; i++) m += distMi(line[i - 1][0], line[i - 1][1], line[i][0], line[i][1]); return m; }
 
-// Stitch member ways into connected polylines (shared endpoints), then return the
-// LONGEST connected chain — the main road, not a stray fragment.
+// Stitch member ways into connected polylines (shared endpoints), then bridge
+// chains whose endpoints are within GAP_MI (OSM splits a road at junctions and
+// name changes — e.g. Beartooth Hwy → "Broadway Ave" in Red Lodge — leaving tiny
+// breaks), and return the longest resulting chain: the full road, terminus to terminus.
 function stitchLongest(ways) {
   const segs = ways.map((w) => (w.geometry || []).map((p) => [p.lat, p.lon])).filter((s) => s.length > 1);
   if (!segs.length) return [];
   const key = (p) => p[0].toFixed(6) + "," + p[1].toFixed(6);
   const used = new Array(segs.length).fill(false);
-  const chains = [];
+  let chains = [];
   for (let start = 0; start < segs.length; start++) {
     if (used[start]) continue;
     let line = segs[start].slice(); used[start] = true;
@@ -63,6 +65,22 @@ function stitchLongest(ways) {
       }
     }
     chains.push(line);
+  }
+  // bridge near-touching chains (small junction/name-change gaps)
+  const GAP = 0.6;
+  let merged = true;
+  while (merged && chains.length > 1) {
+    merged = false;
+    outer: for (let i = 0; i < chains.length; i++) for (let j = i + 1; j < chains.length; j++) {
+      const A = chains[i], B = chains[j];
+      const combos = [[A[A.length - 1], B[0], false, false], [A[A.length - 1], B[B.length - 1], false, true], [A[0], B[0], true, false], [A[0], B[B.length - 1], true, true]];
+      for (const [pa, pb, revA, revB] of combos) {
+        if (distMi(pa[0], pa[1], pb[0], pb[1]) < GAP) {
+          const a = revA ? A.slice().reverse() : A, b = revB ? B.slice().reverse() : B;
+          chains[i] = a.concat(b); chains.splice(j, 1); merged = true; break outer;
+        }
+      }
+    }
   }
   return chains.sort((x, y) => lineMiles(y) - lineMiles(x))[0] || [];
 }
@@ -115,18 +133,29 @@ async function enrich(drive, detail) {
   const kwList = roadName.split(/\s+/).filter((w) => /[A-Za-z]/.test(w) && w.length > 3 && !GENERIC.test(w));
   const kw = (kwList.length ? kwList : [drive.name.split(/\s+/)[0]]).join("|");
 
-  // 1) road geometry: first pull named segments, learn their ref (e.g. "US 212"),
-  //    then pull ALL segments with that ref (catches unnamed pieces) and stitch.
-  const namedJ = await overpass(`[out:json][timeout:60];way["highway"]["name"~"${kw}",i](${bbox});out geom tags;`);
-  let ways = (namedJ.elements || []).filter((e) => e.type === "way" && e.geometry && e.geometry.length > 1);
-  const refs = [...new Set(ways.map((w) => (w.tags || {}).ref).filter(Boolean))].map((r) => r.replace(/[^A-Za-z0-9 ]/g, "").trim()).filter(Boolean);
-  if (refs.length) {
-    const refJ = await overpass(`[out:json][timeout:60];way["highway"]["ref"~"^(${refs.join("|")})$"](${bbox});out geom tags;`);
-    const have = new Set(ways.map((w) => w.id));
-    for (const e of (refJ.elements || [])) if (e.type === "way" && e.geometry && e.geometry.length > 1 && !have.has(e.id)) ways.push(e);
+  // 1) road geometry — PREFER the OSM route RELATION (the authoritative, byway-bounded
+  //    ordered set of member ways, incl. name-changed segments like a town's main
+  //    street). Fall back to named + ref'd ways.
+  let ways = [];
+  const relJ = await overpass(`[out:json][timeout:60];relation["type"="route"]["route"="road"]["name"~"${kw}",i](${bbox});out geom;`);
+  const rel = (relJ.elements || []).filter((e) => e.type === "relation" && (e.members || []).length).sort((a, b) => (b.members.length - a.members.length))[0];
+  if (rel) ways = rel.members.filter((m) => m.type === "way" && m.geometry && m.geometry.length > 1).map((m) => ({ geometry: m.geometry }));
+  if (ways.length < 2) {
+    // fallback: named segments → learn their ref (e.g. "US 212") → pull all ref'd ways
+    const namedJ = await overpass(`[out:json][timeout:60];way["highway"]["name"~"${kw}",i](${bbox});out geom tags;`);
+    ways = (namedJ.elements || []).filter((e) => e.type === "way" && e.geometry && e.geometry.length > 1);
+    const refs = [...new Set(ways.map((w) => (w.tags || {}).ref).filter(Boolean))].map((r) => r.replace(/[^A-Za-z0-9 ]/g, "").trim()).filter(Boolean);
+    if (refs.length) {
+      const refJ = await overpass(`[out:json][timeout:60];way["highway"]["ref"~"^(${refs.join("|")})$"](${bbox});out geom tags;`);
+      const have = new Set(ways.map((w) => w.id));
+      for (const e of (refJ.elements || [])) if (e.type === "way" && e.geometry && e.geometry.length > 1 && !have.has(e.id)) ways.push(e);
+    }
   }
   let line = stitchLongest(ways);
   if (line.length < 2) return { skip: "no road geometry (kw=" + kw + ")" };
+  // reject stray pieces beyond the byway: trim the line to the span between the
+  // itinerary termini is unnecessary if the relation is byway-bounded, but guard by
+  // checking the last stop is reachable below.
   // orient start→end to match the itinerary direction
   if (distMi(line[0][0], line[0][1], stops[0].lat, stops[0].lng) > distMi(line[line.length - 1][0], line[line.length - 1][1], stops[0].lat, stops[0].lng)) line.reverse();
   const miles = cumulativeMiles(line);

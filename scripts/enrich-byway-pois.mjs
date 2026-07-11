@@ -26,10 +26,10 @@ async function overpass(q) {
   for (let m = 0; m < MIRRORS.length; m++) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const r = await fetch(MIRRORS[m], { method: "POST", body: q, headers: { "User-Agent": UA }, signal: AbortSignal.timeout(60000) });
+        const r = await fetch(MIRRORS[m], { method: "POST", body: q, headers: { "User-Agent": UA }, signal: AbortSignal.timeout(120000) });
         if (!r.ok) throw new Error("HTTP " + r.status);
         return await r.json();
-      } catch (e) { if (attempt === 2 && m === MIRRORS.length - 1) throw e; await sleep(1500); }
+      } catch (e) { if (attempt === 2 && m === MIRRORS.length - 1) throw e; await sleep(3000); }
     }
   }
 }
@@ -170,37 +170,50 @@ const CATS = [
 function categorize(tags) { for (const c of CATS) if (c.match(tags)) return c; return null; }
 
 async function enrich(drive, detail) {
+  const roadName0 = ((detail.source && detail.source.roadArticle) || drive.name).replace(/\s*\([^)]*\)/g, "");
+  // Photo gallery is independent of route geometry — fetch it first so even
+  // history-only byways (no junction table) and giant parkways (route too big for
+  // one Overpass call) still get a Commons photo gallery.
+  const gallery = await commonsGallery(roadName0, drive.name);
   const stops = (detail.itinerary || []).filter((s) => s.lat != null);
-  if (stops.length < 2) return { skip: "no geocoded itinerary" };
+  if (stops.length < 2) return { gallery, routeLine: null, routeSource: null, routeMiles: null, pois: [], counts: {} };
+  try {
   const lats = stops.map((s) => s.lat), lngs = stops.map((s) => s.lng);
   const pad = 0.12;
   const bbox = [Math.min(...lats) - pad, Math.min(...lngs) - pad, Math.max(...lats) + pad, Math.max(...lngs) + pad].map((n) => n.toFixed(4)).join(",");
   // DISTINCTIVE road-name keywords (drop generic words that match half of OSM).
   const GENERIC = /^(highway|byway|scenic|historic|road|route|parkway|skyway|trail|drive|national|state|memorial|coastal|loop|tour|the|of|county|us|interstate)$/i;
   const roadName = ((detail.source && detail.source.roadArticle) || drive.name).replace(/\s*\([^)]*\)/g, "");
-  const kwList = roadName.split(/\s+/).filter((w) => /[A-Za-z]/.test(w) && w.length > 3 && !GENERIC.test(w));
-  const kw = (kwList.length ? kwList : [drive.name.split(/\s+/)[0]]).join("|");
+  const kwWords = [...new Set((roadName + " " + drive.name).split(/\s+/).filter((w) => /[A-Za-z]/.test(w) && w.length > 3 && !GENERIC.test(w)))];
+  const kw = (kwWords.length ? kwWords : [drive.name.split(/\s+/)[0]]).join("|");
+  // Route NUMBER (e.g. "12" from "Utah State Route 12" / "Scenic Byway 12") — when the
+  // name is all generic words + a number, the number is the only distinctive handle.
+  const numM = (roadName + " " + drive.name).match(/\b(?:route|highway|byway|sr|us|hwy|road|state)\s*(\d{1,3})\b/i) || roadName.match(/\b(\d{1,3})\b/);
+  const roadNum = numM ? numM[1] : null;
 
   // 1) road geometry — PREFER the OSM route RELATION (the authoritative, byway-bounded
   //    ordered set of member ways, incl. name-changed segments like a town's main
-  //    street). Fall back to named + ref'd ways.
+  //    street). Match by name, then by route ref/number. Fall back to named + ref'd ways.
   let ways = [];
-  const relJ = await overpass(`[out:json][timeout:60];relation["type"="route"]["route"="road"]["name"~"${kw}",i](${bbox});out geom;`);
-  const rel = (relJ.elements || []).filter((e) => e.type === "relation" && (e.members || []).length).sort((a, b) => (b.members.length - a.members.length))[0];
+  const safeOP = async (q) => { try { return await overpass(q); } catch { return null; } }; // a slow relation shouldn't kill the drive — fall through to ways
+  const pickRel = (j) => (j && j.elements || []).filter((e) => e.type === "relation" && (e.members || []).length).sort((a, b) => (b.members.length - a.members.length))[0];
+  let rel = pickRel(await safeOP(`[out:json][timeout:120];relation["type"="route"]["route"="road"]["name"~"${kw}",i](${bbox});out geom;`));
+  if (!rel && roadNum) rel = pickRel(await safeOP(`[out:json][timeout:120];relation["type"="route"]["route"="road"]["ref"~"(^| )${roadNum}$"](${bbox});out geom;`));
   if (rel) ways = rel.members.filter((m) => m.type === "way" && m.geometry && m.geometry.length > 1).map((m) => ({ geometry: m.geometry }));
   if (ways.length < 2) {
     // fallback: named segments → learn their ref (e.g. "US 212") → pull all ref'd ways
-    const namedJ = await overpass(`[out:json][timeout:60];way["highway"]["name"~"${kw}",i](${bbox});out geom tags;`);
+    const namedJ = await overpass(`[out:json][timeout:120];way["highway"]["name"~"${kw}",i](${bbox});out geom tags;`);
     ways = (namedJ.elements || []).filter((e) => e.type === "way" && e.geometry && e.geometry.length > 1);
     const refs = [...new Set(ways.map((w) => (w.tags || {}).ref).filter(Boolean))].map((r) => r.replace(/[^A-Za-z0-9 ]/g, "").trim()).filter(Boolean);
+    if (!refs.length && roadNum) refs.push(".* " + roadNum, roadNum);
     if (refs.length) {
-      const refJ = await overpass(`[out:json][timeout:60];way["highway"]["ref"~"^(${refs.join("|")})$"](${bbox});out geom tags;`);
+      const refJ = await overpass(`[out:json][timeout:120];way["highway"]["ref"~"^(${refs.join("|")})$"](${bbox});out geom tags;`);
       const have = new Set(ways.map((w) => w.id));
       for (const e of (refJ.elements || [])) if (e.type === "way" && e.geometry && e.geometry.length > 1 && !have.has(e.id)) ways.push(e);
     }
   }
   let line = stitchLongest(ways);
-  if (line.length < 2) return { skip: "no road geometry (kw=" + kw + ")" };
+  if (line.length < 2) return { gallery, routeLine: null, routeSource: null, routeMiles: null, pois: [], counts: {}, note: "no road geometry (kw=" + kw + ")" };
   // reject stray pieces beyond the byway: trim the line to the span between the
   // itinerary termini is unnecessary if the relation is byway-bounded, but guard by
   // checking the last stop is reachable below.
@@ -221,17 +234,23 @@ async function enrich(drive, detail) {
     l.lat = round5(line[line.length - 1][0]); l.lng = round5(line[line.length - 1][1]); delete l.snapped;
   }
 
-  // 2) POI sweep
-  const poiQ = `[out:json][timeout:80];
-( node["tourism"="viewpoint"](${bbox});
-  node["mountain_pass"="yes"](${bbox}); node["natural"="saddle"]["name"](${bbox});
-  node["tourism"="camp_site"]["name"](${bbox});
-  node["highway"="rest_area"]["name"](${bbox});
-  node["waterway"="waterfall"]["name"](${bbox}); way["waterway"="waterfall"]["name"](${bbox});
-  node["highway"="trailhead"]["name"](${bbox}); node["information"="trailhead"]["name"](${bbox});
-  node["natural"="water"]["name"](${bbox}); way["natural"="water"]["name"](${bbox});
-  node["natural"="peak"]["name"](${bbox});
-);out center tags 400;`;
+  // 2) POI sweep — query AROUND the route line (within ~1 mi), not a giant bounding
+  //    box. On a 400-mi byway the bbox is enormous and Overpass times out; an
+  //    around-the-polyline query only looks near the road, so it's fast at any length.
+  const spacing = Math.max(0.7, lineMiles(line) / 250); // cap the around polyline at ~250 pts
+  const ap = []; let lastP = null;
+  for (const p of line) { if (!lastP || distMi(lastP[0], lastP[1], p[0], p[1]) >= spacing) { ap.push(p[0].toFixed(5), p[1].toFixed(5)); lastP = p; } }
+  const around = "around:1700," + ap.join(",");
+  const poiQ = `[out:json][timeout:120];
+( node["tourism"="viewpoint"](${around});
+  node["mountain_pass"="yes"](${around}); node["natural"="saddle"]["name"](${around});
+  node["tourism"="camp_site"]["name"](${around});
+  node["highway"="rest_area"]["name"](${around});
+  node["waterway"="waterfall"]["name"](${around}); way["waterway"="waterfall"]["name"](${around});
+  node["highway"="trailhead"]["name"](${around}); node["information"="trailhead"]["name"](${around});
+  node["natural"="water"]["name"](${around}); way["natural"="water"]["name"](${around});
+  node["natural"="peak"]["name"](${around});
+);out center tags 500;`;
   const poiJ = await overpass(poiQ);
 
   const buckets = {};
@@ -257,10 +276,11 @@ async function enrich(drive, detail) {
   pois.sort((a, b) => a.mile - b.mile);
   pois.forEach((p) => delete p._d);
 
-  // 4) Commons photo gallery (the byway's category + file search)
-  const gallery = await commonsGallery(roadName, drive.name);
-
   return { routeLine: decimate(line), routeSource: "OpenStreetMap", routeMiles: Math.round(miles[miles.length - 1]), pois, gallery, counts: pois.reduce((m, p) => ((m[p.type] = (m[p.type] || 0) + 1), m), {}) };
+  } catch (e) {
+    // Overpass timeout/failure on a giant route → keep the gallery, drop the route.
+    return { gallery, routeLine: null, routeSource: null, routeMiles: null, pois: [], counts: {}, note: "osm error: " + (e.message || e) };
+  }
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -273,12 +293,15 @@ for (const id of only) {
   const file = path.join(DETAIL_DIR, id + ".json");
   if (!drive || !fs.existsSync(file)) { console.log("⚠ skip " + id + " (no drive/detail)"); continue; }
   const detail = JSON.parse(fs.readFileSync(file, "utf8"));
+  const done = detail.routeLine && detail.pois && detail.gallery;
+  const galleryOnly = detail.gallery && detail.gallery.length && !(detail.itinerary || []).some((s) => s.lat != null); // no route possible → gallery is all it can get
+  if (!process.env.PB_FORCE && (done || galleryOnly)) { console.log("· skip (done) " + id); continue; }
   try {
     const res = await enrich(drive, detail);
     if (res.skip) { console.log("⚠ " + id + ": " + res.skip); continue; }
     detail.routeLine = res.routeLine; detail.routeSource = res.routeSource; detail.routeMiles = res.routeMiles; detail.pois = res.pois; detail.gallery = res.gallery;
     if (!detail.sources.some((s) => s.src === "osm")) detail.sources.push({ name: "OpenStreetMap contributors (ODbL)", src: "osm", url: "https://www.openstreetmap.org/copyright", retrievedAt: detail.generatedAt });
     fs.writeFileSync(file, JSON.stringify(detail));
-    console.log(`✓ ${id}: route ${res.routeLine.length}pts / ~${res.routeMiles}mi · ${res.pois.length} POIs · ${res.gallery.length} photos ` + JSON.stringify(res.counts));
+    console.log(`✓ ${id}: ` + (res.routeLine ? `route ${res.routeLine.length}pts / ~${res.routeMiles}mi · ${res.pois.length} POIs · ` : "gallery-only · ") + `${(res.gallery || []).length} photos` + (res.note ? ` (${res.note})` : ""));
   } catch (e) { console.log("⚠ " + id + ": " + (e.message || e)); }
 }

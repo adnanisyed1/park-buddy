@@ -57,7 +57,13 @@ function filePhotos(pages, roadName) {
     const lic = (m.LicenseShortName && m.LicenseShortName.value) || "Wikimedia Commons";
     const cap = t.replace(/^File:/, "").replace(/\.[^.]+$/, "").replace(new RegExp(roadName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"), "")
       .replace(/\b(NARA|LCCN|HAER|WY|MT)\b[\s\d-]*$/i, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
-    out.push({ url: ii.thumburl, cap: (cap.slice(0, 70) || roadName), credit: (artist ? artist.slice(0, 60) + " · " : "") + lic, pageUrl: ii.descriptionurl });
+    // the Commons file's own description (for the lightbox) — HTML stripped, deduped vs caption
+    let desc = (m.ImageDescription && m.ImageDescription.value || "").replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
+    desc = desc.replace(/^.*?Original Caption:\s*/i, "").replace(/^Scope and content:\s*/i, "").trim(); // drop NARA archival boilerplate
+    if (desc.toLowerCase() === cap.toLowerCase()) desc = "";
+    // full-resolution image for the lightbox (drop the /thumb/…/NNNpx- wrapper)
+    const full = (ii.url || ii.thumburl);
+    out.push({ url: ii.thumburl, full, cap: (cap.slice(0, 70) || roadName), desc: desc.slice(0, 400), credit: (artist ? artist.slice(0, 60) + " · " : "") + lic, pageUrl: ii.descriptionurl });
   }
   return out;
 }

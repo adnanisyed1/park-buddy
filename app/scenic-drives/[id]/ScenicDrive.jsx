@@ -146,12 +146,16 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
 
   // Live road status
   useEffect(() => {
-    if (!parkCode) { setRoad(null); return; }
     let on = true;
-    fetch("/api/roadstatus?parkCode=" + parkCode + "&road=" + encodeURIComponent(drive.name))
+    const qs = new URLSearchParams({ road: drive.name });
+    if (parkCode) qs.set("parkCode", parkCode);
+    if (drive.lat != null && !drive.approxLoc) { qs.set("lat", String(drive.lat)); qs.set("lng", String(drive.lng)); } // NWS at the road's point
+    if (drive.season) qs.set("season", drive.season);
+    if (drive.states) qs.set("states", drive.states);
+    fetch("/api/roadstatus?" + qs.toString())
       .then((r) => (r.ok ? r.json() : null)).then((d) => { if (on) setRoad(d); }).catch(() => { if (on) setRoad(null); });
     return () => { on = false; };
-  }, [parkCode, drive.name]);
+  }, [parkCode, drive.name, drive.lat, drive.lng, drive.season, drive.states, drive.approxLoc]);
 
   // Highlights: curated (flagships) or derived from real named features on the
   // route. Skip derivation when the drive only has an APPROXIMATE (state-level)
@@ -341,7 +345,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
     </span>
   );
 
-  const roadDot = road && road.state === "closed" ? "#d0563a" : road && road.state === "caution" ? "#e0a53a" : "#46d97f";
+  const roadDot = road && road.state === "closed" ? "#d0563a" : road && road.state === "caution" ? "#e0a53a" : road && road.state === "unknown" ? "#8a9a90" : "#46d97f";
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
@@ -434,7 +438,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
                 </div>
               )}
               <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 12 }}>
-                {road && road.alerts ? "Live from the National Park Service. " : ""}Always confirm on the official page before you go. <a href={drive.link} target="_blank" rel="noreferrer" style={{ color: "var(--pb-gold)", fontWeight: 700, textDecoration: "none" }}>Official road status ↗</a>
+                {road && road.credit ? road.credit + " " : ""}Always confirm on the official page before you go. <a href={drive.link} target="_blank" rel="noreferrer" style={{ color: "var(--pb-gold)", fontWeight: 700, textDecoration: "none" }}>Official road status ↗</a>
               </div>
             </div>
           </div>

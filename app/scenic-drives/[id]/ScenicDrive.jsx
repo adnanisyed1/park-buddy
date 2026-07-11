@@ -329,20 +329,6 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   const hasItinerary = itinerary.filter((s) => s.lat != null).length >= 2; // named itinerary drives the map
   const hasOverlooks = hasItinerary || hl.some((h) => h.lat != null); // numbered markers on the map
   const hasRoute = hasOverlooks || !!(routeEndpoints && routeEndpoints.from && routeEndpoints.to); // a line gets drawn
-
-  // Photo gallery candidates: the drive's marquee scenic POIs (most photogenic
-  // first) then its towns — each name resolves to a Commons image via /api/photo.
-  const stateHint = (drive.states || "").split(/[·,/]/)[0].trim();
-  const photoItems = [];
-  if (detail) {
-    const ORDER = { pass: 0, waterfall: 1, lake: 2, overlook: 3, peak: 4 };
-    (detail.pois || []).filter((p) => ORDER[p.type] != null && !/^(scenic overlook|falls)$/i.test(p.name))
-      .sort((a, b) => (ORDER[a.type] - ORDER[b.type]) || ((a.mile ?? 0) - (b.mile ?? 0)))
-      .forEach((p) => photoItems.push({ q: p.name + (stateHint ? "|" + p.name + " " + stateHint : ""), cap: p.name, kind: p.type }));
-    itinerary.filter((s) => s.place && s.kind !== "crossing").forEach((s) => photoItems.push({ q: s.place + (stateHint ? "|" + s.place + ", " + stateHint : ""), cap: s.place, kind: s.kind === "park-entrance" ? "park" : "town" }));
-  }
-  const seenPhoto = new Set();
-  const photoItemsUniq = photoItems.filter((it) => { const k = it.cap.toLowerCase(); if (seenPhoto.has(k)) return false; seenPhoto.add(k); return true; });
   const ti = TIER_INFO[drive.tier] || TIER_INFO.byway;
   const pill = (k, v) => (
     <span style={{ display: "inline-flex", flexDirection: "column", background: "rgba(10,26,18,.5)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 15, padding: "10px 16px" }}>
@@ -582,8 +568,8 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
         {/* SCENIC STOPS & ATTRACTIONS — every roadside point from OSM */}
         {detail && detail.pois && detail.pois.length >= 3 && <RouteAttractions pois={detail.pois} />}
 
-        {/* PHOTOS ALONG THE DRIVE — real images of the places you pass */}
-        {photoItemsUniq.length >= 3 && <RoutePhotos items={photoItemsUniq} />}
+        {/* PHOTOS ALONG THE DRIVE — Commons gallery built at generation time */}
+        {detail && detail.gallery && detail.gallery.length >= 3 && <RoutePhotos photos={detail.gallery} />}
 
         {/* FILMSTRIP */}
         {film.length > 0 && (

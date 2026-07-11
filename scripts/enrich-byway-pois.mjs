@@ -36,6 +36,48 @@ async function overpass(q) {
 
 function lineMiles(line) { let m = 0; for (let i = 1; i < line.length; i++) m += distMi(line[i - 1][0], line[i - 1][1], line[i][0], line[i][1]); return m; }
 
+// ── Wikimedia Commons photo gallery ─────────────────────────────────────────
+async function commons(params) {
+  const u = "https://commons.wikimedia.org/w/api.php?" + new URLSearchParams({ format: "json", formatversion: "2", ...params });
+  for (let a = 1; a <= 3; a++) {
+    try { const r = await fetch(u, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error("HTTP " + r.status); return await r.json(); }
+    catch { if (a === 3) return null; await sleep(800 * a); }
+  }
+}
+const BAD_FILE = /\b(map|locator|diagram|logo|seal|sign|marker|plaque|nrhp|haer|lccn|survey|document|elevation profile|route)\b|\.(svg|tif|tiff|pdf|gif)$/i;
+function filePhotos(pages, roadName) {
+  const out = [];
+  for (const p of (pages || [])) {
+    const t = p.title || "";
+    if (!/\.(jpe?g|png)$/i.test(t) || BAD_FILE.test(t)) continue;
+    const ii = p.imageinfo && p.imageinfo[0]; if (!ii || !ii.thumburl) continue;
+    const m = ii.extmetadata || {};
+    let artist = (m.Artist && m.Artist.value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (/unknown|not prov|^$/i.test(artist)) artist = ""; // messy/absent author → credit the license only
+    const lic = (m.LicenseShortName && m.LicenseShortName.value) || "Wikimedia Commons";
+    const cap = t.replace(/^File:/, "").replace(/\.[^.]+$/, "").replace(new RegExp(roadName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"), "")
+      .replace(/\b(NARA|LCCN|HAER|WY|MT)\b[\s\d-]*$/i, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+    out.push({ url: ii.thumburl, cap: (cap.slice(0, 70) || roadName), credit: (artist ? artist.slice(0, 60) + " · " : "") + lic, pageUrl: ii.descriptionurl });
+  }
+  return out;
+}
+async function commonsGallery(roadName, driveName) {
+  const seen = new Set(); const gallery = [];
+  const add = (arr) => { for (const p of arr) { if (seen.has(p.url)) continue; seen.add(p.url); gallery.push(p); } };
+  // 1) the byway's own Commons category (the richest, on-topic source)
+  for (const name of [...new Set([roadName, driveName])]) {
+    if (gallery.length >= 18) break;
+    const j = await commons({ action: "query", generator: "categorymembers", gcmtitle: "Category:" + name, gcmtype: "file", gcmlimit: "40", prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "1000" });
+    add(filePhotos((j && j.query && j.query.pages) || [], name));
+  }
+  // 2) fallback: Commons file search on the road name
+  if (gallery.length < 6) {
+    const j = await commons({ action: "query", generator: "search", gsrsearch: roadName, gsrnamespace: "6", gsrlimit: "30", prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "1000" });
+    add(filePhotos((j && j.query && j.query.pages) || [], roadName));
+  }
+  return gallery.slice(0, 18);
+}
+
 // Stitch member ways into connected polylines (shared endpoints), then bridge
 // chains whose endpoints are within GAP_MI (OSM splits a road at junctions and
 // name changes — e.g. Beartooth Hwy → "Broadway Ave" in Red Lodge — leaving tiny
@@ -209,7 +251,10 @@ async function enrich(drive, detail) {
   pois.sort((a, b) => a.mile - b.mile);
   pois.forEach((p) => delete p._d);
 
-  return { routeLine: decimate(line), routeSource: "OpenStreetMap", routeMiles: Math.round(miles[miles.length - 1]), pois, counts: pois.reduce((m, p) => ((m[p.type] = (m[p.type] || 0) + 1), m), {}) };
+  // 4) Commons photo gallery (the byway's category + file search)
+  const gallery = await commonsGallery(roadName, drive.name);
+
+  return { routeLine: decimate(line), routeSource: "OpenStreetMap", routeMiles: Math.round(miles[miles.length - 1]), pois, gallery, counts: pois.reduce((m, p) => ((m[p.type] = (m[p.type] || 0) + 1), m), {}) };
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -225,9 +270,9 @@ for (const id of only) {
   try {
     const res = await enrich(drive, detail);
     if (res.skip) { console.log("⚠ " + id + ": " + res.skip); continue; }
-    detail.routeLine = res.routeLine; detail.routeSource = res.routeSource; detail.routeMiles = res.routeMiles; detail.pois = res.pois;
+    detail.routeLine = res.routeLine; detail.routeSource = res.routeSource; detail.routeMiles = res.routeMiles; detail.pois = res.pois; detail.gallery = res.gallery;
     if (!detail.sources.some((s) => s.src === "osm")) detail.sources.push({ name: "OpenStreetMap contributors (ODbL)", src: "osm", url: "https://www.openstreetmap.org/copyright", retrievedAt: detail.generatedAt });
     fs.writeFileSync(file, JSON.stringify(detail));
-    console.log(`✓ ${id}: route ${res.routeLine.length}pts / ~${res.routeMiles}mi · ${res.pois.length} POIs ` + JSON.stringify(res.counts));
+    console.log(`✓ ${id}: route ${res.routeLine.length}pts / ~${res.routeMiles}mi · ${res.pois.length} POIs · ${res.gallery.length} photos ` + JSON.stringify(res.counts));
   } catch (e) { console.log("⚠ " + id + ": " + (e.message || e)); }
 }

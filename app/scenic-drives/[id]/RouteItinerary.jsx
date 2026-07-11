@@ -12,6 +12,7 @@ const KIND = {
   terminus: { dot: "#e8cf9a", ring: "#0a1712", label: "Start / End", chip: "rgba(232,207,154,.16)", chipInk: "var(--pb-gold-soft)" },
   "park-entrance": { dot: "#1d4a37", ring: "#e8cf9a", label: "Park entrance", chip: "rgba(29,74,55,.34)", chipInk: "#8fe0b4" },
   crossing: { dot: "#2f6d7a", ring: "#0a1712", label: "Crossing", chip: "rgba(47,109,122,.28)", chipInk: "#8fd3e0" },
+  overlook: { dot: "#e8cf9a", ring: "#0a1712", label: "Overlook", chip: "rgba(232,207,154,.16)", chipInk: "var(--pb-gold-soft)" },
   town: { dot: "#b3862d", ring: "#0a1712", label: "Town", chip: "rgba(179,134,45,.2)", chipInk: "var(--pb-gold-soft)" },
 };
 

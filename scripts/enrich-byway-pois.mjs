@@ -175,7 +175,9 @@ async function enrich(drive, detail) {
   // history-only byways (no junction table) and giant parkways (route too big for
   // one Overpass call) still get a Commons photo gallery.
   const gallery = await commonsGallery(roadName0, drive.name);
-  const stops = (detail.itinerary || []).filter((s) => s.lat != null);
+  // Only a Wikipedia junction-table itinerary counts as "real" — an OSM-synthesized
+  // one (from a prior run) must not block re-synthesis, so exclude src=openstreetmap.
+  const stops = (detail.itinerary || []).filter((s) => s.lat != null && s.src !== "openstreetmap");
   const hasItin = stops.length >= 2;
   // Without a junction-table itinerary we can still build a route straight from OSM
   // by the road's name/number, anchored on the drive's own coordinate — as long as
@@ -313,6 +315,40 @@ async function enrich(drive, detail) {
   }
   pois.sort((a, b) => a.mile - b.mile);
   pois.forEach((p) => delete p._d);
+
+  // No junction table → synthesize a stop flow from the towns along the road + the
+  // two termini, so the page shows the same numbered "stop by stop" itinerary as the
+  // junction-based drives (fixes routed drives that had a route but no stops).
+  if (!hasItin) {
+    const total = miles[miles.length - 1];
+    let towns = [];
+    try {
+      const tj = await overpass(`[out:json][timeout:120];( node["place"~"^(city|town|village)$"]["name"](${around}); );out tags 300;`);
+      for (const el of (tj.elements || [])) {
+        const nm = (el.tags || {}).name; if (!nm) continue;
+        const pr = projectToLine(el.lat, el.lon, line, miles); if (pr.dist > 1.3) continue;
+        towns.push({ place: nm, mileFromStart: Math.round(pr.mile * 10) / 10, kind: "town", lat: round5(el.lat), lng: round5(el.lon) });
+      }
+    } catch {}
+    towns.sort((a, b) => a.mileFromStart - b.mileFromStart);
+    const nearestTown = (m) => towns.slice().sort((a, b) => Math.abs(a.mileFromStart - m) - Math.abs(b.mileFromStart - m))[0];
+    const cleanName = roadName0.replace(/ *(Scenic Byway|All-?American Road|Historic( and)?|Coastal|National|Byway).*$/i, "").trim() || drive.name;
+    const term = (pt, m, first) => ({ place: (nearestTown(m) || {}).place || (cleanName + (first ? " (start)" : " (end)")), mileFromStart: Math.round(m * 10) / 10, kind: "terminus", lat: round5(pt[0]), lng: round5(pt[1]) });
+    // marquee POIs are the real "stops" on a park road with no towns (overlooks,
+    // passes, waterfalls) — include them so the flow isn't just two generic termini.
+    const marquee = pois.filter((p) => ["overlook", "pass", "waterfall"].includes(p.type))
+      .map((p) => ({ place: p.name, mileFromStart: p.mile, kind: p.type === "overlook" ? "overlook" : "crossing", lat: p.lat, lng: p.lng }));
+    const seenM = new Set();
+    let mid = [...towns.filter((t) => t.mileFromStart > 1 && t.mileFromStart < total - 1),
+      ...marquee.filter((m) => m.mileFromStart > 0.5 && m.mileFromStart < total - 0.5)]
+      .sort((a, b) => a.mileFromStart - b.mileFromStart)
+      .filter((s) => { const k = s.place.toLowerCase(); if (seenM.has(k) || !/[A-Za-z]/.test(s.place)) return false; seenM.add(k); return true; })
+      .slice(0, 14);
+    let flow = [term(line[0], 0, true), ...mid, term(line[line.length - 1], total, false)];
+    flow.forEach((s, i) => { s.seq = i + 1; s.src = "openstreetmap"; s.control = []; s.note = s.kind === "terminus" ? (i === 0 ? "The drive begins here" : "The drive ends here") : ""; });
+    for (let i = 0; i < flow.length - 1; i++) if (flow[i].mileFromStart != null && flow[i + 1].mileFromStart != null) flow[i].toNextMi = Math.round((flow[i + 1].mileFromStart - flow[i].mileFromStart) * 10) / 10;
+    if (flow.length >= 3) detail.itinerary = flow; // ≥1 real stop between the termini
+  }
 
   return { routeLine: decimate(line), routeSource: "OpenStreetMap", routeMiles: Math.round(miles[miles.length - 1]), pois, gallery, counts: pois.reduce((m, p) => ((m[p.type] = (m[p.type] || 0) + 1), m), {}) };
   } catch (e) {

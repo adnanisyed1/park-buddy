@@ -209,7 +209,16 @@ async function enrich(drive, detail) {
   //    street). Match by name, then by route ref/number. Fall back to named + ref'd ways.
   let ways = [];
   const safeOP = async (q) => { try { return await overpass(q); } catch { return null; } }; // a slow relation shouldn't kill the drive — fall through to ways
-  const pickRel = (j) => (j && j.elements || []).filter((e) => e.type === "relation" && (e.members || []).length).sort((a, b) => (b.members.length - a.members.length))[0];
+  // Pick the relation whose NAME best matches this byway (a keyword query can return
+  // several coast/scenic relations — e.g. "Big Sur…" vs "…North Coast Byway" — so
+  // score by distinctive shared tokens, not just member count).
+  const wantTokens = [...new Set((drive.name + " " + roadName0).toLowerCase().split(/[^a-z0-9]+/))].filter((w) => w.length >= 3 && !GENERIC.test(w) && w !== "coast");
+  const pickRel = (j) => {
+    const rels = (j && j.elements || []).filter((e) => e.type === "relation" && (e.members || []).length);
+    if (!rels.length) return null;
+    const score = (r) => { const n = ((r.tags || {}).name || "").toLowerCase(); return wantTokens.filter((w) => n.includes(w)).length; };
+    return rels.sort((a, b) => score(b) - score(a) || (b.members.length - a.members.length))[0];
+  };
   let rel = pickRel(await safeOP(`[out:json][timeout:120];relation["type"="route"]["route"="road"]["name"~"${kw}",i](${bbox});out geom;`));
   if (!rel && roadNum) rel = pickRel(await safeOP(`[out:json][timeout:120];relation["type"="route"]["route"="road"]["ref"~"(^| )${roadNum}$"](${bbox});out geom;`));
   if (rel) ways = rel.members.filter((m) => m.type === "way" && m.geometry && m.geometry.length > 1).map((m) => ({ geometry: m.geometry }));
@@ -244,7 +253,9 @@ async function enrich(drive, detail) {
     const gi = (detail.itinerary || []).filter((s) => s.lat != null);
     i0 = projIdx(gi[0].lat, gi[0].lng); i1 = projIdx(gi[gi.length - 1].lat, gi[gi.length - 1].lng);
     if (i0 > i1) { const t = i0; i0 = i1; i1 = t; }
-  } else if (drive.lengthMi > 0) {
+  } else if (drive.lengthMi > 0 && miles[miles.length - 1] > drive.lengthMi * 1.4) {
+    // only when the match is a whole numbered highway, far longer than the byway —
+    // NOT when we matched the byway's own relation (already the right length).
     const c = projIdx(drive.lat, drive.lng), half = drive.lengthMi / 2;
     while (i0 < c && miles[c] - miles[i0] > half) i0++;
     while (i1 > c && miles[i1] - miles[c] > half) i1--;

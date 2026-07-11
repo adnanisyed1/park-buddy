@@ -26,6 +26,7 @@ const KEYFRAMES = `
 @keyframes sd-shine{0%{background-position:-140% 0}60%,100%{background-position:240% 0}}
 @keyframes sd-pulse{0%{box-shadow:0 0 0 0 rgba(228,190,120,.55)}70%{box-shadow:0 0 0 12px rgba(228,190,120,0)}100%{box-shadow:0 0 0 0 rgba(228,190,120,0)}}
 @media(prefers-reduced-motion:reduce){.sd-anim{animation:none!important}}
+.pb-poi-label{text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 4px rgba(0,0,0,.8),0 0 8px rgba(0,0,0,.6);white-space:nowrap;letter-spacing:.01em}
 `;
 
 const QUAL_META = {
@@ -250,7 +251,9 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
       const mk = new g.maps.Marker({
         position: { lat: p.lat, lng: p.lng }, map, zIndex: 8,
         title: p.name + (p.mile != null ? " · mi " + p.mile : "") + (p.ele ? " · " + Math.round(p.ele * 3.281) + " ft" : ""),
-        icon: { path: g.maps.SymbolPath.CIRCLE, scale: 5.5, fillColor: c.color, fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 1.4 },
+        // the attraction's name, sitting just below its coloured dot, always visible
+        label: { text: p.name, color: c.color, fontSize: "11px", fontWeight: "700", className: "pb-poi-label" },
+        icon: { path: g.maps.SymbolPath.CIRCLE, scale: 5, fillColor: c.color, fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 1.4, labelOrigin: new g.maps.Point(0, 2.7) },
       });
       markersRef.current.push(mk);
     });
@@ -261,9 +264,10 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
       // Three-layer cased road for a prominent yet refined line, like a good print
       // map: a soft gold glow, a dark casing that lifts it off the terrain, and a
       // bright warm-gold core on top.
-      routeGlowRef.current = new g.maps.Polyline({ path, map, strokeColor: "#f0d693", strokeOpacity: 0.22, strokeWeight: 15, zIndex: 3 });
-      routeCasingRef.current = new g.maps.Polyline({ path, map, strokeColor: "#0b1a13", strokeOpacity: 0.9, strokeWeight: 8.5, zIndex: 4 });
-      routeLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#f2d98f", strokeOpacity: 1, strokeWeight: 4.5, zIndex: 5 });
+      // Thin, crisp, bright line: marks the route clearly without covering the stop
+      // markers or their labels. A slim dark casing keeps it legible on any terrain.
+      routeCasingRef.current = new g.maps.Polyline({ path, map, strokeColor: "#0a1712", strokeOpacity: 0.75, strokeWeight: 4.5, zIndex: 3 });
+      routeLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#ffcf2e", strokeOpacity: 1, strokeWeight: 2.4, zIndex: 4 });
       fitTo(path);
     };
     const dashedConnector = () => {

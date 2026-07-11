@@ -6,6 +6,7 @@ import { ensureMapsLoaded } from "../../lib/googleMapsLoader";
 import { usePhoto } from "../../components/PhotoThumb";
 import SiteHeader from "../../components/SiteHeader";
 import RouteItinerary from "./RouteItinerary";
+import RouteAttractions from "./RouteAttractions";
 
 // /scenic-drives/<id> detail — ported 1:1 from the Claude-design spec. Real
 // data: federal byway record (name/tier/states/length/qualities/blurb), live
@@ -36,6 +37,20 @@ const QUAL_META = {
 };
 
 const FEATURE_NOTE = { peak: "A named summit near the route", pass: "A named pass on the drive", saddle: "A saddle on the ridge", water: "A lake beside the route", waterfall: "A waterfall near the road", glacier: "A glacier along the route", viewpoint: "A marked viewpoint", ridge: "A named ridge", spring: "A spring near the road" };
+
+// Roadside-attraction categories (from OpenStreetMap) — colour + glyph for the map
+// markers, the legend, and the scenic-stops list.
+const POI_CAT = {
+  overlook: { color: "#e8cf9a", ic: "◉", label: "Overlook" },
+  pass: { color: "#d99a4e", ic: "▲", label: "Pass" },
+  campground: { color: "#4f9d69", ic: "⌂", label: "Campground" },
+  waterfall: { color: "#5aa9d6", ic: "≋", label: "Waterfall" },
+  lake: { color: "#3f8fa0", ic: "◐", label: "Lake" },
+  peak: { color: "#a7adb3", ic: "△", label: "Peak" },
+  trailhead: { color: "#b3862d", ic: "⇡", label: "Trailhead" },
+  "rest area": { color: "#7a5a2f", ic: "▤", label: "Rest area" },
+};
+const poiCat = (t) => POI_CAT[t] || POI_CAT.overlook;
 
 // Factual explainer of what each designation means (National Scenic Byways Program,
 // FHWA / U.S. DOT). Displayed on every drive so the page explains the badge.
@@ -215,13 +230,27 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
     pts.forEach((h, i) => {
       const key = usingItin ? h.seq : i;
       const mk = new g.maps.Marker({
-        position: { lat: h.lat, lng: h.lng }, map,
+        position: { lat: h.lat, lng: h.lng }, map, zIndex: 20,
         label: { text: String(usingItin ? h.seq : i + 1), color: "var(--pb-bg)", fontSize: "12px", fontWeight: "800" },
         icon: { path: g.maps.SymbolPath.CIRCLE, scale: 12, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 },
       });
       mk.pbKey = key;
       mk.addListener("mouseover", () => setHoverIdx(key));
       mk.addListener("mouseout", () => setHoverIdx(null));
+      markersRef.current.push(mk);
+    });
+
+    // Roadside attractions from OSM — small category-coloured dots (no pbKey, so the
+    // hover-restyle skips them). Native title tooltip shows name + mile.
+    const poiList = (detail && detail.pois) || [];
+    poiList.forEach((p) => {
+      if (p.lat == null) return;
+      const c = poiCat(p.type);
+      const mk = new g.maps.Marker({
+        position: { lat: p.lat, lng: p.lng }, map, zIndex: 8,
+        title: p.name + (p.mile != null ? " · mi " + p.mile : "") + (p.ele ? " · " + Math.round(p.ele * 3.281) + " ft" : ""),
+        icon: { path: g.maps.SymbolPath.CIRCLE, scale: 5.5, fillColor: c.color, fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 1.4 },
+      });
       markersRef.current.push(mk);
     });
 
@@ -242,6 +271,14 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
       markersRef.current.push(new g.maps.Marker({ position: { lat: drive.lat, lng: drive.lng }, map, title: drive.name, icon: { path: g.maps.SymbolPath.CIRCLE, scale: 11, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 } }));
       map.setCenter({ lat: drive.lat, lng: drive.lng }); map.setZoom(drive.approxLoc ? 7 : 10);
     };
+
+    // Best case: real OSM road geometry — draw it exactly (no Directions guessing),
+    // like a Wikimedia/OSM route map, and frame the whole line.
+    const osmLine = (detail && detail.routeLine) || null;
+    if (osmLine && osmLine.length >= 2) {
+      solidRoute(osmLine.map(([lat, lng]) => ({ lat, lng })));
+      return;
+    }
 
     // Build a Directions request: curated endpoints win; else route through overlooks.
     let req = null;
@@ -470,8 +507,19 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
               <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.4rem,3vw,1.9rem)", color: "var(--pb-ink)" }}>The route</h2>
               <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{hasItinerary ? "Numbered stops ↔ the itinerary below" : hasOverlooks ? "Hover an overlook ↔ its map marker" : hasRoute ? "The drive, on the road" : drive.approxLoc ? "Approximate area" : "Route overview"}</span>
             </div>
-            <figure style={{ position: "relative", margin: "14px 0 0", height: "clamp(300px,44vh,460px)", overflow: "hidden", borderRadius: 24, border: "1px solid rgba(217,183,121,.16)", background: "var(--pb-surface)" }}>
+            <figure style={{ position: "relative", margin: "14px 0 0", height: "clamp(320px,48vh,500px)", overflow: "hidden", borderRadius: 24, border: "1px solid rgba(217,183,121,.16)", background: "var(--pb-surface)" }}>
               <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
+              {detail && detail.pois && detail.pois.length >= 3 && (
+                <div style={{ position: "absolute", top: 12, right: 12, zIndex: 3, background: "rgba(15,32,24,.86)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 12, padding: "9px 11px", display: "grid", gap: 5, maxWidth: 150 }}>
+                  <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", marginBottom: 1 }}>Along the route</div>
+                  {[...new Set(detail.pois.map((p) => p.type))].slice(0, 8).map((t) => (
+                    <span key={t} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".64rem", fontWeight: 600, color: "var(--pb-ink)" }}>
+                      <span style={{ width: 9, height: 9, borderRadius: "50%", background: poiCat(t).color, flex: "none" }} />
+                      {poiCat(t).label}
+                    </span>
+                  ))}
+                </div>
+              )}
               <figcaption style={{ position: "absolute", left: 14, bottom: 14, zIndex: 3, background: "rgba(21,36,28,.82)", color: "var(--pb-ink)", fontSize: ".72rem", fontWeight: 700, borderRadius: 999, padding: "6px 14px", pointerEvents: "none" }}>{drive.mapCap || (hasOverlooks ? drive.states + " · overlooks along the route" : hasRoute ? drive.states + " · driving route" : drive.approxLoc ? "Approximate area — see the official page for the turn-by-turn route" : drive.states + " · see the official page for the full route")}</figcaption>
             </figure>
           </div>
@@ -513,6 +561,9 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
             </div>
           </section>
         )}
+
+        {/* SCENIC STOPS & ATTRACTIONS — every roadside point from OSM */}
+        {detail && detail.pois && detail.pois.length >= 3 && <RouteAttractions pois={detail.pois} />}
 
         {/* FILMSTRIP */}
         {film.length > 0 && (

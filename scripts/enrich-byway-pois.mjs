@@ -160,6 +160,19 @@ async function enrich(drive, detail) {
   if (distMi(line[0][0], line[0][1], stops[0].lat, stops[0].lng) > distMi(line[line.length - 1][0], line[line.length - 1][1], stops[0].lat, stops[0].lng)) line.reverse();
   const miles = cumulativeMiles(line);
 
+  // Snap itinerary pins ONTO the real road line so every numbered marker sits on the
+  // drawn route (fixes geocoded town-centres sitting off-road) — and pin the two
+  // termini to the exact ends of the road, so the "start" marker is at the true start
+  // and doesn't stack on top of the first town (that's why pin 1 hid under pin 2).
+  const nearestOnLine = (lat, lng) => { let bd = Infinity, bp = null; for (const p of line) { const d = distMi(lat, lng, p[0], p[1]); if (d < bd) { bd = d; bp = p; } } return bp; };
+  const geoIdx = (detail.itinerary || []).map((s, i) => (s.lat != null ? i : -1)).filter((i) => i >= 0);
+  for (const i of geoIdx) { const s = detail.itinerary[i]; const bp = nearestOnLine(s.lat, s.lng); if (bp) { s.lat = round5(bp[0]); s.lng = round5(bp[1]); } }
+  if (geoIdx.length) {
+    const f = detail.itinerary[geoIdx[0]], l = detail.itinerary[geoIdx[geoIdx.length - 1]];
+    f.lat = round5(line[0][0]); f.lng = round5(line[0][1]); delete f.snapped;
+    l.lat = round5(line[line.length - 1][0]); l.lng = round5(line[line.length - 1][1]); delete l.snapped;
+  }
+
   // 2) POI sweep
   const poiQ = `[out:json][timeout:80];
 ( node["tourism"="viewpoint"](${bbox});

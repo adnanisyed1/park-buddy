@@ -406,6 +406,35 @@ async function gnisCoords(name, stName, biasLat, biasLng) {
   }
   return null;
 }
+// OpenStreetMap (Overpass) — precise for named NATURAL features Wikipedia/GNIS
+// miss: mountain passes, summits, gaps, lakes, waterfalls (e.g. Beartooth Pass,
+// 10,947 ft, which has no Wikipedia coordinate). Bounded to the drive's area.
+let overpassChain = Promise.resolve();
+function overpassGate() { const p = overpassChain.then(() => sleep(1100)); overpassChain = p.catch(() => {}); return p; }
+async function osmCoords(name, biasLat, biasLng) {
+  if (biasLat == null) return null;
+  const pad = 0.7, bbox = [biasLat - pad, biasLng - pad, biasLat + pad, biasLng + pad].join(",");
+  const esc = name.replace(/["\\]/g, "\\$&");
+  const q = `[out:json][timeout:20];( node["name"="${esc}"]["natural"](${bbox}); node["name"="${esc}"]["mountain_pass"](${bbox}); node["name"="${esc}"]["place"](${bbox}); way["name"="${esc}"]["natural"](${bbox}); );out center 6;`;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await overpassGate();
+    try {
+      const r = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: q, headers: { "User-Agent": UA }, signal: AbortSignal.timeout(25000) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      let best = null, bestD = Infinity;
+      for (const el of (j.elements || [])) {
+        const lat = el.lat ?? (el.center && el.center.lat), lng = el.lon ?? (el.center && el.center.lon);
+        if (lat == null) continue;
+        const d = distMi(biasLat, biasLng, lat, lng);
+        if (d < bestD) { bestD = d; best = { lat, lng }; }
+      }
+      if (best) return best;
+      return null;
+    } catch { if (attempt === 2) return null; await sleep(1500); }
+  }
+  return null;
+}
 async function geocode(name, st, biasLat, biasLng) {
   if (!name) return null;
   const key = geoKey(name, st);
@@ -417,6 +446,8 @@ async function geocode(name, st, biasLat, biasLng) {
   if (!hit) hit = await wikiCoords(name);
   // GNIS fallback for plain towns
   if (!hit) hit = await gnisCoords(name, stName, biasLat, biasLng);
+  // OSM fallback for named natural features (passes/summits/lakes) with no article
+  if (!hit) hit = await osmCoords(name, biasLat, biasLng);
   // sanity: within ~250mi of the drive centroid, else reject (wrong-place match)
   if (hit && biasLat != null && distMi(biasLat, biasLng, hit.lat, hit.lng) > 250) hit = null;
   geoCache[key] = hit;

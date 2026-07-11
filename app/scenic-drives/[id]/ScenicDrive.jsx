@@ -93,7 +93,19 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   // Wikipedia-derived record (traveler itinerary, history, references, CC BY-SA
   // attribution) when this drive has been enriched; null otherwise (page renders
   // its baseline). Route line + highlights prefer curated data, then the record.
-  const routeEndpoints = drive.endpoints || (detail && detail.endpoints) || null;
+  // Route line source. The hand-curated flagships (Blue Ridge, Trail Ridge,
+  // Going-to-the-Sun — the ones with curated highlights) always keep their tuned
+  // endpoints. Otherwise pick whichever route has MORE waypoints: the generated
+  // detail route traces the full parsed corridor with the milepost geocode-snap, so
+  // it beats a thin curated from/to (e.g. Beartooth's partial "Red Lodge→Cooke City"),
+  // but a genuinely richer curated route still wins.
+  const detailEp = detail && detail.endpoints;
+  const driveEp = drive.endpoints;
+  const viaN = (e) => (e && e.from && e.to ? (e.via || []).length + 1 : 0);
+  const curatedFlagship = !!(drive.highlights && drive.highlights.length);
+  const routeEndpoints = curatedFlagship
+    ? (driveEp || detailEp || null)
+    : (viaN(detailEp) > viaN(driveEp) ? detailEp : (driveEp || detailEp)) || null;
   const parkCode = drive.parkCode || (detail && detail.parkCode) || null;
   // Name-only (no geo fallback): a byway is linear, so a geo-search near one
   // coordinate returns junk (a church, a brewery, a photo of Earth from orbit).

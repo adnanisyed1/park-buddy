@@ -471,6 +471,28 @@ await pool(targets, async (drive) => {
         if (t.reversed) flags.push("DESCENDING MILEPOST reversed: " + drive.name);
         // geocode itinerary stops (sequential — respectful to the APIs, results cached)
         for (const s of itinerary) { const c = await geocode(s.place, s.state, drive.lat, drive.lng); if (c) { s.lat = c.lat; s.lng = c.lng; } }
+        // Milepost sanity snap: a park / large-feature name (e.g. a terminus at
+        // "Yellowstone National Park") geocodes to the whole area's centroid, which
+        // can sit tens of miles off the actual road point. If a stop lands absurdly
+        // far from its milepost-adjacent geocoded neighbor (straight-line ≫ the
+        // milepost gap — impossible on a road), snap it onto that neighbor.
+        const nearestGeo = (i, dir) => { for (let j = i + dir; j >= 0 && j < itinerary.length; j += dir) { if (itinerary[j].lat != null) return itinerary[j]; } return null; };
+        for (let i = 0; i < itinerary.length; i++) {
+          const s = itinerary[i]; if (s.lat == null || s.mileFromStart == null) continue;
+          const nb = nearestGeo(i, i === itinerary.length - 1 ? -1 : 1) || nearestGeo(i, -1);
+          if (!nb || nb.mileFromStart == null) continue;
+          if (distMi(s.lat, s.lng, nb.lat, nb.lng) > Math.abs(nb.mileFromStart - s.mileFromStart) * 2 + 5) {
+            s.lat = nb.lat; s.lng = nb.lng; s.snapped = true;
+            flags.push(`GEOCODE snapped to road (${s.place}): ${drive.name}`);
+          }
+        }
+        // Start/end the route line on the corrected road point (a snapped terminus's
+        // name would still geocode Google Directions to the wrong centroid).
+        if (endpoints) {
+          const f = itinerary[0], l = itinerary[itinerary.length - 1];
+          if (f && f.snapped && f.lat != null) endpoints.from = f.lat + "," + f.lng;
+          if (l && l.snapped && l.lat != null) endpoints.to = l.lat + "," + l.lng;
+        }
         // highlights = notable stops that resolved to a coordinate
         highlights = t.highlightSeeds.map((s) => ({ n: s.place, d: s.note || "A landmark on the route", q: s.place, lat: s.lat, lng: s.lng, src: "wikipedia" }))
           .filter((h) => h.lat != null);

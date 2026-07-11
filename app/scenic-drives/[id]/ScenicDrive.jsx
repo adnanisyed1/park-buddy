@@ -110,6 +110,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   const mapObjRef = useRef(null);
   const markersRef = useRef([]);
   const routeLineRef = useRef(null);
+  const routeCasingRef = useRef(null);
   const dirServiceRef = useRef(null);
   const filmTimer = useRef(null);
 
@@ -190,25 +191,35 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
     if (routeLineRef.current) { routeLineRef.current.setMap(null); routeLineRef.current = null; }
-    const pts = (highlights || []).filter((h) => h.lat != null);
+    if (routeCasingRef.current) { routeCasingRef.current.setMap(null); routeCasingRef.current = null; }
 
-    // numbered overlook markers (two-way hover-linked to the highlight cards)
+    // Marker source: the named itinerary's geocoded stops (numbered by their seq,
+    // so the map pins match the itinerary list) when enriched; else curated/derived
+    // overlooks. hoverIdx holds the marker "key" (seq for itinerary, index for overlooks).
+    const itinPts = ((detail && detail.itinerary) || []).filter((s) => s.lat != null);
+    const usingItin = itinPts.length >= 2;
+    const pts = usingItin ? itinPts : (highlights || []).filter((h) => h.lat != null);
+
     pts.forEach((h, i) => {
+      const key = usingItin ? h.seq : i;
       const mk = new g.maps.Marker({
         position: { lat: h.lat, lng: h.lng }, map,
-        label: { text: String(i + 1), color: "var(--pb-bg)", fontSize: "12px", fontWeight: "800" },
+        label: { text: String(usingItin ? h.seq : i + 1), color: "var(--pb-bg)", fontSize: "12px", fontWeight: "800" },
         icon: { path: g.maps.SymbolPath.CIRCLE, scale: 12, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 },
       });
-      mk.addListener("mouseover", () => setHoverIdx(i));
+      mk.pbKey = key;
+      mk.addListener("mouseover", () => setHoverIdx(key));
       mk.addListener("mouseout", () => setHoverIdx(null));
       markersRef.current.push(mk);
     });
 
     const fitTo = (coords) => { if (!coords.length) return; const b = new g.maps.LatLngBounds(); coords.forEach((c) => b.extend(c)); map.fitBounds(b, 60); };
     const solidRoute = (path) => {
-      if (routeLineRef.current) routeLineRef.current.setMap(null);
-      // soft outer casing + bright inner line so the route reads clearly on terrain
-      routeLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#e8cf9a", strokeOpacity: 0.95, strokeWeight: 5, zIndex: 5 });
+      [routeCasingRef, routeLineRef].forEach((r) => { if (r.current) { r.current.setMap(null); r.current = null; } });
+      // Cased road (OSM-style): dark outer casing + bright gold inner line so the
+      // route traces the road clearly on terrain, like a Wikimedia/OSM route map.
+      routeCasingRef.current = new g.maps.Polyline({ path, map, strokeColor: "#0a1712", strokeOpacity: 0.5, strokeWeight: 9, zIndex: 4 });
+      routeLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#e8cf9a", strokeOpacity: 0.98, strokeWeight: 5, zIndex: 5 });
       fitTo(path);
     };
     const dashedConnector = () => {
@@ -252,16 +263,19 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   // the single anchor pin (no numbered overlooks to hover).
   useEffect(() => {
     if (!window.google) return;
-    if (!(highlights || []).some((h) => h.lat != null)) return;
-    markersRef.current.forEach((mk, i) => {
-      const on = i === hoverIdx;
+    markersRef.current.forEach((mk) => {
+      if (mk.pbKey == null) return;
+      const on = mk.pbKey === hoverIdx;
       mk.setIcon({ path: window.google.maps.SymbolPath.CIRCLE, scale: on ? 17 : 12, fillColor: on ? "#1d4a37" : "#e8cf9a", fillOpacity: 1, strokeColor: on ? "#e8cf9a" : "#0a1712", strokeWeight: on ? 3 : 2 });
-      mk.setLabel({ text: String(i + 1), color: on ? "#fff" : "var(--pb-bg)", fontSize: "12px", fontWeight: "800" });
+      const lbl = mk.getLabel() || {};
+      mk.setLabel({ ...lbl, color: on ? "#fff" : "var(--pb-bg)", fontSize: "12px", fontWeight: "800" });
     });
   }, [hoverIdx]);
 
   const hl = highlights || [];
-  const hasOverlooks = hl.some((h) => h.lat != null); // real overlook coords → numbered markers
+  const itinerary = (detail && detail.itinerary) || [];
+  const hasItinerary = itinerary.filter((s) => s.lat != null).length >= 2; // named itinerary drives the map
+  const hasOverlooks = hasItinerary || hl.some((h) => h.lat != null); // numbered markers on the map
   const hasRoute = hasOverlooks || !!(routeEndpoints && routeEndpoints.from && routeEndpoints.to); // a line gets drawn
   const ti = TIER_INFO[drive.tier] || TIER_INFO.byway;
   const pill = (k, v) => (
@@ -408,7 +422,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
               <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.4rem,3vw,1.9rem)", color: "var(--pb-ink)" }}>The route</h2>
-              <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{hasOverlooks ? "Hover an overlook ↔ its map marker" : hasRoute ? "The drive, on the road" : drive.approxLoc ? "Approximate area" : "Route overview"}</span>
+              <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{hasItinerary ? "Numbered stops ↔ the itinerary below" : hasOverlooks ? "Hover an overlook ↔ its map marker" : hasRoute ? "The drive, on the road" : drive.approxLoc ? "Approximate area" : "Route overview"}</span>
             </div>
             <figure style={{ position: "relative", margin: "14px 0 0", height: "clamp(300px,44vh,460px)", overflow: "hidden", borderRadius: 24, border: "1px solid rgba(217,183,121,.16)", background: "var(--pb-surface)" }}>
               <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
@@ -417,15 +431,24 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
           </div>
         </section>
 
-        {/* ROUTE ITINERARY — traveler-friendly stops from the Wikipedia junction list */}
+        {/* NAMED SCENIC ITINERARY — system-generated from the byway's Wikipedia record */}
         {detail && detail.itinerary && detail.itinerary.length >= 2 && (
           <section style={{ padding: "clamp(20px,3vh,32px) clamp(16px,4vw,40px) 6px" }}>
             <div style={{ maxWidth: 820, margin: "0 auto" }}>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.4rem,3vw,1.9rem)", color: "var(--pb-ink)" }}>The drive, stop by stop</h2>
-                <span style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>West → east · from the road log</span>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--pb-surface-2)", border: "1px solid rgba(217,183,121,.28)", borderRadius: 999, padding: "5px 12px 5px 10px" }}>
+                <span aria-hidden style={{ fontSize: ".82rem" }}>⚙</span>
+                <span style={{ fontFamily: mono, fontSize: ".56rem", fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>
+                  System-generated itinerary · America&rsquo;s Byways{detail.designation === "All-American Road" ? " · All-American Road" : ""}
+                </span>
               </div>
-              <RouteItinerary itinerary={detail.itinerary} />
+              <h2 style={{ fontFamily: serif, fontWeight: 800, fontSize: "clamp(1.6rem,3.4vw,2.3rem)", color: "var(--pb-ink)", lineHeight: 1.1, marginTop: 12 }}>
+                The {drive.name}
+                <span style={{ color: "var(--pb-muted)", fontWeight: 600 }}> — Scenic Itinerary</span>
+              </h2>
+              <p style={{ fontSize: ".9rem", color: "var(--pb-muted)", lineHeight: 1.6, marginTop: 6, maxWidth: "64ch" }}>
+                Every stop below is drawn automatically from the official byway record and the route&rsquo;s Wikipedia article — the towns and landmarks you pass, in order, with the miles between them. {hasItinerary ? "Hover a stop to find it on the map." : ""}
+              </p>
+              <RouteItinerary itinerary={detail.itinerary} hoverKey={hoverIdx} onHover={setHoverIdx} />
             </div>
           </section>
         )}
@@ -474,8 +497,8 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
           </section>
         )}
 
-        {/* HIGHLIGHTS */}
-        {hl.length > 0 && (
+        {/* HIGHLIGHTS — hidden when a named itinerary already lists the stops */}
+        {hl.length > 0 && !hasItinerary && (
           <section style={{ padding: "clamp(28px,4vh,44px) clamp(16px,4vw,40px) 6px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <h2 style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(1.4rem,3vw,1.9rem)", color: "var(--pb-ink)" }}>Highlights along the way</h2>

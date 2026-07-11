@@ -15,10 +15,11 @@ const KIND = {
   town: { dot: "#b3862d", ring: "#0a1712", label: "Town", chip: "rgba(179,134,45,.2)", chipInk: "var(--pb-gold-soft)" },
 };
 
-export default function RouteItinerary({ itinerary }) {
+export default function RouteItinerary({ itinerary, hoverKey, onHover }) {
   const stops = (itinerary || []).filter((s) => s && s.place);
   if (stops.length < 2) return null;
   const total = stops[stops.length - 1].mileFromStart;
+  const hover = (k) => onHover && onHover(k);
 
   return (
     <div style={{ marginTop: 16, position: "relative", background: "var(--pb-surface)", border: "1px solid rgba(217,183,121,.16)", borderRadius: 24, padding: "clamp(18px,2.6vw,28px)", boxShadow: "0 22px 54px -34px rgba(28,46,34,.5)" }}>
@@ -28,9 +29,13 @@ export default function RouteItinerary({ itinerary }) {
         <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
           {stops.map((s, i) => {
             const k = KIND[s.kind] || KIND.town;
+            const onMap = s.lat != null;
+            const active = hoverKey != null && s.seq === hoverKey;
             return (
-              <li key={i} style={{ position: "relative", display: "grid", gridTemplateColumns: "32px 1fr", gap: 14, alignItems: "start", padding: "10px 0" }}>
-                <span aria-hidden style={{ position: "relative", zIndex: 1, width: 32, height: 32, borderRadius: "50%", background: k.dot, border: "2px solid " + k.ring, color: "var(--pb-bg)", fontFamily: mono, fontSize: ".72rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px -4px rgba(0,0,0,.5)" }}>{s.seq}</span>
+              <li key={i}
+                onMouseEnter={() => onMap && hover(s.seq)} onMouseLeave={() => onMap && hover(null)}
+                style={{ position: "relative", display: "grid", gridTemplateColumns: "32px 1fr", gap: 14, alignItems: "start", padding: "10px 12px", margin: "0 -12px", borderRadius: 14, cursor: onMap ? "default" : "auto", background: active ? "rgba(232,207,154,.1)" : "transparent", transition: "background .18s" }}>
+                <span aria-hidden style={{ position: "relative", zIndex: 1, width: 32, height: 32, borderRadius: "50%", background: active ? "#1d4a37" : k.dot, border: "2px solid " + (active ? "#e8cf9a" : k.ring), color: active ? "#fff" : "var(--pb-bg)", fontFamily: mono, fontSize: ".72rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: active ? "0 0 0 4px rgba(232,207,154,.25)" : "0 4px 12px -4px rgba(0,0,0,.5)", transition: "background .18s,box-shadow .18s" }}>{s.seq}</span>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                     <b style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.12rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{s.place}</b>

@@ -214,7 +214,11 @@ function controlCities(dest) {
   const parts = d.split(/\s[–—-]\s/);
   const tail = parts.length > 1 ? parts.slice(1).join(" ") : d;
   return tail.split(/,|·|\//).map((x) => clean(x))
-    .filter((x) => x && !/^(?:I|US|SR|CR|SH|FM|Route|Hwy|Highway|Interstate)[-\s]?\d/i.test(x) && !/^(to|toward|via)$/i.test(x) && x.length > 1)
+    .filter((x) => x && /^[A-Z]/.test(x)                                  // real place names start capitalized
+      && !/^(?:I|US|SR|CR|SH|FM|WYO|Route|Hwy|Highway|Interstate)[-\s]?\d/i.test(x) // not a route shield
+      && !/^(To|Toward|Via)$/i.test(x)
+      && !/\b(gate|closure|parking|roundabout|elevation|weekend|entrance road)\b/i.test(x) // not a note fragment
+      && !/\d{3,}/.test(x) && x.length > 1)
     .slice(0, 4);
 }
 
@@ -246,10 +250,12 @@ function transform(grid, drive) {
   // 5) build stops — keep a row only if it names a real TOWN or is notable
   //    (park entrance / named crossing). County-line, interchange, and bare route
   //    junctions are structural noise → dropped from the traveler view.
-  // "…Junction" is a legitimate town name (Mt. Carmel Junction, Grand Junction) —
-  // don't exclude it; bare route junctions have a blank/route Location and are
-  // dropped by the isTown/notable gate below anyway.
-  const looksTown = (loc) => loc && !/\bline$/i.test(loc) && !/^interchange$/i.test(loc);
+  // A town Location must contain a real letter (some tables use a zero-width space
+  // or a bare km value for continuation rows — those aren't towns, and letting them
+  // pass hides the notable crossing the row actually describes). "…Junction" is a
+  // legit town name (Mt. Carmel Junction); bare route junctions have a blank/route
+  // Location and are dropped by the isTown/notable gate below.
+  const looksTown = (loc) => loc && /[A-Za-z]/.test(loc) && !/\bline$/i.test(loc) && !/^interchange$/i.test(loc);
   const stops = [];
   for (const r of seq) {
     const control = controlCities(r.destinations);

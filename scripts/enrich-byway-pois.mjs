@@ -213,13 +213,17 @@ async function enrich(drive, detail) {
   // several coast/scenic relations — e.g. "Big Sur…" vs "…North Coast Byway" — so
   // score by distinctive shared tokens, not just member count).
   const wantTokens = [...new Set((drive.name + " " + roadName0).toLowerCase().split(/[^a-z0-9]+/))].filter((w) => w.length >= 3 && !GENERIC.test(w) && w !== "coast");
+  const relScore = (r) => { const n = ((r.tags || {}).name || "").toLowerCase(); return wantTokens.filter((w) => n.includes(w)).length; };
   const pickRel = (j) => {
     const rels = (j && j.elements || []).filter((e) => e.type === "relation" && (e.members || []).length);
     if (!rels.length) return null;
-    const score = (r) => { const n = ((r.tags || {}).name || "").toLowerCase(); return wantTokens.filter((w) => n.includes(w)).length; };
-    return rels.sort((a, b) => score(b) - score(a) || (b.members.length - a.members.length))[0];
+    return rels.sort((a, b) => relScore(b) - relScore(a) || (b.members.length - a.members.length))[0];
   };
   let rel = pickRel(await safeOP(`[out:json][timeout:120];relation["type"="route"]["route"="road"]["name"~"${kw}",i](${bbox});out geom;`));
+  // A relation whose NAME clearly matches this byway (≥2 distinctive tokens) IS the
+  // byway — trust its full geometry as-is (no length trim, no fragment rejection,
+  // even if our stored lengthMi is wrong, e.g. inherited from the parent highway).
+  let bywayRelation = !!(rel && relScore(rel) >= 2);
   if (!rel && roadNum) rel = pickRel(await safeOP(`[out:json][timeout:120];relation["type"="route"]["route"="road"]["ref"~"(^| )${roadNum}$"](${bbox});out geom;`));
   if (rel) ways = rel.members.filter((m) => m.type === "way" && m.geometry && m.geometry.length > 1).map((m) => ({ geometry: m.geometry }));
   if (ways.length < 2) {
@@ -253,7 +257,7 @@ async function enrich(drive, detail) {
     const gi = (detail.itinerary || []).filter((s) => s.lat != null);
     i0 = projIdx(gi[0].lat, gi[0].lng); i1 = projIdx(gi[gi.length - 1].lat, gi[gi.length - 1].lng);
     if (i0 > i1) { const t = i0; i0 = i1; i1 = t; }
-  } else if (drive.lengthMi > 0 && miles[miles.length - 1] > drive.lengthMi * 1.4) {
+  } else if (!bywayRelation && drive.lengthMi > 0 && miles[miles.length - 1] > drive.lengthMi * 1.4) {
     // only when the match is a whole numbered highway, far longer than the byway —
     // NOT when we matched the byway's own relation (already the right length).
     const c = projIdx(drive.lat, drive.lng), half = drive.lengthMi / 2;
@@ -267,7 +271,7 @@ async function enrich(drive, detail) {
   // out far shorter than the byway's real length — that's a stub near the anchor, not
   // the road. Better an honest pointer + gallery than a misleading fragment. (Diffuse
   // multi-road routes like Route 66 / Great River Road / a ferry system land here.)
-  if (!hasItin && drive.lengthMi > 0 && miles[miles.length - 1] < 0.4 * drive.lengthMi) {
+  if (!hasItin && !bywayRelation && drive.lengthMi > 0 && miles[miles.length - 1] < 0.4 * drive.lengthMi) {
     return { gallery, routeLine: null, routeSource: null, routeMiles: null, pois: [], counts: {}, note: "route fragment " + Math.round(miles[miles.length - 1]) + "mi ≪ byway " + drive.lengthMi + "mi" };
   }
 

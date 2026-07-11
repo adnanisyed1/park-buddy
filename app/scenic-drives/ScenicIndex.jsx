@@ -21,7 +21,10 @@ function DriveTile({ d }) {
   // brewery for Red Rock, an office building for Seward, even photos of Earth
   // from the ISS. Only the name-based match is reliably relevant; otherwise show
   // the elegant placeholder. (Honest > wrong, per the no-wrong-images rule.)
-  const photo = usePhoto([...(d.wiki || []), d.name].join("|"), null, null, tileRef);
+  // Prefer the stored card image (a real Commons photo of the drive); fall back to
+  // the name-based Wikipedia lookup only when we don't have one.
+  const photo = usePhoto(d.cardImage ? null : [...(d.wiki || []), d.name].join("|"), null, null, tileRef);
+  const cardUrl = d.cardImage || (photo && photo.url);
   const bm = d.tier === "all-american"
     ? { bg: "linear-gradient(135deg,#e8cf9a,var(--pb-gold-2))", ink: "#4a3410", label: "All-American Road" }
     : d.tier === "landmark"
@@ -31,7 +34,7 @@ function DriveTile({ d }) {
   return (
     <Link ref={tileRef} href={"/scenic-drives/" + d.id} prefetch={false} style={{ display: "block", textDecoration: "none", cursor: "pointer", background: "var(--pb-surface)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 22, overflow: "hidden", boxShadow: "0 26px 60px -40px rgba(0,0,0,.9)" }}>
       <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "repeating-linear-gradient(135deg,var(--pb-surface-2) 0 14px,var(--pb-surface) 14px 28px)" }}>
-        {photo && photo.url && <img src={photo.url} alt={d.name} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+        {cardUrl && <img src={cardUrl} alt={d.name} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.15) 40%,rgba(9,24,16,.8) 100%)" }} />
         <div style={{ position: "absolute", left: 12, top: 12, display: "inline-flex", alignItems: "center", gap: 7, background: bg, borderRadius: 12, padding: "6px 11px", boxShadow: "0 10px 26px -12px rgba(0,0,0,.7)" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill={ink} style={{ flex: "none" }}><path d="M12 2l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17l-5.8 3 1.1-6.5L2.6 8.8l6.5-.9z" /></svg>

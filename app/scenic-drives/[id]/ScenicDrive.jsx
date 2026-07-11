@@ -129,6 +129,9 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   // But many byways have no Wikipedia lead image, so fall back to a nearby national
   // park's photo (passed from the server) rather than leaving the hero blank.
   const heroPhoto = usePhoto([...(drive.wiki || []), drive.name].join("|"), null, null, undefined, undefined, heroFallback);
+  // Reliable hero: a real Commons photo from the gallery wins (Wikipedia lead images
+  // often don't exist for byway names); fall back to the name lookup, then card image.
+  const heroUrl = (detail && detail.gallery && detail.gallery[0] && detail.gallery[0].url) || (heroPhoto && heroPhoto.url) || drive.cardImage;
   const [road, setRoad] = useState(undefined);
   const [highlights, setHighlights] = useState(drive.highlights || null);
   const [film, setFilm] = useState([]);
@@ -355,7 +358,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
       {/* HERO */}
       <section style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,760px)", display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "clamp(80px,12vh,140px) clamp(16px,4vw,40px) clamp(40px,6vh,64px)" }}>
         <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "var(--pb-surface)" }}>
-          {heroPhoto && heroPhoto.url && <img className="sd-anim" alt={drive.name} src={heroPhoto.url} style={{ position: "absolute", inset: "-6%", width: "112%", height: "112%", objectFit: "cover", transformOrigin: "60% 40%", animation: "sd-ken 26s ease-in-out infinite alternate" }} />}
+          {heroUrl && <img className="sd-anim" alt={drive.name} src={heroUrl} style={{ position: "absolute", inset: "-6%", width: "112%", height: "112%", objectFit: "cover", transformOrigin: "60% 40%", animation: "sd-ken 26s ease-in-out infinite alternate" }} />}
         </div>
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.42) 0%,rgba(9,24,16,.05) 34%,rgba(9,24,16,.55) 82%,rgba(9,24,16,.86) 100%)" }} />
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(120% 90% at 80% 0%,rgba(228,190,120,.14),transparent 55%)" }} />

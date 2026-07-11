@@ -176,11 +176,22 @@ async function enrich(drive, detail) {
   // one Overpass call) still get a Commons photo gallery.
   const gallery = await commonsGallery(roadName0, drive.name);
   const stops = (detail.itinerary || []).filter((s) => s.lat != null);
-  if (stops.length < 2) return { gallery, routeLine: null, routeSource: null, routeMiles: null, pois: [], counts: {} };
+  const hasItin = stops.length >= 2;
+  // Without a junction-table itinerary we can still build a route straight from OSM
+  // by the road's name/number, anchored on the drive's own coordinate — as long as
+  // it has a real point (not a state-centroid approxLoc).
+  if (!hasItin && (drive.lat == null || drive.approxLoc)) return { gallery, routeLine: null, routeSource: null, routeMiles: null, pois: [], counts: {} };
   try {
-  const lats = stops.map((s) => s.lat), lngs = stops.map((s) => s.lng);
-  const pad = 0.12;
-  const bbox = [Math.min(...lats) - pad, Math.min(...lngs) - pad, Math.max(...lats) + pad, Math.max(...lngs) + pad].map((n) => n.toFixed(4)).join(",");
+  let bbox;
+  if (hasItin) {
+    const lats = stops.map((s) => s.lat), lngs = stops.map((s) => s.lng), pad = 0.12;
+    bbox = [Math.min(...lats) - pad, Math.min(...lngs) - pad, Math.max(...lats) + pad, Math.max(...lngs) + pad].map((n) => n.toFixed(4)).join(",");
+  } else {
+    // search box around the drive's anchor; the route RELATION's full geometry is
+    // returned regardless, so this only needs to intersect the road, not contain it.
+    const pad = 0.85;
+    bbox = [drive.lat - pad, drive.lng - pad, drive.lat + pad, drive.lng + pad].map((n) => n.toFixed(4)).join(",");
+  }
   // DISTINCTIVE road-name keywords (drop generic words that match half of OSM).
   const GENERIC = /^(highway|byway|scenic|historic|road|route|parkway|skyway|trail|drive|national|state|memorial|coastal|loop|tour|the|of|county|us|interstate)$/i;
   const roadName = ((detail.source && detail.source.roadArticle) || drive.name).replace(/\s*\([^)]*\)/g, "");
@@ -217,21 +228,48 @@ async function enrich(drive, detail) {
   // reject stray pieces beyond the byway: trim the line to the span between the
   // itinerary termini is unnecessary if the relation is byway-bounded, but guard by
   // checking the last stop is reachable below.
-  // orient start→end to match the itinerary direction
-  if (distMi(line[0][0], line[0][1], stops[0].lat, stops[0].lng) > distMi(line[line.length - 1][0], line[line.length - 1][1], stops[0].lat, stops[0].lng)) line.reverse();
-  const miles = cumulativeMiles(line);
+  // orient start→end to match the itinerary direction (when we have one)
+  if (hasItin && distMi(line[0][0], line[0][1], stops[0].lat, stops[0].lng) > distMi(line[line.length - 1][0], line[line.length - 1][1], stops[0].lat, stops[0].lng)) line.reverse();
+  let miles = cumulativeMiles(line);
+
+  // Trim to the byway's OWN extent so a route-number match that pulled the whole
+  // numbered highway (e.g. all of US-30, or A1A end to end) is cut to just the byway.
+  // With an itinerary: span the first→last stop. Without one: a length-sized window
+  // around the drive's anchor. Only trim when it removes a meaningful chunk.
+  const projIdx = (lat, lng) => { let bd = Infinity, bi = 0; for (let i = 0; i < line.length; i++) { const d = distMi(lat, lng, line[i][0], line[i][1]); if (d < bd) { bd = d; bi = i; } } return bi; };
+  let i0 = 0, i1 = line.length - 1;
+  if (hasItin) {
+    const gi = (detail.itinerary || []).filter((s) => s.lat != null);
+    i0 = projIdx(gi[0].lat, gi[0].lng); i1 = projIdx(gi[gi.length - 1].lat, gi[gi.length - 1].lng);
+    if (i0 > i1) { const t = i0; i0 = i1; i1 = t; }
+  } else if (drive.lengthMi > 0) {
+    const c = projIdx(drive.lat, drive.lng), half = drive.lengthMi / 2;
+    while (i0 < c && miles[c] - miles[i0] > half) i0++;
+    while (i1 > c && miles[i1] - miles[c] > half) i1--;
+  }
+  const dropStart = miles[i0], dropEnd = miles[miles.length - 1] - miles[i1];
+  if (i1 - i0 >= 1 && (dropStart > 4 || dropEnd > 4)) { line = line.slice(i0, i1 + 1); miles = cumulativeMiles(line); }
+
+  // Reject a route built straight from OSM (no itinerary to bound it) when it comes
+  // out far shorter than the byway's real length — that's a stub near the anchor, not
+  // the road. Better an honest pointer + gallery than a misleading fragment. (Diffuse
+  // multi-road routes like Route 66 / Great River Road / a ferry system land here.)
+  if (!hasItin && drive.lengthMi > 0 && miles[miles.length - 1] < 0.4 * drive.lengthMi) {
+    return { gallery, routeLine: null, routeSource: null, routeMiles: null, pois: [], counts: {}, note: "route fragment " + Math.round(miles[miles.length - 1]) + "mi ≪ byway " + drive.lengthMi + "mi" };
+  }
 
   // Snap itinerary pins ONTO the real road line so every numbered marker sits on the
-  // drawn route (fixes geocoded town-centres sitting off-road) — and pin the two
-  // termini to the exact ends of the road, so the "start" marker is at the true start
-  // and doesn't stack on top of the first town (that's why pin 1 hid under pin 2).
-  const nearestOnLine = (lat, lng) => { let bd = Infinity, bp = null; for (const p of line) { const d = distMi(lat, lng, p[0], p[1]); if (d < bd) { bd = d; bp = p; } } return bp; };
-  const geoIdx = (detail.itinerary || []).map((s, i) => (s.lat != null ? i : -1)).filter((i) => i >= 0);
-  for (const i of geoIdx) { const s = detail.itinerary[i]; const bp = nearestOnLine(s.lat, s.lng); if (bp) { s.lat = round5(bp[0]); s.lng = round5(bp[1]); } }
-  if (geoIdx.length) {
-    const f = detail.itinerary[geoIdx[0]], l = detail.itinerary[geoIdx[geoIdx.length - 1]];
-    f.lat = round5(line[0][0]); f.lng = round5(line[0][1]); delete f.snapped;
-    l.lat = round5(line[line.length - 1][0]); l.lng = round5(line[line.length - 1][1]); delete l.snapped;
+  // drawn route (and pin the two termini to the road's ends). Only when there IS an
+  // itinerary — routes built straight from OSM have no stops to snap.
+  if (hasItin) {
+    const nearestOnLine = (lat, lng) => { let bd = Infinity, bp = null; for (const p of line) { const d = distMi(lat, lng, p[0], p[1]); if (d < bd) { bd = d; bp = p; } } return bp; };
+    const geoIdx = (detail.itinerary || []).map((s, i) => (s.lat != null ? i : -1)).filter((i) => i >= 0);
+    for (const i of geoIdx) { const s = detail.itinerary[i]; const bp = nearestOnLine(s.lat, s.lng); if (bp) { s.lat = round5(bp[0]); s.lng = round5(bp[1]); } }
+    if (geoIdx.length) {
+      const f = detail.itinerary[geoIdx[0]], l = detail.itinerary[geoIdx[geoIdx.length - 1]];
+      f.lat = round5(line[0][0]); f.lng = round5(line[0][1]); delete f.snapped;
+      l.lat = round5(line[line.length - 1][0]); l.lng = round5(line[line.length - 1][1]); delete l.snapped;
+    }
   }
 
   // 2) POI sweep — query AROUND the route line (within ~1 mi), not a giant bounding
@@ -294,8 +332,10 @@ for (const id of only) {
   if (!drive || !fs.existsSync(file)) { console.log("⚠ skip " + id + " (no drive/detail)"); continue; }
   const detail = JSON.parse(fs.readFileSync(file, "utf8"));
   const done = detail.routeLine && detail.pois && detail.gallery;
-  const galleryOnly = detail.gallery && detail.gallery.length && !(detail.itinerary || []).some((s) => s.lat != null); // no route possible → gallery is all it can get
-  if (!process.env.PB_FORCE && (done || galleryOnly)) { console.log("· skip (done) " + id); continue; }
+  const noItin = !(detail.itinerary || []).some((s) => s.lat != null);
+  const cantRoute = drive.approxLoc || drive.lat == null; // no anchor to build a route from either
+  const galleryTerminal = detail.gallery && detail.gallery.length && noItin && cantRoute;
+  if (!process.env.PB_FORCE && (done || galleryTerminal)) { console.log("· skip (done) " + id); continue; }
   try {
     const res = await enrich(drive, detail);
     if (res.skip) { console.log("⚠ " + id + ": " + res.skip); continue; }

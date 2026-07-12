@@ -169,6 +169,17 @@ const CATS = [
 ];
 function categorize(tags) { for (const c of CATS) if (c.match(tags)) return c; return null; }
 
+// natural=water also tags fountains, swimming pools, stock tanks, borrow pits and
+// sewage/retention basins — tiny non-lakes that drop a "lake" pin on a street or
+// pullout. Filter them out (by tag + name) so only real lakes/ponds/reservoirs show.
+// Keep the famous exception "…Blue Pool" (Tamolitch).
+const JUNK_WATER_NAME = /\b(fountains?|tanks?|(?:borrow|gravel|sand)\s*pits?|sewage|treatment|retention|detention|wastewater|settling|effluent|clarifier|stormwater|storage|sediment|reclaimed|(?:reflecting|reflection|sports|swimming|lap)\s*pools?)\b/i;
+function isJunkWater(t) {
+  if (t.amenity === "fountain" || t.leisure === "swimming_pool" || t.landuse === "basin") return true;
+  const n = t.name || "";
+  return JUNK_WATER_NAME.test(n) && !/blue\s*pool/i.test(n);
+}
+
 async function enrich(drive, detail) {
   const roadName0 = ((detail.source && detail.source.roadArticle) || drive.name).replace(/\s*\([^)]*\)/g, "");
   // Photo gallery is independent of route geometry — fetch it first so even
@@ -311,6 +322,7 @@ async function enrich(drive, detail) {
   const buckets = {};
   for (const el of (poiJ.elements || [])) {
     const t = el.tags || {}; const cat = categorize(t); if (!cat) continue;
+    if (cat.type === "lake" && isJunkWater(t)) continue; // fountains, pools, stock tanks, sewage basins → not lakes
     const lat = el.lat ?? (el.center && el.center.lat), lng = el.lon ?? (el.center && el.center.lon);
     if (lat == null) continue;
     let name = t.name || (cat.type === "overlook" ? "Scenic overlook" : null);

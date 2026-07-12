@@ -13,6 +13,13 @@
     "top-of-the-rockies": { "road": "Top of the Rockies" },
     "san-luis-obispo-north-coast-byway": { "road": "California State Route 1" },
     "blue-ridge-parkway": { "road": "Blue Ridge Parkway" },
-    "flaming-gorge-green-river-basin-scenic-byway": { "road": "Flaming Gorge National Recreation Area" }
+    "flaming-gorge-green-river-basin-scenic-byway": { "road": "Flaming Gorge National Recreation Area" },
+    "katahdin-woods-and-waters-scenic-byway": { "road": "Maine State Route 11" },
+    "paul-bunyan-scenic-byway": { "road": "Minnesota State Highway 18" },
+    "amish-country-byway": { "road": "Ohio State Route 39" },
+    "hocking-hills-scenic-byway": { "road": "Ohio State Route 664" },
+    "coronado-trail-scenic-road": { "road": "U.S. Route 191 in Arizona" },
+    "silver-thread-scenic-byway": { "road": "Colorado State Highway 149" },
+    "pioneer-historic-byway": { "road": "Idaho State Highway 34" }
   }
 }

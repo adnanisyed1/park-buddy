@@ -6,6 +6,24 @@ plan and `DESIGN.md` for the design system.
 
 ---
 
+## 🛣️ Scenic drives (OSM route + POIs + galleries)
+In progress:
+- [ ] **National Scenic Byways tier (103 drives)** — roll out the same OSM enrichment
+      (routeLine + roadside POIs + Commons gallery) used on the All-American tier. Many
+      are `approxLoc` (61/103), so expect a first pass of galleries + relation-matched
+      routes, then a coord-fix sweep for the marquee/fixable ones (same as All-American).
+
+Circle back after the 103 are done — 8 All-American Roads still gallery-only:
+- [ ] **Blue Ridge Parkway** — 469mi OSM relation times out Overpass `out geom`; needs a
+      tiled-bbox geometry fetch (fetch the relation's ways per lat/lng tile, then stitch).
+- [ ] **Chesapeake Country** — no clean OSM relation; ways-fallback grabbed the wrong
+      Dorchester/Blackwater roads. Needs the real MD-213 relation (Chestertown→Chesapeake
+      City) pinned, or a hand-built route.
+- [ ] Genuinely diffuse/oversized — likely stay gallery-only, revisit only if we build a
+      multi-segment route model: **Route 66**, **Great River Road**, **Historic National
+      Road** (transcontinental US-40), **Lakes to Locks Passage**, **Harriet Tubman
+      Underground Railroad Byway**, **International Selkirk Loop** (tri-state loop).
+
 ## 🧳 Trip platform (planner → Trip Mode → Trip Book)
 Shipped this session:
 - [x] ~~Add any **physical address / place** as a stop~~ — /api/geocode (OSM Nominatim);

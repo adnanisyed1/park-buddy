@@ -374,8 +374,13 @@ async function enrich(drive, detail) {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 const all = parseArr("public/byways-data.js", "window.BYWAYS_DATA");
-const only = (process.env.PB_ONLY || "").split(",").map((s) => s.trim()).filter(Boolean);
-if (!only.length) { console.error("Set PB_ONLY=<id[,id...]>"); process.exit(1); }
+// PB_ONLY=<id[,id...]> for a hand-picked set, or PB_TIER=<tier> to sweep a whole
+// FHWA tier (e.g. national-scenic-byway). Drives with no detail file are skipped
+// (need a Wikipedia base-ingest first); resume is cheap via the done/gallery skip.
+const tier = (process.env.PB_TIER || "").trim();
+let only = (process.env.PB_ONLY || "").split(",").map((s) => s.trim()).filter(Boolean);
+if (!only.length && tier) only = all.filter((d) => d.tier === tier).map((d) => d.id);
+if (!only.length) { console.error("Set PB_ONLY=<id[,id...]> or PB_TIER=<tier>"); process.exit(1); }
 
 for (const id of only) {
   const drive = all.find((d) => d.id === id);

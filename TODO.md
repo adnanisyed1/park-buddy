@@ -7,13 +7,18 @@ plan and `DESIGN.md` for the design system.
 ---
 
 ## 🛣️ Scenic drives (OSM route + POIs + galleries)
-In progress:
-- [ ] **National Scenic Byways tier (103 drives)** — roll out the same OSM enrichment
-      (routeLine + roadside POIs + Commons gallery) used on the All-American tier. Many
-      are `approxLoc` (61/103), so expect a first pass of galleries + relation-matched
-      routes, then a coord-fix sweep for the marquee/fixable ones (same as All-American).
+Shipped:
+- [x] ~~**National Scenic Byways tier (103 drives)**~~ — OSM route + POIs + galleries rolled
+      out; recovered 7 article-less drives via underlying-road seed-mapping, stubbed 8
+      diffuse ones, coord-fixed ~26 with placeholder anchors. **89/103 routed** (from 0). ✅
+- [x] ~~**All-American tier (37)**~~ — **29/37 routed**. ✅
 
-Circle back after the 103 are done — 8 All-American Roads still gallery-only:
+Still gallery-only (revisit only with a multi-segment/tiled route model) —
+14 National Scenic Byways: brandywine-valley, cascade-loop, connecticut-river-byway,
+country-music-highway (US-23, no named OSM relation), crowley-s-ridge-parkway,
+dinosaur-diamond, door-county-coastal-byway, lincoln-highway, loess-hills, pine-barrens
+(no gallery either), seaway-trail, trail-of-the-ancients, washington-heritage-trail,
+wetlands-and-wildlife. Plus 8 All-American Roads:
 - [ ] **Blue Ridge Parkway** — 469mi OSM relation times out Overpass `out geom`; needs a
       tiled-bbox geometry fetch (fetch the relation's ways per lat/lng tile, then stitch).
 - [ ] **Chesapeake Country** — no clean OSM relation; ways-fallback grabbed the wrong

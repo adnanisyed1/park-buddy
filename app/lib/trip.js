@@ -41,6 +41,8 @@ function read() {
       if (s.lat != null && s.lng != null) { o.lat = Number(s.lat); o.lng = Number(s.lng); }
       if (s.state) o.state = String(s.state);
       if (s.custom) o.custom = true;
+      if (s.kind) o.kind = String(s.kind);       // e.g. "byway" — a scenic drive, not a park
+      if (s.slug) o.slug = String(s.slug);       // links a byway stop back to /scenic-drives/<slug>
       return o;
     })
     .filter(Boolean);
@@ -124,6 +126,8 @@ export function setStops(list) {
       if (s.lat != null && s.lng != null) { o.lat = Number(s.lat); o.lng = Number(s.lng); }
       if (s.state) o.state = String(s.state);
       if (s.custom) o.custom = true;
+      if (s.kind) o.kind = String(s.kind);
+      if (s.slug) o.slug = String(s.slug);
       return o;
     })
     .filter(Boolean);

@@ -113,11 +113,13 @@ export default function BuildTripApp() {
   // Explore-style filters — the full set. Destination types put clickable markers on
   // the map (tap to add to the trip); the "on the map" layers draw campgrounds, lakes
   // and trails around each stop within the radius.
-  const [layers, setLayers] = useState({ np: true, statePark: false, forest: false, camp: false, lake: false, hiking: false, offroad: false, ski: false });
+  const [layers, setLayers] = useState({ np: true, statePark: false, forest: false, byway: false, camp: false, lake: false, hiking: false, offroad: false, ski: false });
   const [browseState, setBrowseState] = useState(""); // "" = all states
   const [radius, setRadius] = useState(50); // miles — scopes the map layers around each stop
   const [forestsDb, setForestsDb] = useState([]);
   const [stateParksDb, setStateParksDb] = useState([]);
+  const [bywaysDb, setBywaysDb] = useState([]); // America's Byways (scenic drives) — add whole drives as trip stops
+  const [addBywaySel, setAddBywaySel] = useState("");
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
   const dirServiceRef = useRef(null);
@@ -296,7 +298,7 @@ export default function BuildTripApp() {
       const matched = saved
         .map((s) => {
           // Custom (geocoded) stops carry their own coords; parks match trip-data.
-          if (s.lat != null && s.lng != null) return { name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom };
+          if (s.lat != null && s.lng != null) return { name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom, ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}) };
           const p = db.find((x) => x.name === s.name);
           return p ? { name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: s.nights > 0 ? s.nights : 2, legMi: null } : null;
         })
@@ -337,7 +339,7 @@ export default function BuildTripApp() {
     // but don't duplicate our own stops (parks + geocoded customs carry coords).
     const managed = new Set(stops.map((s) => s.name));
     const preserved = tripStops().filter((s) => !managed.has(s.name));
-    tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom })), ...preserved]);
+    tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })), ...preserved]);
     tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate, transport });
   }, [stops, tripName, startDate, adults, infants, arrivalMode, tripScope, endDate, transport]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -445,18 +447,35 @@ export default function BuildTripApp() {
     fetch("/national-forests.json").then((r) => (r.ok ? r.json() : null)).then((d) => setForestsDb((d && d.forests) || [])).catch(() => {});
   }, []);
 
+  // Scenic drives (America's Byways) — for the "Scenic routes" layer + the add dropdown.
+  // Same self-fetch pattern as trip-data.js: byways-data.js sets window.BYWAYS_DATA.
+  useEffect(() => {
+    loadScript("/byways-data.js").then(() => setBywaysDb(window.BYWAYS_DATA || [])).catch(() => {});
+  }, []);
+
   function browseMarkerSvg(type, color) {
     let shape;
     if (type === "forest") shape = '<polygon points="11,3 19,18 3,18" fill="' + color + '" stroke="#0a1710" stroke-width="1.5"/>';
     else if (type === "statePark") shape = '<g transform="rotate(45 11 11)"><rect x="4.5" y="4.5" width="13" height="13" rx="2" fill="' + color + '" stroke="#0a1710" stroke-width="1.5"/></g>';
+    else if (type === "byway") shape = '<g transform="rotate(-38 11 11)"><rect x="7.5" y="2.5" width="7" height="17" rx="3.5" fill="' + color + '" stroke="#0a1710" stroke-width="1.5"/><line x1="11" y1="6" x2="11" y2="9" stroke="#0a1710" stroke-width="1.4" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="16" stroke="#0a1710" stroke-width="1.4" stroke-linecap="round"/></g>';
     else shape = '<circle cx="11" cy="11" r="8" fill="' + color + '" stroke="#0a1710" stroke-width="1.5"/>';
     return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">' + shape + "</svg>");
   }
 
   function addDestination(d) {
     if (!d || d.lat == null || stops.some((s) => s.name === d.name)) return;
-    commitStops(stops.concat([{ name: d.name, state: d.state || "", lat: d.lat, lng: d.lng, nights: 1, legMi: null }]));
+    const stop = { name: d.name, state: d.state || "", lat: d.lat, lng: d.lng, nights: 1, legMi: null };
+    if (d.kind) stop.kind = d.kind;   // "byway" scenic-drive stops link back to their page
+    if (d.slug) stop.slug = d.slug;
+    commitStops(stops.concat([stop]));
   }
+  // Add a whole scenic drive to the trip (anchored at the drive's own coordinate).
+  const addByway = () => {
+    if (!addBywaySel) return;
+    const b = bywaysDb.find((x) => x.id === addBywaySel);
+    if (b && b.lat != null) addDestination({ name: b.name, state: b.states || b.state || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id });
+    setAddBywaySel("");
+  };
 
   function drawBrowse() {
     const g = window.google, map = mapObjRef.current;
@@ -465,24 +484,28 @@ export default function BuildTripApp() {
     browseMarkersRef.current = [];
     const inTrip = new Set(stops.map((s) => s.name));
     const st = browseState;
-    const paint = (list, type, color) => {
+    const paint = (list, type, color, extra) => {
       list.forEach((d) => {
         if (!d || d.lat == null || inTrip.has(d.name)) return;
-        if (st && d.state !== st) return;
+        // byways carry a multi-state `states` string ("Arizona · Utah"); match by
+        // inclusion so a filtered state still surfaces its multi-state drives.
+        const dstate = d.state || d.states || "";
+        if (st && (d.state ? d.state !== st : !dstate.includes(st))) return;
         const mk = new g.maps.Marker({
-          position: { lat: d.lat, lng: d.lng }, map, title: d.name + (d.state ? " · " + d.state : "") + " — tap to add",
+          position: { lat: d.lat, lng: d.lng }, map, title: d.name + (dstate ? " · " + dstate : "") + " — tap to add",
           icon: { url: browseMarkerSvg(type, color), scaledSize: new g.maps.Size(22, 22), anchor: new g.maps.Point(11, 11) },
-          zIndex: 1,
+          zIndex: type === "byway" ? 2 : 1,
         });
-        mk.addListener("click", () => addDestination({ name: d.name, state: d.state, lat: d.lat, lng: d.lng }));
+        mk.addListener("click", () => addDestination({ name: d.name, state: dstate, lat: d.lat, lng: d.lng, ...(extra ? extra(d) : {}) }));
         browseMarkersRef.current.push(mk);
       });
     };
     if (layers.np) paint(parksDb, "np", "#5fbf86");
     if (layers.forest) paint(forestsDb, "forest", "#6f9e5a");
     if (layers.statePark) paint(stateParksDb, "statePark", "#d9a441");
+    if (layers.byway) paint(bywaysDb, "byway", "#e4be78", (d) => ({ kind: "byway", slug: d.id }));
   }
-  useEffect(() => { drawBrowse(); }, [layers, browseState, parksDb, forestsDb, stateParksDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawBrowse(); }, [layers, browseState, parksDb, forestsDb, stateParksDb, bywaysDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* -------- "on the map" layers: campgrounds / lakes / trails around each stop -------- */
 
@@ -726,8 +749,8 @@ export default function BuildTripApp() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
                 <div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Filters · tap a map marker to add</div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => setLayers({ np: true, statePark: true, forest: true, camp: true, lake: true, hiking: true, offroad: true, ski: true })} style={btFilterMini}>All</button>
-                  <button onClick={() => setLayers({ np: false, statePark: false, forest: false, camp: false, lake: false, hiking: false, offroad: false, ski: false })} style={btFilterMini}>None</button>
+                  <button onClick={() => setLayers({ np: true, statePark: true, forest: true, byway: true, camp: true, lake: true, hiking: true, offroad: true, ski: true })} style={btFilterMini}>All</button>
+                  <button onClick={() => setLayers({ np: false, statePark: false, forest: false, byway: false, camp: false, lake: false, hiking: false, offroad: false, ski: false })} style={btFilterMini}>None</button>
                 </div>
               </div>
               {/* state + radius */}
@@ -754,6 +777,7 @@ export default function BuildTripApp() {
                 <BtTog glyph="●" color="#5fbf86" label="National Parks" on={layers.np} onClick={() => setLayers((l) => ({ ...l, np: !l.np }))} />
                 <BtTog glyph="◆" color="#d9a441" label="State Parks" on={layers.statePark} onClick={() => setLayers((l) => ({ ...l, statePark: !l.statePark }))} />
                 <BtTog glyph="▲" color="#6f9e5a" label="National Forests" on={layers.forest} onClick={() => setLayers((l) => ({ ...l, forest: !l.forest }))} />
+                <BtTog glyph="⛰" color="#e4be78" label="Scenic routes" on={layers.byway} onClick={() => setLayers((l) => ({ ...l, byway: !l.byway }))} />
               </div>
               {/* on-the-map layers */}
               <div style={{ ...fieldLabel, marginBottom: 7 }}>On the map · around each stop</div>
@@ -875,10 +899,14 @@ export default function BuildTripApp() {
                             <span style={{ color: "var(--pb-muted)", fontSize: "1rem", marginTop: 4, cursor: "grab" }}>⠿</span>
                             <span style={{ width: 30, height: 30, flex: "none", borderRadius: "50%", background: "linear-gradient(150deg,#33555f,#1d3941)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: ".86rem", border: "2px solid #e4be78", boxShadow: "0 4px 12px -4px rgba(0,0,0,.4)" }}>{i + 1}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c79a4b" }}>{dayRanges[i] ? dayRanges[i].label : ""}</div>
+                              <div style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c79a4b", display: "flex", alignItems: "center", gap: 6 }}>
+                                {s.kind === "byway" && <span style={{ background: "rgba(228,190,120,.16)", color: "#e4be78", border: "1px solid rgba(228,190,120,.35)", borderRadius: 999, padding: "1px 7px", letterSpacing: ".04em" }}>⛰ Scenic drive</span>}
+                                <span>{dayRanges[i] ? dayRanges[i].label : ""}</span>
+                              </div>
                               <b style={{ fontFamily: serif, fontSize: "1.02rem", fontWeight: 700, color: "var(--pb-ink)", display: "block", lineHeight: 1.15 }}>{s.name}</b>
                               <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>
                                 {s.state} · {s.nights} night{s.nights === 1 ? "" : "s"} · {i === 0 ? "arrive " + fmtShort(dayRanges[0] ? dayRanges[0].arrive : startDate) : (s.legMi != null ? s.legMi + " mi from " + stops[i - 1].name : "")}
+                                {s.kind === "byway" && s.slug && <> · <a href={"/scenic-drives/" + s.slug} target="_blank" rel="noopener noreferrer" style={{ color: "#e4be78", fontWeight: 700, textDecoration: "none" }}>view drive →</a></>}
                               </div>
                             </div>
                             <span onClick={() => removeStop(i)} style={{ color: "#b06a4a", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}>×</span>
@@ -902,6 +930,24 @@ export default function BuildTripApp() {
                       ))}
                     </select>
                     <button onClick={addPark} style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
+                  </div>
+                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Add a scenic route</div>
+                  <div style={{ display: "flex", gap: 9 }}>
+                    <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
+                      <option value="">Choose a scenic drive…</option>
+                      {[["all-american", "All-American Roads"], ["national-scenic-byway", "National Scenic Byways"], ["*", "Other scenic drives"]].map(([tier, label]) => {
+                        const rows = bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name));
+                        if (!rows.length) return null;
+                        return (
+                          <optgroup key={tier} label={label}>
+                            {rows.sort((a, b) => a.name.localeCompare(b.name)).map((b) => (
+                              <option key={b.id} value={b.id}>{b.name} — {b.states || b.state || ""}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      })}
+                    </select>
+                    <button onClick={addByway} style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
                   </div>
                   <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Or add a place — home, hotel, town…</div>
                   <div style={{ display: "flex", gap: 9 }}>

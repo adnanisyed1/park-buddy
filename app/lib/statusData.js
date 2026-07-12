@@ -94,7 +94,7 @@ export async function getByway(id) {
 export async function getBywayDetail(id) {
   if (!id) return null;
   try {
-    const r = await fetch(origin() + "/byways/detail/" + encodeURIComponent(id) + ".json?v=19", { next: { revalidate: 86400 } });
+    const r = await fetch(origin() + "/byways/detail/" + encodeURIComponent(id) + ".json?v=20", { next: { revalidate: 86400 } });
     if (!r.ok) return null;
     return await r.json();
   } catch {

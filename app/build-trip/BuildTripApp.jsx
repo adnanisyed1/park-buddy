@@ -130,6 +130,7 @@ export default function BuildTripApp() {
   const [setupCollapsed, setSetupCollapsed] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [hoverIdx, setHoverIdx] = useState(null); // itinerary card ↔ map pin hover link
+  const [layersOpen, setLayersOpen] = useState(false); // Trip Studio map "Layers" control popover
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
   const dirServiceRef = useRef(null);
@@ -784,6 +785,7 @@ export default function BuildTripApp() {
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
           gmapsUrl={gmapsUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}
+          layers={layers} setLayers={setLayers} layersOpen={layersOpen} setLayersOpen={setLayersOpen}
           fieldBox={fieldBox}
         />
       </div>

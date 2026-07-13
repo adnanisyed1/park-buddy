@@ -38,8 +38,12 @@ export default function TripStudio(props) {
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
+    layers, setLayers, layersOpen, setLayersOpen,
     fieldBox,
   } = props;
+
+  const DEST_LAYERS = [["np", "◈", "National Parks"], ["statePark", "◆", "State Parks"], ["forest", "▲", "National Forests"], ["byway", "⛰", "Scenic routes"]];
+  const CTX_LAYERS = [["camp", "Campgrounds"], ["lake", "Lakes"], ["hiking", "Hiking"], ["offroad", "Off-road"], ["ski", "Ski"]];
 
   const stat4 = [["Stops", stat.stops], ["Days", stat.days], ["Drive miles", stat.miles], ["Est. cost", stat.cost]];
 
@@ -51,7 +55,12 @@ export default function TripStudio(props) {
         .ts-scroll::-webkit-scrollbar { width: 8px; }
         .ts-scroll::-webkit-scrollbar-thumb { background: rgba(217,183,121,.18); border-radius: 8px; }
         .ts-hoverline:hover { border-color: rgba(217,183,121,.4) !important; }
-        @media (max-width: 900px) { .ts-body { flex-direction: column !important; } .ts-stage { min-height: 320px; } .ts-modules { border-left: none !important; border-top: 1px solid rgba(217,183,121,.12) !important; max-height: none !important; } }
+        @media (max-width: 900px) {
+          .ts-body { flex-direction: column !important; }
+          .ts-modules { order: 1; flex: none !important; border-left: none !important; max-height: none !important; overflow: visible !important; }
+          .ts-stage { order: 2; flex: none !important; height: 280px !important; border-top: 1px solid rgba(217,183,121,.25) !important; }
+          .ts-switcher button { padding: 8px 11px !important; font-size: 11.5px !important; }
+        }
       `}</style>
 
       <div style={{ maxWidth: 1360, margin: "0 auto", background: "#0a1712", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 22, overflow: "hidden", boxShadow: "0 40px 120px -30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(217,183,121,0.08)", display: "flex", flexDirection: "column" }}>
@@ -103,6 +112,30 @@ export default function TripStudio(props) {
             {/* corner label */}
             <div style={{ position: "absolute", top: 22, left: 26, zIndex: 3, fontFamily: MONO, fontSize: 10, letterSpacing: ".24em", textTransform: "uppercase", color: "#aab0ba", display: "flex", alignItems: "center", gap: 8, pointerEvents: "none", textShadow: "0 1px 8px rgba(0,0,0,.7)" }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c9a35f" }} />{tripName || "Your route"}
+            </div>
+
+            {/* layers control — tap a map marker to add these to the trip */}
+            <div style={{ position: "absolute", top: 18, right: 18, zIndex: 4 }}>
+              <button onClick={() => setLayersOpen(!layersOpen)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".14em", textTransform: "uppercase", color: layersOpen ? "#0a1712" : "#e8cf9a", background: layersOpen ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "7px 13px", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", gap: 7 }}>◈ Layers</button>
+              {layersOpen && (
+                <div style={{ marginTop: 8, width: 210, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 12, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>
+                  <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Tap a map marker to add</div>
+                  {DEST_LAYERS.map(([k, ic, label]) => (
+                    <label key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 4px", cursor: "pointer", fontSize: 12.5, color: "#f4f1ea" }}>
+                      <span style={{ width: 30, height: 17, flex: "none", borderRadius: 999, background: layers[k] ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.12)", position: "relative", transition: "background .15s" }}>
+                        <span style={{ position: "absolute", top: 2, left: layers[k] ? 15 : 2, width: 13, height: 13, borderRadius: "50%", background: layers[k] ? "#0a1712" : "#e7e3d8", transition: "left .15s" }} />
+                      </span>
+                      <span style={{ color: "#d9b779", width: 14 }}>{ic}</span>{label}
+                    </label>
+                  ))}
+                  <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", margin: "10px 0 6px", borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>Show around each stop</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {CTX_LAYERS.map(([k, label]) => (
+                      <span key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ cursor: "pointer", fontSize: 10.5, padding: "4px 10px", borderRadius: 999, border: "1px solid " + (layers[k] ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: layers[k] ? "rgba(217,183,121,0.14)" : "transparent", color: layers[k] ? "#e8cf9a" : "#7f8a82" }}>{label}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* floating glass HUD */}

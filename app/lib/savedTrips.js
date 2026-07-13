@@ -34,6 +34,20 @@ export function saveCurrentTrip(name) {
   return entry;
 }
 
+// Upsert the active trip into My trips BY ID (not name). Used by the "document"
+// model: the questionnaire creates an entry (pass id=null → new), and every later
+// edit syncs into that same entry regardless of renames. Creates even when empty.
+export function upsertActiveTrip(id, name) {
+  const stops = getStops() || [];
+  const meta = getMeta() || {};
+  const nm = ((name || meta.tripName || "Untitled trip") + "").trim() || "Untitled trip";
+  const list = read();
+  const existing = id ? list.find((t) => t.id === id) : null;
+  const entry = { id: existing ? existing.id : uid(), name: nm, savedAt: Date.now(), stops: stops.map((s) => ({ ...s })), meta: { ...meta, tripName: nm } };
+  write(existing ? list.map((t) => (t.id === existing.id ? entry : t)) : [entry, ...list]);
+  return entry;
+}
+
 // Load a saved itinerary back into the active trip (trip.js), so the whole app —
 // modal, planner, Trip Mode — reflects it.
 export function openSavedTrip(id) {

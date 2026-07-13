@@ -80,7 +80,7 @@ function ModeBtn({ id, label, mode, setMode }) {
 
 export default function TripStudio(props) {
   const {
-    mode, setMode, onNewTrip,
+    mode, setMode, onNewTrip, editing,
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
@@ -168,7 +168,7 @@ export default function TripStudio(props) {
           </div>
 
           <div style={{ display: "flex", padding: 5, gap: 4, background: "rgba(8,19,13,0.7)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 999, ...(isMobile ? { order: 3, flex: "1 1 100%", justifyContent: "center" } : { position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)" }) }} className="ts-switcher">
-            <ModeBtn id="new" label="New trip" mode={mode} setMode={setMode} />
+            <ModeBtn id="new" label={editing ? "Edit trip" : "New trip"} mode={mode} setMode={setMode} />
             <ModeBtn id="premade" label="Ready-made routes" mode={mode} setMode={setMode} />
             <ModeBtn id="mine" label={"My trips" + (savedTrips.length ? " · " + savedTrips.length : "")} mode={mode} setMode={setMode} />
           </div>
@@ -327,7 +327,14 @@ export default function TripStudio(props) {
               <div>
                 {/* trip header — editable name + count-up stat bar + setup button */}
                 <div style={{ ...glass, marginBottom: 14 }}>
-                  <div style={kicker}>Trip name</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <div style={kicker}>Trip name</div>
+                    {editing && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#8fd6a6", background: "rgba(143,214,166,0.1)", border: "1px solid rgba(143,214,166,0.3)", borderRadius: 999, padding: "4px 10px" }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#8fd6a6", boxShadow: "0 0 6px #8fd6a6" }} />Edit mode · saved
+                      </span>
+                    )}
+                  </div>
                   <input value={tripName || ""} onChange={(e) => setTripName && setTripName(e.target.value)} placeholder="Name your trip"
                     style={{ width: "100%", marginTop: 6, background: "transparent", border: "none", borderBottom: "1px dashed rgba(217,183,121,0.35)", color: "#f4f1ea", fontFamily: SERIF, fontSize: 26, fontWeight: 600, outline: "none", padding: "2px 0 6px", boxSizing: "border-box" }} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 14 }}>

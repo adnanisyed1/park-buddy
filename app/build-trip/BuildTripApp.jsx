@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
 import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
-import { getSavedTrips, saveCurrentTrip as storeSaveCurrentTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
+import { getSavedTrips, upsertActiveTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
 import SiteHeader from "../components/SiteHeader";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
@@ -129,6 +129,8 @@ export default function BuildTripApp() {
   // Step-by-step setup wizard (Trip details → Transportation). Auto-opens on first
   // visit, reopens from the "Trip settings" button.
   const [setupOpen, setSetupOpen] = useState(false);
+  const [activeTripId, setActiveTripId] = useState(null); // the "checked-out" My-trips entry being edited (document model)
+  const wantsSaveRef = useRef(false); // set when the questionnaire is submitted → create the My-trips entry on next sync
   const [endDateOverride, setEndDateOverride] = useState(null); // wizard-set end date wins over the nights-derived one
   const [transport, setTransport] = useState({ type: "own", flightNo: "", rentalDaily: null, rentalWhere: "", fuelState: "" });
 
@@ -265,10 +267,12 @@ export default function BuildTripApp() {
   // Flush the live page state to the store first so the snapshot matches what's
   // on screen (savedTrips.saveCurrentTrip reads the active trip from trip.js).
   function saveCurrentTrip() {
-    if (!stops.length) { setSaveMsg("Add a stop first."); return; }
     tripSetStops(stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })));
     tripSetMeta({ tripName, startDate, endDate, adults, infants, travelers, arrivalMode, tripScope, car, transport });
-    storeSaveCurrentTrip(tripName || "My trip");
+    // Document model: keep the checked-out entry (activeTripId) in sync; otherwise
+    // create a new My-trips entry and check it out.
+    const entry = upsertActiveTrip(activeTripId, tripName || "My trip");
+    if (!activeTripId) { setActiveTripId(entry.id); try { localStorage.setItem("pb_active_trip_id", entry.id); } catch {} }
     setSavedTrips(getSavedTrips());
     setSaveMsg("Saved to “My trips” ✓");
     setTimeout(() => setSaveMsg(""), 2600);
@@ -278,6 +282,8 @@ export default function BuildTripApp() {
   // live trip (so it persists + shows across the site).
   function loadSavedTrip(t) {
     userEditedRef.current = true;
+    setActiveTripId(t.id); // check this trip out for editing (Edit Mode)
+    try { localStorage.setItem("pb_active_trip_id", t.id); } catch {}
     const list = (t.stops || []).map((s) => ({ name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom, ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}) }));
     setStops(recomputeLegs(list));
     const m = t.meta || {};
@@ -334,6 +340,8 @@ export default function BuildTripApp() {
     setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
     setRailTab("new");
     setAddSource(null); setAddMenuOpen(false);
+    setActiveTripId(null); // fresh trip — the questionnaire will create a new My-trips entry
+    try { localStorage.removeItem("pb_active_trip_id"); } catch {}
     setSetupOpen(true);
   }
 
@@ -372,6 +380,8 @@ export default function BuildTripApp() {
   // Auto-open the setup wizard on first visit (once per browser).
   useEffect(() => {
     try { if (!localStorage.getItem("pb_trip_setup_seen")) setSetupOpen(true); } catch {}
+    // Restore which My-trips entry is being edited (document model), if any.
+    try { const id = localStorage.getItem("pb_active_trip_id"); if (id) setActiveTripId(id); } catch {}
     try {
       const saved = JSON.parse(localStorage.getItem("pb_trip_dayplans") || "{}");
       if (saved && typeof saved === "object") {
@@ -398,6 +408,10 @@ export default function BuildTripApp() {
     setTransport({ type: x.transportType || "own", flightNo: x.flightNo || "", rentalDaily: x.rentalDaily ?? null, rentalWhere: x.rentalWhere || "", fuelState: x.fuelState || "" });
     // Fuel estimate → the budget's fuel line; rental day-rate → its own line, added in a later phase.
     setBudgetOverride((o) => ({ ...o, fuel: x.fuelEstimate != null ? x.fuelEstimate : o.fuel }));
+    // Submitting the questionnaire creates (or updates) this trip in My trips — even
+    // with no stops yet. If we're already editing a checked-out trip, the autosave
+    // keeps it in sync; otherwise the next sync creates the entry.
+    if (!activeTripId) wantsSaveRef.current = true;
   }
 
   // drag-to-reorder (⠿ handle rows are draggable)
@@ -473,7 +487,17 @@ export default function BuildTripApp() {
     const preserved = tripStops().filter((s) => !managed.has(s.name));
     tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })), ...preserved]);
     tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate, transport });
-  }, [stops, tripName, startDate, adults, infants, arrivalMode, tripScope, endDate, transport]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Document model: once a trip is "checked out" (activeTripId) or the questionnaire
+    // was just submitted (wantsSaveRef), autosave every edit into that My-trips entry.
+    if (activeTripId) {
+      upsertActiveTrip(activeTripId, tripName);
+    } else if (wantsSaveRef.current) {
+      wantsSaveRef.current = false;
+      const entry = upsertActiveTrip(null, tripName);
+      setActiveTripId(entry.id);
+      try { localStorage.setItem("pb_active_trip_id", entry.id); } catch {}
+    }
+  }, [stops, tripName, startDate, adults, infants, arrivalMode, tripScope, endDate, transport, activeTripId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadGoogle(key) {
     window.gm_authFailure = () => {
@@ -882,7 +906,7 @@ export default function BuildTripApp() {
 
         {/* Trip Studio — reskinned planner (design ported from Claude Design) */}
         <TripStudio
-          mode={railTab} setMode={setRailTab} onNewTrip={onNewTrip}
+          mode={railTab} setMode={setRailTab} onNewTrip={onNewTrip} editing={!!activeTripId}
           stat={{ stops: String(stops.length), days: String(totalNights), miles: String(totalMiles), cost: fmtUsd(totalCost) }}
           statNum={{ stops: stops.length, days: totalNights, miles: totalMiles, cost: totalCost }}
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}

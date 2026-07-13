@@ -1241,52 +1241,33 @@ export default function TripStudio(props) {
                           </div>
                         </div>
                         {addSource === "park" && (
-                          <div style={{ display: "flex", gap: 9 }}>
-                            <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "var(--pb-muted)" }}>
-                              <option value="">Choose a park…</option>
-                              {parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => <option key={p.id} value={p.name}>{p.name} — {p.state}</option>)}
-                            </select>
-                            <button onClick={() => { addPark(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-                          </div>
+                          <PickList fieldBox={fieldBox} placeholder="Search the 63 national parks…"
+                            items={parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => ({ value: p.name, label: p.name, sub: p.state, icon: "mountain", tint: "#8fd6a6", lat: p.lat, lng: p.lng, state: p.state }))}
+                            onPick={(it) => { addDestination && addDestination({ name: it.value, state: it.state, lat: it.lat, lng: it.lng }); setAddMenuOpen(false); setAddSource(null); }} />
                         )}
                         {addSource === "forest" && (
-                          <div style={{ display: "flex", gap: 9 }}>
-                            <select value={forestSel} onChange={(e) => setForestSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: forestSel ? "#1a2b21" : "var(--pb-muted)" }}>
-                              <option value="">Choose a national forest…</option>
-                              {(forestsDb || []).filter((f) => f.lat != null && !stops.some((s) => s.name === f.name)).slice().sort((a, b) => a.name.localeCompare(b.name)).map((f, k) => <option key={f.name + k} value={f.name}>{f.name}{f.state ? " — " + f.state : ""}</option>)}
-                            </select>
-                            <button onClick={() => { const f = (forestsDb || []).find((x) => x.name === forestSel); if (f && addDestination) addDestination({ name: f.name, state: f.state || "", lat: f.lat, lng: f.lng }); setForestSel(""); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-                          </div>
+                          <PickList fieldBox={fieldBox} placeholder="Search national forests…"
+                            items={(forestsDb || []).filter((f) => f.lat != null && !stops.some((s) => s.name === f.name)).slice().sort((a, b) => a.name.localeCompare(b.name)).map((f) => ({ value: f.name, label: f.name, sub: f.state || "", icon: "trees", tint: "#9ec96f", lat: f.lat, lng: f.lng, state: f.state }))}
+                            onPick={(it) => { addDestination && addDestination({ name: it.value, state: it.state || "", lat: it.lat, lng: it.lng }); setAddMenuOpen(false); setAddSource(null); }} />
                         )}
                         {addSource === "scenic" && (
-                          <div style={{ display: "flex", gap: 9 }}>
-                            <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
-                              <option value="">Choose a scenic drive…</option>
-                              {[["all-american", "All-American Roads"], ["national-scenic-byway", "National Scenic Byways"], ["*", "Other scenic drives"]].map(([tier, label]) => {
-                                const rows = bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name));
-                                if (!rows.length) return null;
-                                return <optgroup key={tier} label={label}>{rows.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => <option key={b.id} value={b.id}>{b.name} — {b.states || b.state || ""}</option>)}</optgroup>;
-                              })}
-                            </select>
-                            <button onClick={() => { addByway(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-                          </div>
+                          <PickList fieldBox={fieldBox} placeholder="Search scenic drives…"
+                            items={["all-american", "national-scenic-byway", "*"].flatMap((tier) => bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name)).slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => ({ value: b.id, label: b.name, sub: (b.tier === "all-american" ? "All-American Road" : b.tier === "national-scenic-byway" ? "National Scenic Byway" : "Scenic drive") + (b.states || b.state ? " · " + (b.states || b.state) : ""), icon: "route", tint: "#8fd3e0", lat: b.lat, lng: b.lng, state: b.states || b.state || "" })))}
+                            onPick={(it) => { addDestination && addDestination({ name: it.label, state: it.state, lat: it.lat, lng: it.lng, kind: "byway", slug: it.value }); setAddMenuOpen(false); setAddSource(null); }} />
                         )}
                         {addSource === "statePark" && (
-                          <div>
-                            <select value={spState} onChange={(e) => { const v = e.target.value; setSpState(v); setSpSel(""); setSpList([]); if (v) { setSpLoading(true); fetch("/api/destinations?type=state_park&limit=500&state=" + encodeURIComponent(v)).then((r) => (r.ok ? r.json() : null)).then((d) => { setSpList(((d && d.destinations) || []).filter((x) => x && x.lat != null && !stops.some((s) => s.name === x.name))); setSpLoading(false); }).catch(() => setSpLoading(false)); } }} style={{ ...fieldBox, width: "100%", color: spState ? "#1a2b21" : "var(--pb-muted)" }}>
-                              <option value="">Choose a state…</option>
-                              {US_STATE_NAMES.map((st) => <option key={st} value={st}>{st}</option>)}
-                            </select>
-                            {spState && (
-                              <div style={{ display: "flex", gap: 9, marginTop: 9 }}>
-                                <select value={spSel} onChange={(e) => setSpSel(e.target.value)} disabled={spLoading || !spList.length} style={{ ...fieldBox, flex: 1, color: spSel ? "#1a2b21" : "var(--pb-muted)" }}>
-                                  <option value="">{spLoading ? "Loading…" : spList.length ? "Choose a state park…" : "No state parks found"}</option>
-                                  {spList.map((x, k) => <option key={x.name + k} value={x.name}>{x.name}</option>)}
-                                </select>
-                                <button onClick={() => { const x = spList.find((p) => p.name === spSel); if (x && addDestination) addDestination({ name: x.name, state: x.state || spState, lat: x.lat, lng: x.lng, custom: true }); setSpState(""); setSpSel(""); setSpList([]); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-                              </div>
-                            )}
-                          </div>
+                          !spState ? (
+                            <PickList fieldBox={fieldBox} placeholder="Search states…"
+                              items={US_STATE_NAMES.map((st) => ({ value: st, label: st, icon: "flag", tint: "#c9a35f" }))}
+                              onPick={(it) => { const v = it.value; setSpState(v); setSpSel(""); setSpList([]); setSpLoading(true); fetch("/api/destinations?type=state_park&limit=500&state=" + encodeURIComponent(v)).then((r) => (r.ok ? r.json() : null)).then((d) => { setSpList(((d && d.destinations) || []).filter((x) => x && x.lat != null && !stops.some((s) => s.name === x.name))); setSpLoading(false); }).catch(() => setSpLoading(false)); }} />
+                          ) : (
+                            <div>
+                              <button onClick={() => { setSpState(""); setSpList([]); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 9, padding: "5px 11px", borderRadius: 999, background: "rgba(232,207,154,0.1)", border: "1px solid rgba(217,183,121,0.3)", color: "#e8cf9a", fontFamily: MONO, fontSize: 9, letterSpacing: ".08em", textTransform: "uppercase", cursor: "pointer" }}><TSIcon name="flag" size={11} />{spState} · change ✕</button>
+                              <PickList fieldBox={fieldBox} placeholder={"Search " + spState + " state parks…"} loading={spLoading} emptyText={"No state parks found in " + spState + "."}
+                                items={spList.map((x) => ({ value: x.name, label: x.name, sub: x.state || spState, icon: "flag", tint: "#c9a35f", lat: x.lat, lng: x.lng, state: x.state || spState }))}
+                                onPick={(it) => { addDestination && addDestination({ name: it.value, state: it.state, lat: it.lat, lng: it.lng, custom: true }); setSpState(""); setSpSel(""); setSpList([]); setAddMenuOpen(false); setAddSource(null); }} />
+                            </div>
+                          )
                         )}
                         {["address", "place"].includes(addSource) && (
                           <GeoAutocomplete
@@ -1533,6 +1514,32 @@ function DayBlockEdit({ block, onSave, onCancel, fieldBox }) {
       </div>
       {block.lat != null && <div style={{ fontFamily: MONO, fontSize: 8, color: "#8fd6a6", marginTop: 7, display: "flex", alignItems: "center", gap: 5 }}><TSIcon name="pin" size={10} />Keeps its pinned location</div>}
       <button onClick={onCancel} style={{ marginTop: 8, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 11, cursor: "pointer", padding: 0 }}>Cancel</button>
+    </div>
+  );
+}
+
+// Premium in-popup picker: a search box + a scrollable, styled list of options
+// (replaces native <select> in the add-a-base popup). items: {value,label,sub,icon,tint,...}.
+function PickList({ items, placeholder, onPick, loading, emptyText, fieldBox, autoFocus = true }) {
+  const [q, setQ] = useState("");
+  const ql = q.trim().toLowerCase();
+  const filtered = ql ? (items || []).filter((it) => (it.label + " " + (it.sub || "")).toLowerCase().includes(ql)) : (items || []);
+  return (
+    <div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} autoFocus={autoFocus} style={{ ...fieldBox, width: "100%" }} />
+      <div className="ts-scroll" style={{ marginTop: 8, maxHeight: 250, overflowY: "auto", border: "1px solid rgba(217,183,121,0.14)", borderRadius: 12, padding: 6, background: "rgba(0,0,0,0.15)" }}>
+        {loading && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "10px 8px", display: "flex", alignItems: "center", gap: 8 }}><span className="ts-skel" style={{ width: 22, height: 14, borderRadius: 6 }} />Loading…</div>}
+        {!loading && filtered.length === 0 && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "10px 8px" }}>{emptyText || "No matches"}</div>}
+        {!loading && filtered.map((it, i) => (
+          <button key={it.value + "_" + i} onClick={() => onPick(it)} className="ts-menuitem" style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left", padding: "9px 11px", borderRadius: 9, border: "none", background: "transparent", cursor: "pointer" }}>
+            {it.icon && <span style={{ width: 28, height: 28, flex: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: it.tint || "#8fd6a6", background: hexA(it.tint || "#8fd6a6", 0.12), border: "1px solid " + hexA(it.tint || "#8fd6a6", 0.28) }}><TSIcon name={it.icon} size={14} /></span>}
+            <span style={{ minWidth: 0, flex: 1 }}>
+              <span style={{ display: "block", fontFamily: SANS, fontSize: 13, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</span>
+              {it.sub && <span style={{ display: "block", fontFamily: MONO, fontSize: 8.5, letterSpacing: ".04em", color: "#7f8a82", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.sub}</span>}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

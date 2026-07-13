@@ -799,7 +799,8 @@ export default function BuildTripApp() {
         <TripStudio
           mode={railTab} setMode={setRailTab} onNewTrip={onNewTrip}
           stat={{ stops: String(stops.length), days: String(totalNights), miles: String(totalMiles), cost: fmtUsd(totalCost) }}
-          tripName={tripName}
+          statNum={{ stops: stops.length, days: totalNights, miles: totalMiles, cost: totalCost }}
+          tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}

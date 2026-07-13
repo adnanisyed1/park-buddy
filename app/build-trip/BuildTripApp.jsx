@@ -446,11 +446,24 @@ export default function BuildTripApp() {
   }
 
   const removeStop = (i) => commitStops(stops.filter((_, x) => x !== i));
+  // Insert a base at a chosen position (addAtRef, set when the user clicks an
+  // "add a base here" divider) — otherwise append to the end. Single choke point so
+  // every add source (park, address, coords, scenic, map click) can insert in place.
+  const addAtRef = useRef(null);
+  function insertStop(stop) {
+    if (!stop || stop.lat == null || stops.some((s) => s.name === stop.name)) { addAtRef.current = null; return; }
+    const next = stops.slice();
+    const idx = addAtRef.current;
+    next.splice(idx == null ? next.length : Math.max(0, Math.min(idx, next.length)), 0, stop);
+    addAtRef.current = null;
+    commitStops(next);
+  }
+
   const addPark = () => {
     if (!addSel) return;
     const p = parksDb.find((x) => x.name === addSel);
     if (!p || stops.some((s) => s.name === p.name)) return;
-    commitStops(stops.concat([{ name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: 1, legMi: null }]));
+    insertStop({ name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: 1, legMi: null });
     setAddSel("");
   };
 
@@ -465,7 +478,7 @@ export default function BuildTripApp() {
       const d = await fetch("/api/geocode?q=" + encodeURIComponent(q)).then((r) => (r.ok ? r.json() : null));
       if (!d || !d.found) { setAddrMsg("Couldn't find that place — try a fuller address."); return; }
       if (stops.some((s) => s.name === d.name)) { setAddrMsg(d.name + " is already in your trip."); return; }
-      commitStops(stops.concat([{ name: d.name, state: d.state || "", lat: d.lat, lng: d.lng, nights: 1, legMi: null, custom: true }]));
+      insertStop({ name: d.name, state: d.state || "", lat: d.lat, lng: d.lng, nights: 1, legMi: null, custom: true });
       setAddrInput(""); setAddrMsg("");
     } catch { setAddrMsg("Geocoding is unavailable right now."); }
   }
@@ -776,7 +789,7 @@ export default function BuildTripApp() {
     const stop = { name: d.name, state: d.state || "", lat: d.lat, lng: d.lng, nights: 1, legMi: null };
     if (d.kind) stop.kind = d.kind;   // "byway" scenic-drive stops link back to their page
     if (d.slug) stop.slug = d.slug;
-    commitStops(stops.concat([stop]));
+    insertStop(stop);
   }
   // Add a stop at raw coordinates ("lat, lng").
   function addCoords() {
@@ -1139,6 +1152,7 @@ export default function BuildTripApp() {
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           origin={origin} setOrigin={setOrigin} originLegMi={origin && stops[0] ? Math.round(milesBetween(origin, stops[0]) * ROAD_FACTOR) : null}
           setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}
+          setAddAt={(i) => { addAtRef.current = i; }}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}

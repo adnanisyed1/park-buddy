@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 // Trip Studio — the futuristic reskin of Build My Trip, ported from the Claude
 // Design prototype (Downloads/Trip Studio.dc.html). PRESENTATIONAL ONLY: every
@@ -89,7 +89,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
-    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, lodging, setStopLodging,
+    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -125,6 +125,7 @@ export default function TripStudio(props) {
   const [scenicExpanded, setScenicExpanded] = useState(false); // add ALL waypoints (vs start & end) to Plan this day
   const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
   const [scenicDragging, setScenicDragging] = useState(false);
+  const [addTargetIdx, setAddTargetIdx] = useState(null); // where the next "Add a base" inserts (null = end)
   const [editBlock, setEditBlock] = useState(null); // { stop, id } — day block being edited inline
   const [confirmDelBlock, setConfirmDelBlock] = useState(null); // { stop, id, name, dayNum } — delete-confirm popup
   const [viewRoute, setViewRoute] = useState(null); // ready-made route open in read-only view
@@ -596,8 +597,17 @@ export default function TripStudio(props) {
                       const v = verdicts[s.name];
                       const st = STOP_STATUS[v ? v.status : "loading"];
                       const hov = hoverIdx === i;
+                      const openAddAt = (idx) => { setAddAt && setAddAt(idx); setAddTargetIdx(idx); if (isMobile) { setMobileAddOpen(true); } else { setAddSource(null); setAddMenuOpen(true); } };
                       return (
-                        <div key={s.name} draggable onDragStart={onDragStart(i)} onDragOver={onDragOver} onDrop={onDrop(i)} onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(null)}
+                      <Fragment key={s.name}>
+                        {setAddAt && (
+                          <div onClick={() => openAddAt(i)} className="ts-insertrow" title={"Add a base " + (i === 0 ? "at the very start" : "between " + stops[i - 1].name + " and " + s.name)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "1px 0" }}>
+                            <div style={{ flex: 1, height: 1, background: "rgba(217,183,121,0.14)" }} />
+                            <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#8f9a90", display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 11, lineHeight: 1 }}>+</span> base here</span>
+                            <div style={{ flex: 1, height: 1, background: "rgba(217,183,121,0.14)" }} />
+                          </div>
+                        )}
+                        <div draggable onDragStart={onDragStart(i)} onDragOver={onDragOver} onDrop={onDrop(i)} onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(null)}
                           style={{ display: "flex", flexDirection: "column", padding: 12, borderRadius: 15, background: hov ? "rgba(14,32,22,0.7)" : "rgba(11,23,16,0.55)", border: "1px solid " + (hov ? "rgba(217,183,121,0.4)" : "rgba(217,183,121,0.16)"), boxShadow: hov ? "0 10px 30px -12px rgba(217,183,121,0.35), inset 0 1px 0 rgba(217,183,121,0.12)" : "none", transform: hov ? "translateY(-1px)" : "none", transition: "border-color .2s, box-shadow .2s, transform .2s" }}>
                           <div style={{ display: "flex", gap: 13, alignItems: "center" }}>
                           <div style={{ width: 58, height: 58, flex: "none", borderRadius: 12, overflow: "hidden", position: "relative", border: "1px solid rgba(217,183,121,0.18)", background: THUMBS[i % THUMBS.length] }}>
@@ -737,13 +747,14 @@ export default function TripStudio(props) {
                             );
                           })()}
                         </div>
+                      </Fragment>
                       );
                     })}
                   </div>
 
-                  {/* add a stop — opens a popup (never clipped by the scrolling rail) */}
+                  {/* add a base at the END — opens the add popup (never clipped by the scrolling rail) */}
                   <div style={{ marginTop: 14 }}>
-                    <button onClick={() => { if (isMobile) { setMobileAddOpen(true); } else { setAddSource(null); setAddMenuOpen(true); } }} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
+                    <button onClick={() => { if (setAddAt) setAddAt(null); setAddTargetIdx(null); if (isMobile) { setMobileAddOpen(true); } else { setAddSource(null); setAddMenuOpen(true); } }} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
                       <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Add a base
                     </button>
                   </div>
@@ -1161,7 +1172,12 @@ export default function TripStudio(props) {
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
               <div>
                 <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea" }}>Add a base</div>
-                <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 3, lineHeight: 1.45 }}>A base is a place you sleep. It starts on <b style={{ color: "#c9a35f" }}>Day {stops.reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1}</b> and its nights become day cards. Set nights and drag to reorder after.</div>
+                {(() => {
+                  const idx = addTargetIdx == null ? stops.length : addTargetIdx;
+                  const startDay = stops.slice(0, idx).reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1;
+                  const where = addTargetIdx == null ? (stops.length ? "after " + stops[stops.length - 1].name : "as your first base") : (addTargetIdx === 0 ? "at the very start" : "after " + stops[addTargetIdx - 1].name);
+                  return <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 3, lineHeight: 1.45 }}>A base is a place you sleep. Goes in <b style={{ color: "#c9a35f" }}>{where}</b> — starts on <b style={{ color: "#c9a35f" }}>Day {startDay}</b>, and its nights become day cards.</div>;
+                })()}
               </div>
               <button onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
             </div>

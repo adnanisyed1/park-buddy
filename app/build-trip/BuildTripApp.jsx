@@ -142,6 +142,7 @@ export default function BuildTripApp() {
   const [stateParksDb, setStateParksDb] = useState([]);
   const [bywaysDb, setBywaysDb] = useState([]); // America's Byways (scenic drives) — add whole drives as trip stops
   const [addBywaySel, setAddBywaySel] = useState("");
+  const [coordInput, setCoordInput] = useState(""); // "lat, lng" for the Coordinates source
   const [railTab, setRailTab] = useState("new"); // Trip Studio mode: "new" editor | "premade" routes | "mine" saved trips
   const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
   const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
@@ -568,6 +569,15 @@ export default function BuildTripApp() {
     if (d.slug) stop.slug = d.slug;
     commitStops(stops.concat([stop]));
   }
+  // Add a stop at raw coordinates ("lat, lng").
+  function addCoords() {
+    const nums = (coordInput || "").split(/[,\s]+/).map(Number).filter((n) => !isNaN(n));
+    if (nums.length < 2) { setAddrMsg("Enter as: latitude, longitude"); return; }
+    const [lat, lng] = nums;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { setAddrMsg("Those don't look like valid coordinates."); return; }
+    addDestination({ name: "Pin " + lat.toFixed(3) + ", " + lng.toFixed(3), lat, lng, custom: true });
+    setCoordInput(""); setAddrMsg("");
+  }
   // Add a whole scenic drive to the trip (anchored at the drive's own coordinate).
   const addByway = () => {
     if (!addBywaySel) return;
@@ -807,6 +817,7 @@ export default function BuildTripApp() {
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}
           addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress} addrMsg={addrMsg}
+          coordInput={coordInput} setCoordInput={setCoordInput} addCoords={addCoords}
           addMyTrip={addMyTrip}
           setupCollapsed={setupCollapsed} setSetupCollapsed={setSetupCollapsed}
           setupRows={[["Dates", startDate ? fmtShort(startDate) + " – " + fmtShort(endDate) : "—"], ["Length", (tripDays ? tripDays + " days" : "—") + (totalNights ? " · " + totalNights + " nights" : "")], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " · " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Getting there", ({ own: "Own car", rental: "Rental car", fly: "Fly + rent", rv: "RV / Camper" }[transport.type] || "Own car")], ["Vehicle", transport.type === "rv" ? "RV / Camper" : car], ["Fuel est.", fmtUsd(budget.fuel) + (transport.fuelState ? " · " + transport.fuelState : "")], ["Trip scope", tripScope === "crosscountry" ? "Cross-country" : "Regional loop"]]}

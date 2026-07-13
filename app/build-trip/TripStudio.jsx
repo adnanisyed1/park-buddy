@@ -50,6 +50,7 @@ export default function TripStudio(props) {
     parksDb, addSel, setAddSel, addPark,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
     addrInput, setAddrInput, addAddress, addrMsg,
+    coordInput, setCoordInput, addCoords,
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
     routes, loadedRoute, loadRoute,
@@ -266,7 +267,7 @@ export default function TripStudio(props) {
                     </button>
                     {addMenuOpen && !addSource && (
                       <div style={{ position: "absolute", left: 0, right: 0, top: 52, zIndex: 20, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 6, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>
-                        {[["park", "◈", "National park"], ["scenic", "⟿", "Scenic route"], ["place", "✦", "Any place"]].map(([src, ic, label]) => (
+                        {[["park", "◈", "National park"], ["statePark", "◆", "State park"], ["scenic", "⟿", "Scenic route"], ["lake", "≈", "Lake"], ["coord", "⌖", "Coordinates"], ["address", "⌂", "Address"], ["place", "✦", "Any place"]].map(([src, ic, label]) => (
                           <div key={src} onClick={() => setAddSource(src)} className="ts-menuitem" style={{ padding: "11px 13px", borderRadius: 9, color: "#f4f1ea", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 11 }}>
                             <span style={{ color: "#d9b779" }}>{ic}</span> {label}
                           </div>
@@ -298,11 +299,22 @@ export default function TripStudio(props) {
                       <button onClick={() => { addByway(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
                     </div>
                   )}
-                  {addSource === "place" && (
+                  {/* State park / Lake / Address / Any place — all resolve by geocoding a name. */}
+                  {["statePark", "lake", "address", "place"].includes(addSource) && (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ display: "flex", gap: 9 }}>
-                        <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAddress(); }} placeholder="123 Main St, 'Zion Lodge', a town…" style={{ ...fieldBox, flex: 1 }} />
+                        <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAddress(); }}
+                          placeholder={{ statePark: "State park name…", lake: "Lake name…", address: "123 Main St, a town…", place: "'Zion Lodge', a landmark…" }[addSource]} style={{ ...fieldBox, flex: 1 }} />
                         <button onClick={addAddress} style={addBtn}>＋</button>
+                      </div>
+                      {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
+                    </div>
+                  )}
+                  {addSource === "coord" && addCoords && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ display: "flex", gap: 9 }}>
+                        <input value={coordInput || ""} onChange={(e) => setCoordInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCoords(); }} placeholder="37.29, -113.05" style={{ ...fieldBox, flex: 1 }} />
+                        <button onClick={addCoords} style={addBtn}>＋</button>
                       </div>
                       {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
                     </div>

@@ -6,8 +6,8 @@
 .page {
   --green: #163a2b; --green2: #1d4a37; --gold: #c79a4b; --gold2: #e4be78;
   --cream: #fbf6ea; --ink: #15241c; --muted: #7c8473;
-  --sans: var(--font-hanken), system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  --serif: var(--font-spectral), Georgia, serif;
+  --sans: var(--pb-sans), system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --serif: var(--pb-serif), Georgia, serif;
   margin: 0; font-family: var(--sans); color: var(--ink); background: var(--cream); overflow-x: hidden;
 }
 .page * { box-sizing: border-box; }

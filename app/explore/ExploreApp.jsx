@@ -733,7 +733,7 @@ export default function ExploreApp() {
         });
         m.addListener("click", () => {
           const iw = infoWindowRef.current || (infoWindowRef.current = new g.maps.InfoWindow());
-          iw.setContent('<div style="font-family:Inter,sans-serif;min-width:160px"><div style="font-weight:700;color:#0b1710;font-size:.95rem">' + esc(t.name) + '</div>' +
+          iw.setContent('<div style="font-family:var(--pb-sans);min-width:160px"><div style="font-weight:700;color:#0b1710;font-size:.95rem">' + esc(t.name) + '</div>' +
             (forNames ? '<div style="color:#3a5a44;font-size:.75rem;margin-top:2px">Basecamp for ' + esc(forNames) + '</div>' : '') +
             '<a href="/book?cat=stays" style="display:inline-block;margin-top:8px;font-size:.78rem;font-weight:700;color:#0b1710;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:8px;padding:6px 12px;text-decoration:none">Find stays →</a></div>');
           iw.setPosition({ lat: t.lat, lng: t.lng });
@@ -792,10 +792,10 @@ export default function ExploreApp() {
     loadParkLayers(p);
     const access = roadAccessNote(p.name);
     const html =
-      '<div style="font-family:\'Hanken Grotesk\',sans-serif;padding:2px 2px 4px;min-width:190px">' +
+      '<div style="font-family:var(--pb-sans);padding:2px 2px 4px;min-width:190px">' +
       '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">' +
       '<span style="font-size:1.1rem">' + meta.icon + "</span>" +
-      '<b style="font-family:\'Spectral\',serif;font-size:.98rem;color:var(--pb-ink)">' + p.name + "</b></div>" +
+      '<b style="font-family:var(--pb-serif);font-size:.98rem;color:var(--pb-ink)">' + p.name + "</b></div>" +
       '<div style="font-size:.72rem;color:var(--pb-muted);margin-bottom:8px">' + meta.label + " · " + p.state + "</div>" +
       '<div style="display:inline-flex;align-items:center;gap:5px;background:' + v.dot + "18;color:" + v.dot + ';font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px;margin-bottom:10px">' +
       '<span style="width:6px;height:6px;border-radius:50%;background:' + v.dot + '"></span>' + v.label + "</div>" +
@@ -966,7 +966,7 @@ export default function ExploreApp() {
 
   function layerInfoHtml(title, sub, extra) {
     return (
-      '<div style="font-family:\'Hanken Grotesk\',sans-serif;max-width:220px"><b style="color:#1d3941">' + title + "</b>" +
+      '<div style="font-family:var(--pb-sans);max-width:220px"><b style="color:#1d3941">' + title + "</b>" +
       '<div style="font-size:12px;color:var(--pb-muted);margin-top:3px">' + sub + "</div>" +
       (extra ? '<div style="font-size:10px;color:#a79f8c;margin-top:6px">' + extra + "</div>" : "") + "</div>"
     );
@@ -1399,7 +1399,7 @@ export default function ExploreApp() {
         )}
         <div style={{ position: "absolute", left: 13, right: 13, bottom: 12 }}>
           <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "#e8cf9a" }}>{meta.label} · {p.state}</div>
-          <b style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.3rem", color: "#f7f4ec", lineHeight: 1.05, display: "block" }}>{p.name}</b>
+          <b style={{ fontFamily: serif, fontWeight: 500, fontSize: "1.3rem", color: "#f7f4ec", lineHeight: 1.05, display: "block" }}>{p.name}</b>
           {ui.anchor && <div style={{ fontFamily: mono, fontSize: ".54rem", color: "#aab0ba", marginTop: 3 }}>{Math.round(milesBetween(ui.anchor, p))} mi from {ui.anchor.label}</div>}
         </div>
       </div>
@@ -1600,7 +1600,7 @@ export default function ExploreApp() {
               )}
 
               {ui.listMode && (
-                <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "#f4f1ea", margin: "2px 0 12px" }}>All parks</h2>
+                <h2 style={{ fontFamily: serif, fontWeight: 500, fontSize: "1.5rem", color: "#f4f1ea", margin: "2px 0 12px" }}>All parks</h2>
               )}
 
               <div style={{ display: "flex", gap: 8, margin: "6px 0 14px" }}>
@@ -1647,7 +1647,7 @@ export default function ExploreApp() {
                 <button onClick={backToBrowse} style={{ position: "absolute", top: 70, left: 16, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(9,22,15,.66)", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)", border: "1px solid rgba(217,183,121,.25)", borderRadius: 999, padding: "6px 13px", color: "#e7e3d8", fontSize: ".76rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>‹ Back to browse</button>
                 <div style={{ position: "absolute", left: 18, right: 18, bottom: 12 }}>
                   <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#e8cf9a" }}>{selMeta.icon} {selMeta.label} · {sel.state}</div>
-                  <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.9rem", lineHeight: 1, color: "#f7f4ec", textShadow: "0 2px 14px rgba(0,0,0,.6)", margin: "2px 0 0" }}>{sel.name}</h2>
+                  <h2 style={{ fontFamily: serif, fontWeight: 500, fontSize: "1.9rem", lineHeight: 1, color: "#f7f4ec", textShadow: "0 2px 14px rgba(0,0,0,.6)", margin: "2px 0 0" }}>{sel.name}</h2>
                 </div>
               </div>
               <div style={{ height: 14 }} />
@@ -1708,7 +1708,7 @@ export default function ExploreApp() {
                   <div style={{ background: selV.bg, border: "1px solid " + selV.border, borderRadius: 16, padding: "15px 16px", marginBottom: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                       <span style={{ width: 11, height: 11, borderRadius: "50%", background: selV.dot, boxShadow: "0 0 8px " + selV.dot }} />
-                      <b style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: selV.dot }}>{selV.headline}</b>
+                      <b style={{ fontFamily: serif, fontWeight: 500, fontSize: "1.4rem", color: selV.dot }}>{selV.headline}</b>
                     </div>
                     <p style={{ fontSize: ".84rem", color: "#aab0ba", lineHeight: 1.5, fontWeight: 300, margin: "6px 0 0" }}>{selVf && selVf.sub ? selVf.sub : selV.note}</p>
                     {selVf && (typeof selVf.temp === "number" || selVf.sky) && (
@@ -1881,7 +1881,7 @@ export default function ExploreApp() {
 
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: "1.3rem" }}>{catMeta.icon}</span>
-                  <span style={{ fontFamily: serif, fontSize: "1.4rem", fontWeight: 600, color: "#f4f1ea" }}>{tr.name}</span>
+                  <span style={{ fontFamily: serif, fontSize: "1.4rem", fontWeight: 500, color: "#f4f1ea" }}>{tr.name}</span>
                 </div>
                 <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".1em", textTransform: "uppercase", color: "#8a938b", marginBottom: 14 }}>{catMeta.label} · {tr.parkName}</div>
 
@@ -1935,7 +1935,7 @@ export default function ExploreApp() {
           {ui.view === "trip" && (
             <>
               <button onClick={backToBrowse} style={{ background: "none", border: "none", color: "#e8cf9a", fontWeight: 600, fontSize: ".8rem", cursor: "pointer", fontFamily: "inherit", padding: "4px 4px 12px", display: "flex", alignItems: "center", gap: 5 }}>‹ Back to browse</button>
-              <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 600, color: "#f4f1ea", marginBottom: 4 }}>My Trip</div>
+              <div style={{ fontFamily: serif, fontSize: "1.5rem", fontWeight: 500, color: "#f4f1ea", marginBottom: 4 }}>My Trip</div>
               <div style={{ ...monoLabel, marginBottom: 14 }}>
                 {ui.trip.length ? ui.trip.length + " place" + (ui.trip.length === 1 ? "" : "s") + " added" : "No places yet"}
               </div>

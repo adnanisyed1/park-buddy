@@ -4,7 +4,7 @@
 import { SectionTitle } from "./StatusShell";
 
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
+const serif = "var(--pb-serif), 'Spectral', Georgia, serif";
 
 export default function WebcamsSection({ webcams }) {
   if (!webcams || !webcams.length) return null;

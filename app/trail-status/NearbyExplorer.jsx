@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 // their detail pages; forests/towns are context cards (no detail page yet).
 
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
+const serif = "var(--pb-serif), 'Spectral', Georgia, serif";
 const CARD = "var(--pb-surface)", LINE = "rgba(217,183,121,.16)", INK = "var(--pb-ink)", MUTED = "var(--pb-muted)", GREEN = "var(--pb-ink)", GOLD = "#c9a35f";
 
 const SECTIONS = [

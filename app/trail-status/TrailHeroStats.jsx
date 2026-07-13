@@ -9,7 +9,7 @@ import { estimateTimeLabel } from "../lib/trailStats";
 // are derived from the client-only elevation profile, so they fill in once the
 // Google Elevation fetch resolves. Styling matches HeroBand's own chip look.
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
+const serif = "var(--pb-serif), 'Spectral', Georgia, serif";
 
 function Chip({ label, value, unit }) {
   if (value == null || value === "") return null;

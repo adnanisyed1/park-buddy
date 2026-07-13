@@ -11,7 +11,7 @@ import dynamic from "next/dynamic";
 const ExploreApp = dynamic(() => import("./ExploreApp"), {
   ssr: false,
   loading: () => (
-    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#dbe6ea", color: "#1d4a37", fontFamily: "var(--font-hanken), system-ui, sans-serif", fontWeight: 700 }}>
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#dbe6ea", color: "#1d4a37", fontFamily: "var(--pb-sans), system-ui, sans-serif", fontWeight: 700 }}>
       Loading the map…
     </div>
   ),

@@ -495,65 +495,12 @@ export default function TripStudio(props) {
                     })}
                   </div>
 
-                  {/* add a stop */}
-                  <div style={{ position: "relative", marginTop: 14 }}>
-                    <button onClick={() => { if (isMobile) { setMobileAddOpen(true); } else { setAddMenuOpen(!addMenuOpen); setAddSource(null); } }} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
+                  {/* add a stop — opens a popup (never clipped by the scrolling rail) */}
+                  <div style={{ marginTop: 14 }}>
+                    <button onClick={() => { if (isMobile) { setMobileAddOpen(true); } else { setAddSource(null); setAddMenuOpen(true); } }} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
                       <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Add a stop
                     </button>
-                    {addMenuOpen && !addSource && (
-                      <div style={{ position: "absolute", left: 0, right: 0, top: 52, zIndex: 20, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 6, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>
-                        {[["park", "◈", "National park"], ["statePark", "◆", "State park"], ["scenic", "⟿", "Scenic route"], ["lake", "≈", "Lake"], ["coord", "⌖", "Coordinates"], ["address", "⌂", "Address"], ["place", "✦", "Any place"]].map(([src, ic, label]) => (
-                          <div key={src} onClick={() => setAddSource(src)} className="ts-menuitem" style={{ padding: "11px 13px", borderRadius: 9, color: "#f4f1ea", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 11 }}>
-                            <span style={{ color: "#d9b779" }}>{ic}</span> {label}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
-
-                  {/* inline add controls */}
-                  {addSource === "park" && (
-                    <div style={{ display: "flex", gap: 9, marginTop: 10 }}>
-                      <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "var(--pb-muted)" }}>
-                        <option value="">Choose a park…</option>
-                        {parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => <option key={p.id} value={p.name}>{p.name} — {p.state}</option>)}
-                      </select>
-                      <button onClick={() => { addPark(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-                    </div>
-                  )}
-                  {addSource === "scenic" && (
-                    <div style={{ display: "flex", gap: 9, marginTop: 10 }}>
-                      <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
-                        <option value="">Choose a scenic drive…</option>
-                        {[["all-american", "All-American Roads"], ["national-scenic-byway", "National Scenic Byways"], ["*", "Other scenic drives"]].map(([tier, label]) => {
-                          const rows = bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name));
-                          if (!rows.length) return null;
-                          return <optgroup key={tier} label={label}>{rows.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => <option key={b.id} value={b.id}>{b.name} — {b.states || b.state || ""}</option>)}</optgroup>;
-                        })}
-                      </select>
-                      <button onClick={() => { addByway(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-                    </div>
-                  )}
-                  {/* State park / Lake / Address / Any place — all resolve by geocoding a name. */}
-                  {["statePark", "lake", "address", "place"].includes(addSource) && (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ display: "flex", gap: 9 }}>
-                        <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAddress(); }}
-                          placeholder={{ statePark: "State park name…", lake: "Lake name…", address: "123 Main St, a town…", place: "'Zion Lodge', a landmark…" }[addSource]} style={{ ...fieldBox, flex: 1 }} />
-                        <button onClick={addAddress} style={addBtn}>＋</button>
-                      </div>
-                      {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
-                    </div>
-                  )}
-                  {addSource === "coord" && addCoords && (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ display: "flex", gap: 9 }}>
-                        <input value={coordInput || ""} onChange={(e) => setCoordInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCoords(); }} placeholder="37.29, -113.05" style={{ ...fieldBox, flex: 1 }} />
-                        <button onClick={addCoords} style={addBtn}>＋</button>
-                      </div>
-                      {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
-                    </div>
-                  )}
                 </div>
 
                 {/* budget — full-width, itemized (matches the design) */}
@@ -809,6 +756,66 @@ export default function TripStudio(props) {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* desktop: add-a-stop popup (7 sources) — a real popup so it isn't clipped */}
+      {addMenuOpen && (
+        <div onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+              <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea" }}>Add a stop</div>
+              <button onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+            </div>
+            {!addSource && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[["park", "◈", "National park"], ["statePark", "◆", "State park"], ["scenic", "⟿", "Scenic route"], ["lake", "≈", "Lake"], ["coord", "⌖", "Coordinates"], ["address", "⌂", "Address"], ["place", "✦", "Any place"]].map(([src, ic, label]) => (
+                  <button key={src} onClick={() => setAddSource(src)} className="ts-navtile" style={{ ...navTile, justifyContent: "flex-start", padding: "12px 13px", fontSize: 13 }}><span style={{ color: "#d9b779", marginRight: 4 }}>{ic}</span>{label}</button>
+                ))}
+              </div>
+            )}
+            {addSource === "park" && (
+              <div style={{ display: "flex", gap: 9 }}>
+                <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "var(--pb-muted)" }}>
+                  <option value="">Choose a park…</option>
+                  {parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => <option key={p.id} value={p.name}>{p.name} — {p.state}</option>)}
+                </select>
+                <button onClick={() => { addPark(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
+              </div>
+            )}
+            {addSource === "scenic" && (
+              <div style={{ display: "flex", gap: 9 }}>
+                <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
+                  <option value="">Choose a scenic drive…</option>
+                  {[["all-american", "All-American Roads"], ["national-scenic-byway", "National Scenic Byways"], ["*", "Other scenic drives"]].map(([tier, label]) => {
+                    const rows = bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name));
+                    if (!rows.length) return null;
+                    return <optgroup key={tier} label={label}>{rows.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => <option key={b.id} value={b.id}>{b.name} — {b.states || b.state || ""}</option>)}</optgroup>;
+                  })}
+                </select>
+                <button onClick={() => { addByway(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
+              </div>
+            )}
+            {["statePark", "lake", "address", "place"].includes(addSource) && (
+              <div>
+                <div style={{ display: "flex", gap: 9 }}>
+                  <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAddress(); }} placeholder={{ statePark: "State park name…", lake: "Lake name…", address: "123 Main St, a town…", place: "'Zion Lodge', a landmark…" }[addSource]} style={{ ...fieldBox, flex: 1 }} />
+                  <button onClick={addAddress} style={addBtn}>＋</button>
+                </div>
+                {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
+              </div>
+            )}
+            {addSource === "coord" && addCoords && (
+              <div>
+                <div style={{ display: "flex", gap: 9 }}>
+                  <input value={coordInput || ""} onChange={(e) => setCoordInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCoords(); }} placeholder="37.29, -113.05" style={{ ...fieldBox, flex: 1 }} />
+                  <button onClick={addCoords} style={addBtn}>＋</button>
+                </div>
+                {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
+              </div>
+            )}
+            {addSource && <button onClick={() => setAddSource(null)} style={{ marginTop: 12, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer" }}>← All sources</button>}
           </div>
         </div>
       )}

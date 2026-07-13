@@ -54,7 +54,7 @@
 html, body { height: 100%; }
 
 body {
-  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  font-family: var(--pb-sans);
   background: var(--bg);
   color: var(--ink);
 }

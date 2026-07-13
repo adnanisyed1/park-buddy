@@ -897,8 +897,8 @@ export default function BuildTripApp() {
 
   /* ---------------- shared style fragments (design verbatim) ---------------- */
 
-  const sans = "var(--font-hanken), 'Hanken Grotesk', system-ui, sans-serif";
-  const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
+  const sans = "var(--pb-sans), 'Hanken Grotesk', system-ui, sans-serif";
+  const serif = "var(--pb-serif), 'Spectral', Georgia, serif";
   const mono = "var(--pb-mono), ui-monospace, monospace";
   const panel = { position: "relative", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 22, boxShadow: "0 22px 50px -30px rgba(0,0,0,.7)" };
   const stepNum = { position: "absolute", left: 10, top: 20, width: 37, height: 37, borderRadius: 12, background: "linear-gradient(150deg,#33555f,#1d3941)", color: "#e4be78", border: "1px solid rgba(228,190,120,.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: "1.06rem", fontWeight: 800, boxShadow: "0 8px 18px -8px rgba(8,18,12,.6)" };

@@ -20,7 +20,7 @@ export default async function ScenicDriveDetailPage({ params }) {
   const drive = await getByway(params.id);
   if (!drive) {
     return (
-      <div style={{ minHeight: "60vh", background: "#11281d", color: "#f3ede0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, fontFamily: "'Hanken Grotesk', system-ui, sans-serif", padding: 40, textAlign: "center" }}>
+      <div style={{ minHeight: "60vh", background: "#11281d", color: "#f3ede0", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, fontFamily: "var(--pb-sans)", padding: 40, textAlign: "center" }}>
         <div style={{ fontFamily: "'Spectral', Georgia, serif", fontSize: "1.4rem" }}>That scenic drive isn&apos;t in our index yet.</div>
         <Link href="/scenic-drives" style={{ color: "#e4be78", fontWeight: 700, textDecoration: "none" }}>← Browse all scenic drives</Link>
       </div>

@@ -10,7 +10,7 @@ const ACCENT = "#e8cf9a";
 const NAV_COLOR = "#2c7a9e"; // distinct from ACCENT so "where you are" never looks like "where your mouse is"
 const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" }; // same convention as app/explore/ExploreApp.jsx
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
-const serif = "var(--font-spectral), 'Spectral', Georgia, serif";
+const serif = "var(--pb-serif), 'Spectral', Georgia, serif";
 const ON_TRAIL_MI = 0.02; // ~100 ft
 const LOOKAHEAD_MI = 0.1;
 const MAP_W = 800, MAP_H = 440, MAP_MINH = 420;

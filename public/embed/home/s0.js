@@ -255,19 +255,30 @@ class Component extends DCLogic {
   /* ---------------- TICKER ---------------- */
   initTicker(){
     var el=document.getElementById('ticker'); if(!el) return;
-    var items=[
+    var self=this;
+    // Fallback so the ticker never sits empty; replaced by live NPS alerts below.
+    var fallback=[
       ['Zion','GO · 74°F clear'],['Glacier','Going-to-the-Sun open'],['Rocky Mountain','Timed entry 9–2'],
       ['Yosemite','PREPARE · firefall window'],['Arches','GO · 81°F'],['Great Smoky','Cades Cove open'],
       ['Yellowstone','Bison on the road, N loop'],['Acadia','HOLD · fog on Cadillac'],['Grand Canyon','GO · South Rim clear'],
       ['Olympic','Hoh road open'],['Sequoia','Chains advised, Generals Hwy']
     ];
-    el.innerHTML=items.concat(items).map(function(it){
-      return '<span style="margin-right:40px"><b style="color:#e8cf9a">'+it[0]+'</b> <span style="color:#6f757f">—</span> '+it[1]+'</span>';
-    }).join('');
-    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
-    var self=this, x=0, w=el.scrollWidth/2;
-    function step(){ x-=0.5; if(-x>=w)x=0; el.style.transform='translateX('+x+'px)'; self._tick=requestAnimationFrame(step); }
-    step();
+    var render=function(items){
+      if(self._tick){ cancelAnimationFrame(self._tick); self._tick=null; }
+      el.style.transform='translateX(0)';
+      el.innerHTML=items.concat(items).map(function(it){
+        return '<span style="margin-right:40px"><b style="color:#e8cf9a">'+it[0]+'</b> <span style="color:#6f757f">—</span> '+it[1]+'</span>';
+      }).join('');
+      if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+      var x=0, w=el.scrollWidth/2;
+      function step(){ x-=0.5; if(-x>=w)x=0; el.style.transform='translateX('+x+'px)'; self._tick=requestAnimationFrame(step); }
+      step();
+    };
+    render(fallback);
+    // Live: real NPS alerts (closures / hazards / caution notices) for real parks.
+    fetch('/api/park-alerts').then(function(r){ return r.ok?r.json():null; }).then(function(d){
+      if(d&&d.live&&d.alerts&&d.alerts.length){ render(d.alerts.map(function(a){ return [a.park, a.text]; })); }
+    }).catch(function(){});
   }
 
   /* ---------------- FILTER BUILDER ---------------- */

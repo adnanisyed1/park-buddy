@@ -35,6 +35,22 @@ const ST = { Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", Califor
 
 export async function GET(request) {
   const params = new URL(request.url).searchParams;
+
+  // Reverse mode: turn the device's current lat/lng into a place name.
+  if (params.get("rev")) {
+    const lat = Number(params.get("lat")), lng = Number(params.get("lng"));
+    if (!isFinite(lat) || !isFinite(lng)) return Response.json({ found: false, error: "lat/lng required" }, { status: 400 });
+    try {
+      const r = await fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=" + lat + "&lon=" + lng, { headers: { "User-Agent": "ParkBuddy/1.0 (national-parks trip planner)", "Accept-Language": "en" }, next: { revalidate: 3600 } });
+      const hit = r.ok ? await r.json().catch(() => null) : null;
+      const a = (hit && hit.address) || {};
+      const short = a.town || a.city || a.village || a.hamlet || a.suburb || a.county || (hit && hit.display_name || "").split(",")[0] || "My location";
+      return Response.json({ found: true, name: short.slice(0, 60), fullName: (hit && hit.display_name) || "", lat, lng, state: ST[a.state] || "" });
+    } catch {
+      return Response.json({ found: true, name: "My location", lat, lng, state: "" });
+    }
+  }
+
   const q = (params.get("q") || "").trim();
   if (!q) return Response.json({ found: false, error: "q required" }, { status: 400 });
 

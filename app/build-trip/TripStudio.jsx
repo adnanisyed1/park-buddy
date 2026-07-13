@@ -1270,7 +1270,7 @@ export default function TripStudio(props) {
                           )
                         )}
                         {["address", "place"].includes(addSource) && (
-                          <GeoAutocomplete
+                          <AddressPicker
                             placeholder={{ address: "Start typing an address or town…", place: "Start typing a place or landmark…" }[addSource]}
                             onPick={(s) => { addDestination && addDestination({ name: s.name, state: s.state, lat: s.lat, lng: s.lng, custom: true }); setAddMenuOpen(false); setAddSource(null); }}
                             fieldBox={fieldBox}
@@ -1540,6 +1540,67 @@ function PickList({ items, placeholder, onPick, loading, emptyText, fieldBox, au
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// In-popup address search — results render as an in-flow list inside the popup
+// (not a floating dropdown), plus a "Use my current location" row.
+function AddressPicker({ placeholder, onPick, fieldBox }) {
+  const [q, setQ] = useState("");
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [geo, setGeo] = useState("");
+  const tRef = useRef(null), seqRef = useRef(0);
+  useEffect(() => {
+    if (tRef.current) clearTimeout(tRef.current);
+    const term = q.trim();
+    if (term.length < 3) { setList([]); setLoading(false); return; }
+    setLoading(true);
+    const seq = ++seqRef.current;
+    tRef.current = setTimeout(() => {
+      fetch("/api/geocode?suggest=1&q=" + encodeURIComponent(term))
+        .then((r) => r.json()).then((d) => { if (seq === seqRef.current) { setList((d && d.suggestions) || []); setLoading(false); } })
+        .catch(() => { if (seq === seqRef.current) { setList([]); setLoading(false); } });
+    }, 300);
+    return () => tRef.current && clearTimeout(tRef.current);
+  }, [q]);
+  const useMyLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) { setGeo("Location isn't available on this device."); return; }
+    setGeo("Finding your location…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        fetch("/api/geocode?rev=1&lat=" + lat + "&lng=" + lng).then((r) => (r.ok ? r.json() : null))
+          .then((d) => { onPick(d && d.found ? { name: d.name, state: d.state, lat: d.lat, lng: d.lng } : { name: "My location", lat, lng, state: "" }); })
+          .catch(() => onPick({ name: "My location", lat, lng, state: "" }));
+      },
+      () => setGeo("Couldn't get your location — allow location access and try again."),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  };
+  return (
+    <div>
+      <button onClick={useMyLocation} className="ts-navtile" style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", justifyContent: "flex-start", padding: "10px 12px", marginBottom: 9 }}>
+        <span style={{ width: 26, height: 26, flex: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#8fd6a6", background: "rgba(143,214,166,0.12)", border: "1px solid rgba(143,214,166,0.3)" }}><TSIcon name="crosshair" size={14} /></span>
+        <span style={{ fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "#f4f1ea" }}>Use my current location</span>
+      </button>
+      {geo && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#aab0ba", margin: "-3px 2px 9px" }}>{geo}</div>}
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} autoFocus style={{ ...fieldBox, width: "100%" }} />
+      {(loading || list.length > 0) && (
+        <div className="ts-scroll" style={{ marginTop: 8, maxHeight: 220, overflowY: "auto", border: "1px solid rgba(217,183,121,0.14)", borderRadius: 12, padding: 6, background: "rgba(0,0,0,0.15)" }}>
+          {loading && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "10px 8px", display: "flex", alignItems: "center", gap: 8 }}><span className="ts-skel" style={{ width: 22, height: 14, borderRadius: 6 }} />Searching…</div>}
+          {!loading && list.map((s, i) => (
+            <button key={i} onClick={() => onPick({ name: s.name, state: s.state, lat: s.lat, lng: s.lng })} className="ts-menuitem" style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left", padding: "9px 11px", borderRadius: 9, border: "none", background: "transparent", cursor: "pointer" }}>
+              <span style={{ width: 28, height: 28, flex: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#e0b978", background: "rgba(224,185,120,0.12)", border: "1px solid rgba(224,185,120,0.28)" }}><TSIcon name="pin" size={14} /></span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span style={{ display: "block", fontFamily: SANS, fontSize: 13, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</span>
+                {s.fullName && <span style={{ display: "block", fontFamily: MONO, fontSize: 8.5, color: "#7f8a82", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.fullName}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

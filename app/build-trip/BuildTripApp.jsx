@@ -181,6 +181,7 @@ export default function BuildTripApp() {
   const activityCounterRef = useRef(0); // stable ids for day-plan activities
   const keyInputRef = useRef(null);
   const mapObjRef = useRef(null);
+  const myLocRef = useRef(null); // "you are here" marker on the Edit-Trip map
   const routeMarkersRef = useRef([]);
   const routeLinesRef = useRef([]); // per-leg polylines (road or straight fallback)
   const dragIdxRef = useRef(null);
@@ -677,6 +678,27 @@ export default function BuildTripApp() {
     setKeyOverlay(false);
     // Stream state parks for the visible area as the user pans (when that layer's on).
     mapObjRef.current.addListener("idle", () => { if (layersRef.current.statePark) fetchStateParks(); });
+
+    // "My location" control — drops a blue you-are-here dot and pans to it.
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.title = "Show my current location";
+    btn.setAttribute("aria-label", "Show my current location");
+    btn.style.cssText = "margin:10px;width:40px;height:40px;border-radius:11px;border:1px solid rgba(217,183,121,0.3);background:rgba(10,23,18,0.92);color:#e8cf9a;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -10px rgba(0,0,0,0.8);backdrop-filter:blur(6px)";
+    btn.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>';
+    btn.onclick = () => {
+      if (!navigator.geolocation) return;
+      btn.style.opacity = "0.5";
+      navigator.geolocation.getCurrentPosition((pos) => {
+        btn.style.opacity = "1";
+        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude }, gg = window.google, map = mapObjRef.current;
+        if (!gg || !map) return;
+        if (myLocRef.current) myLocRef.current.setPosition(p);
+        else myLocRef.current = new gg.maps.Marker({ position: p, map, zIndex: 999, title: "You are here", icon: { path: gg.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#4c9be8", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2.5 } });
+        map.panTo(p); map.setZoom(Math.max(map.getZoom() || 7, 9));
+      }, () => { btn.style.opacity = "1"; }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    };
+    mapObjRef.current.controls[g.maps.ControlPosition.RIGHT_BOTTOM].push(btn);
     // drawRoute/drawBrowse/drawLayers run from their effects once mapReady flips.
   }
 

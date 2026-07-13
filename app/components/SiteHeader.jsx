@@ -28,6 +28,7 @@ import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 // rather than trying to be a standalone dive/climbing app.
 const EXPLORE_MENU = [
   { icon: "🗺", label: "The Live Map", desc: "Parks, forests & state parks — live", href: "/explore" },
+  { icon: "🧭", label: "Trip Studio", desc: "Plan a national-parks road trip", href: "/build-trip" },
   { icon: "🛣", label: "Scenic Drives", desc: "Byways & road trips", href: "/scenic-drives" },
   { icon: "◉", label: "Trip Mode", desc: "Live on-trip: photos, checklist, alerts", href: "/trip-mode" },
   { icon: "🚢", label: "Cruises", desc: "Reach the parks by sea", href: "/cruises" },

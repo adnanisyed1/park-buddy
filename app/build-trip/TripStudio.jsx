@@ -114,6 +114,7 @@ export default function TripStudio(props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mobileAddOpen, setMobileAddOpen] = useState(false);
   const [pendingRoute, setPendingRoute] = useState(null); // ready-made route awaiting an insertion point
+  const [confirmDelete, setConfirmDelete] = useState(null); // saved trip pending a delete confirmation
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
     const on = () => setIsMobile(mq.matches);
@@ -649,15 +650,20 @@ export default function TripStudio(props) {
                     const n = (t.stops || []).length;
                     const nights = (t.stops || []).reduce((a, s) => a + (Number(s.nights) || 0), 0);
                     return (
-                      <div key={t.id} onClick={() => loadSavedTrip(t)} className="ts-hoverline" style={{ display: "flex", gap: 14, alignItems: "center", position: "relative", background: "rgba(14,32,22,0.5)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 16, padding: 14, backdropFilter: "blur(10px)", cursor: "pointer" }}>
-                        <button onClick={(e) => { e.stopPropagation(); deleteSavedTrip(t.id); }} title="Delete" style={{ position: "absolute", top: 10, right: 10, width: 22, height: 22, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(9,20,14,0.8)", color: "#b06a4a", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
-                        <div style={{ width: 96, height: 82, flex: "none", borderRadius: 12, position: "relative", overflow: "hidden", border: "1px solid rgba(217,183,121,0.18)", background: THUMBS[i % THUMBS.length] }}>
-                          <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
+                      <div key={t.id} className="ts-hoverline" style={{ display: "flex", flexDirection: "column", gap: 12, background: "rgba(14,32,22,0.5)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 16, padding: 14, backdropFilter: "blur(10px)" }}>
+                        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                          <div style={{ width: 96, height: 82, flex: "none", borderRadius: 12, position: "relative", overflow: "hidden", border: "1px solid rgba(217,183,121,0.18)", background: THUMBS[i % THUMBS.length] }}>
+                            <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.1 }}>{t.name}</div>
+                            <div style={{ fontSize: 11.5, color: "#aab0ba", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n ? (t.stops || []).slice(0, 4).map((s) => s.name).join(" · ") : "No stops"}</div>
+                            <span style={{ display: "inline-block", fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, marginTop: 10, background: "rgba(143,214,166,0.12)", color: "#8fd6a6" }}>{n} stop{n === 1 ? "" : "s"} · {nights} night{nights === 1 ? "" : "s"}</span>
+                          </div>
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.1, paddingRight: 24 }}>{t.name}</div>
-                          <div style={{ fontSize: 11.5, color: "#aab0ba", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n ? (t.stops || []).slice(0, 4).map((s) => s.name).join(" · ") : "No stops"}</div>
-                          <span style={{ display: "inline-block", fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, marginTop: 10, background: "rgba(143,214,166,0.12)", color: "#8fd6a6" }}>{n} stop{n === 1 ? "" : "s"} · {nights} night{nights === 1 ? "" : "s"}</span>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+                          <button onClick={() => loadSavedTrip(t)} className="ts-goldbtn" style={{ padding: 10, borderRadius: 11, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Edit</button>
+                          <button onClick={() => setConfirmDelete(t)} className="ts-navtile" style={{ ...navTile, color: "#c98a6a", justifyContent: "center", borderColor: "rgba(176,106,74,0.4)" }}>Delete</button>
                         </div>
                       </div>
                     );
@@ -669,6 +675,23 @@ export default function TripStudio(props) {
           </div>
         </div>
       </div>
+
+      {/* Delete a saved trip — confirm first */}
+      {confirmDelete && (
+        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, zIndex: 96, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 400, background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, padding: 24, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", textAlign: "center" }}>
+            <div style={{ display: "inline-flex", width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", color: "#c98a6a", background: "rgba(176,106,74,0.12)", border: "1px solid rgba(176,106,74,0.35)", marginBottom: 14 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></svg>
+            </div>
+            <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 600, color: "#f4f1ea" }}>Delete this trip?</div>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: "#aab0ba", marginTop: 8, lineHeight: 1.55 }}>“{confirmDelete.name}” will be permanently removed from your trips. This can’t be undone.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22 }}>
+              <button onClick={() => setConfirmDelete(null)} className="ts-navtile" style={{ ...navTile, justifyContent: "center" }}>Cancel</button>
+              <button onClick={() => { deleteSavedTrip(confirmDelete.id); setConfirmDelete(null); }} style={{ padding: "11px 8px", borderRadius: 11, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#c98a6a,#b06a4a)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Delete trip</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ready-made itinerary → choose where to slot it into the current trip */}
       {pendingRoute && (

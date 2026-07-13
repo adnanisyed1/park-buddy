@@ -72,6 +72,24 @@ export default function TripStudio(props) {
   const sn = statNum || { stops: 0, days: 0, miles: 0, cost: 0 };
   const stat4 = [{ label: "Stops", num: sn.stops }, { label: "Days", num: sn.days }, { label: "Drive miles", num: sn.miles }, { label: "Est. cost", num: sn.cost, fmt: fmtUsd }];
 
+  // Mobile: the map becomes a pull-up bottom sheet + the "+ Add a stop" button
+  // opens a search-first popup (spec §7 / §7a). Detected client-side to keep SSR stable.
+  const [isMobile, setIsMobile] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [mobileAddOpen, setMobileAddOpen] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 900px)");
+    const on = () => setIsMobile(mq.matches);
+    on(); mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  // Nudge the Google map to re-measure after the sheet finishes animating.
+  useEffect(() => {
+    if (!isMobile) return;
+    const t = setTimeout(() => window.dispatchEvent(new Event("resize")), 430);
+    return () => clearTimeout(t);
+  }, [sheetOpen, isMobile]);
+
   return (
     <div style={{ background: "radial-gradient(1200px 700px at 20% -10%, rgba(217,183,121,0.06), transparent 60%), radial-gradient(900px 600px at 100% 110%, rgba(217,183,121,0.05), transparent 55%), #050c09", padding: "clamp(14px,2.4vw,40px)", minHeight: "70vh" }}>
       <style>{`
@@ -84,10 +102,11 @@ export default function TripStudio(props) {
         .ts-hoverline:hover { border-color: rgba(217,183,121,.4) !important; }
         @media (max-width: 900px) {
           .ts-body { flex-direction: column !important; }
-          .ts-modules { order: 1; flex: none !important; border-left: none !important; max-height: none !important; overflow: visible !important; }
-          .ts-stage { order: 2; flex: none !important; height: 280px !important; border-top: 1px solid rgba(217,183,121,.25) !important; }
+          .ts-modules { order: 1; flex: none !important; border-left: none !important; max-height: none !important; overflow: visible !important; padding-bottom: 120px !important; }
           .ts-switcher button { padding: 8px 11px !important; font-size: 11.5px !important; }
-        }
+        }`}</style>
+      <style>{`
+        @keyframes ts-sheetGrab { 0%,100% { opacity:.55; } 50% { opacity:1; } }
       `}</style>
 
       <div style={{ maxWidth: 1360, margin: "0 auto", background: "#0a1712", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 22, overflow: "hidden", boxShadow: "0 40px 120px -30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(217,183,121,0.08)", display: "flex", flexDirection: "column" }}>
@@ -121,10 +140,21 @@ export default function TripStudio(props) {
         {/* ── body: map stage + modules ── */}
         <div className="ts-body" style={{ flex: 1, display: "flex", minHeight: 0 }}>
 
-          {/* MAP STAGE (real Google map) */}
-          <div className="ts-stage" style={{ flex: "1.62 1 0", position: "relative", overflow: "hidden", background: "radial-gradient(900px 620px at 60% 35%, #0d1f16, #08130d 70%)", minHeight: 520 }}>
+          {/* MAP STAGE (real Google map) — desktop panel / mobile pull-up sheet */}
+          <div className="ts-stage" style={isMobile
+            ? { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60, height: sheetOpen ? "74vh" : 106, minHeight: 0, overflow: "hidden", background: "radial-gradient(900px 620px at 60% 35%, #0d1f16, #08130d 70%)", borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTop: "1px solid rgba(217,183,121,0.3)", boxShadow: "0 -22px 60px -22px rgba(0,0,0,0.85)", transition: "height .38s cubic-bezier(.4,0,.2,1)" }
+            : { flex: "1.62 1 0", position: "relative", overflow: "hidden", background: "radial-gradient(900px 620px at 60% 35%, #0d1f16, #08130d 70%)", minHeight: 520 }}>
             <div style={{ position: "absolute", inset: -64, opacity: 0.5, animation: "ts-gridDrift 26s linear infinite", pointerEvents: "none", backgroundImage: "linear-gradient(rgba(217,183,121,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(217,183,121,0.05) 1px, transparent 1px)", backgroundSize: "64px 64px", zIndex: 1 }} />
-            <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
+            <div ref={mapDivRef} style={{ position: "absolute", inset: 0, top: isMobile ? (sheetOpen ? 40 : 106) : 0 }} />
+
+            {/* mobile grabber / peek header */}
+            {isMobile && (
+              <div onClick={() => setSheetOpen((o) => !o)} style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 9, height: sheetOpen ? 40 : 106, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: sheetOpen ? "linear-gradient(180deg, rgba(6,14,10,0.96), rgba(6,14,10,0))" : "rgba(11,23,16,0.94)" }}>
+                <div style={{ width: 46, height: 5, borderRadius: 999, background: "rgba(217,183,121,0.55)", animation: sheetOpen ? "none" : "ts-sheetGrab 2.4s ease-in-out infinite" }} />
+                {!sheetOpen && <div style={{ marginTop: 10, fontFamily: MONO, fontSize: 11, letterSpacing: ".1em", color: "#e8cf9a" }}>Map · pull up ↑ · {totalMiles || 0} mi · {driveHrs || 0} h</div>}
+                {sheetOpen && <button onClick={(e) => { e.stopPropagation(); setSheetOpen(false); }} style={{ position: "absolute", top: 6, right: 12, width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(11,23,16,0.8)", color: "#e8cf9a", fontSize: 15, lineHeight: 1, cursor: "pointer" }}>✕</button>}
+              </div>
+            )}
 
             {/* google-key overlay */}
             <div style={{ display: keyOverlay ? "flex" : "none", position: "absolute", inset: 0, zIndex: 6, background: "rgba(5,12,9,.78)", backdropFilter: "blur(3px)", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -327,7 +357,7 @@ export default function TripStudio(props) {
 
                   {/* add a stop */}
                   <div style={{ position: "relative", marginTop: 14 }}>
-                    <button onClick={() => { setAddMenuOpen(!addMenuOpen); setAddSource(null); }} style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
+                    <button onClick={() => { if (isMobile) { setMobileAddOpen(true); } else { setAddMenuOpen(!addMenuOpen); setAddSource(null); } }} style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
                       <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Add a stop
                     </button>
                     {addMenuOpen && !addSource && (
@@ -522,6 +552,19 @@ export default function TripStudio(props) {
           </div>
         </div>
       </div>
+
+      {/* mobile: search-first add-a-stop popup (spec §7a) */}
+      {mobileAddOpen && (
+        <MobileAddPopup
+          onClose={() => setMobileAddOpen(false)}
+          stops={stops} dayRanges={dayRanges}
+          parksDb={parksDb} bywaysDb={bywaysDb}
+          addActivity={addActivity}
+          addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress}
+          coordInput={coordInput} setCoordInput={setCoordInput} addCoords={addCoords}
+          addrMsg={addrMsg} fieldBox={fieldBox}
+        />
+      )}
     </div>
   );
 }
@@ -553,6 +596,107 @@ function DayPlanAdd({ onAdd, fieldBox }) {
       <div style={{ display: "flex", gap: 7, marginTop: 7 }}>
         <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") commit(); }} placeholder="What's the plan?" style={{ ...fieldBox, flex: 1 }} />
         <button onClick={commit} style={addBtn}>＋</button>
+      </div>
+    </div>
+  );
+}
+
+// Mobile add-a-stop popup (spec §7a): search → filter chips → "add to Day · time"
+// → suggested rows (one tap logs a timed activity on the chosen day) → precise entry.
+const ADD_FILTERS = [["all", "All"], ["park", "Parks"], ["statePark", "State"], ["forest", "Forest"], ["scenic", "Scenic"], ["lake", "Lake"]];
+const TYPE_DOT = { park: "#8fd6a6", statePark: "#9ecbe8", forest: "#c9a35f", scenic: "#e8cf9a", lake: "#7fd2d6" };
+function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActivity, addrInput, setAddrInput, addAddress, coordInput, setCoordInput, addCoords, addrMsg, fieldBox }) {
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [dayIdx, setDayIdx] = useState(0);
+  const [time, setTime] = useState("09:00");
+  const [precise, setPrecise] = useState(null); // "coord" | "address" | "pin" | null
+  const [added, setAdded] = useState("");
+
+  // Suggestion pool from our real datasets: parks + scenic drives.
+  const pool = [
+    ...(parksDb || []).map((p) => ({ name: p.name, type: "park", icon: "◈", region: p.state, cat: "National park" })),
+    ...(bywaysDb || []).map((b) => ({ name: b.name, type: "scenic", icon: "⟿", region: b.states || b.state || "", cat: "Scenic route" })),
+  ];
+  const ql = q.trim().toLowerCase();
+  const results = pool
+    .filter((r) => (filter === "all" || r.type === filter))
+    .filter((r) => !ql || r.name.toLowerCase().includes(ql) || (r.region || "").toLowerCase().includes(ql))
+    .filter((r) => !stops.some((s) => s.name === r.name && false)) // keep dupes visible; day-activities can repeat
+    .slice(0, 14);
+
+  const day = stops[dayIdx];
+  function pick(r) {
+    if (!day) { setAdded("Add a stop first — use precise entry below."); return; }
+    addActivity(day.name, { icon: r.icon, type: r.type, name: r.name, time });
+    setAdded(r.name + " → " + day.name + " · " + time);
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(4,9,7,0.72)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 env(safe-area-inset-bottom)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderTopLeftRadius: 22, borderTopRightRadius: 22, boxShadow: "0 -30px 80px -20px rgba(0,0,0,0.9)" }}>
+        {/* header */}
+        <div style={{ flex: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 12px" }}>
+          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea" }}>Add a stop</div>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+        </div>
+        {/* search */}
+        <div style={{ flex: "none", padding: "0 18px" }}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="Search parks, towns, trails, byways…" style={{ ...fieldBox, width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: 14 }} />
+        </div>
+        {/* filter chips */}
+        <div style={{ flex: "none", display: "flex", gap: 7, padding: "12px 18px 6px", overflowX: "auto" }}>
+          {ADD_FILTERS.map(([k, label]) => {
+            const on = filter === k;
+            return <button key={k} onClick={() => setFilter(k)} style={{ flex: "none", cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: "7px 13px", borderRadius: 999, border: "1px solid " + (on ? "transparent" : "rgba(217,183,121,0.22)"), color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>{label}</button>;
+          })}
+        </div>
+        {/* add-to bar */}
+        <div style={{ flex: "none", display: "flex", gap: 8, alignItems: "center", padding: "8px 18px 10px", borderBottom: "1px solid rgba(217,183,121,0.12)" }}>
+          <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82", flex: "none" }}>Add to</span>
+          <select value={dayIdx} onChange={(e) => setDayIdx(+e.target.value)} style={{ ...fieldBox, flex: 1, minWidth: 0 }}>
+            {stops.length === 0 && <option value={0}>No days yet</option>}
+            {stops.map((s, i) => <option key={s.name} value={i}>{(dayRanges[i] ? dayRanges[i].label : "Day " + (i + 1)) + " · " + s.name}</option>)}
+          </select>
+          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...fieldBox, width: 100, flex: "none" }} />
+        </div>
+        {/* results */}
+        <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", padding: "10px 18px" }}>
+          <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", margin: "2px 0 8px" }}>{ql ? "Matches" : "Suggested near your route"}</div>
+          {results.length === 0 && <div style={{ fontFamily: SANS, fontSize: 13, color: "#7f8a82", padding: "6px 0 12px", lineHeight: 1.5 }}>No matches in this category — try the precise entry below.</div>}
+          {results.map((r, i) => (
+            <div key={r.type + r.name + i} onClick={() => pick(r)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 4px", borderBottom: "1px solid rgba(217,183,121,0.08)", cursor: "pointer" }}>
+              <span style={{ width: 9, height: 9, flex: "none", borderRadius: "50%", background: TYPE_DOT[r.type] || "#c9a35f", boxShadow: "0 0 8px " + (TYPE_DOT[r.type] || "#c9a35f") }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</div>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".06em", color: "#7f8a82", marginTop: 2 }}>{r.cat}{r.region ? " · " + r.region : ""}</div>
+              </div>
+              <span style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontSize: 18, fontWeight: 700 }}>+</span>
+            </div>
+          ))}
+        </div>
+        {/* precise entry footer */}
+        <div style={{ flex: "none", padding: "10px 18px 18px", borderTop: "1px solid rgba(217,183,121,0.12)", background: "rgba(6,14,10,0.6)" }}>
+          {added && <div style={{ fontFamily: SANS, fontSize: 12, color: "#8fd6a6", marginBottom: 9 }}>Added {added}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            {[["coord", "⌖ Coordinates"], ["address", "⌂ Address"], ["pin", "✦ Pin"]].map(([k, label]) => (
+              <button key={k} onClick={() => setPrecise(precise === k ? null : k)} style={{ flex: 1, cursor: "pointer", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, padding: "9px 6px", borderRadius: 10, border: "1px solid " + (precise === k ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.2)"), background: precise === k ? "rgba(217,183,121,0.12)" : "rgba(255,255,255,.03)", color: precise === k ? "#e8cf9a" : "#aab0ba" }}>{label}</button>
+            ))}
+          </div>
+          {precise === "coord" && (
+            <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
+              <input value={coordInput || ""} onChange={(e) => setCoordInput(e.target.value)} placeholder="37.29, -113.05" style={{ ...fieldBox, flex: 1 }} />
+              <button onClick={() => { addCoords(); onClose(); }} style={{ ...addBtn, width: 120, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>+ Add these</button>
+            </div>
+          )}
+          {(precise === "address" || precise === "pin") && (
+            <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
+              <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} placeholder={precise === "pin" ? "'Zion Lodge', a landmark…" : "123 Main St, a town…"} style={{ ...fieldBox, flex: 1 }} />
+              <button onClick={() => { addAddress(); onClose(); }} style={{ ...addBtn, width: 120, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>+ Add this</button>
+            </div>
+          )}
+          {precise && addrMsg && <div style={{ fontSize: 12, color: "#aab0ba", marginTop: 7 }}>{addrMsg}</div>}
+        </div>
       </div>
     </div>
   );

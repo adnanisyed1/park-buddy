@@ -346,8 +346,66 @@ export default function TripStudio(props) {
           {/* RIGHT MODULES */}
           <div className="ts-modules ts-scroll" style={{ flex: "1 1 0", minWidth: 0, maxWidth: 560, borderLeft: "1px solid rgba(217,183,121,0.12)", background: "linear-gradient(180deg,#0b1710,#08130d)", overflowY: "auto", maxHeight: "82vh", padding: 22 }}>
 
+            {/* PREVIEW MODE — SCENIC BYWAY: a single All-American Road shown read-only on the map + details here */}
+            {previewRoute && previewRoute.__byway && (() => {
+              const via = Array.isArray(previewRoute.endpoints?.via) ? previewRoute.endpoints.via : [];
+              const legs = [
+                previewRoute.endpoints?.from && { label: previewRoute.endpoints.from, role: "Start" },
+                ...via.map((v) => ({ label: v, role: "Along the way" })),
+                previewRoute.endpoints?.to && { label: previewRoute.endpoints.to, role: "End" },
+              ].filter(Boolean);
+              const lenChip = previewRoute.length || (previewRoute.lengthMi ? previewRoute.lengthMi + " mi" : "");
+              return (
+                <div>
+                  <button onClick={() => { setPreviewRoute(null); setPickTrip(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 12 }}>← Back to ready-made routes</button>
+                  <div style={{ ...glass }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#c9a35f" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#c9a35f" }} />Read-only preview · Scenic route</span>
+                    <div style={{ fontFamily: SERIF, fontSize: 25, fontWeight: 500, color: "#f4f1ea", marginTop: 8, lineHeight: 1.15 }}>{previewRoute.name}</div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                      {["ALL-AMERICAN ROAD", previewRoute.states, lenChip].filter(Boolean).map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
+                    </div>
+                    {previewRoute.blurb && <div style={{ fontFamily: SANS, fontSize: 13, color: "#aab0ba", marginTop: 12, lineHeight: 1.55 }}>{previewRoute.blurb}</div>}
+                  </div>
+                  {legs.length > 0 && (
+                    <div style={{ ...glass, marginTop: 14 }}>
+                      <div style={kicker}>The drive</div>
+                      <div style={{ marginTop: 12 }}>
+                        {legs.map((leg, idx) => (
+                          <div key={leg.label + idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: idx ? "1px solid rgba(217,183,121,0.08)" : "none" }}>
+                            <span style={{ width: 28, height: 28, flex: "none", borderRadius: "50%", border: "1px solid rgba(217,183,121,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 12, color: "#e8cf9a" }}>{idx + 1}</span>
+                            <span style={{ fontFamily: SERIF, fontSize: 17, color: "#f4f1ea" }}>{leg.label}</span>
+                            <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 9, color: "#7f8a82", textTransform: "uppercase", letterSpacing: ".08em" }}>{leg.role}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ ...glass, marginTop: 14 }}>
+                    {!pickTrip ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <button onClick={() => setPickTrip(true)} className="ts-goldbtn" style={{ padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Add to a trip</button>
+                        <a href={"/scenic-drives/" + previewRoute.id} className="ts-navtile" style={{ ...navTile, justifyContent: "center", textDecoration: "none" }}>View full drive →</a>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Add this drive to which trip?</div>
+                        {editing && stops.length > 0 && (
+                          <button onClick={() => { const b = previewRoute; setPreviewRoute(null); setPickTrip(false); addDestination && addDestination({ name: b.name, state: b.states || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id }); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span>{tripName || "Current trip"}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#8fd6a6" }}>EDITING NOW</span></button>
+                        )}
+                        {savedTrips.filter((t) => !(editing && t.name === tripName)).map((t) => (
+                          <button key={t.id} onClick={() => { const b = previewRoute; setPreviewRoute(null); setPickTrip(false); loadSavedTrip(t); addDestination && addDestination({ name: b.name, state: b.states || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id }); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#7f8a82" }}>{(t.stops || []).length} stops</span></button>
+                        ))}
+                        {!savedTrips.length && !(editing && stops.length) && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "4px 0 10px", lineHeight: 1.5 }}>No trips yet — add a new trip first, then drop this drive in.</div>}
+                        <button onClick={() => setPickTrip(false)} style={{ marginTop: 4, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer" }}>← Back</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* PREVIEW MODE — a ready-made route shown read-only on the map (left) + details here */}
-            {previewRoute && (
+            {previewRoute && !previewRoute.__byway && (
               <div>
                 <button onClick={() => { setPreviewRoute(null); setPickTrip(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 12 }}>← Back to ready-made routes</button>
                 <div style={{ ...glass }}>
@@ -653,14 +711,14 @@ export default function TripStudio(props) {
                       <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", marginBottom: 14 }}>America&apos;s All-American Roads — add one to your trip or open the full drive.</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {scenic.map((b) => (
-                          <div key={b.id} className="ts-hoverline" style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(14,32,22,0.5)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 14, padding: "11px 13px", backdropFilter: "blur(10px)" }}>
+                          <div key={b.id} onClick={() => { setPreviewRoute({ __byway: true, id: b.id, name: b.name, states: b.states || b.state || "", lengthMi: b.lengthMi, length: b.length, blurb: b.blurb, endpoints: b.endpoints, lat: b.lat, lng: b.lng }); setPickTrip(false); }} className="ts-hoverline" style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(14,32,22,0.5)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 14, padding: "11px 13px", backdropFilter: "blur(10px)", cursor: "pointer" }}>
                             <span style={{ fontSize: 15, flex: "none" }}>⟿</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.name}</div>
                               <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", color: "#7f8a82", marginTop: 3 }}>ALL-AMERICAN ROAD{(b.states || b.state) ? " · " + (b.states || b.state) : ""}</div>
                             </div>
-                            <a href={"/scenic-drives/" + b.id} style={{ flex: "none", fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "#c9a35f", textDecoration: "none" }}>View →</a>
-                            <button onClick={() => addDestination && addDestination({ name: b.name, state: b.states || b.state || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id })} title="Add to your trip" style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontSize: 17, fontWeight: 700, lineHeight: 1 }}>＋</button>
+                            <span style={{ flex: "none", fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "#c9a35f" }}>View →</span>
+                            <button onClick={(e) => { e.stopPropagation(); addDestination && addDestination({ name: b.name, state: b.states || b.state || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id }); }} title="Add to your trip" style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontSize: 17, fontWeight: 700, lineHeight: 1 }}>＋</button>
                           </div>
                         ))}
                       </div>

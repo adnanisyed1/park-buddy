@@ -778,6 +778,15 @@ export default function BuildTripApp() {
     routeLinesRef.current.forEach((l) => { try { l.setOptions({ visible: !previewing }); } catch {} });
     browseMarkersRef.current.forEach((m) => { try { m.setVisible(!previewing); } catch {} });
     if (!previewing) return;
+    // Scenic byway preview: a single representative pin, regional zoom.
+    if (previewRoute.__byway) {
+      if (previewRoute.lat != null) {
+        previewMarkersRef.current.push(new g.maps.Marker({ position: { lat: previewRoute.lat, lng: previewRoute.lng }, map, title: previewRoute.name, icon: pinIcon(g, 1, false) }));
+        map.setCenter({ lat: previewRoute.lat, lng: previewRoute.lng });
+        map.setZoom(7);
+      }
+      return;
+    }
     const pts = (previewRoute.stops || []).map((name) => parksDb.find((p) => p.name === name)).filter(Boolean);
     if (!pts.length) return;
     const path = [], bounds = new g.maps.LatLngBounds();

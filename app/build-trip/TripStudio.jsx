@@ -171,9 +171,10 @@ export default function TripStudio(props) {
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c9a35f" }} />{tripName || "Your route"}
             </div>
 
-            {/* Route ⇄ Explore toggle */}
-            {setMapView && (
-              <div style={{ position: "absolute", top: 50, left: 26, zIndex: 5, display: "flex", padding: 4, gap: 3, background: "rgba(11,23,16,0.62)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}>
+            {/* Route ⇄ Explore toggle — floats top-left in Route mode; moves into the
+                filter bar in Explore mode so the two never overlap. */}
+            {setMapView && (mapView || "route") !== "explore" && (
+              <div style={{ position: "absolute", top: isMobile ? 52 : 50, left: 26, zIndex: 5, display: "flex", padding: 4, gap: 3, background: "rgba(11,23,16,0.62)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}>
                 {[["route", "Route"], ["explore", "Explore"]].map(([id, lbl]) => {
                   const on = (mapView || "route") === id;
                   return <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", padding: "6px 14px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>{lbl}</button>;
@@ -183,7 +184,13 @@ export default function TripStudio(props) {
 
             {/* Explore filter bar — drops in over the top of the map */}
             {mapView === "explore" && (
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 4, padding: "14px 16px 12px", background: "linear-gradient(180deg, rgba(6,14,10,0.94), rgba(6,14,10,0.35))", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(217,183,121,0.16)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ position: "absolute", top: isMobile ? 40 : 0, left: 0, right: 0, zIndex: 7, padding: "14px 16px 12px", background: "linear-gradient(180deg, rgba(6,14,10,0.96), rgba(6,14,10,0.55))", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(217,183,121,0.16)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", padding: 3, gap: 3, background: "rgba(11,23,16,0.7)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, flex: "none" }}>
+                  {[["route", "Route"], ["explore", "Explore"]].map(([id, lbl]) => {
+                    const on = (mapView || "route") === id;
+                    return <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", padding: "6px 13px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>{lbl}</button>;
+                  })}
+                </div>
                 <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".16em", textTransform: "uppercase", color: "#d9b779" }}>Discover · tap a pin to add</span>
                 <select value={browseState || ""} onChange={(e) => setBrowseState && setBrowseState(e.target.value)} style={filterField}>
                   <option value="">All states</option>
@@ -202,8 +209,9 @@ export default function TripStudio(props) {
               </div>
             )}
 
-            {/* layers control — tap a map marker to add these to the trip */}
-            <div style={{ position: "absolute", top: 18, right: 18, zIndex: 4 }}>
+            {/* layers control — tap a map marker to add these to the trip.
+                Hidden in Explore mode (the filter bar already carries the layer toggles). */}
+            <div style={{ display: mapView === "explore" ? "none" : "block", position: "absolute", top: 18, right: 18, zIndex: 4 }}>
               <button onClick={() => setLayersOpen(!layersOpen)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".14em", textTransform: "uppercase", color: layersOpen ? "#0a1712" : "#e8cf9a", background: layersOpen ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "7px 13px", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", gap: 7 }}>◈ Layers</button>
               {layersOpen && (
                 <div style={{ marginTop: 8, width: 210, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 12, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>

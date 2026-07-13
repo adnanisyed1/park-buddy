@@ -845,6 +845,20 @@ export default function BuildTripApp() {
       {/* ============ SHELL ============ */}
       <div style={{ position: "relative", zIndex: 4, display: "flex", flexDirection: "column", minHeight: "100vh", paddingTop: 64 }}>
 
+        {/* Hero — the intro banner kept from the classic Build My Trip */}
+        <section style={{ maxWidth: 1360, margin: "0 auto", width: "100%", boxSizing: "border-box", padding: "clamp(30px,5vw,66px) clamp(16px,2.4vw,40px) clamp(8px,1.6vw,22px)" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "7px 14px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.28)", background: "rgba(143,214,166,0.06)", fontFamily: "var(--pb-mono)", fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: "#cdd6cf" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#8fd6a6", boxShadow: "0 0 10px #8fd6a6" }} />Trip builder · live conditions baked in
+          </div>
+          <h1 style={{ fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "clamp(38px,6.2vw,74px)", lineHeight: 1.03, letterSpacing: "-.01em", color: "#f4f1ea", margin: "20px 0 0", maxWidth: 940 }}>
+            Build your <em style={{ fontStyle: "italic", background: "linear-gradient(120deg,#f0dca8,#c9a35f)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>national-parks</em> road trip
+          </h1>
+          <p style={{ fontFamily: "var(--pb-sans)", fontSize: "clamp(15px,1.5vw,18px)", lineHeight: 1.6, color: "#aab0ba", margin: "18px 0 0", maxWidth: 640 }}>
+            Load a ready-made route or build your own. Add parks, set your dates and rental car, and get a day-by-day plan that follows real roads — each stop carrying today&apos;s live go / no-go call.
+          </p>
+          <button onClick={() => setSetupOpen(true)} style={{ marginTop: 26, display: "inline-flex", alignItems: "center", gap: 9, padding: "13px 24px", borderRadius: 999, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: "var(--pb-sans)", fontWeight: 700, fontSize: 15, boxShadow: "0 14px 34px -12px rgba(217,183,121,0.6)" }}>◈ Set up your trip →</button>
+        </section>
+
         {/* Trip Studio — reskinned planner (design ported from Claude Design) */}
         <TripStudio
           mode={railTab} setMode={setRailTab} onNewTrip={onNewTrip}

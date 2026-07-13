@@ -90,7 +90,7 @@ export default function TripStudio(props) {
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
     addrInput, setAddrInput, addAddress, addrMsg,
     coordInput, setCoordInput, addCoords,
-    setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg,
+    setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
     routes, loadedRoute, loadRoute,
     savedTrips, loadSavedTrip, deleteSavedTrip,
@@ -337,14 +337,41 @@ export default function TripStudio(props) {
                       </div>
                     ))}
                   </div>
-                  <button onClick={onEditSetup} style={{ width: "100%", marginTop: 14, padding: 11, borderRadius: 11, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontFamily: SANS, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>◈ Set up your trip</button>
+                  <button onClick={onEditSetup} className="ts-goldbtn" style={{ width: "100%", marginTop: 14, padding: 11, borderRadius: 11, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontFamily: SANS, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>◈ Set up your trip</button>
                 </div>
 
-                {/* itinerary filmstrip */}
+                {/* your trip setup — summary card, above the itinerary (matches the design) */}
+                <div style={{ ...glass, marginBottom: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={kicker}>Your trip setup</div>
+                    <span onClick={onEditSetup} style={{ fontFamily: SANS, fontSize: 11.5, color: "#c9a35f", cursor: "pointer" }}>Edit</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 18px", marginTop: 16 }}>
+                    {setupRows.map(([k, val]) => (
+                      <div key={k} style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".18em", textTransform: "uppercase", color: "#7f8a82" }}>{k}</div>
+                        <div style={{ fontFamily: SANS, fontSize: 13.5, color: "#f4f1ea", marginTop: 5, overflowWrap: "anywhere" }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={onSaveTrip} className="ts-goldbtn" style={{ width: "100%", marginTop: 18, padding: 13, borderRadius: 13, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>Save trip</button>
+                  {saveMsg && <div style={{ textAlign: "center", fontSize: 11.5, fontWeight: 700, color: saveMsg.includes("first") ? "#c98a5a" : "#8fd6a6", marginTop: 9 }}>{saveMsg}</div>}
+                </div>
+
+                {/* edit itinerary */}
                 <div style={glass}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                    <div style={kicker}>Itinerary</div>
-                    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: ".1em", color: "#7f8a82" }}>{stops.length} stop{stops.length === 1 ? "" : "s"} · {totalMiles} mi</div>
+                    <div style={kicker}>Edit itinerary</div>
+                    {setShowOnMap ? (
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                        <span style={{ fontFamily: SANS, fontSize: 11.5, color: "#aab0ba" }}>Show on map</span>
+                        <span onClick={() => setShowOnMap((v) => !v)} style={{ width: 32, height: 18, flex: "none", borderRadius: 999, background: showOnMap ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.12)", position: "relative", transition: "background .15s" }}>
+                          <span style={{ position: "absolute", top: 2, left: showOnMap ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: showOnMap ? "#0a1712" : "#e7e3d8", transition: "left .15s" }} />
+                        </span>
+                      </label>
+                    ) : (
+                      <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: ".1em", color: "#7f8a82" }}>{stops.length} stop{stops.length === 1 ? "" : "s"} · {totalMiles} mi</div>
+                    )}
                   </div>
 
                   {!stops.length && <div style={{ fontSize: 13, color: "#7f8a82", padding: "10px 2px 4px", lineHeight: 1.6 }}>No stops yet — hit <b style={{ color: "#e8cf9a" }}>Add a stop</b> below, or load a ready-made route.</div>}
@@ -489,33 +516,6 @@ export default function TripStudio(props) {
                       </div>
                       {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
                     </div>
-                  )}
-                </div>
-
-                {/* setup (collapsible) */}
-                <div style={{ ...glass, marginTop: 14 }}>
-                  <div onClick={() => setSetupCollapsed(!setupCollapsed)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-                    <div style={kicker}>Setup</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span onClick={(e) => { e.stopPropagation(); onEditSetup(); }} style={{ fontFamily: SANS, fontSize: 11, color: "#c9a35f", cursor: "pointer" }}>Edit</span>
-                      <span style={{ color: "#7f8a82", fontSize: 12, transition: "transform .2s", transform: setupCollapsed ? "rotate(-90deg)" : "none", display: "inline-block" }}>▾</span>
-                    </div>
-                  </div>
-                  {!setupCollapsed && (
-                    <>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 16 }}>
-                        {setupRows.map(([k, val]) => (
-                          <div key={k} style={{ background: "rgba(8,19,13,0.6)", border: "1px solid rgba(217,183,121,0.12)", borderRadius: 11, padding: 12, minWidth: 0 }}>
-                            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".18em", textTransform: "uppercase", color: "#7f8a82" }}>{k}</div>
-                            <div style={{ fontSize: 13, color: "#f4f1ea", marginTop: 5, overflowWrap: "anywhere" }}>{val}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
-                        <button onClick={onSaveTrip} style={{ cursor: "pointer", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, color: "#0a1712", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", border: "none", borderRadius: 999, padding: "9px 18px" }}>💾 Save trip</button>
-                        {saveMsg && <span style={{ fontSize: 11.5, fontWeight: 700, color: saveMsg.includes("first") ? "#c98a5a" : "#8fd6a6" }}>{saveMsg}</span>}
-                      </div>
-                    </>
                   )}
                 </div>
 

@@ -895,6 +895,7 @@ export default function BuildTripApp() {
           setupCollapsed={setupCollapsed} setSetupCollapsed={setSetupCollapsed}
           setupRows={[["Dates", startDate ? fmtShort(startDate) + " – " + fmtShort(endDate) : "—"], ["Length", (tripDays ? tripDays + " days" : "—") + (totalNights ? " · " + totalNights + " nights" : "")], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " · " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Getting there", ({ own: "Own car", rental: "Rental car", fly: "Fly + rent", rv: "RV / Camper" }[transport.type] || "Own car")], ["Vehicle", transport.type === "rv" ? "RV / Camper" : car], ["Fuel est.", fmtUsd(budget.fuel) + (transport.fuelState ? " · " + transport.fuelState : "")], ["Trip scope", tripScope === "crosscountry" ? "Cross-country" : "Regional loop"]]}
           onEditSetup={() => setSetupOpen(true)} onSaveTrip={saveCurrentTrip} saveMsg={saveMsg}
+          showOnMap={showOnMap} setShowOnMap={setShowOnMap}
           budgetOpen={budgetOpen} setBudgetOpen={setBudgetOpen}
           budgetLines={[
             { label: "Flights", icon: "plane", tint: "#6fb4d6", k: "flights", sub: adults + " adult" + (adults === 1 ? "" : "s") + (arrivalMode === "fly" ? "" : " · not flying"), show: budget.flights > 0 || budgetOverride.flights != null },

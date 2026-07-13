@@ -294,6 +294,14 @@ export default function BuildTripApp() {
   const deleteSavedTrip = (id) => { storeDeleteSavedTrip(id); setSavedTrips(getSavedTrips()); };
 
   // Start a fresh, blank trip (the "New trip" action).
+  // −/+ nights on a stop (min 1) — the itinerary stepper (Trip Studio spec 3a).
+  function setStopNights(i, dir) {
+    userEditedRef.current = true;
+    setStops((prev) => prev.map((s, idx) => (idx === i ? { ...s, nights: Math.max(1, (s.nights || 0) + dir) } : s)));
+  }
+  // Save the current trip into My trips, then jump to that tab (spec §3.7 "+ Add my trip").
+  function addMyTrip() { saveCurrentTrip(); setRailTab("mine"); }
+
   function onNewTrip() {
     userEditedRef.current = true;
     setStops([]);
@@ -793,11 +801,12 @@ export default function BuildTripApp() {
           stat={{ stops: String(stops.length), days: String(totalNights), miles: String(totalMiles), cost: fmtUsd(totalCost) }}
           tripName={tripName}
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
-          onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
+          onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}
           addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress} addrMsg={addrMsg}
+          addMyTrip={addMyTrip}
           setupCollapsed={setupCollapsed} setSetupCollapsed={setSetupCollapsed}
           setupRows={[["Dates", startDate ? fmtShort(startDate) + " – " + fmtShort(endDate) : "—"], ["Length", (tripDays ? tripDays + " days" : "—") + (totalNights ? " · " + totalNights + " nights" : "")], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " · " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Getting there", ({ own: "Own car", rental: "Rental car", fly: "Fly + rent", rv: "RV / Camper" }[transport.type] || "Own car")], ["Vehicle", transport.type === "rv" ? "RV / Camper" : car], ["Fuel est.", fmtUsd(budget.fuel) + (transport.fuelState ? " · " + transport.fuelState : "")], ["Trip scope", tripScope === "crosscountry" ? "Cross-country" : "Regional loop"]]}
           onEditSetup={() => setSetupOpen(true)} onSaveTrip={saveCurrentTrip} saveMsg={saveMsg}

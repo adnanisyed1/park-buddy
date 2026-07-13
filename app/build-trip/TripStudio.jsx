@@ -92,7 +92,7 @@ export default function TripStudio(props) {
     coordInput, setCoordInput, addCoords,
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
-    routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute, previewRoute, setPreviewRoute, bywayDetail,
+    routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute, previewRoute, setPreviewRoute, bywayDetail, insertScenicDrive,
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, appleUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
@@ -116,6 +116,10 @@ export default function TripStudio(props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mobileAddOpen, setMobileAddOpen] = useState(false);
   const [pendingRoute, setPendingRoute] = useState(null); // ready-made route awaiting an insertion point
+  const [scenicAdd, setScenicAdd] = useState(null); // scenic drive awaiting drag/click placement into the trip
+  const [scenicExpanded, setScenicExpanded] = useState(false); // add ALL waypoints (vs start & end) to Plan this day
+  const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
+  const [scenicDragging, setScenicDragging] = useState(false);
   const [viewRoute, setViewRoute] = useState(null); // ready-made route open in read-only view
   const [pickTrip, setPickTrip] = useState(false); // show the My-trips picklist inside the view popup
   const [confirmDelete, setConfirmDelete] = useState(null); // saved trip pending a delete confirmation
@@ -409,26 +413,35 @@ export default function TripStudio(props) {
                       </div>
                     </div>
                   )}
-                  <div style={{ ...glass, marginTop: 14 }}>
-                    {!pickTrip ? (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <button onClick={() => setPickTrip(true)} className="ts-goldbtn" style={{ padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Add to a trip</button>
-                        <a href={"/scenic-drives/" + previewRoute.id} className="ts-navtile" style={{ ...navTile, justifyContent: "center", textDecoration: "none" }}>View full drive →</a>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Add this drive to which trip?</div>
-                        {editing && stops.length > 0 && (
-                          <button onClick={() => { const b = previewRoute; setPreviewRoute(null); setPickTrip(false); addDestination && addDestination({ name: b.name, state: b.states || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id }); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span>{tripName || "Current trip"}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#8fd6a6" }}>EDITING NOW</span></button>
+                  {(() => {
+                    const openScenicAdd = () => {
+                      const b = previewRoute, d = bywayDetail && bywayDetail.id === previewRoute.id ? bywayDetail : null;
+                      setScenicExpanded(false); setScenicDropPos(null); setScenicDragging(false);
+                      setScenicAdd({ drive: { id: b.id, name: b.name, states: b.states, lat: b.lat, lng: b.lng, endpoints: b.endpoints, lengthMi: b.lengthMi, length: b.length }, detail: d });
+                    };
+                    return (
+                      <div style={{ ...glass, marginTop: 14 }}>
+                        {!pickTrip ? (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                            <button onClick={() => setPickTrip(true)} className="ts-goldbtn" style={{ padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Add to a trip</button>
+                            <a href={"/scenic-drives/" + previewRoute.id} className="ts-navtile" style={{ ...navTile, justifyContent: "center", textDecoration: "none" }}>View full drive →</a>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Add this drive to which trip?</div>
+                            {stops.length > 0 && (
+                              <button onClick={() => { setPickTrip(false); openScenicAdd(); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span>{tripName || "Current trip"}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#8fd6a6" }}>ON CANVAS · {stops.length} STOP{stops.length === 1 ? "" : "S"}</span></button>
+                            )}
+                            {savedTrips.filter((t) => t.name !== tripName || !stops.length).map((t) => (
+                              <button key={t.id} onClick={() => { setPickTrip(false); loadSavedTrip(t); openScenicAdd(); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#7f8a82" }}>{(t.stops || []).length} stops</span></button>
+                            ))}
+                            {!savedTrips.length && !stops.length && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "4px 0 10px", lineHeight: 1.5 }}>No trips yet — add a new trip first, then drop this drive in.</div>}
+                            <button onClick={() => setPickTrip(false)} style={{ marginTop: 4, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer" }}>← Back</button>
+                          </div>
                         )}
-                        {savedTrips.filter((t) => !(editing && t.name === tripName)).map((t) => (
-                          <button key={t.id} onClick={() => { const b = previewRoute; setPreviewRoute(null); setPickTrip(false); loadSavedTrip(t); addDestination && addDestination({ name: b.name, state: b.states || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id }); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#7f8a82" }}>{(t.stops || []).length} stops</span></button>
-                        ))}
-                        {!savedTrips.length && !(editing && stops.length) && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "4px 0 10px", lineHeight: 1.5 }}>No trips yet — add a new trip first, then drop this drive in.</div>}
-                        <button onClick={() => setPickTrip(false)} style={{ marginTop: 4, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer" }}>← Back</button>
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
@@ -925,6 +938,113 @@ export default function TripStudio(props) {
           </div>
         </div>
       )}
+
+      {/* SCENIC DRIVE → trip: drag (or tap) the drive tile into a gap in the trip.
+          Collapsed = start & end into Plan this day; Expanded = every waypoint. */}
+      {scenicAdd && (() => {
+        const sd = scenicAdd;
+        const itin = sd.detail ? (sd.detail.itinerary || []).filter((s) => s && s.place) : [];
+        const ep = sd.drive.endpoints || (sd.detail && sd.detail.endpoints) || null;
+        const count = itin.length || (ep ? (ep.via ? ep.via.length : 0) + 2 : 0);
+        const lenChip = sd.drive.length || (sd.drive.lengthMi ? sd.drive.lengthMi + " mi" : "");
+        const already = stops.some((s) => s.name === sd.drive.name);
+        const doAdd = (pos) => {
+          if (already) return;
+          insertScenicDrive && insertScenicDrive(sd.drive, pos, { expanded: scenicExpanded, detail: sd.detail });
+          setScenicAdd(null); setScenicDropPos(null); setScenicDragging(false); setPreviewRoute && setPreviewRoute(null); setMode && setMode("new");
+        };
+        const gapStyle = (pos) => {
+          const active = scenicDropPos === pos;
+          return { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: active ? 44 : 26, borderRadius: 10, cursor: already ? "not-allowed" : "pointer", border: "1.5px dashed " + (active ? "#e8cf9a" : "rgba(217,183,121,0.28)"), background: active ? "rgba(232,207,154,0.12)" : "transparent", color: active ? "#f4f1ea" : "#7f8a82", fontFamily: MONO, fontSize: 8.5, letterSpacing: ".12em", textTransform: "uppercase", transition: "all .15s", margin: "5px 0" };
+        };
+        const Gap = (pos, label) => (
+          <div key={"gap" + pos}
+            onDragOver={(e) => { e.preventDefault(); if (scenicDropPos !== pos) setScenicDropPos(pos); }}
+            onDragLeave={() => { if (scenicDropPos === pos) setScenicDropPos(null); }}
+            onDrop={(e) => { e.preventDefault(); doAdd(pos); }}
+            onClick={() => doAdd(pos)}
+            style={gapStyle(pos)}>
+            {scenicDropPos === pos ? "⟿ Drop " + sd.drive.name + " here" : (label || "+ place here")}
+          </div>
+        );
+        return (
+          <div onClick={() => { setScenicAdd(null); setScenicDropPos(null); }} style={{ position: "fixed", inset: 0, zIndex: 96, background: "rgba(4,9,7,0.78)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 780, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
+              <div style={{ flex: "none", padding: "18px 20px 12px", borderBottom: "1px solid rgba(217,183,121,0.12)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <div style={kicker}>Add scenic drive to {tripName || "your trip"}</div>
+                  <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea", marginTop: 6 }}>{sd.drive.name}</div>
+                  <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 4 }}>Drag the drive into your itinerary — or tap a spot — to choose where it goes.</div>
+                </div>
+                <button onClick={() => { setScenicAdd(null); setScenicDropPos(null); }} style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+              </div>
+              <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 288px", gap: 16, padding: 20 }}>
+                {/* LEFT — the trip, with drop gaps */}
+                <div>
+                  <div style={{ ...kicker, marginBottom: 6 }}>Your trip{stops.length ? " · " + stops.length + " stop" + (stops.length === 1 ? "" : "s") : ""}</div>
+                  {!stops.length && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "6px 0" }}>This trip has no stops yet — drop the drive to start it.</div>}
+                  {Gap(0, stops.length ? "At the very start" : "Start my trip with it")}
+                  {stops.map((s, i) => (
+                    <div key={s.name}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 12, background: "rgba(11,23,16,0.6)", border: "1px solid rgba(217,183,121,0.16)" }}>
+                        <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", border: "1px solid rgba(217,183,121,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 11, color: "#e8cf9a" }}>{i + 1}</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".14em", textTransform: "uppercase", color: "#c9a35f" }}>{dayRanges[i] ? dayRanges[i].label : ""}{s.kind === "byway" ? " · scenic" : ""}</div>
+                          <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                        </div>
+                      </div>
+                      {Gap(i + 1, i + 1 === stops.length ? "At the end" : null)}
+                    </div>
+                  ))}
+                </div>
+                {/* RIGHT — the scenic drive bucket (drag source) */}
+                <div>
+                  <div style={{ ...kicker, marginBottom: 6 }}>This scenic drive</div>
+                  <div
+                    draggable={!already}
+                    onDragStart={(e) => { setScenicDragging(true); try { e.dataTransfer.effectAllowed = "copy"; e.dataTransfer.setData("text/plain", sd.drive.id); } catch {} }}
+                    onDragEnd={() => { setScenicDragging(false); setScenicDropPos(null); }}
+                    style={{ border: "1px solid rgba(217,183,121,0.35)", borderRadius: 14, background: "linear-gradient(160deg,rgba(232,207,154,0.12),rgba(11,23,16,0.5))", padding: 14, cursor: already ? "default" : "grab", opacity: scenicDragging ? 0.5 : 1, boxShadow: "0 14px 34px -18px rgba(217,183,121,0.5)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 18, color: "#e8cf9a" }}>⟿</span>
+                      <span style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", lineHeight: 1.15 }}>{sd.drive.name}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 9, flexWrap: "wrap" }}>
+                      {["ALL-AMERICAN ROAD", sd.drive.states, lenChip, count ? count + " stops" : null].filter(Boolean).map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".08em", padding: "2px 7px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
+                    </div>
+                    <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", color: "#8fd6a6", marginTop: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 12 }}>⠿</span>{already ? "Already in this trip" : (isMobile ? "Tap a spot in your trip →" : "Drag me into your trip ←")}
+                    </div>
+                  </div>
+                  {/* expand — swap start&end for all waypoints */}
+                  {itin.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 12, border: "1px solid " + (scenicExpanded ? "rgba(217,183,121,0.4)" : "rgba(217,183,121,0.16)"), background: scenicExpanded ? "rgba(232,207,154,0.08)" : "transparent" }}>
+                        <input type="checkbox" checked={scenicExpanded} onChange={(e) => setScenicExpanded(e.target.checked)} style={{ marginTop: 2, accentColor: "#c9a35f", width: 15, height: 15 }} />
+                        <div>
+                          <div style={{ fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "#f4f1ea" }}>Expand — add every stop</div>
+                          <div style={{ fontFamily: SANS, fontSize: 11, color: "#7f8a82", marginTop: 2, lineHeight: 1.45 }}>{scenicExpanded ? "All " + itin.length + " waypoints go under the drive in “Plan this day.”" : "Off: only the start & end go into “Plan this day.”"}</div>
+                        </div>
+                      </label>
+                      {scenicExpanded && (
+                        <div className="ts-scroll" style={{ marginTop: 8, maxHeight: 168, overflowY: "auto", border: "1px solid rgba(217,183,121,0.12)", borderRadius: 10, padding: "6px 4px" }}>
+                          {itin.map((s, idx) => (
+                            <div key={idx} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "4px 8px" }}>
+                              <span style={{ fontFamily: MONO, fontSize: 8.5, color: "#c9a35f", minWidth: 16 }}>{s.seq}</span>
+                              <span style={{ fontFamily: SANS, fontSize: 12, color: "#e6e2d8", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.place}</span>
+                              {s.mileFromStart != null && <span style={{ fontFamily: MONO, fontSize: 7.5, color: "#7f8a82" }}>MI {s.mileFromStart.toFixed(0)}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* desktop: add-a-stop popup (7 sources) — a real popup so it isn't clipped */}
       {addMenuOpen && (

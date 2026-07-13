@@ -305,6 +305,40 @@ export default function BuildTripApp() {
     setRailTab("new");
   }
 
+  // Drop a scenic drive into the current trip at a chosen position (index in the
+  // stops list). The drive becomes one "byway" stop; its waypoints seed that stop's
+  // "Plan this day" timeline — the drive's start & end by default, or every waypoint
+  // when the user expanded the tile first. detail is the enriched byway record (full
+  // itinerary); previewRoute-style basics (name/lat/lng/endpoints) come on `drive`.
+  function insertScenicDrive(drive, index, { expanded = false, detail = null } = {}) {
+    if (!drive || drive.lat == null) return;
+    if (stops.some((s) => s.name === drive.name)) return; // already in the trip
+    const stop = { name: drive.name, state: drive.states || drive.state || "", lat: drive.lat, lng: drive.lng, nights: 1, legMi: null, kind: "byway", slug: drive.id };
+    const next = stops.slice();
+    next.splice(Math.max(0, Math.min(index, next.length)), 0, stop);
+    const wasEmpty = stops.length === 0;
+    commitStops(next);
+    if (wasEmpty) { setTripName(drive.name); if (!activeTripId) wantsSaveRef.current = true; }
+
+    // Seed "Plan this day" (things to do) for the drive's day.
+    const itin = detail && Array.isArray(detail.itinerary) ? detail.itinerary.filter((s) => s && s.place) : [];
+    const ep = drive.endpoints || (detail && detail.endpoints) || null;
+    let acts = [];
+    if (expanded && itin.length) {
+      acts = itin.map((s) => ({ icon: "⟿", type: "scenic", name: s.place + (s.mileFromStart != null ? " · mi " + s.mileFromStart.toFixed(1) : ""), time: "" }));
+    } else {
+      const first = (itin[0] && itin[0].place) || (ep && ep.from) || null;
+      const last = (itin.length && itin[itin.length - 1].place) || (ep && ep.to) || null;
+      acts = [first && { icon: "⟿", type: "scenic", name: "Start · " + first, time: "" }, last && { icon: "⟿", type: "scenic", name: "End · " + last, time: "" }].filter(Boolean);
+    }
+    if (acts.length) {
+      const withIds = acts.map((a) => ({ id: "act_" + (activityCounterRef.current += 1), ...a }));
+      setDayPlans((prev) => ({ ...prev, [drive.name]: (prev[drive.name] || []).concat(withIds) }));
+      setExpandedStop(drive.name); // open its day timeline so the added stops are visible
+    }
+    setRailTab("new");
+  }
+
   // ---- saved trips ("My trips") ----
   useEffect(() => {
     setSavedTrips(getSavedTrips());
@@ -1099,7 +1133,7 @@ export default function BuildTripApp() {
             { label: "Park passes", icon: "ticket", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
           ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
-          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute} previewRoute={previewRoute} setPreviewRoute={setPreviewRoute} bywayDetail={bywayDetail}
+          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute} previewRoute={previewRoute} setPreviewRoute={setPreviewRoute} bywayDetail={bywayDetail} insertScenicDrive={insertScenicDrive}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
           gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}

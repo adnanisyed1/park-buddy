@@ -36,6 +36,15 @@ function CountUp({ value, format }) {
   return <>{format ? format(n) : Math.round(n)}</>;
 }
 
+// Route/Explore glyphs as inline SVG (system fonts tofu the unicode crosshair).
+function ModeIcon({ id }) {
+  const common = { width: 13, height: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  if (id === "route") {
+    return <svg {...common}><circle cx="5" cy="19" r="2.4" /><circle cx="19" cy="5" r="2.4" /><path d="M7 17.5 17 6.5" strokeDasharray="1.5 3" /></svg>;
+  }
+  return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /></svg>;
+}
+
 function ModeBtn({ id, label, mode, setMode }) {
   const on = mode === id;
   return (
@@ -175,9 +184,13 @@ export default function TripStudio(props) {
             {/* Route ⇄ Explore toggle — a standalone floating pill, top-left, in both modes. */}
             {setMapView && (
               <div style={{ position: "absolute", top: isMobile ? 52 : 50, left: 26, zIndex: 8, display: "flex", padding: 4, gap: 3, background: "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 8px 24px -12px rgba(0,0,0,0.8)" }}>
-                {[["route", "◎", "Route"], ["explore", "⌖", "Explore"]].map(([id, ic, lbl]) => {
+                {["route", "explore"].map((id) => {
                   const on = (mapView || "route") === id;
-                  return <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, padding: "7px 15px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}><span style={{ opacity: 0.8 }}>{ic}</span>{lbl}</button>;
+                  return (
+                    <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7, padding: "7px 15px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>
+                      <ModeIcon id={id} />{id === "route" ? "Route" : "Explore"}
+                    </button>
+                  );
                 })}
               </div>
             )}

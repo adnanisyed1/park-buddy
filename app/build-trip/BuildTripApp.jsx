@@ -420,6 +420,9 @@ export default function BuildTripApp() {
   function removeActivity(name, id) {
     setDayPlans((prev) => ({ ...prev, [name]: (prev[name] || []).filter((a) => a.id !== id) }));
   }
+  function updateActivity(name, id, patch) {
+    setDayPlans((prev) => ({ ...prev, [name]: (prev[name] || []).map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
+  }
 
   // Save the current trip into My trips, then jump to that tab (spec §3.7 "+ Add my trip").
   function addMyTrip() { saveCurrentTrip(); setRailTab("mine"); }
@@ -1112,7 +1115,7 @@ export default function BuildTripApp() {
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
-          expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity}
+          expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}

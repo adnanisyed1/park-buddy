@@ -70,6 +70,8 @@ function TSIcon({ name, size = 16 }) {
     case "route": return <svg {...p}><circle cx="6" cy="19" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /><circle cx="18" cy="5" r="3" /></svg>;
     case "hike": return <svg {...p}><path d="m8 2 1.5 3.5L8 9l2.5 2 1.5 5" /><circle cx="9" cy="4" r="1" /><path d="M13 8.5 15 11l4 2" /><path d="M4 22l3-7" /><path d="M14 22l-2-6" /></svg>;
     case "camera": return <svg {...p}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" /><circle cx="12" cy="13" r="3" /></svg>;
+    case "edit": return <svg {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>;
+    case "trash": return <svg {...p}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></svg>;
     default: return null;
   }
 }
@@ -87,7 +89,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
-    expandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity,
+    expandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -123,6 +125,8 @@ export default function TripStudio(props) {
   const [scenicExpanded, setScenicExpanded] = useState(false); // add ALL waypoints (vs start & end) to Plan this day
   const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
   const [scenicDragging, setScenicDragging] = useState(false);
+  const [editBlock, setEditBlock] = useState(null); // { stop, id } — day block being edited inline
+  const [confirmDelBlock, setConfirmDelBlock] = useState(null); // { stop, id, name, dayNum } — delete-confirm popup
   const [viewRoute, setViewRoute] = useState(null); // ready-made route open in read-only view
   const [pickTrip, setPickTrip] = useState(false); // show the My-trips picklist inside the view popup
   const [confirmDelete, setConfirmDelete] = useState(null); // saved trip pending a delete confirmation
@@ -652,12 +656,19 @@ export default function TripStudio(props) {
                                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                             {acts.length === 0 && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing planned yet.</div>}
                                             {acts.map((a) => (
+                                              editBlock && editBlock.stop === s.name && editBlock.id === a.id ? (
+                                                <DayBlockEdit key={a.id} block={a} fieldBox={fieldBox}
+                                                  onSave={(patch) => { updateActivity && updateActivity(s.name, a.id, patch); setEditBlock(null); }}
+                                                  onCancel={() => setEditBlock(null)} />
+                                              ) : (
                                               <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,0.12)" }}>
                                                 <span style={{ fontFamily: MONO, fontSize: 10, color: "#c9a35f", minWidth: 38 }}>{a.time || "—"}</span>
                                                 <span style={{ color: "#e0b978", display: "inline-flex", flex: "none" }}>{a.type ? <TSIcon name={blockIcon(a.type)} size={15} /> : <span style={{ fontSize: 14 }}>{a.icon}</span>}</span>
                                                 <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}<span style={{ color: "#7f8a82", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7, textTransform: "uppercase" }}>{TYPE_LABEL[a.type] || ""}</span>{a.lat != null && <span title="Pinned on the map" style={{ color: "#8fd6a6", marginLeft: 6, display: "inline-flex", verticalAlign: "middle" }}><TSIcon name="pin" size={11} /></span>}</span>
-                                                <span onClick={() => removeActivity(s.name, a.id)} title="Remove" style={{ cursor: "pointer", color: "#b06a4a", fontSize: 13, lineHeight: 1, opacity: 0.55 }}>×</span>
+                                                <button onClick={() => setEditBlock({ stop: s.name, id: a.id })} title="Edit" style={{ background: "none", border: "none", cursor: "pointer", color: "#8f9a90", padding: 2, display: "inline-flex", flex: "none" }} className="ts-iconbtn"><TSIcon name="edit" size={13} /></button>
+                                                <button onClick={() => setConfirmDelBlock({ stop: s.name, id: a.id, name: a.name, dayNum: globalStart + d })} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "#b06a4a", padding: 2, display: "inline-flex", flex: "none" }} className="ts-iconbtn"><TSIcon name="trash" size={13} /></button>
                                               </div>
+                                              )
                                             ))}
                                             <DayPlanAdd onAdd={(act) => addActivity(s.name, { ...act, day: d })} fieldBox={fieldBox} />
                                           </div>
@@ -1071,6 +1082,20 @@ export default function TripStudio(props) {
         );
       })()}
 
+      {/* delete a day block — confirm first */}
+      {confirmDelBlock && (
+        <div onClick={() => setConfirmDelBlock(null)} style={{ position: "fixed", inset: 0, zIndex: 97, background: "rgba(4,9,7,0.78)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 360, background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 18, padding: 22, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
+            <div style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 500, color: "#f4f1ea" }}>Remove this from your day?</div>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: "#aab0ba", marginTop: 8, lineHeight: 1.5 }}>&ldquo;{confirmDelBlock.name}&rdquo; will be removed from Day {confirmDelBlock.dayNum}. This can&rsquo;t be undone.</div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setConfirmDelBlock(null)} className="ts-navtile" style={{ ...navTile, flex: 1, justifyContent: "center" }}>Cancel</button>
+              <button onClick={() => { removeActivity && removeActivity(confirmDelBlock.stop, confirmDelBlock.id); setConfirmDelBlock(null); }} style={{ flex: 1, padding: 12, borderRadius: 11, border: "none", cursor: "pointer", background: "#b0432f", color: "#fff", fontFamily: SANS, fontWeight: 600, fontSize: 13 }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* desktop: add-a-stop popup (7 sources) — a real popup so it isn't clipped */}
       {addMenuOpen && (
         <div onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -1325,6 +1350,32 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
 // Geocoding autocomplete input — as you type it queries /api/geocode?suggest=1 and
 // shows a live dropdown; picking one adds it as a stop. Used for State park / Lake /
 // Address / Any place. Debounced so we don't hammer Nominatim.
+// Inline editor for a day block — change type, time, or name. Keeps the block's
+// existing coordinates (only the fields shown here are patched).
+function DayBlockEdit({ block, onSave, onCancel, fieldBox }) {
+  const [type, setType] = useState(block.type || "sight");
+  const [time, setTime] = useState(block.time || "");
+  const [name, setName] = useState(block.name || "");
+  const save = () => { const nm = name.trim(); if (!nm) return; onSave({ type, time, name: nm }); };
+  return (
+    <div style={{ padding: 10, borderRadius: 11, border: "1px solid rgba(217,183,121,0.4)", background: "rgba(232,207,154,0.06)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".12em", textTransform: "uppercase", color: "#e8cf9a", marginBottom: 8 }}><TSIcon name="edit" size={11} />Edit block</div>
+      <div style={{ display: "flex", gap: 7 }}>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...fieldBox, flex: 1, color: "#1a2b21" }}>
+          {BLOCK_TYPES.map(([v, , label]) => <option key={v} value={v}>{label}</option>)}
+        </select>
+        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...fieldBox, width: 104, flex: "none" }} />
+      </div>
+      <div style={{ display: "flex", gap: 7, marginTop: 7 }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") save(); }} style={{ ...fieldBox, flex: 1 }} />
+        <button onClick={save} style={addBtn} title="Save">✓</button>
+      </div>
+      {block.lat != null && <div style={{ fontFamily: MONO, fontSize: 8, color: "#8fd6a6", marginTop: 7, display: "flex", alignItems: "center", gap: 5 }}><TSIcon name="pin" size={10} />Keeps its pinned location</div>}
+      <button onClick={onCancel} style={{ marginTop: 8, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 11, cursor: "pointer", padding: 0 }}>Cancel</button>
+    </div>
+  );
+}
+
 function GeoAutocomplete({ placeholder, onPick, onType, inputStyle, fieldBox }) {
   const [q, setQ] = useState("");
   const [list, setList] = useState([]);

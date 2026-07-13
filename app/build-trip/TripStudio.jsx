@@ -1182,7 +1182,7 @@ export default function TripStudio(props) {
       {/* desktop: add-a-stop popup (7 sources) — a real popup so it isn't clipped */}
       {addMenuOpen && (
         <div onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 468, background: "linear-gradient(180deg,#0c1a12,#08120c)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 22, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", overflow: "hidden" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 468, background: "linear-gradient(180deg,#0c1a12,#08120c)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 22, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
             {(() => {
               const SRC = {
                 park: { icon: "mountain", label: "National park", hint: "The 63 U.S. parks", tint: "#8fd6a6" },
@@ -1200,7 +1200,7 @@ export default function TripStudio(props) {
               return (
                 <>
                   {/* header */}
-                  <div style={{ padding: "18px 20px 16px", borderBottom: "1px solid rgba(217,183,121,0.12)", background: "rgba(217,183,121,0.03)" }}>
+                  <div style={{ padding: "18px 20px 16px", borderBottom: "1px solid rgba(217,183,121,0.12)", background: "rgba(217,183,121,0.03)", borderRadius: "22px 22px 0 0" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
                         <span style={{ width: 38, height: 38, flex: "none", borderRadius: 11, background: "rgba(143,214,166,0.12)", border: "1px solid rgba(143,214,166,0.3)", color: "#8fd6a6", display: "flex", alignItems: "center", justifyContent: "center" }}><TSIcon name="bed" size={19} /></span>

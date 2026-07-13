@@ -166,6 +166,8 @@ export default function BuildTripApp() {
   const browseMarkersRef = useRef([]);
   const previewMarkersRef = useRef([]); // ready-made route preview pins
   const previewLineRef = useRef(null);
+  const previewCasingRef = useRef(null); // dark casing under the byway route line
+  const previewReqRef = useRef(0); // ignores stale byway Directions callbacks
   const layerOverlaysRef = useRef([]); // campground/lake markers + trail polylines
   const layerCacheRef = useRef({}); // `${stopName}|${kind}` → data (avoid refetching)
   const layerGenRef = useRef(0); // cancels stale async layer draws
@@ -771,19 +773,47 @@ export default function BuildTripApp() {
   function drawPreview() {
     const g = window.google, map = mapObjRef.current;
     if (!g || !map || !mapReadyRef.current) return;
+    previewReqRef.current++; // invalidate any in-flight byway route callback
     previewMarkersRef.current.forEach((m) => m.setMap(null)); previewMarkersRef.current = [];
     if (previewLineRef.current) { previewLineRef.current.setMap(null); previewLineRef.current = null; }
+    if (previewCasingRef.current) { previewCasingRef.current.setMap(null); previewCasingRef.current = null; }
     const previewing = !!previewRoute;
     routeMarkersRef.current.forEach((m) => { try { m.setVisible(!previewing); } catch {} });
     routeLinesRef.current.forEach((l) => { try { l.setOptions({ visible: !previewing }); } catch {} });
     browseMarkersRef.current.forEach((m) => { try { m.setVisible(!previewing); } catch {} });
     if (!previewing) return;
-    // Scenic byway preview: a single representative pin, regional zoom.
+    // Scenic byway preview: trace the actual drive as a route line (Directions from
+    // the curated from → via → to place names, same as the /scenic-drives page). Falls
+    // back to a single representative pin when there are no endpoints or routing fails.
     if (previewRoute.__byway) {
-      if (previewRoute.lat != null) {
+      const ep = previewRoute.endpoints;
+      const fallbackPin = () => {
+        if (previewRoute.lat == null) return;
         previewMarkersRef.current.push(new g.maps.Marker({ position: { lat: previewRoute.lat, lng: previewRoute.lng }, map, title: previewRoute.name, icon: pinIcon(g, 1, false) }));
         map.setCenter({ lat: previewRoute.lat, lng: previewRoute.lng });
         map.setZoom(7);
+      };
+      if (ep && ep.from && ep.to) {
+        if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
+        const reqId = ++previewReqRef.current;
+        dirServiceRef.current.route({
+          origin: ep.from,
+          destination: ep.to,
+          waypoints: (ep.via || []).map((v) => ({ location: v, stopover: false })),
+          travelMode: g.maps.TravelMode.DRIVING,
+        }, (res, status) => {
+          if (reqId !== previewReqRef.current) return; // a newer preview replaced this one
+          if (status !== "OK" || !res || !res.routes || !res.routes[0]) { fallbackPin(); return; }
+          const opath = res.routes[0].overview_path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() }));
+          previewCasingRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#0a1712", strokeOpacity: 0.7, strokeWeight: 6, zIndex: 2 });
+          previewLineRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#e8cf9a", strokeOpacity: 1, strokeWeight: 3, zIndex: 3 });
+          const legs = res.routes[0].legs || [];
+          const pins = legs.length ? [legs[0].start_location, ...legs.map((lg) => lg.end_location)] : [];
+          pins.forEach((loc, i) => previewMarkersRef.current.push(new g.maps.Marker({ position: loc, map, icon: pinIcon(g, i + 1, false) })));
+          const b = new g.maps.LatLngBounds(); opath.forEach((c) => b.extend(c)); if (!opath.length) return; map.fitBounds(b, 60);
+        });
+      } else {
+        fallbackPin();
       }
       return;
     }

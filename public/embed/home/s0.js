@@ -95,13 +95,28 @@ class Component extends DCLogic {
   buildStatic(){
     var nav=document.getElementById('navLinks');
     if(nav){
-      var links=[['Explore','/explore'],['Pines','/pines'],['Book','/book'],['Shop','/shop'],['Pro','#pro'],['Learn','#learn']];
-      nav.innerHTML=links.map(function(l){
-        if(l[0]==='Pines'){
-          return '<a href="'+l[1]+'" style="display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:#0a1712;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:999px;padding:7px 15px 7px 12px;font-weight:700;box-shadow:0 4px 14px -6px rgba(217,183,121,.55);transition:transform .2s" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="#0a1712" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path><rect x="11" y="18" width="2" height="4"></rect></svg>Pines</a>';
-        }
-        return '<a href="'+l[1]+'" style="text-decoration:none;color:inherit;position:relative;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+l[0]+'</a>';
-      }).join('');
+      // Explore / Book / Shop are hover dropdowns — mirror the React SiteHeader menus
+      // so the landing nav matches the rest of the site. [icon,label,desc,href,soon?]
+      var EXPLORE_MENU=[['🗺','The Live Map','Parks, forests & state parks — live','/explore'],['🛣','Scenic Drives','Byways & road trips','/scenic-drives'],['◉','Trip Mode','Live on-trip: photos, checklist, alerts','/trip-mode'],['🚢','Cruises','Reach the parks by sea','/cruises'],['🤿','Diving the Parks','Dry Tortugas · Channel Islands','/diving',1],['🧗','Climbing the Parks','Yosemite · Zion · Joshua Tree','/climbing',1]];
+      var BOOK_MENU=[['🗂','All bookings','Everything you can reserve','/book'],['🏡','Stays','Lodges, cabins & vacation rentals','/book?cat=stays'],['🏕','Campgrounds & RV','Recreation.gov sites + RV parks','/book?cat=camp'],['🚗','Rental cars','For the drive & scenic byways','/book?cat=cars'],['⚓','Cruises','Reach the parks by sea','/book?cat=cruises'],['🧭','Tours & experiences','Guided hikes, rafting, climbs','/book?cat=tours'],['🎫','Permits & reservations','Timed-entry & wilderness permits','/book?cat=permits'],['🚌','Shuttles & transport','Park shuttles & gateway transfers','/book?cat=shuttles']];
+      var SHOP_MENU=[['🛍','All of the shop','Everything in the store','/shop'],['📖','Trip Book','Your trip, printed & bound — live','/trip-book'],['🏔','The Park Buddy Store','Posters, prints & merch','/shop?cat=store',1],['🎟','Passes','America the Beautiful + park passes','/shop?cat=passes',1],['🎒','Gear & Apparel','Packs, layers, footwear','/shop?cat=gear',1],['⛺','Camp & Cook','Tents, bags, stoves','/shop?cat=camp',1],['🧭','Navigation & Safety','GPS, satellite, first-aid','/shop?cat=nav',1],['🗺','Maps & Guides','Topo maps & guidebooks','/shop?cat=maps',1],['🔭','Optics & Cameras','Binoculars & scopes','/shop?cat=optics',1]];
+      var esc=function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+      var mkPanel=function(menu){
+        var rows=menu.map(function(m){
+          var soon=m[4]?' <span style="font-family:Space Mono,monospace;font-size:.5rem;letter-spacing:.08em;color:#c9a35f;border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:1px 6px;vertical-align:middle">SOON</span>':'';
+          return '<a href="'+m[3]+'" style="display:flex;gap:12px;align-items:flex-start;padding:10px 11px;border-radius:11px;text-decoration:none;transition:background .15s" onmouseover="this.style.background=\'rgba(217,183,121,.08)\'" onmouseout="this.style.background=\'transparent\'"><span style="font-size:1.05rem;line-height:1.1">'+m[0]+'</span><span style="min-width:0"><span style="display:block;font-size:.85rem;font-weight:600;color:#f4f1ea">'+esc(m[1])+soon+'</span><span style="display:block;font-size:.72rem;color:#8a938c;margin-top:2px">'+esc(m[2])+'</span></span></a>';
+        }).join('');
+        return '<div class="pb-navpanel" style="position:absolute;top:100%;left:50%;transform:translateX(-50%);padding-top:14px;opacity:0;visibility:hidden;transition:opacity .18s;pointer-events:none;z-index:70"><div style="width:300px;background:rgba(11,23,16,.97);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(217,183,121,.18);border-radius:16px;padding:8px;box-shadow:0 30px 70px -30px rgba(0,0,0,.85)">'+rows+'</div></div>';
+      };
+      var mkLink=function(label,href){ return '<a href="'+href+'" style="text-decoration:none;color:inherit;position:relative;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+label+'</a>'; };
+      var mkDrop=function(label,href,menu){ return '<div class="pb-navdd" style="position:relative"><a href="'+href+'" style="text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:5px;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+label+' <span style="font-size:.6rem;opacity:.75">▾</span></a>'+mkPanel(menu)+'</div>'; };
+      var pines='<a href="/pines" style="display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:#0a1712;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border-radius:999px;padding:7px 15px 7px 12px;font-weight:700;box-shadow:0 4px 14px -6px rgba(217,183,121,.55);transition:transform .2s" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'none\'"><svg width="14" height="14" viewBox="0 0 24 24" fill="#0a1712" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path><rect x="11" y="18" width="2" height="4"></rect></svg>Pines</a>';
+      nav.innerHTML=mkDrop('Explore','/explore',EXPLORE_MENU)+pines+mkDrop('Book','/book',BOOK_MENU)+mkDrop('Shop','/shop',SHOP_MENU)+mkLink('Pro','#pro')+mkLink('Learn','#learn');
+      [].forEach.call(nav.querySelectorAll('.pb-navdd'),function(dd){
+        var p=dd.querySelector('.pb-navpanel');
+        dd.addEventListener('mouseenter',function(){ p.style.opacity='1'; p.style.visibility='visible'; p.style.pointerEvents='auto'; });
+        dd.addEventListener('mouseleave',function(){ p.style.opacity='0'; p.style.visibility='hidden'; p.style.pointerEvents='none'; });
+      });
     }
     // Real capture: POST the email to /api/pines-waitlist (writes to Supabase).
     // No more fake "✓" that silently discards the address — the button only turns

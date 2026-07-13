@@ -41,6 +41,26 @@ const LODGING_PER_NIGHT = 130; // design: 8 nights → $1,040
 const FOOD_PER_PERSON_DAY = 35; // design: 2 travelers × 8 days → $560
 const ROAD_FACTOR = 1.6; // haversine → road-miles approximation
 
+// Dark Trip-Studio map style (matches /explore's dark map) so the planner map reads
+// like the design — deep greens, gold borders, roads hidden for a clean route canvas.
+const MAP_DARK = [
+  { elementType: "geometry", stylers: [{ color: "#0f2318" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#7f8a82" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0a1712" }, { weight: 3 }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#2a4436" }] },
+  { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#c9a35f" }, { weight: 1 }] },
+  { featureType: "administrative.province", elementType: "geometry.stroke", stylers: [{ color: "#3a5a48" }] },
+  { featureType: "administrative.province", elementType: "labels.text.fill", stylers: [{ color: "#8a938b" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#aab0ba" }] },
+  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#123322" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#16401f" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0b262b" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4f96c9" }] },
+  { featureType: "road", stylers: [{ visibility: "off" }] },
+  { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+];
+
 const fmtUsd = (n) => "$" + Math.round(n).toLocaleString("en-US");
 const fmtDate = (iso) => {
   const d = new Date(iso + "T12:00:00");
@@ -432,9 +452,9 @@ export default function BuildTripApp() {
     if (!el || !window.google) return;
     const g = window.google;
     mapObjRef.current = new g.maps.Map(el, {
-      center: { lat: 38.05, lng: -111.3 }, zoom: 7,
+      center: { lat: 38.05, lng: -111.3 }, zoom: 7, mapTypeId: "roadmap",
       disableDefaultUI: true, zoomControl: true, gestureHandling: "cooperative",
-      backgroundColor: "#e8eae4", // standard light Google Maps (no custom style)
+      styles: MAP_DARK, backgroundColor: "#08130d", // dark Trip-Studio canvas
     });
     mapReadyRef.current = true;
     setMapReady(true); // re-runs the marker-draw effects with fresh data closures
@@ -462,9 +482,10 @@ export default function BuildTripApp() {
       routeMarkersRef.current.push(new g.maps.Marker({
         position: pos, map, title: s.name,
         icon: {
+          // Trip-Studio pin: dark core, bright gold ring, soft gold halo, gold numeral.
           url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38"><circle cx="19" cy="19" r="14" fill="#1d3941" stroke="#e4be78" stroke-width="2.5"/><text x="19" y="24" font-family="sans-serif" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle">' + (i + 1) + "</text></svg>"),
-          scaledSize: new g.maps.Size(38, 38), anchor: new g.maps.Point(19, 19),
+            '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="18" fill="#e8cf9a" opacity="0.15"/><circle cx="22" cy="22" r="12" fill="#0a1712" stroke="#e8cf9a" stroke-width="2.6"/><text x="22" y="26.5" font-family="sans-serif" font-size="13" font-weight="800" fill="#e8cf9a" text-anchor="middle">' + (i + 1) + "</text></svg>"),
+          scaledSize: new g.maps.Size(44, 44), anchor: new g.maps.Point(22, 22),
         },
       }));
     });
@@ -495,7 +516,9 @@ export default function BuildTripApp() {
         const r = await routeLeg(a, b, 0);
         if (gen !== routeGenRef.current || !mapReadyRef.current) return; // stale — a newer draw superseded us
         if (r.ok) {
-          routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#e4be78", strokeOpacity: 0.95, strokeWeight: 4 }));
+          // glow: a wide, soft gold casing under a bright thin line (Trip-Studio look)
+          routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#e8cf9a", strokeOpacity: 0.22, strokeWeight: 13, zIndex: 1 }));
+          routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#f0dca8", strokeOpacity: 1, strokeWeight: 3.5, zIndex: 3 }));
           meters += r.meters; secs += r.secs;
         } else {
           routeLinesRef.current.push(new g.maps.Polyline({ path: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }], map: mapObj, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#e4be78", scale: 3 }, offset: "0", repeat: "12px" }] }));

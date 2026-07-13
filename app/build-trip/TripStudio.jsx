@@ -77,6 +77,7 @@ function TSIcon({ name, size = 16 }) {
     case "crosshair": return <svg {...p}><circle cx="12" cy="12" r="9" /><line x1="12" y1="2" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="2" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="22" y2="12" /></svg>;
     case "home": return <svg {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M9 22V12h6v10" /></svg>;
     case "star": return <svg {...p}><path d="m12 3 2.9 6 6.1.9-4.5 4.3 1 6.1L12 18l-5.5 2.9 1-6.1L3 9.9 9.1 9z" /></svg>;
+    case "flag": return <svg {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>;
     case "trash": return <svg {...p}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></svg>;
     default: return null;
   }
@@ -97,7 +98,7 @@ export default function TripStudio(props) {
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
     expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
-    parksDb, addSel, setAddSel, addPark,
+    parksDb, addSel, setAddSel, addPark, forestsDb,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
     addrInput, setAddrInput, addAddress, addrMsg, addDestination,
     coordInput, setCoordInput, addCoords,
@@ -132,6 +133,11 @@ export default function TripStudio(props) {
   const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
   const [scenicDragging, setScenicDragging] = useState(false);
   const [addTargetIdx, setAddTargetIdx] = useState(null); // where the next "Add a base" inserts (null = end)
+  const [forestSel, setForestSel] = useState(""); // national-forest picker
+  const [spState, setSpState] = useState(""); // state-park: chosen state
+  const [spList, setSpList] = useState([]);   // state-park: parks in that state
+  const [spSel, setSpSel] = useState("");
+  const [spLoading, setSpLoading] = useState(false);
   const [editBlock, setEditBlock] = useState(null); // { stop, id } — day block being edited inline
   const [confirmDelBlock, setConfirmDelBlock] = useState(null); // { stop, id, name, dayNum } — delete-confirm popup
   const [viewRoute, setViewRoute] = useState(null); // ready-made route open in read-only view
@@ -1180,9 +1186,9 @@ export default function TripStudio(props) {
             {(() => {
               const SRC = {
                 park: { icon: "mountain", label: "National park", hint: "The 63 U.S. parks", tint: "#8fd6a6" },
-                statePark: { icon: "trees", label: "State park", hint: "Search any state", tint: "#9ec96f" },
+                forest: { icon: "trees", label: "National forest", hint: "U.S. national forests", tint: "#9ec96f" },
+                statePark: { icon: "flag", label: "State park", hint: "Pick a state, then a park", tint: "#c9a35f" },
                 scenic: { icon: "route", label: "Scenic route", hint: "All-American Roads", tint: "#8fd3e0" },
-                lake: { icon: "waves", label: "Lake", hint: "Lakes & reservoirs", tint: "#7fb0d0" },
                 coord: { icon: "crosshair", label: "Coordinates", hint: "Drop a precise pin", tint: "#e0b978" },
                 address: { icon: "home", label: "Address", hint: "Home, hotel, town", tint: "#e0b978" },
                 place: { icon: "star", label: "Any place", hint: "Landmark or spot", tint: "#d9b779" },
@@ -1243,6 +1249,15 @@ export default function TripStudio(props) {
                             <button onClick={() => { addPark(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
                           </div>
                         )}
+                        {addSource === "forest" && (
+                          <div style={{ display: "flex", gap: 9 }}>
+                            <select value={forestSel} onChange={(e) => setForestSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: forestSel ? "#1a2b21" : "var(--pb-muted)" }}>
+                              <option value="">Choose a national forest…</option>
+                              {(forestsDb || []).filter((f) => f.lat != null && !stops.some((s) => s.name === f.name)).slice().sort((a, b) => a.name.localeCompare(b.name)).map((f, k) => <option key={f.name + k} value={f.name}>{f.name}{f.state ? " — " + f.state : ""}</option>)}
+                            </select>
+                            <button onClick={() => { const f = (forestsDb || []).find((x) => x.name === forestSel); if (f && addDestination) addDestination({ name: f.name, state: f.state || "", lat: f.lat, lng: f.lng }); setForestSel(""); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
+                          </div>
+                        )}
                         {addSource === "scenic" && (
                           <div style={{ display: "flex", gap: 9 }}>
                             <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
@@ -1256,9 +1271,26 @@ export default function TripStudio(props) {
                             <button onClick={() => { addByway(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
                           </div>
                         )}
-                        {["statePark", "lake", "address", "place"].includes(addSource) && (
+                        {addSource === "statePark" && (
+                          <div>
+                            <select value={spState} onChange={(e) => { const v = e.target.value; setSpState(v); setSpSel(""); setSpList([]); if (v) { setSpLoading(true); fetch("/api/destinations?type=state_park&limit=500&state=" + encodeURIComponent(v)).then((r) => (r.ok ? r.json() : null)).then((d) => { setSpList(((d && d.destinations) || []).filter((x) => x && x.lat != null && !stops.some((s) => s.name === x.name))); setSpLoading(false); }).catch(() => setSpLoading(false)); } }} style={{ ...fieldBox, width: "100%", color: spState ? "#1a2b21" : "var(--pb-muted)" }}>
+                              <option value="">Choose a state…</option>
+                              {US_STATE_NAMES.map((st) => <option key={st} value={st}>{st}</option>)}
+                            </select>
+                            {spState && (
+                              <div style={{ display: "flex", gap: 9, marginTop: 9 }}>
+                                <select value={spSel} onChange={(e) => setSpSel(e.target.value)} disabled={spLoading || !spList.length} style={{ ...fieldBox, flex: 1, color: spSel ? "#1a2b21" : "var(--pb-muted)" }}>
+                                  <option value="">{spLoading ? "Loading…" : spList.length ? "Choose a state park…" : "No state parks found"}</option>
+                                  {spList.map((x, k) => <option key={x.name + k} value={x.name}>{x.name}</option>)}
+                                </select>
+                                <button onClick={() => { const x = spList.find((p) => p.name === spSel); if (x && addDestination) addDestination({ name: x.name, state: x.state || spState, lat: x.lat, lng: x.lng, custom: true }); setSpState(""); setSpSel(""); setSpList([]); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {["address", "place"].includes(addSource) && (
                           <GeoAutocomplete
-                            placeholder={{ statePark: "Start typing a state park…", lake: "Start typing a lake…", address: "Start typing an address or town…", place: "Start typing a place or landmark…" }[addSource]}
+                            placeholder={{ address: "Start typing an address or town…", place: "Start typing a place or landmark…" }[addSource]}
                             onPick={(s) => { addDestination && addDestination({ name: s.name, state: s.state, lat: s.lat, lng: s.lng, custom: true }); setAddMenuOpen(false); setAddSource(null); }}
                             fieldBox={fieldBox}
                           />
@@ -1301,6 +1333,7 @@ export default function TripStudio(props) {
 // The six day-block types. A day is a bucket; each block inside it has a type,
 // an optional time, and (via TYPE_ICON) a monochrome line icon.
 const BLOCK_TYPES = [["drive", "car", "Drive"], ["stay", "bed", "Stay"], ["meal", "utensils", "Meal"], ["scenic", "route", "Scenic drive"], ["hike", "hike", "Hike"], ["sight", "camera", "Sight"]];
+const US_STATE_NAMES = ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"];
 const TYPE_ICON = { drive: "car", stay: "bed", meal: "utensils", scenic: "route", hike: "hike", sight: "camera",
   // legacy day-plan types, mapped onto the new icon set
   park: "pin", statePark: "pin", lake: "pin", viewpoint: "camera", coord: "pin", place: "pin" };

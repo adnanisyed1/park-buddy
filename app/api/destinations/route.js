@@ -42,8 +42,9 @@ export async function GET(request) {
     }
   }
   if (type) filter += "&type=eq." + encodeURIComponent(type);
+  if (searchParams.get("state")) filter += "&state=eq." + encodeURIComponent(searchParams.get("state")); // list e.g. all Utah state parks
 
-  const url = sb + "/rest/v1/destinations?select=id,name,type,source,lat,lng,state,url,tier" + filter + "&order=tier.asc&limit=" + limit;
+  const url = sb + "/rest/v1/destinations?select=id,name,type,source,lat,lng,state,url,tier" + filter + "&order=" + (searchParams.get("state") ? "name.asc" : "tier.asc") + "&limit=" + limit;
   try {
     const r = await fetch(url, { headers: { apikey: key, Authorization: "Bearer " + key } });
     if (!r.ok) return Response.json({ destinations: [], error: "supabase " + r.status });

@@ -15,6 +15,7 @@ import loadScript from "../components/load-script";
 import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
 import { getSavedTrips, saveCurrentTrip as storeSaveCurrentTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
 import SiteHeader from "../components/SiteHeader";
+import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
 
 /* ---------------- constants (verbatim from the design) ---------------- */
@@ -59,11 +60,11 @@ function milesBetween(a, b) {
 
 // Live verdict → design's stop-status row (GO / CAUTION / HEAT / HOLD OFF)
 const STOP_STATUS = {
-  go:      { label: "GO",       dot: "#4fd98a", text: "#7fe3a6", note: "#9fbfa8", bg: "rgba(79,217,138,.1)" },
-  caution: { label: "CAUTION",  dot: "#e8cf9a", text: "#e8cf9a", note: "#c3b98f", bg: "rgba(232,207,154,.12)" },
-  heat:    { label: "HEAT",     dot: "#e0a56a", text: "#e0a56a", note: "#c39a78", bg: "rgba(224,144,106,.14)" },
-  hold:    { label: "HOLD OFF", dot: "#e0906a", text: "#e0906a", note: "#c99a86", bg: "rgba(224,144,106,.12)" },
-  loading: { label: "CHECKING", dot: "#9aa7a0", text: "#9aa7a0", note: "var(--pb-muted)", bg: "rgba(255,255,255,.05)" },
+  go:      { label: "GO",       dot: "#8fd6a6", text: "#7fe3a6", note: "#9fbfa8", bg: "rgba(79,217,138,.1)",   chipBg: "rgba(143,214,166,0.12)", chipBorder: "rgba(143,214,166,0.35)", chipText: "#8fd6a6" },
+  caution: { label: "CAUTION",  dot: "#e8cf9a", text: "#e8cf9a", note: "#c3b98f", bg: "rgba(232,207,154,.12)", chipBg: "rgba(232,207,154,0.12)", chipBorder: "rgba(232,207,154,0.35)", chipText: "#e8cf9a" },
+  heat:    { label: "HEAT",     dot: "#e0a56a", text: "#e0a56a", note: "#c39a78", bg: "rgba(224,144,106,.14)", chipBg: "rgba(224,144,106,0.14)", chipBorder: "rgba(224,144,106,0.4)",  chipText: "#e0a56a" },
+  hold:    { label: "HOLD OFF", dot: "#e0906a", text: "#e0906a", note: "#c99a86", bg: "rgba(224,144,106,.12)", chipBg: "rgba(224,144,106,0.12)", chipBorder: "rgba(224,144,106,0.4)",  chipText: "#e0906a" },
+  loading: { label: "CHECKING", dot: "#9aa7a0", text: "#9aa7a0", note: "var(--pb-muted)", bg: "rgba(255,255,255,.05)", chipBg: "rgba(255,255,255,0.05)", chipBorder: "rgba(217,183,121,0.25)", chipText: "#9aa7a0" },
 };
 
 // One filter toggle row (Explore-style: glyph + label + switch).
@@ -121,9 +122,14 @@ export default function BuildTripApp() {
   const [stateParksDb, setStateParksDb] = useState([]);
   const [bywaysDb, setBywaysDb] = useState([]); // America's Byways (scenic drives) — add whole drives as trip stops
   const [addBywaySel, setAddBywaySel] = useState("");
-  const [railTab, setRailTab] = useState("premade"); // top rail: "premade" ready-made routes | "mine" saved trips
+  const [railTab, setRailTab] = useState("new"); // Trip Studio mode: "new" editor | "premade" routes | "mine" saved trips
   const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
   const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
+  const [addSource, setAddSource] = useState(null); // Trip Studio "+ Add a stop" → "park" | "scenic" | "place" | null
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [setupCollapsed, setSetupCollapsed] = useState(false);
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [hoverIdx, setHoverIdx] = useState(null); // itinerary card ↔ map pin hover link
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
   const dirServiceRef = useRef(null);
@@ -219,6 +225,7 @@ export default function BuildTripApp() {
     setLoadedRoute(route.id);
     setTotalMilesOverride(route.id === "mighty5" ? 720 : route.miles);
     setBudgetOverride(route.id === "mighty5" ? { fuel: 168, lodging: 1040, food: 560, passes: 72 } : { fuel: null, lodging: null, food: null, passes: null });
+    setRailTab("new"); // show the loaded route in the editor
   }
 
   // ---- saved trips ("My trips") ----
@@ -259,11 +266,23 @@ export default function BuildTripApp() {
     setLoadedRoute(null);
     setTotalMilesOverride(null);
     setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
-    setRailTab("mine");
+    setRailTab("new"); // show the reloaded trip in the editor
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const deleteSavedTrip = (id) => { storeDeleteSavedTrip(id); setSavedTrips(getSavedTrips()); };
+
+  // Start a fresh, blank trip (the "New trip" action).
+  function onNewTrip() {
+    userEditedRef.current = true;
+    setStops([]);
+    setTripName("My national-parks trip");
+    setLoadedRoute(null);
+    setTotalMilesOverride(null);
+    setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
+    setRailTab("new");
+    setAddSource(null); setAddMenuOpen(false);
+  }
 
   const removeStop = (i) => commitStops(stops.filter((_, x) => x !== i));
   const addPark = () => {
@@ -744,403 +763,29 @@ export default function BuildTripApp() {
       {/* ============ SHELL ============ */}
       <div style={{ position: "relative", zIndex: 4, display: "flex", flexDirection: "column", minHeight: "100vh", paddingTop: 64 }}>
 
-        {/* hero */}
-        <section style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(28px,5vw,52px) clamp(16px,3vw,28px) 10px", boxSizing: "border-box" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 9, background: "rgba(20,36,28,.42)", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.16)", borderRadius: 999, padding: "7px 15px 7px 11px", color: "#fbf6ea", fontSize: ".74rem", fontWeight: 700, marginBottom: 18, animation: "bt-fade .7s ease both" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#46d97f", boxShadow: "0 0 0 4px rgba(70,217,127,.22)", animation: "bt-pulse 2s infinite" }} />
-            Trip builder · live conditions baked in
-          </div>
-          <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#fbf6ea", fontSize: "clamp(2.3rem,5.6vw,4.2rem)", lineHeight: 1, letterSpacing: "-.02em", textShadow: "0 4px 30px rgba(0,0,0,.4)", maxWidth: "16ch", margin: 0, animation: "bt-fade .8s ease .05s both" }}>
-            Build your <em style={{ fontStyle: "italic", color: "#e4be78" }}>national-parks</em> road trip
-          </h1>
-          <p style={{ color: "rgba(251,246,234,.84)", fontSize: "clamp(.98rem,1.5vw,1.16rem)", margin: "18px 0 0", maxWidth: "62ch", lineHeight: 1.55, textShadow: "0 2px 16px rgba(0,0,0,.4)", animation: "bt-fade .9s ease .12s both" }}>
-            Load a ready-made route or build your own. Add parks, set your dates and rental car, and get a day-by-day plan that follows real roads — each stop carrying today&apos;s live go / no-go call.
-          </p>
-          <button onClick={() => setSetupOpen(true)} style={{ marginTop: 22, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 9, fontFamily: "inherit", fontSize: ".92rem", fontWeight: 800, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "13px 24px", boxShadow: "0 14px 34px -16px rgba(217,183,121,.7)", animation: "bt-fade 1s ease .18s both" }}>
-            ⚙ Set up your trip →
-          </button>
-        </section>
-
-        {/* rail — toggle between ready-made routes and the user's saved trips */}
-        <section style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(20px,3vw,30px) clamp(16px,3vw,28px) 6px", boxSizing: "border-box" }}>
-          <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "rgba(9,20,14,.75)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, marginBottom: 15 }}>
-            {[["premade", "Ready-made routes"], ["mine", "My trips" + (savedTrips.length ? " · " + savedTrips.length : "")]].map(([id, label]) => (
-              <button key={id} onClick={() => setRailTab(id)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".76rem", fontWeight: 800, letterSpacing: ".02em", padding: "8px 16px", borderRadius: 999, border: "none", color: railTab === id ? "var(--pb-bg)" : "#cdd8ce", background: railTab === id ? "var(--pb-grad-gold)" : "transparent" }}>{label}</button>
-            ))}
-          </div>
-          <div style={{ fontSize: ".68rem", letterSpacing: ".1em", textTransform: "uppercase", color: "#e4be78", fontWeight: 800, marginBottom: 13, display: "flex", alignItems: "center", gap: 9, textShadow: "0 1px 8px rgba(0,0,0,.4)" }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#c79a4b" }} />
-            {railTab === "premade" ? "Tap a ready-made itinerary to load a full route" : "Your saved trips · tap to reload one"}
-          </div>
-          <div className="bt-scroller" style={{ display: "flex", gap: 14, overflowX: "auto", padding: "4px 2px 16px" }}>
-            {railTab === "premade" && ROUTES.map((r) => {
-              const isLoaded = loadedRoute === r.id;
-              return (
-                <div key={r.id} onClick={() => { userEditedRef.current = true; loadRoute(r); }} style={{ flex: "none", width: 248, background: "linear-gradient(180deg,rgba(16,34,24,.9),rgba(9,20,14,.9))", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: isLoaded ? "1.5px solid var(--pb-gold)" : "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: isLoaded ? "0 0 0 1px rgba(217,183,121,.3),0 16px 40px -20px rgba(0,0,0,.7)" : "0 16px 40px -20px rgba(0,0,0,.7)" }}>
-                  <div style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold)" }}>{isLoaded ? "Loaded" : "Route"} {r.emoji}</div>
-                  <h3 style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.1, margin: "4px 0 7px" }}>{r.name}</h3>
-                  <p style={{ fontSize: ".81rem", color: "var(--pb-ink-2)", lineHeight: 1.45, margin: 0 }}>{r.desc}</p>
-                  <div style={{ display: "flex", gap: 8, marginTop: 12, fontSize: ".72rem", color: "var(--pb-gold-soft)", fontWeight: 700 }}>
-                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{r.stops.length} stops</span>
-                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{r.days} days</span>
-                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{r.miles} mi</span>
-                  </div>
-                </div>
-              );
-            })}
-            {railTab === "mine" && savedTrips.map((t) => {
-              const nStops = (t.stops || []).length;
-              const nNights = (t.stops || []).reduce((a, s) => a + (Number(s.nights) || 0), 0);
-              return (
-                <div key={t.id} onClick={() => loadSavedTrip(t)} style={{ flex: "none", width: 248, position: "relative", background: "linear-gradient(180deg,rgba(16,34,24,.9),rgba(9,20,14,.9))", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: "0 16px 40px -20px rgba(0,0,0,.7)" }}>
-                  <button onClick={(e) => { e.stopPropagation(); deleteSavedTrip(t.id); }} title="Delete this saved trip" style={{ position: "absolute", top: 10, right: 10, width: 24, height: 24, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,20,14,.8)", color: "#b06a4a", cursor: "pointer", fontSize: ".95rem", lineHeight: 1 }}>×</button>
-                  <div style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Saved trip 🧭</div>
-                  <h3 style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.1, margin: "4px 30px 7px 0" }}>{t.name}</h3>
-                  <p style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.45, margin: 0 }}>{nStops ? (t.stops || []).slice(0, 4).map((s) => s.name).join(" · ") + (nStops > 4 ? " · +" + (nStops - 4) + " more" : "") : "No stops yet"}</p>
-                  <div style={{ display: "flex", gap: 8, marginTop: 12, fontSize: ".72rem", color: "var(--pb-gold-soft)", fontWeight: 700 }}>
-                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{nStops} stop{nStops === 1 ? "" : "s"}</span>
-                    {nNights ? <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{nNights} night{nNights === 1 ? "" : "s"}</span> : null}
-                  </div>
-                </div>
-              );
-            })}
-            {railTab === "mine" && !savedTrips.length && (
-              <div style={{ flex: "none", maxWidth: 420, border: "1px dashed var(--pb-line-strong)", borderRadius: 20, padding: "18px 20px", color: "var(--pb-ink-2)", background: "rgba(9,20,14,.5)" }}>
-                <b style={{ fontFamily: serif, color: "var(--pb-ink)", fontSize: "1.05rem", display: "block", marginBottom: 5 }}>No saved trips yet</b>
-                <span style={{ fontSize: ".84rem", lineHeight: 1.5 }}>Build a trip below, then hit <b style={{ color: "var(--pb-gold-soft)" }}>Save trip</b> in the setup tile to keep it here for next time.</span>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ============ SHEET ============ */}
-        <div style={{ position: "relative", background: "linear-gradient(180deg,rgba(9,18,13,.92),var(--pb-bg))", borderTop: "1px solid var(--pb-line)", borderRadius: "34px 34px 0 0", marginTop: "clamp(18px,3vh,30px)", boxShadow: "0 -26px 70px -34px rgba(0,0,0,.85)", paddingTop: 8 }}>
-          <div className="bt-sheet-grid" style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(20px,3vw,34px) clamp(16px,3vw,28px) 44px", display: "grid", gridTemplateColumns: "1fr 480px", gap: 22, alignItems: "start", boxSizing: "border-box" }}>
-
-            {/* LEFT COLUMN — filters (off the map) + map */}
-            <div>
-            {/* ===== FILTER PANEL (Explore's full set) ===== */}
-            <div style={{ ...panel, padding: "16px 18px", marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                <div style={{ fontFamily: mono, fontSize: ".6rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Filters · tap a map marker to add</div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => setLayers({ np: true, statePark: true, forest: true, byway: true, camp: true, lake: true, hiking: true, offroad: true, ski: true })} style={btFilterMini}>All</button>
-                  <button onClick={() => setLayers({ np: false, statePark: false, forest: false, byway: false, camp: false, lake: false, hiking: false, offroad: false, ski: false })} style={btFilterMini}>None</button>
-                </div>
-              </div>
-              {/* state + radius */}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-                <label style={{ flex: "1 1 150px", display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={fieldLabel}>State</span>
-                  <select value={browseState} onChange={(e) => setBrowseState(e.target.value)} style={fieldBox}>
-                    <option value="">All states</option>
-                    {browseStates.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </label>
-                <div style={{ flex: "1 1 150px", display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={fieldLabel}>Layers radius · {radius} mi</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, height: 38 }}>
-                    <button onClick={() => setRadius((r) => Math.max(10, r - 25))} style={btStep}>−</button>
-                    <input type="range" min="10" max="150" step="5" value={radius} onChange={(e) => setRadius(+e.target.value)} style={{ flex: 1, accentColor: "#d9b779" }} />
-                    <button onClick={() => setRadius((r) => Math.min(150, r + 25))} style={btStep}>+</button>
-                  </div>
-                </div>
-              </div>
-              {/* destination types */}
-              <div style={{ ...fieldLabel, marginBottom: 7 }}>Destination types</div>
-              <div style={{ marginBottom: 14 }}>
-                <BtTog glyph="●" color="#5fbf86" label="National Parks" on={layers.np} onClick={() => setLayers((l) => ({ ...l, np: !l.np }))} />
-                <BtTog glyph="◆" color="#d9a441" label="State Parks" on={layers.statePark} onClick={() => setLayers((l) => ({ ...l, statePark: !l.statePark }))} />
-                <BtTog glyph="▲" color="#6f9e5a" label="National Forests" on={layers.forest} onClick={() => setLayers((l) => ({ ...l, forest: !l.forest }))} />
-                <BtTog glyph="⛰" color="#e4be78" label="Scenic routes" on={layers.byway} onClick={() => setLayers((l) => ({ ...l, byway: !l.byway }))} />
-              </div>
-              {/* on-the-map layers */}
-              <div style={{ ...fieldLabel, marginBottom: 7 }}>On the map · around each stop</div>
-              <div>
-                <BtTog glyph="▲" color="#d08a4b" label="Campgrounds &amp; areas" on={layers.camp} onClick={() => setLayers((l) => ({ ...l, camp: !l.camp }))} />
-                <BtTog glyph="●" color="#4f96c9" label="Lakes" on={layers.lake} onClick={() => setLayers((l) => ({ ...l, lake: !l.lake }))} />
-                <BtTog glyph="▬" color={TRAIL_STYLE.hiking} label="Hiking trails" on={layers.hiking} onClick={() => setLayers((l) => ({ ...l, hiking: !l.hiking }))} />
-                <BtTog glyph="▬" color={TRAIL_STYLE.offroad} label="Off-road / 4×4" on={layers.offroad} onClick={() => setLayers((l) => ({ ...l, offroad: !l.offroad }))} />
-                <BtTog glyph="▬" color={TRAIL_STYLE.ski} label="Ski routes" on={layers.ski} onClick={() => setLayers((l) => ({ ...l, ski: !l.ski }))} />
-              </div>
-            </div>
-
-            {/* MAP (sticky) */}
-            <div style={{ position: "sticky", top: 90, borderRadius: 22, overflow: "hidden", border: "1px solid var(--pb-line)", boxShadow: "0 22px 50px -26px rgba(28,46,34,.5)", background: "#e8eae4" }}>
-              <div style={{ position: "relative", height: "76vh", minHeight: 480 }}>
-                <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
-                <div style={{ display: keyOverlay ? "flex" : "none", position: "absolute", inset: 0, zIndex: 5, background: "rgba(16,32,23,.72)", backdropFilter: "blur(3px)", alignItems: "center", justifyContent: "center", padding: 24 }}>
-                  <div style={{ background: "var(--pb-surface)", borderRadius: 16, padding: 22, maxWidth: 340, boxShadow: "0 20px 50px rgba(0,0,0,.35)" }}>
-                    <b style={{ fontFamily: serif, fontSize: "1.1rem", color: "var(--pb-ink)", display: "block", marginBottom: 6 }}>Load the live Google Map</b>
-                    <p style={{ fontSize: ".82rem", color: "var(--pb-muted)", lineHeight: 1.5, margin: "0 0 12px" }}>{keyMsg}</p>
-                    <input ref={keyInputRef} placeholder="AIza…" style={{ width: "100%", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 12px", fontSize: ".86rem", fontFamily: "ui-monospace,monospace", outline: "none", boxSizing: "border-box", background: "rgba(255,255,255,.04)", color: "var(--pb-ink)", colorScheme: "dark" }} />
-                    <button onClick={saveKey} style={{ width: "100%", marginTop: 10, border: "none", cursor: "pointer", borderRadius: 10, padding: 12, fontWeight: 800, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", fontFamily: "inherit" }}>Load map</button>
-                    <p style={{ fontSize: ".7rem", color: "var(--pb-muted)", margin: "10px 0 0", lineHeight: 1.45 }}>Stored only in your browser. Use an unrestricted dev key, or add this URL to the key&apos;s allowed referrers.</p>
-                  </div>
-                </div>
-                <div style={{ position: "absolute", bottom: 14, left: 14, zIndex: 3, display: "flex", alignItems: "center", gap: 7, background: "rgba(16,32,23,.86)", color: "#e4be78", padding: "6px 12px", borderRadius: 999, fontSize: ".66rem", fontWeight: 700, letterSpacing: ".03em" }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#46d97f", boxShadow: "0 0 0 3px rgba(70,217,127,.3)" }} />Tap a marker to add
-                </div>
-                <div style={{ position: "absolute", bottom: 14, right: 14, zIndex: 3, background: "var(--pb-surface)", color: "var(--pb-ink)", padding: "7px 13px", borderRadius: 999, fontSize: ".76rem", fontWeight: 700, boxShadow: "0 6px 16px rgba(0,0,0,.14)" }}>{roadInfo ? roadInfo.miles + " mi · " + (roadInfo.mins >= 60 ? Math.floor(roadInfo.mins / 60) + " h " + (roadInfo.mins % 60) + " m" : roadInfo.mins + " m") + " drive" : totalMiles + " mi · " + driveHrs + " h drive"}</div>
-              </div>
-            </div>
-            </div>
-
-            {/* PANELS COLUMN */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-
-              {/* header panel: trip name + stats */}
-              <div style={{ ...panel, overflow: "hidden" }}>
-                <div style={{ background: "linear-gradient(135deg,#33555f,#1d3941)", padding: 18, color: "#fbf6ea" }}>
-                  <input value={tripName} onChange={(e) => { userEditedRef.current = true; setTripName(e.target.value); }} style={{ width: "100%", fontFamily: serif, fontSize: "1.4rem", fontWeight: 700, color: "var(--pb-ink)", background: "transparent", border: "none", outline: "none", boxSizing: "border-box" }} />
-                  <div style={{ display: "flex", gap: 9, marginTop: 13 }}>
-                    <div style={statCell}><b style={statB}>{stops.length}</b><span style={statS}>Stops</span></div>
-                    <div style={statCell}><b style={statB}>{totalNights}</b><span style={statS}>Days</span></div>
-                    <div style={statCell}><b style={statB}>{totalMiles}</b><span style={statS}>Drive mi</span></div>
-                    <div style={statCell}><b style={statB}>{fmtUsd(totalCost)}</b><span style={statS}>Est. cost</span></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* trip-setup summary — the answers you gave in the wizard, at a glance */}
-              {(() => {
-                const ttLabel = { own: "My own car", rental: "Rental car", fly: "Fly in, then rent", rv: "RV / Camper" }[transport.type] || "My own car";
-                const rows = [
-                  ["Dates", startDate ? fmtDate(startDate) + " → " + fmtDate(endDate) : "—"],
-                  ["Length", (tripDays ? tripDays + " day" + (tripDays === 1 ? "" : "s") : "—") + (totalNights ? " · " + totalNights + " night" + (totalNights === 1 ? "" : "s") : "")],
-                  ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " · " + infants + " kid" + (infants === 1 ? "" : "s") : "")],
-                  ["Getting there", ttLabel + (transport.type === "fly" && transport.flightNo ? " · " + transport.flightNo : "")],
-                  ["Vehicle", transport.type === "rv" ? "RV / Camper" : car],
-                  ...(transport.type === "rental" || transport.type === "fly" ? [["Rental", (transport.rentalDaily ? "$" + transport.rentalDaily + "/day" : "rate not set") + (transport.rentalWhere ? " · " + transport.rentalWhere : "")]] : []),
-                  ["Fuel (est.)", fmtUsd(budget.fuel) + (transport.fuelState ? " · " + transport.fuelState : " · national avg")],
-                  ["Trip scope", tripScope === "crosscountry" ? "Cross-country route" : "Regional loop"],
-                ];
-                return (
-                  <div style={panel}>
-                    <div style={{ padding: "20px 20px" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14 }}>
-                        <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", display: "flex", alignItems: "center", gap: 8 }}>⚙ Your trip setup</div>
-                        <button onClick={() => setSetupOpen(true)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 800, letterSpacing: ".03em", color: "var(--pb-gold-soft)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "6px 14px" }}>✎ Edit</button>
-                      </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 16px" }}>
-                        {rows.map(([k, val]) => (
-                          <div key={k} style={{ minWidth: 0 }}>
-                            <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 2 }}>{k}</div>
-                            <div style={{ fontSize: ".86rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.25, overflowWrap: "anywhere" }}>{val}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
-                        <button onClick={saveCurrentTrip} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 800, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "10px 20px" }}>💾 Save trip</button>
-                        {saveMsg && <span style={{ fontSize: ".78rem", fontWeight: 700, color: saveMsg.includes("first") ? "#c98a5a" : "#6fce93" }}>{saveMsg}</span>}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* step 1: trip details */}
-              <div style={panel}>
-                <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
-                  <span style={stepNum}>1</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "0 0 14px", minHeight: 38 }}>
-                    <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)" }}>Trip details</div>
-                    <button onClick={useDefaults} title="Reset these to sensible defaults" style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".64rem", fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--pb-gold-soft)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 8, padding: "5px 9px" }}>Use defaults</button>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>Start date</label>
-                      <input type="date" value={startDate} onChange={(e) => { if (e.target.value) { userEditedRef.current = true; setStartDate(e.target.value); } }} style={fieldBox} />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>End date (from nights)</label>
-                      <div style={{ ...fieldBox, color: "var(--pb-muted)", display: "flex", alignItems: "center" }}>{fmtDate(endDate)}</div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>Adults</label>
-                      <input type="number" min="1" max="12" value={adults} onChange={(e) => { userEditedRef.current = true; setAdults(Math.max(1, +e.target.value || 1)); setBudgetOverride((o) => ({ ...o, food: null, flights: null })); }} style={fieldBox} />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>Infants / kids</label>
-                      <input type="number" min="0" max="12" value={infants} onChange={(e) => { userEditedRef.current = true; setInfants(Math.max(0, +e.target.value || 0)); }} style={fieldBox} />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>Getting to the region</label>
-                      <select value={arrivalMode} onChange={(e) => { userEditedRef.current = true; setArrivalMode(e.target.value); setBudgetOverride((o) => ({ ...o, flights: null })); }} style={fieldBox}>
-                        <option value="drive">Drive the whole way</option>
-                        <option value="fly">Fly in, then rent a car</option>
-                      </select>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      <label style={fieldLabel}>Rental car</label>
-                      <select value={car} onChange={(e) => { userEditedRef.current = true; setCar(e.target.value); }} style={fieldBox}>
-                        {CARS.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5, gridColumn: "1 / -1" }}>
-                      <label style={fieldLabel}>Trip scope</label>
-                      <select value={tripScope} onChange={(e) => { userEditedRef.current = true; setTripScope(e.target.value); }} style={fieldBox}>
-                        <option value="regional">A loop around the destination (nearby states)</option>
-                        <option value="crosscountry">A cross-country route (all over the U.S.)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* step 2: itinerary */}
-              <div style={panel}>
-                <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
-                  <span style={stepNum}>2</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span>Your itinerary</span>
-                    <label onClick={() => setShowOnMap(!showOnMap)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: ".78rem", fontWeight: 700, color: "var(--pb-muted)", cursor: "pointer" }}>
-                      <span style={{ width: 32, height: 18, borderRadius: 999, background: showOnMap ? "var(--pb-grad-gold)" : "rgba(255,255,255,.14)", position: "relative" }}>
-                        <span style={{ position: "absolute", top: 2, right: showOnMap ? 2 : 16, width: 14, height: 14, borderRadius: "50%", background: showOnMap ? "var(--pb-bg)" : "#e7e3d8" }} />
-                      </span>Show on map
-                    </label>
-                  </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                    {stops.map((s, i) => {
-                      const v = verdicts[s.name];
-                      const st = STOP_STATUS[v ? v.status : "loading"];
-                      return (
-                        <div key={s.name} draggable onDragStart={onDragStart(i)} onDragOver={onDragOver} onDrop={onDrop(i)} style={{ background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: 13, boxShadow: "0 12px 30px -22px rgba(28,46,34,.55)" }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
-                            <span style={{ color: "var(--pb-muted)", fontSize: "1rem", marginTop: 4, cursor: "grab" }}>⠿</span>
-                            <span style={{ width: 30, height: 30, flex: "none", borderRadius: "50%", background: "linear-gradient(150deg,#33555f,#1d3941)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: ".86rem", border: "2px solid #e4be78", boxShadow: "0 4px 12px -4px rgba(0,0,0,.4)" }}>{i + 1}</span>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c79a4b", display: "flex", alignItems: "center", gap: 6 }}>
-                                {s.kind === "byway" && <span style={{ background: "rgba(228,190,120,.16)", color: "#e4be78", border: "1px solid rgba(228,190,120,.35)", borderRadius: 999, padding: "1px 7px", letterSpacing: ".04em" }}>⛰ Scenic drive</span>}
-                                <span>{dayRanges[i] ? dayRanges[i].label : ""}</span>
-                              </div>
-                              <b style={{ fontFamily: serif, fontSize: "1.02rem", fontWeight: 700, color: "var(--pb-ink)", display: "block", lineHeight: 1.15 }}>{s.name}</b>
-                              <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>
-                                {s.state} · {s.nights} night{s.nights === 1 ? "" : "s"} · {i === 0 ? "arrive " + fmtShort(dayRanges[0] ? dayRanges[0].arrive : startDate) : (s.legMi != null ? s.legMi + " mi from " + stops[i - 1].name : "")}
-                                {s.kind === "byway" && s.slug && <> · <a href={"/scenic-drives/" + s.slug} target="_blank" rel="noopener noreferrer" style={{ color: "#e4be78", fontWeight: 700, textDecoration: "none" }}>view drive →</a></>}
-                              </div>
-                            </div>
-                            <span onClick={() => removeStop(i)} style={{ color: "#b06a4a", fontSize: "1.2rem", cursor: "pointer", lineHeight: 1 }}>×</span>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, padding: "7px 11px", background: st.bg, borderRadius: 10 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: st.dot }} />
-                            <b style={{ fontSize: ".74rem", color: st.text }}>{st.label}</b>
-                            <span style={{ fontSize: ".74rem", color: st.note }}>{v ? v.note : "Fetching live conditions…"}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Add national parks</div>
-                  <div style={{ display: "flex", gap: 9 }}>
-                    <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "var(--pb-muted)" }}>
-                      <option value="">Choose a park…</option>
-                      {parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => (
-                        <option key={p.id} value={p.name}>{p.name} — {p.state}</option>
-                      ))}
-                    </select>
-                    <button onClick={addPark} style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
-                  </div>
-                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Add a scenic route</div>
-                  <div style={{ display: "flex", gap: 9 }}>
-                    <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
-                      <option value="">Choose a scenic drive…</option>
-                      {[["all-american", "All-American Roads"], ["national-scenic-byway", "National Scenic Byways"], ["*", "Other scenic drives"]].map(([tier, label]) => {
-                        const rows = bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name));
-                        if (!rows.length) return null;
-                        return (
-                          <optgroup key={tier} label={label}>
-                            {rows.sort((a, b) => a.name.localeCompare(b.name)).map((b) => (
-                              <option key={b.id} value={b.id}>{b.name} — {b.states || b.state || ""}</option>
-                            ))}
-                          </optgroup>
-                        );
-                      })}
-                    </select>
-                    <button onClick={addByway} style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
-                  </div>
-                  <div style={{ fontSize: ".66rem", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "16px 0 8px" }}>Or add a place — home, hotel, town…</div>
-                  <div style={{ display: "flex", gap: 9 }}>
-                    <input
-                      value={addrInput}
-                      onChange={(e) => { setAddrInput(e.target.value); if (addrMsg) setAddrMsg(""); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") addAddress(); }}
-                      placeholder="123 Main St, or 'Zion Lodge', or a town…"
-                      style={{ ...fieldBox, flex: 1 }}
-                    />
-                    <button onClick={addAddress} title="Add this place" style={{ width: 48, flex: "none", border: "none", borderRadius: 12, background: "var(--pb-grad-gold)", color: "var(--pb-bg)", fontSize: "1.2rem", cursor: "pointer", fontWeight: 700 }}>＋</button>
-                  </div>
-                  {addrMsg && <div style={{ fontSize: ".74rem", color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
-                </div>
-              </div>
-
-              {/* step 3: budget */}
-              <div style={panel}>
-                <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
-                  <span style={stepNum}>3</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 4px", minHeight: 38, display: "flex", alignItems: "center" }}>Budget</div>
-                  <div style={{ fontSize: ".74rem", color: "var(--pb-muted)", marginBottom: 12 }}>Tap any amount to enter your real price.</div>
-                  <div>
-                    <div style={budgetRow}><span style={{ color: "var(--pb-ink-2)" }}>✈️ Flights · {adults} adult{adults === 1 ? "" : "s"}{arrivalMode === "drive" ? " (driving)" : ""}</span><BudgetAmount k="flights" /></div>
-                    {(budget.rental > 0 || budgetOverride.rental != null) && (
-                      <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>{transport.type === "rv" ? "🚐 RV rental" : "🚙 Rental car"}{transport.rentalDaily ? " · $" + transport.rentalDaily + "/day × " + tripDays : ""}</span><BudgetAmount k="rental" /></div>
-                    )}
-                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>⛽ Fuel{transport.type === "own" ? " · own car" : transport.type === "rv" ? " · RV" : ""}</span><BudgetAmount k="fuel" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🏨 Lodging · {totalNights} nights</span><BudgetAmount k="lodging" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🍔 Food · {adults} adult{adults === 1 ? "" : "s"}{infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : ""}</span><BudgetAmount k="food" /></div>
-                    <div style={{ ...budgetRow, borderTop: "1px solid var(--pb-line)" }}><span style={{ color: "var(--pb-ink-2)" }}>🎟️ Park passes</span><BudgetAmount k="passes" /></div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 12, paddingTop: 13, borderTop: "2px solid #c79a4b" }}>
-                    <span style={{ fontFamily: serif, fontSize: "1.08rem", color: "var(--pb-ink)", fontWeight: 700 }}>Estimated total</span>
-                    <span style={{ fontFamily: serif, fontSize: "1.7rem", color: "var(--pb-gold-soft)", fontWeight: 800 }}>{fmtUsd(totalCost)}</span>
-                  </div>
-                  <div style={{ textAlign: "right", fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 3 }}>≈ {fmtUsd(totalCost / Math.max(1, travelers))} per person</div>
-                </div>
-              </div>
-
-              {/* step 4: navigate & share */}
-              <div style={panel}>
-                <div style={{ position: "relative", padding: "24px 20px 24px 58px" }}>
-                  <span style={stepNum}>4</span>
-                  <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", margin: "0 0 14px", minHeight: 38, display: "flex", alignItems: "center" }}>Navigate &amp; share</div>
-                  <div style={{ display: "flex", gap: 9, marginBottom: 11 }}>
-                    <a href={gmapsUrl} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", borderRadius: 12, padding: "11px 15px", fontWeight: 700, fontSize: ".85rem" }}>Google Maps ↗</a>
-                    <a href={appleUrl} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "rgba(255,255,255,.04)", border: "1.5px solid var(--pb-line)", color: "var(--pb-gold-soft)", borderRadius: 12, padding: "11px 15px", fontWeight: 700, fontSize: ".85rem" }}>Apple Maps ↗</a>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <a href={waUrl} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 88, textAlign: "center", textDecoration: "none", background: "#1faa55", color: "#fff", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".85rem" }}>WhatsApp</a>
-                    <button onClick={copyLink} style={{ flex: 1, minWidth: 88, border: "1.5px solid var(--pb-line)", background: "rgba(255,255,255,.04)", color: "var(--pb-gold-soft)", borderRadius: 12, padding: 11, fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "inherit" }}>Copy link</button>
-                  </div>
-                  <a href="/trip-print" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 14, width: "100%", boxSizing: "border-box", background: "linear-gradient(135deg,#33555f,#1d3941)", color: "#fbf6ea", border: "1px solid rgba(199,154,75,.45)", borderRadius: 13, padding: 13, fontSize: ".88rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>🖨 Print itinerary · save as PDF</a>
-                  <div style={{ display: "flex", gap: 9, marginTop: 9 }}>
-                    <a href="/trip-mode" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", borderRadius: 12, padding: "11px 12px", fontWeight: 800, fontSize: ".82rem" }}>◉ Start Trip Mode</a>
-                    <a href="/trip-book" style={{ flex: 1, textAlign: "center", textDecoration: "none", background: "rgba(255,255,255,.04)", border: "1.5px solid var(--pb-line-strong)", color: "var(--pb-gold-soft)", borderRadius: 12, padding: "11px 12px", fontWeight: 800, fontSize: ".82rem" }}>📖 Trip Book</a>
-                  </div>
-                </div>
-              </div>
-
-              {/* coming soon */}
-              <div style={{ ...panel, padding: 20, boxShadow: "0 22px 50px -30px rgba(28,46,34,.4)" }}>
-                <div style={{ border: "1px dashed var(--pb-line-strong)", borderRadius: 16, padding: 16, background: "repeating-linear-gradient(135deg,rgba(255,255,255,.02),rgba(255,255,255,.02) 12px,rgba(255,255,255,.04) 12px,rgba(255,255,255,.04) 24px)" }}>
-                  <span style={{ display: "inline-block", fontSize: ".58rem", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", background: "linear-gradient(120deg,#e4be78,#c79a4b)", color: "#3a2e08", padding: "3px 10px", borderRadius: 999, marginBottom: 9 }}>Coming soon</span>
-                  <h4 style={{ fontFamily: serif, fontSize: "1.05rem", fontWeight: 700, color: "var(--pb-ink)", margin: "0 0 5px" }}>📎 Reservations &amp; live trip tracking</h4>
-                  <p style={{ fontSize: ".8rem", color: "var(--pb-muted)", lineHeight: 1.5, margin: 0 }}>Upload your campground, park and rental-car confirmations and we&apos;ll keep everything in one place — with live updates on weather, closures and check-in reminders as you travel.</p>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 11 }}>
-                    <span style={{ fontSize: ".68rem", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Confirmations</span>
-                    <span style={{ fontSize: ".68rem", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Weather alerts</span>
-                    <span style={{ fontSize: ".68rem", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)", padding: "5px 10px", borderRadius: 999, fontWeight: 600 }}>Check-in reminders</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <footer style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".72rem", padding: 24, borderTop: "1px solid var(--pb-line)" }}>
-            Drive times &amp; costs are planning estimates · live weather &amp; official info on each park&apos;s status page · ParkBuddy
-          </footer>
-        </div>
+        {/* Trip Studio — reskinned planner (design ported from Claude Design) */}
+        <TripStudio
+          mode={railTab} setMode={setRailTab} onNewTrip={onNewTrip}
+          stat={{ stops: String(stops.length), days: String(totalNights), miles: String(totalMiles), cost: fmtUsd(totalCost) }}
+          tripName={tripName}
+          stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
+          onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
+          addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
+          parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
+          bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}
+          addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress} addrMsg={addrMsg}
+          setupCollapsed={setupCollapsed} setSetupCollapsed={setSetupCollapsed}
+          setupRows={[["Dates", startDate ? fmtShort(startDate) + " – " + fmtShort(endDate) : "—"], ["Length", (tripDays ? tripDays + " days" : "—") + (totalNights ? " · " + totalNights + " nights" : "")], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " · " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Getting there", ({ own: "Own car", rental: "Rental car", fly: "Fly + rent", rv: "RV / Camper" }[transport.type] || "Own car")], ["Vehicle", transport.type === "rv" ? "RV / Camper" : car], ["Fuel est.", fmtUsd(budget.fuel) + (transport.fuelState ? " · " + transport.fuelState : "")], ["Trip scope", tripScope === "crosscountry" ? "Cross-country" : "Regional loop"]]}
+          onEditSetup={() => setSetupOpen(true)} onSaveTrip={saveCurrentTrip} saveMsg={saveMsg}
+          budgetOpen={budgetOpen} setBudgetOpen={setBudgetOpen}
+          budgetLines={[{ label: "✈️ Flights", k: "flights" }, { label: transport.type === "rv" ? "🚐 RV rental" : "🚙 Rental car", k: "rental", show: budget.rental > 0 || budgetOverride.rental != null }, { label: "⛽ Fuel", k: "fuel" }, { label: "🏨 Lodging", k: "lodging" }, { label: "🍔 Food", k: "food" }, { label: "🎟️ Park passes", k: "passes" }]}
+          BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
+          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute}
+          savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
+          gmapsUrl={gmapsUrl} waUrl={waUrl} copyLink={copyLink}
+          mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}
+          fieldBox={fieldBox}
+        />
       </div>
 
       <TripSetupWizard

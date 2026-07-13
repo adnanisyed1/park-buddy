@@ -642,6 +642,31 @@ export default function TripStudio(props) {
                     </div>
                   ))}
                 </div>
+
+                {/* Scenic routes by Park Buddy — the All-American Roads, addable as stops */}
+                {(() => {
+                  const scenic = (bywaysDb || []).filter((b) => b.tier === "all-american" && b.lat != null).slice().sort((a, b) => a.name.localeCompare(b.name));
+                  if (!scenic.length) return null;
+                  return (
+                    <div style={{ marginTop: 26 }}>
+                      <div style={{ ...kicker, marginBottom: 4 }}>Scenic routes by Park Buddy</div>
+                      <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", marginBottom: 14 }}>America&apos;s All-American Roads — add one to your trip or open the full drive.</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {scenic.map((b) => (
+                          <div key={b.id} className="ts-hoverline" style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(14,32,22,0.5)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 14, padding: "11px 13px", backdropFilter: "blur(10px)" }}>
+                            <span style={{ fontSize: 15, flex: "none" }}>⟿</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.name}</div>
+                              <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", color: "#7f8a82", marginTop: 3 }}>ALL-AMERICAN ROAD{(b.states || b.state) ? " · " + (b.states || b.state) : ""}</div>
+                            </div>
+                            <a href={"/scenic-drives/" + b.id} style={{ flex: "none", fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "#c9a35f", textDecoration: "none" }}>View →</a>
+                            <button onClick={() => addDestination && addDestination({ name: b.name, state: b.states || b.state || "", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id })} title="Add to your trip" style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontSize: 17, fontWeight: 700, lineHeight: 1 }}>＋</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

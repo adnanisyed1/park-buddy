@@ -881,11 +881,18 @@ export default function BuildTripApp() {
           setupRows={[["Dates", startDate ? fmtShort(startDate) + " – " + fmtShort(endDate) : "—"], ["Length", (tripDays ? tripDays + " days" : "—") + (totalNights ? " · " + totalNights + " nights" : "")], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " · " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Getting there", ({ own: "Own car", rental: "Rental car", fly: "Fly + rent", rv: "RV / Camper" }[transport.type] || "Own car")], ["Vehicle", transport.type === "rv" ? "RV / Camper" : car], ["Fuel est.", fmtUsd(budget.fuel) + (transport.fuelState ? " · " + transport.fuelState : "")], ["Trip scope", tripScope === "crosscountry" ? "Cross-country" : "Regional loop"]]}
           onEditSetup={() => setSetupOpen(true)} onSaveTrip={saveCurrentTrip} saveMsg={saveMsg}
           budgetOpen={budgetOpen} setBudgetOpen={setBudgetOpen}
-          budgetLines={[{ label: "✈️ Flights", k: "flights" }, { label: transport.type === "rv" ? "🚐 RV rental" : "🚙 Rental car", k: "rental", show: budget.rental > 0 || budgetOverride.rental != null }, { label: "⛽ Fuel", k: "fuel" }, { label: "🏨 Lodging", k: "lodging" }, { label: "🍔 Food", k: "food" }, { label: "🎟️ Park passes", k: "passes" }]}
+          budgetLines={[
+            { label: "Flights", icon: "✈️", tint: "#6fb4d6", k: "flights", sub: adults + " adult" + (adults === 1 ? "" : "s") + (arrivalMode === "fly" ? "" : " · not flying"), show: budget.flights > 0 || budgetOverride.flights != null },
+            { label: transport.type === "rv" ? "RV rental" : "Rental car", icon: transport.type === "rv" ? "🚐" : "🚙", tint: "#7fb0d0", k: "rental", sub: transport.rentalDaily ? fmtUsd(transport.rentalDaily) + "/day × " + tripDays + " day" + (tripDays === 1 ? "" : "s") : "tap to enter real price", show: budget.rental > 0 || budgetOverride.rental != null },
+            { label: "Fuel", icon: "⛽", tint: "#d6795a", k: "fuel", sub: totalMiles + " mi" + (transport.fuelState ? " · " + transport.fuelState : "") },
+            { label: "Lodging", icon: "🏨", tint: "#d68fa0", k: "lodging", sub: totalNights + " night" + (totalNights === 1 ? "" : "s") },
+            { label: "Food", icon: "🍔", tint: "#e0b46a", k: "food", sub: adults + " adult" + (adults === 1 ? "" : "s") },
+            { label: "Park passes", icon: "🎟️", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
+          ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
           routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
-          gmapsUrl={gmapsUrl} waUrl={waUrl} copyLink={copyLink}
+          gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}
           layers={layers} setLayers={setLayers} layersOpen={layersOpen} setLayersOpen={setLayersOpen}
           mapView={mapView} setMapView={setMapView} browseState={browseState} setBrowseState={setBrowseState} browseQuery={browseQuery} setBrowseQuery={setBrowseQuery} radius={radius} setRadius={setRadius}

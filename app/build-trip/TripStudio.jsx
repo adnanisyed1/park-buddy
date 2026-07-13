@@ -19,6 +19,9 @@ const THUMBS = ["linear-gradient(140deg,#2a3826,#12211a)", "linear-gradient(140d
 const US_STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
 const filterField = { background: "rgba(8,19,13,0.7)", border: "1px solid rgba(217,183,121,0.22)", borderRadius: 9, padding: "7px 10px", color: "#e8cf9a", fontFamily: SANS, fontSize: 11.5, outline: "none", colorScheme: "dark" };
 const miniBtn = { cursor: "pointer", fontFamily: MONO, fontSize: 9, letterSpacing: ".08em", textTransform: "uppercase", padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.16)", background: "transparent", color: "#7f8a82" };
+const navTile = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center", textDecoration: "none", padding: "11px 8px", borderRadius: 11, border: "1px solid rgba(217,183,121,0.2)", background: "rgba(255,255,255,.03)", color: "#e8cf9a", fontFamily: SANS, fontSize: 12.5, fontWeight: 500 };
+// hex (#rrggbb) + alpha → rgba() string, for tinted budget icon tiles.
+function hexA(hex, a) { const h = hex.replace("#", ""); const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16); return "rgba(" + r + "," + g + "," + b + "," + a + ")"; }
 
 // Animate 0→value on first mount (ease-out cubic, ~1.1s); reflect later changes instantly.
 function CountUp({ value, format }) {
@@ -68,7 +71,7 @@ export default function TripStudio(props) {
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
     routes, loadedRoute, loadRoute,
     savedTrips, loadSavedTrip, deleteSavedTrip,
-    gmapsUrl, waUrl, copyLink,
+    gmapsUrl, appleUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
     layers, setLayers, layersOpen, setLayersOpen,
     mapView, setMapView, browseState, setBrowseState, browseQuery, setBrowseQuery, radius, setRadius,
@@ -485,40 +488,45 @@ export default function TripStudio(props) {
                   )}
                 </div>
 
-                {/* budget + navigate */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
-                  <div style={{ ...glass, cursor: "pointer" }} onClick={() => setBudgetOpen(!budgetOpen)}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={kicker}>Budget</div>
-                      <span style={{ color: "#7f8a82", fontSize: 11 }}>{budgetOpen ? "▾" : "▸"}</span>
-                    </div>
-                    <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, color: "#f4f1ea", marginTop: 10, lineHeight: 1 }}>{fmtUsd(totalCost)}</div>
-                    <div style={{ height: 6, borderRadius: 6, background: "rgba(8,19,13,0.8)", marginTop: 12, overflow: "hidden" }}>
-                      <div style={{ width: "64%", height: "100%", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", borderRadius: 6 }} />
-                    </div>
-                    <div style={{ fontSize: 10.5, color: "#7f8a82", marginTop: 8 }}>≈ {fmtUsd(perPerson)} / person · tap to edit</div>
-                    {budgetOpen && (
-                      <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 12, borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 6 }}>
-                        {budgetLines.map(({ label, k, show }) => (show === false ? null : (
-                          <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", fontSize: 12.5, color: "#aab0ba", borderTop: "1px solid rgba(217,183,121,0.08)" }}>
-                            <span>{label}</span><BudgetAmount k={k} />
-                          </div>
-                        )))}
+                {/* budget — full-width, itemized (matches the design) */}
+                <div style={{ ...glass, marginTop: 14 }}>
+                  <div style={kicker}>Budget</div>
+                  <div style={{ display: "flex", flexDirection: "column", marginTop: 14 }}>
+                    {budgetLines.map(({ label, icon, tint, sub, k, show }) => (show === false ? null : (
+                      <div key={k} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: "1px solid rgba(217,183,121,0.09)" }}>
+                        <div style={{ width: 34, height: 34, flex: "none", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, background: hexA(tint, 0.14), border: "1px solid " + hexA(tint, 0.3) }}>{icon}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.2 }}>{label}</div>
+                          <div style={{ fontFamily: SANS, fontSize: 11, color: "#7f8a82", marginTop: 2 }}>{sub}</div>
+                        </div>
+                        <div style={{ flex: "none", fontFamily: SERIF, fontSize: 17, fontWeight: 600, color: "#f4f1ea" }}><BudgetAmount k={k} /></div>
                       </div>
-                    )}
+                    )))}
                   </div>
-                  <div style={{ ...glass, display: "flex", flexDirection: "column" }}>
-                    <div style={kicker}>Navigate &amp; share</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
-                      <a href={gmapsUrl} target="_blank" rel="noreferrer" style={{ textAlign: "center", textDecoration: "none", padding: 10, borderRadius: 11, border: "1px solid rgba(217,183,121,0.3)", background: "transparent", color: "#e8cf9a", fontFamily: SANS, fontSize: 12.5, fontWeight: 600 }}>Start navigation</a>
-                      <button onClick={copyLink} style={{ padding: 10, borderRadius: 11, border: "1px solid rgba(217,183,121,0.16)", background: "transparent", color: "#aab0ba", fontFamily: SANS, fontSize: 12.5, cursor: "pointer" }}>Share trip</button>
-                      <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-                        <a href="/trip-print" style={navMini}>🖨 Print</a>
-                        <a href="/trip-mode" style={navMini}>◉ Trip Mode</a>
-                        <a href="/trip-book" style={navMini}>📖 Book</a>
-                      </div>
+                  <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: 15, paddingTop: 15, borderTop: "1px solid rgba(217,183,121,0.16)" }}>
+                    <div>
+                      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".2em", textTransform: "uppercase", color: "#7f8a82" }}>Estimated total</div>
+                      <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#aab0ba", marginTop: 5 }}>≈ {fmtUsd(perPerson)} per person</div>
                     </div>
+                    <div style={{ fontFamily: SERIF, fontSize: 34, fontWeight: 600, color: "#e8cf9a", lineHeight: 1 }}>{fmtUsd(totalCost)}</div>
                   </div>
+                  <div style={{ fontFamily: SANS, fontSize: 11, fontStyle: "italic", color: "#7f8a82", marginTop: 10 }}>Tap any amount to enter your real price.</div>
+                </div>
+
+                {/* navigate & share — full-width, 6 links + Start Trip Mode */}
+                <div style={{ ...glass, marginTop: 14 }}>
+                  <div style={kicker}>Navigate &amp; share</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 14 }}>
+                    <a href={gmapsUrl} target="_blank" rel="noreferrer" style={navTile}>Google Maps</a>
+                    <a href={appleUrl} target="_blank" rel="noreferrer" style={navTile}>Apple Maps</a>
+                    <a href={waUrl} target="_blank" rel="noreferrer" style={navTile}>WhatsApp</a>
+                    <button onClick={copyLink} style={{ ...navTile, cursor: "pointer" }}>Copy link</button>
+                    <a href="/trip-print" style={navTile}>🖨 Print / PDF</a>
+                    <a href="/trip-book" style={navTile}>📖 Trip Book</a>
+                  </div>
+                  <a href="/trip-mode" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", width: "100%", marginTop: 12, padding: 13, borderRadius: 13, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
+                    <span style={{ display: "inline-flex", width: 8, height: 8, borderRadius: "50%", border: "2px solid #0a1712" }} />Start Trip Mode
+                  </a>
                 </div>
 
                 {/* reservations & tracking */}

@@ -168,7 +168,7 @@ export default function TripStudio(props) {
           </div>
 
           <div style={{ display: "flex", padding: 5, gap: 4, background: "rgba(8,19,13,0.7)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 999, ...(isMobile ? { order: 3, flex: "1 1 100%", justifyContent: "center" } : { position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)" }) }} className="ts-switcher">
-            <ModeBtn id="new" label={editing ? "Edit trip" : "New trip"} mode={mode} setMode={setMode} />
+            <ModeBtn id="new" label="Edit trip" mode={mode} setMode={setMode} />
             <ModeBtn id="premade" label="Ready-made routes" mode={mode} setMode={setMode} />
             <ModeBtn id="mine" label={"My trips" + (savedTrips.length ? " · " + savedTrips.length : "")} mode={mode} setMode={setMode} />
           </div>
@@ -323,7 +323,20 @@ export default function TripStudio(props) {
           {/* RIGHT MODULES */}
           <div className="ts-modules ts-scroll" style={{ flex: "1 1 0", minWidth: 0, maxWidth: 560, borderLeft: "1px solid rgba(217,183,121,0.12)", background: "linear-gradient(180deg,#0b1710,#08130d)", overflowY: "auto", maxHeight: "82vh", padding: 22 }}>
 
-            {mode === "new" && (
+            {mode === "new" && !editing && !stops.length && (
+              <div style={{ ...glass, textAlign: "center", padding: "40px 24px" }}>
+                <div style={{ display: "inline-flex", width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 16 }}><TSIcon name="pin" size={24} /></div>
+                <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 600, color: "#f4f1ea" }}>No trip yet</div>
+                <div style={{ fontFamily: SANS, fontSize: 13.5, color: "#aab0ba", lineHeight: 1.6, margin: "10px auto 22px", maxWidth: 320 }}>Add a new trip and answer a few quick questions, or pick one you&apos;ve saved or a ready-made itinerary.</div>
+                <button onClick={onNewTrip} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>＋ Add a new trip</button>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 10 }}>
+                  <button onClick={() => setMode("mine")} className="ts-navtile" style={navTile}>My trips{savedTrips.length ? " · " + savedTrips.length : ""}</button>
+                  <button onClick={() => setMode("premade")} className="ts-navtile" style={navTile}>Ready-made routes</button>
+                </div>
+              </div>
+            )}
+
+            {mode === "new" && (editing || stops.length > 0) && (
               <div>
                 {/* trip header — editable name + count-up stat bar + setup button */}
                 <div style={{ ...glass, marginBottom: 14 }}>

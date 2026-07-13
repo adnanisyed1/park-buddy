@@ -377,11 +377,20 @@ export default function BuildTripApp() {
     setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
   }
 
-  // Auto-open the setup wizard on first visit (once per browser).
+  // Document model: show the setup questionnaire on load whenever there's no
+  // checked-out trip yet — the trip is born from the questionnaire, so there's no
+  // "Set up your trip" button to press. Once a trip is checked out, go to Edit mode.
   useEffect(() => {
-    try { if (!localStorage.getItem("pb_trip_setup_seen")) setSetupOpen(true); } catch {}
-    // Restore which My-trips entry is being edited (document model), if any.
-    try { const id = localStorage.getItem("pb_active_trip_id"); if (id) setActiveTripId(id); } catch {}
+    let activeId = null;
+    try { activeId = localStorage.getItem("pb_active_trip_id"); } catch {}
+    const hasTrip = (tripStops() || []).length > 0;
+    if (activeId) {
+      setActiveTripId(activeId); // already editing a saved trip → Edit mode
+    } else if (hasTrip) {
+      wantsSaveRef.current = true; // in-progress trip w/o an id (legacy) → adopt it as the checked-out trip
+    }
+    // else: no trip yet → the Edit-trip section shows its empty state (no auto-popup).
+    // The user starts a trip via "＋ Add a new trip", which opens the questionnaire.
     try {
       const saved = JSON.parse(localStorage.getItem("pb_trip_dayplans") || "{}");
       if (saved && typeof saved === "object") {
@@ -462,7 +471,14 @@ export default function BuildTripApp() {
         setTotalMilesOverride(null);
         setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null });
       } else {
-        loadRoute(ROUTES[0], db); // design preset — Utah's Mighty 5
+        // No saved trip → start empty so the Edit-trip section shows its empty state
+        // ("Add a new trip, or pick one from My trips / Ready-made routes"). The demo
+        // preset is no longer auto-loaded; the user creates a trip via the questionnaire.
+        setStops([]);
+        setLoadedRoute(null);
+        setTotalMilesOverride(null);
+        setTripName("My national-parks trip");
+        setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
       }
 
       let key = "";
@@ -901,7 +917,6 @@ export default function BuildTripApp() {
           <p style={{ fontFamily: "var(--pb-sans)", fontSize: "clamp(15px,1.5vw,18px)", lineHeight: 1.6, color: "#aab0ba", margin: "18px 0 0", maxWidth: 640 }}>
             Load a ready-made route or build your own. Add parks, set your dates and rental car, and get a day-by-day plan that follows real roads — each stop carrying today&apos;s live go / no-go call.
           </p>
-          <button onClick={() => setSetupOpen(true)} style={{ marginTop: 26, display: "inline-flex", alignItems: "center", gap: 9, padding: "13px 24px", borderRadius: 999, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: "var(--pb-sans)", fontWeight: 700, fontSize: 15, boxShadow: "0 14px 34px -12px rgba(217,183,121,0.6)" }}>◈ Set up your trip →</button>
         </section>
 
         {/* Trip Studio — reskinned planner (design ported from Claude Design) */}

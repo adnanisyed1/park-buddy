@@ -89,7 +89,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
-    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi,
+    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, lodging, setStopLodging,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -589,7 +589,7 @@ export default function TripStudio(props) {
                     </div>
                   )}
 
-                  {!stops.length && <div style={{ fontSize: 13, color: "#7f8a82", padding: "10px 2px 4px", lineHeight: 1.6 }}>No stops yet — hit <b style={{ color: "#e8cf9a" }}>Add a stop</b> below, or load a ready-made route.</div>}
+                  {!stops.length && <div style={{ fontSize: 13, color: "#7f8a82", padding: "10px 2px 4px", lineHeight: 1.6 }}>No bases yet — hit <b style={{ color: "#e8cf9a" }}>Add a base</b> below, or load a ready-made route. A base is a place you sleep; its nights become day cards.</div>}
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {stops.map((s, i) => {
@@ -641,6 +641,27 @@ export default function TripStudio(props) {
                             </div>
                           </div>
                           </div>
+                          {/* Staying at — the actual lodging for this base (when it differs from the headline place, e.g. sleep in the gateway town). */}
+                          {setStopLodging && (() => {
+                            const lodge = lodging && lodging[s.name];
+                            return (
+                              <div style={{ marginTop: 8 }}>
+                                {lodge ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: SANS, fontSize: 11.5, color: "#aab0ba" }}>
+                                    <span style={{ color: "#8fd6a6", display: "inline-flex" }}><TSIcon name="bed" size={12} /></span>
+                                    <span style={{ color: "#8f9a90" }}>Staying at</span>
+                                    <span style={{ color: "#f4f1ea", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lodge.name}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); setStopLodging(s.name, null); }} title="Clear" style={{ marginLeft: "auto", background: "none", border: "none", color: "#7f8a82", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="trash" size={11} /></button>
+                                  </div>
+                                ) : (
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <GeoAutocomplete placeholder="Staying at… (hotel, cabin, town — optional)" fieldBox={fieldBox}
+                                      onPick={(x) => setStopLodging(s.name, { name: x.name, lat: x.lat, lng: x.lng })} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {/* Plan your days — the stop is a BASE; each night it anchors
                               becomes its own day bucket of typed blocks. */}
                           {toggleDayPlan && (() => {
@@ -723,7 +744,7 @@ export default function TripStudio(props) {
                   {/* add a stop — opens a popup (never clipped by the scrolling rail) */}
                   <div style={{ marginTop: 14 }}>
                     <button onClick={() => { if (isMobile) { setMobileAddOpen(true); } else { setAddSource(null); setAddMenuOpen(true); } }} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
-                      <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Add a stop
+                      <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Add a base
                     </button>
                   </div>
                 </div>
@@ -1137,9 +1158,12 @@ export default function TripStudio(props) {
       {addMenuOpen && (
         <div onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
-              <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea" }}>Add a stop</div>
-              <button onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+              <div>
+                <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea" }}>Add a base</div>
+                <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 3, lineHeight: 1.45 }}>A base is a place you sleep. It starts on <b style={{ color: "#c9a35f" }}>Day {stops.reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1}</b> and its nights become day cards. Set nights and drag to reorder after.</div>
+              </div>
+              <button onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
             </div>
             {!addSource && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -1306,7 +1330,7 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
 
   const day = stops[dayIdx];
   function pick(r) {
-    if (!day) { setAdded("Add a stop first — use precise entry below."); return; }
+    if (!day) { setAdded("Add a base first — use precise entry below."); return; }
     addActivity(day.name, { icon: r.icon, type: r.type, name: r.name, time });
     setAdded(r.name + " → " + day.name + " · " + time);
   }
@@ -1316,7 +1340,7 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
       <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderTopLeftRadius: 22, borderTopRightRadius: 22, boxShadow: "0 -30px 80px -20px rgba(0,0,0,0.9)" }}>
         {/* header */}
         <div style={{ flex: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 12px" }}>
-          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea" }}>Add a stop</div>
+          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea" }}>Add a base</div>
           <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
         </div>
         {/* search */}

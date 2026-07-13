@@ -160,6 +160,7 @@ export default function BuildTripApp() {
   const [hoverIdx, setHoverIdx] = useState(null); // itinerary card ↔ map pin hover link
   const [expandedStop, setExpandedStop] = useState(null); // stop name whose "Plan this day" timeline is open
   const [dayPlans, setDayPlans] = useState({}); // { [stopName]: [{id, icon, type, name, time}] } — per-day activity timelines
+  const [lodging, setLodging] = useState({}); // { [stopName]: {name, lat, lng} } — where you're actually staying at each base
   const [layersOpen, setLayersOpen] = useState(false); // Trip Studio map "Layers" control popover
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
@@ -503,6 +504,17 @@ export default function BuildTripApp() {
   useEffect(() => {
     try { localStorage.setItem("pb_trip_dayplans", JSON.stringify(dayPlans)); } catch {}
   }, [dayPlans]);
+
+  // Where you're staying at each base ("Staying at" line). Keyed by base name.
+  useEffect(() => {
+    try { const l = JSON.parse(localStorage.getItem("pb_trip_lodging") || "{}"); if (l && typeof l === "object") setLodging(l); } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("pb_trip_lodging", JSON.stringify(lodging)); } catch {}
+  }, [lodging]);
+  function setStopLodging(name, val) {
+    setLodging((prev) => { const next = { ...prev }; if (val) next[name] = val; else delete next[name]; return next; });
+  }
 
   // Trip origin ("starting from") — where the first drive leg begins.
   useEffect(() => {
@@ -1126,7 +1138,7 @@ export default function BuildTripApp() {
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           origin={origin} setOrigin={setOrigin} originLegMi={origin && stops[0] ? Math.round(milesBetween(origin, stops[0]) * ROAD_FACTOR) : null}
-          setExpandedStop={setExpandedStop}
+          setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}

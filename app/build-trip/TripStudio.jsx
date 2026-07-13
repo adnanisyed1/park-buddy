@@ -655,7 +655,7 @@ export default function TripStudio(props) {
                                               <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,0.12)" }}>
                                                 <span style={{ fontFamily: MONO, fontSize: 10, color: "#c9a35f", minWidth: 38 }}>{a.time || "—"}</span>
                                                 <span style={{ color: "#e0b978", display: "inline-flex", flex: "none" }}>{a.type ? <TSIcon name={blockIcon(a.type)} size={15} /> : <span style={{ fontSize: 14 }}>{a.icon}</span>}</span>
-                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}<span style={{ color: "#7f8a82", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7, textTransform: "uppercase" }}>{TYPE_LABEL[a.type] || ""}</span></span>
+                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}<span style={{ color: "#7f8a82", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7, textTransform: "uppercase" }}>{TYPE_LABEL[a.type] || ""}</span>{a.lat != null && <span title="Pinned on the map" style={{ color: "#8fd6a6", marginLeft: 6, display: "inline-flex", verticalAlign: "middle" }}><TSIcon name="pin" size={11} /></span>}</span>
                                                 <span onClick={() => removeActivity(s.name, a.id)} title="Remove" style={{ cursor: "pointer", color: "#b06a4a", fontSize: 13, lineHeight: 1, opacity: 0.55 }}>×</span>
                                               </div>
                                             ))}
@@ -1154,18 +1154,31 @@ const TYPE_ICON = { drive: "car", stay: "bed", meal: "utensils", scenic: "route"
 const TYPE_LABEL = { drive: "Drive", stay: "Stay", meal: "Meal", scenic: "Scenic drive", hike: "Hike", sight: "Sight" };
 const blockIcon = (t) => TYPE_ICON[t] || "pin";
 
-// "+ Add to this day" — pick a block type, name it, time it. Time is optional
-// (leave blank for an unscheduled block that keeps manual order).
+// "+ Add to this day" — pick a block type, name it, time it. The location can be a
+// free-typed name, an address/place from autocomplete (attaches real lat/lng so the
+// block can pin on the map), or raw coordinates. Time is optional (untimed blocks
+// keep manual order).
 function DayPlanAdd({ onAdd, fieldBox, defaultType = "hike" }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState(defaultType);
-  const [name, setName] = useState("");
   const [time, setTime] = useState("");
-  function commit() {
-    const nm = name.trim(); if (!nm) return;
-    onAdd({ type, name: nm, time });
-    setName(""); setTime(""); setOpen(false);
-  }
+  const [mode, setMode] = useState("search"); // "search" | "coords"
+  const [typed, setTyped] = useState("");       // free-typed name (no coords)
+  const [coordName, setCoordName] = useState("");
+  const [coordStr, setCoordStr] = useState("");
+  const [remount, setRemount] = useState(0);    // bump to clear the autocomplete
+  const reset = () => { setTyped(""); setCoordName(""); setCoordStr(""); setTime(""); setMode("search"); setRemount((n) => n + 1); setOpen(false); };
+  const commit = (loc) => {
+    const nm = (loc.name || "").trim(); if (!nm) return;
+    onAdd({ type, name: nm, time, ...(loc.lat != null ? { lat: loc.lat, lng: loc.lng } : {}) });
+    reset();
+  };
+  const commitCoords = () => {
+    const nums = (coordStr || "").split(/[,\s]+/).map(Number).filter((n) => !isNaN(n));
+    if (nums.length < 2) return;
+    commit({ name: coordName.trim() || "Pin " + nums[0].toFixed(3) + ", " + nums[1].toFixed(3), lat: nums[0], lng: nums[1] });
+  };
+  const ph = { drive: "Where to?", stay: "Where are you staying?", meal: "Where are you eating?", scenic: "Which scenic drive?", hike: "Which trail?", sight: "What are you seeing?" }[type] || "What's the plan?";
   if (!open) return (
     <button onClick={() => setOpen(true)} style={{ marginTop: 2, alignSelf: "flex-start", padding: "7px 12px", borderRadius: 9, border: "1px dashed rgba(217,183,121,0.35)", background: "rgba(255,255,255,.03)", color: "#c9a35f", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>+ Add to this day</button>
   );
@@ -1177,10 +1190,30 @@ function DayPlanAdd({ onAdd, fieldBox, defaultType = "hike" }) {
         </select>
         <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...fieldBox, width: 104, flex: "none" }} />
       </div>
-      <div style={{ display: "flex", gap: 7, marginTop: 7 }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") commit(); }} placeholder={{ drive: "Where to?", stay: "Where are you staying?", meal: "Where are you eating?", scenic: "Which scenic drive?", hike: "Which trail?", sight: "What are you seeing?" }[type] || "What's the plan?"} style={{ ...fieldBox, flex: 1 }} />
-        <button onClick={commit} style={addBtn}>＋</button>
-      </div>
+      {mode === "search" ? (
+        <>
+          <div style={{ display: "flex", gap: 7, marginTop: 7, alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <GeoAutocomplete key={remount} placeholder={ph + " — search or type"} fieldBox={fieldBox}
+                onType={(v) => setTyped(v)}
+                onPick={(s) => commit({ name: s.name, lat: s.lat, lng: s.lng })} />
+            </div>
+            <button onClick={() => commit({ name: typed })} style={addBtn} title="Add by name">＋</button>
+          </div>
+          <button onClick={() => setMode("coords")} style={{ marginTop: 8, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 11, cursor: "pointer", padding: 0 }}>⌖ Enter coordinates instead</button>
+        </>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 7, marginTop: 7 }}>
+            <input value={coordName} onChange={(e) => setCoordName(e.target.value)} placeholder="Name (optional)" style={{ ...fieldBox, flex: 1 }} />
+          </div>
+          <div style={{ display: "flex", gap: 7, marginTop: 7 }}>
+            <input value={coordStr} onChange={(e) => setCoordStr(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") commitCoords(); }} placeholder="37.29, -113.05" style={{ ...fieldBox, flex: 1 }} />
+            <button onClick={commitCoords} style={addBtn}>＋</button>
+          </div>
+          <button onClick={() => setMode("search")} style={{ marginTop: 8, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 11, cursor: "pointer", padding: 0 }}>← Search an address or place instead</button>
+        </>
+      )}
     </div>
   );
 }

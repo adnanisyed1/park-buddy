@@ -92,7 +92,7 @@ export default function TripStudio(props) {
     coordInput, setCoordInput, addCoords,
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
-    routes, loadedRoute, loadRoute, insertRouteAt,
+    routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute,
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, appleUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
@@ -114,6 +114,8 @@ export default function TripStudio(props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mobileAddOpen, setMobileAddOpen] = useState(false);
   const [pendingRoute, setPendingRoute] = useState(null); // ready-made route awaiting an insertion point
+  const [viewRoute, setViewRoute] = useState(null); // ready-made route open in read-only view
+  const [pickTrip, setPickTrip] = useState(false); // show the My-trips picklist inside the view popup
   const [confirmDelete, setConfirmDelete] = useState(null); // saved trip pending a delete confirmation
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
@@ -634,7 +636,7 @@ export default function TripStudio(props) {
                           </div>
                         </div>
                       </div>
-                      <button onClick={() => { if (!stops.length) { insertRouteAt(r, 0); } else { setPendingRoute(r); } }} className="ts-goldbtn" style={{ width: "100%", padding: 11, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5, boxShadow: "0 10px 26px -12px rgba(217,183,121,0.6)" }}>{stops.length ? "＋ Add this itinerary to your trip" : "Use this itinerary"}</button>
+                      <button onClick={() => { setViewRoute(r); setPickTrip(false); }} className="ts-goldbtn" style={{ width: "100%", padding: 11, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5, boxShadow: "0 10px 26px -12px rgba(217,183,121,0.6)" }}>View itinerary</button>
                     </div>
                   ))}
                 </div>
@@ -675,6 +677,56 @@ export default function TripStudio(props) {
           </div>
         </div>
       </div>
+
+      {/* Ready-made itinerary — read-only view + Clone / Add-to-a-trip */}
+      {viewRoute && (
+        <div onClick={() => { setViewRoute(null); setPickTrip(false); }} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
+            <div style={{ flex: "none", padding: "18px 20px 14px", borderBottom: "1px solid rgba(217,183,121,0.12)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#7f8a82" }} />Read-only itinerary</span>
+                <button onClick={() => { setViewRoute(null); setPickTrip(false); }} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+              </div>
+              <div style={{ fontFamily: SERIF, fontSize: 23, fontWeight: 600, color: "#f4f1ea", marginTop: 8 }}>{viewRoute.emoji} {viewRoute.name}</div>
+              <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#aab0ba", marginTop: 5, lineHeight: 1.4 }}>{viewRoute.desc}</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {[viewRoute.stops.length + " stops", viewRoute.days + " days", viewRoute.miles + " mi"].map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
+              </div>
+            </div>
+            <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
+              {viewRoute.stops.map((name, idx) => (
+                <div key={name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderTop: idx ? "1px solid rgba(217,183,121,0.08)" : "none" }}>
+                  <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", border: "1px solid rgba(217,183,121,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 11, color: "#e8cf9a" }}>{idx + 1}</span>
+                  <span style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>{name}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 9, color: "#7f8a82" }}>{viewRoute.nights[idx]} night{viewRoute.nights[idx] === 1 ? "" : "s"}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: "none", padding: "12px 20px 18px", borderTop: "1px solid rgba(217,183,121,0.12)", background: "rgba(6,14,10,0.6)" }}>
+              {!pickTrip ? (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <button onClick={() => { const r = viewRoute; setViewRoute(null); cloneRoute(r); }} className="ts-goldbtn" style={{ padding: 12, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Clone as a new trip</button>
+                  <button onClick={() => setPickTrip(true)} className="ts-navtile" style={{ ...navTile, justifyContent: "center" }}>Add to a trip</button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Add to which trip?</div>
+                  <div style={{ maxHeight: 180, overflowY: "auto" }} className="ts-scroll">
+                    {editing && stops.length > 0 && (
+                      <button onClick={() => { const r = viewRoute; setViewRoute(null); setPickTrip(false); setPendingRoute(r); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span>{tripName || "Current trip"}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#8fd6a6" }}>EDITING NOW</span></button>
+                    )}
+                    {savedTrips.filter((t) => !(editing && t.name === tripName)).map((t) => (
+                      <button key={t.id} onClick={() => { const r = viewRoute; setViewRoute(null); setPickTrip(false); loadSavedTrip(t); setPendingRoute(r); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#7f8a82" }}>{(t.stops || []).length} stops</span></button>
+                    ))}
+                    {!savedTrips.length && !(editing && stops.length) && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "4px 0 10px", lineHeight: 1.5 }}>No trips yet — clone this itinerary to start one.</div>}
+                  </div>
+                  <button onClick={() => setPickTrip(false)} style={{ marginTop: 4, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer" }}>← Back</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete a saved trip — confirm first */}
       {confirmDelete && (

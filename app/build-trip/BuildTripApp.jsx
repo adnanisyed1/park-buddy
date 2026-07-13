@@ -257,6 +257,25 @@ export default function BuildTripApp() {
     setRailTab("new"); // show the loaded route in the editor
   }
 
+  // Clone a ready-made route as a brand-new trip: load its stops (NO preset budget —
+  // it's just a route to follow), then ask the setup questionnaire like a new trip.
+  function cloneRoute(route, db = parksDb) {
+    userEditedRef.current = true;
+    const list = route.stops
+      .map((name, i) => { const p = db.find((x) => x.name === name); return p ? { name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: route.nights[i], legMi: null } : null; })
+      .filter(Boolean);
+    setStops(recomputeLegs(list));
+    setTripName(route.name);
+    setLoadedRoute(null);
+    setTotalMilesOverride(null);
+    setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null }); // no preset budget
+    setActiveTripId(null); // a fresh trip
+    try { localStorage.removeItem("pb_active_trip_id"); } catch {}
+    wantsSaveRef.current = true; // the questionnaire's finish → creates the My-trips entry
+    setRailTab("new");
+    setSetupOpen(true); // ask the same questions as "add a new trip"
+  }
+
   // Merge a ready-made route INTO the current trip at a chosen position (index in
   // the current stops list). Skips parks already in the trip. If the trip is empty,
   // this becomes the trip (named after the route) and gets saved to My trips.
@@ -984,7 +1003,7 @@ export default function BuildTripApp() {
             { label: "Park passes", icon: "ticket", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
           ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
-          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt}
+          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
           gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}

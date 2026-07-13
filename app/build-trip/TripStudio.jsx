@@ -62,11 +62,12 @@ export default function TripStudio(props) {
     gmapsUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
     layers, setLayers, layersOpen, setLayersOpen,
-    mapView, setMapView, browseState, setBrowseState, radius, setRadius,
+    mapView, setMapView, browseState, setBrowseState, browseQuery, setBrowseQuery, radius, setRadius,
     fieldBox,
   } = props;
 
   const DEST_LAYERS = [["np", "◈", "National Parks"], ["statePark", "◆", "State Parks"], ["forest", "▲", "National Forests"], ["byway", "⛰", "Scenic routes"]];
+  const DEST_DOT = { np: "#5fbf86", statePark: "#5aa9d6", forest: "#6f9e5a", byway: "#e4be78" }; // marker-matched chip dots
   const CTX_LAYERS = [["camp", "Campgrounds"], ["lake", "Lakes"], ["hiking", "Hiking"], ["offroad", "Off-road"], ["ski", "Ski"]];
 
   const sn = statNum || { stops: 0, days: 0, miles: 0, cost: 0 };
@@ -171,68 +172,88 @@ export default function TripStudio(props) {
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c9a35f" }} />{tripName || "Your route"}
             </div>
 
-            {/* Route ⇄ Explore toggle — floats top-left in Route mode; moves into the
-                filter bar in Explore mode so the two never overlap. */}
-            {setMapView && (mapView || "route") !== "explore" && (
-              <div style={{ position: "absolute", top: isMobile ? 52 : 50, left: 26, zIndex: 5, display: "flex", padding: 4, gap: 3, background: "rgba(11,23,16,0.62)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}>
-                {[["route", "Route"], ["explore", "Explore"]].map(([id, lbl]) => {
+            {/* Route ⇄ Explore toggle — a standalone floating pill, top-left, in both modes. */}
+            {setMapView && (
+              <div style={{ position: "absolute", top: isMobile ? 52 : 50, left: 26, zIndex: 8, display: "flex", padding: 4, gap: 3, background: "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 8px 24px -12px rgba(0,0,0,0.8)" }}>
+                {[["route", "◎", "Route"], ["explore", "⌖", "Explore"]].map(([id, ic, lbl]) => {
                   const on = (mapView || "route") === id;
-                  return <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", padding: "6px 14px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>{lbl}</button>;
+                  return <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, padding: "7px 15px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}><span style={{ opacity: 0.8 }}>{ic}</span>{lbl}</button>;
                 })}
               </div>
             )}
 
-            {/* Explore filter bar — drops in over the top of the map */}
+            {/* Explore — floating search card, sits below the toggle (matches the design). */}
             {mapView === "explore" && (
-              <div style={{ position: "absolute", top: isMobile ? 40 : 0, left: 0, right: 0, zIndex: 7, padding: "14px 16px 12px", background: "linear-gradient(180deg, rgba(6,14,10,0.96), rgba(6,14,10,0.55))", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(217,183,121,0.16)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <div style={{ display: "flex", padding: 3, gap: 3, background: "rgba(11,23,16,0.7)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, flex: "none" }}>
-                  {[["route", "Route"], ["explore", "Explore"]].map(([id, lbl]) => {
-                    const on = (mapView || "route") === id;
-                    return <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", padding: "6px 13px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>{lbl}</button>;
-                  })}
+              <div style={{ position: "absolute", top: isMobile ? 100 : 96, left: 22, right: 22, maxWidth: 620, zIndex: 7, padding: 12, borderRadius: 18, background: "rgba(10,20,14,0.92)", border: "1px solid rgba(217,183,121,0.24)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "0 24px 60px -22px rgba(0,0,0,0.85)" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160 }}>
+                    <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#7f8a82", fontSize: 13, pointerEvents: "none" }}>⌕</span>
+                    <input value={browseQuery || ""} onChange={(e) => setBrowseQuery && setBrowseQuery(e.target.value)} placeholder="Search parks, towns, trails, byways…" style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px 10px 32px", borderRadius: 11, border: "1px solid rgba(217,183,121,0.22)", background: "rgba(8,19,13,0.7)", color: "#f4f1ea", fontFamily: SANS, fontSize: 13, outline: "none" }} />
+                  </div>
+                  <select value={browseState || ""} onChange={(e) => setBrowseState && setBrowseState(e.target.value)} style={{ ...filterField, padding: "9px 11px", fontSize: 12 }}>
+                    <option value="">All states</option>
+                    {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, flex: "none" }}>
+                    <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".12em", textTransform: "uppercase", color: "#7f8a82" }}>Radius</span>
+                    <input type="range" min="10" max="150" step="5" value={radius || 50} onChange={(e) => setRadius && setRadius(+e.target.value)} style={{ width: 92, accentColor: "#d9b779" }} />
+                    <span style={{ fontFamily: MONO, fontSize: 9.5, color: "#aab0ba", minWidth: 38 }}>{radius || 50} mi</span>
+                  </div>
                 </div>
-                <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".16em", textTransform: "uppercase", color: "#d9b779" }}>Discover · tap a pin to add</span>
-                <select value={browseState || ""} onChange={(e) => setBrowseState && setBrowseState(e.target.value)} style={filterField}>
-                  <option value="">All states</option>
-                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", textTransform: "uppercase", color: "#7f8a82" }}>Radius</span>
-                  <input type="range" min="10" max="150" step="5" value={radius || 50} onChange={(e) => setRadius && setRadius(+e.target.value)} style={{ width: 88, accentColor: "#d9b779" }} />
-                  <span style={{ fontFamily: MONO, fontSize: 9, color: "#aab0ba", minWidth: 34 }}>{radius || 50} mi</span>
+                <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+                  {DEST_LAYERS.map(([k, ic, label]) => (
+                    <button key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ cursor: "pointer", fontFamily: SANS, fontSize: 11.5, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 999, border: "1px solid " + (layers[k] ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: layers[k] ? "rgba(217,183,121,0.12)" : "transparent", color: layers[k] ? "#f4f1ea" : "#7f8a82" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", flex: "none", background: layers[k] ? DEST_DOT[k] : "rgba(255,255,255,0.18)", boxShadow: layers[k] ? "0 0 7px " + DEST_DOT[k] : "none" }} />{label}
+                    </button>
+                  ))}
+                  <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+                    <button onClick={() => setLayers((l) => ({ ...l, np: true, statePark: true, forest: true, byway: true }))} style={miniBtn}>All</button>
+                    <button onClick={() => setLayers((l) => ({ ...l, np: false, statePark: false, forest: false, byway: false }))} style={miniBtn}>None</button>
+                  </div>
                 </div>
-                {DEST_LAYERS.map(([k, ic, label]) => (
-                  <button key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ cursor: "pointer", fontFamily: SANS, fontSize: 11, padding: "6px 11px", borderRadius: 999, border: "1px solid " + (layers[k] ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: layers[k] ? "rgba(217,183,121,0.14)" : "transparent", color: layers[k] ? "#e8cf9a" : "#7f8a82" }}>{ic} {label}</button>
-                ))}
-                <button onClick={() => setLayers((l) => ({ ...l, np: true, statePark: true, forest: true, byway: true }))} style={miniBtn}>All</button>
-                <button onClick={() => setLayers((l) => ({ ...l, np: false, statePark: false, forest: false, byway: false }))} style={miniBtn}>None</button>
               </div>
             )}
 
-            {/* layers control — tap a map marker to add these to the trip.
-                Hidden in Explore mode (the filter bar already carries the layer toggles). */}
-            <div style={{ display: mapView === "explore" ? "none" : "block", position: "absolute", top: 18, right: 18, zIndex: 4 }}>
-              <button onClick={() => setLayersOpen(!layersOpen)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".14em", textTransform: "uppercase", color: layersOpen ? "#0a1712" : "#e8cf9a", background: layersOpen ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "7px 13px", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", gap: 7 }}>◈ Layers</button>
-              {layersOpen && (
-                <div style={{ marginTop: 8, width: 210, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 12, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>
-                  <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Tap a map marker to add</div>
-                  {DEST_LAYERS.map(([k, ic, label]) => (
-                    <label key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 4px", cursor: "pointer", fontSize: 12.5, color: "#f4f1ea" }}>
-                      <span style={{ width: 30, height: 17, flex: "none", borderRadius: 999, background: layers[k] ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.12)", position: "relative", transition: "background .15s" }}>
-                        <span style={{ position: "absolute", top: 2, left: layers[k] ? 15 : 2, width: 13, height: 13, borderRadius: "50%", background: layers[k] ? "#0a1712" : "#e7e3d8", transition: "left .15s" }} />
-                      </span>
-                      <span style={{ color: "#d9b779", width: 14 }}>{ic}</span>{label}
-                    </label>
-                  ))}
-                  <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", margin: "10px 0 6px", borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>Show around each stop</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {CTX_LAYERS.map(([k, label]) => (
-                      <span key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ cursor: "pointer", fontSize: 10.5, padding: "4px 10px", borderRadius: 999, border: "1px solid " + (layers[k] ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: layers[k] ? "rgba(217,183,121,0.14)" : "transparent", color: layers[k] ? "#e8cf9a" : "#7f8a82" }}>{label}</span>
+            {/* Route mode — layers control (button + dropdown), top-right. */}
+            {mapView !== "explore" && (
+              <div style={{ position: "absolute", top: 18, right: 18, zIndex: 4 }}>
+                <button onClick={() => setLayersOpen(!layersOpen)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".14em", textTransform: "uppercase", color: layersOpen ? "#0a1712" : "#e8cf9a", background: layersOpen ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "7px 13px", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", gap: 7 }}>◈ Layers</button>
+                {layersOpen && (
+                  <div style={{ marginTop: 8, width: 210, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 12, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>
+                    <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Tap a map marker to add</div>
+                    {DEST_LAYERS.map(([k, ic, label]) => (
+                      <label key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 4px", cursor: "pointer", fontSize: 12.5, color: "#f4f1ea" }}>
+                        <span style={{ width: 30, height: 17, flex: "none", borderRadius: 999, background: layers[k] ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.12)", position: "relative", transition: "background .15s" }}>
+                          <span style={{ position: "absolute", top: 2, left: layers[k] ? 15 : 2, width: 13, height: 13, borderRadius: "50%", background: layers[k] ? "#0a1712" : "#e7e3d8", transition: "left .15s" }} />
+                        </span>
+                        <span style={{ color: "#d9b779", width: 14 }}>{ic}</span>{label}
+                      </label>
                     ))}
+                    <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", margin: "10px 0 6px", borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>Show around each stop</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {CTX_LAYERS.map(([k, label]) => (
+                        <span key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ cursor: "pointer", fontSize: 10.5, padding: "4px 10px", borderRadius: 999, border: "1px solid " + (layers[k] ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: layers[k] ? "rgba(217,183,121,0.14)" : "transparent", color: layers[k] ? "#e8cf9a" : "#7f8a82" }}>{label}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
+
+            {/* Explore mode — open "Layers" panel bottom-right (matches the design). */}
+            {mapView === "explore" && !isMobile && (
+              <div style={{ position: "absolute", right: 18, bottom: 22, zIndex: 4, width: 208, background: "rgba(14,32,22,0.95)", border: "1px solid rgba(217,183,121,0.28)", borderRadius: 15, padding: "12px 14px", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".2em", textTransform: "uppercase", color: "#d9b779", marginBottom: 10 }}>Layers</div>
+                {[["camp", "Campgrounds"], ["lake", "Lakes"], ["hiking", "Hiking trails"], ["offroad", "Off-road / 4×4"], ["ski", "Ski routes"]].map(([k, label]) => (
+                  <label key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 9, padding: "6px 0", cursor: "pointer", fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea" }}>
+                    {label}
+                    <span style={{ width: 32, height: 18, flex: "none", borderRadius: 999, background: layers[k] ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.12)", position: "relative", transition: "background .15s" }}>
+                      <span style={{ position: "absolute", top: 2, left: layers[k] ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: layers[k] ? "#0a1712" : "#e7e3d8", transition: "left .15s" }} />
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
 
             {/* floating glass HUD */}
             <div style={{ position: "absolute", left: 26, bottom: 26, zIndex: 3, display: "flex", gap: 2, padding: 4, background: "rgba(11,23,16,0.62)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 16, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "0 20px 50px -20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(217,183,121,0.12)", animation: "ts-softFloat 6s ease-in-out infinite", flexWrap: "wrap" }}>

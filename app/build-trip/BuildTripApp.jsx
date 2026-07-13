@@ -137,6 +137,7 @@ export default function BuildTripApp() {
   // and trails around each stop within the radius.
   const [layers, setLayers] = useState({ np: true, statePark: false, forest: false, byway: false, camp: false, lake: false, hiking: false, offroad: false, ski: false });
   const [browseState, setBrowseState] = useState(""); // "" = all states
+  const [browseQuery, setBrowseQuery] = useState(""); // Explore search box — filters candidate pins by name
   const [radius, setRadius] = useState(50); // miles — scopes the map layers around each stop
   const [forestsDb, setForestsDb] = useState([]);
   const [stateParksDb, setStateParksDb] = useState([]);
@@ -633,9 +634,11 @@ export default function BuildTripApp() {
     browseMarkersRef.current = [];
     const inTrip = new Set(stops.map((s) => s.name));
     const st = browseState;
+    const q = browseQuery.trim().toLowerCase();
     const paint = (list, type, color, extra) => {
       list.forEach((d) => {
         if (!d || d.lat == null || inTrip.has(d.name)) return;
+        if (q && !d.name.toLowerCase().includes(q)) return;
         // byways carry a multi-state `states` string ("Arizona · Utah"); match by
         // inclusion so a filtered state still surfaces its multi-state drives.
         const dstate = d.state || d.states || "";
@@ -654,7 +657,7 @@ export default function BuildTripApp() {
     if (layers.statePark) paint(stateParksDb, "statePark", "#d9a441");
     if (layers.byway) paint(bywaysDb, "byway", "#e4be78", (d) => ({ kind: "byway", slug: d.id }));
   }
-  useEffect(() => { drawBrowse(); }, [layers, browseState, parksDb, forestsDb, stateParksDb, bywaysDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawBrowse(); }, [layers, browseState, browseQuery, parksDb, forestsDb, stateParksDb, bywaysDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* -------- "on the map" layers: campgrounds / lakes / trails around each stop -------- */
 
@@ -885,7 +888,7 @@ export default function BuildTripApp() {
           gmapsUrl={gmapsUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}
           layers={layers} setLayers={setLayers} layersOpen={layersOpen} setLayersOpen={setLayersOpen}
-          mapView={mapView} setMapView={setMapView} browseState={browseState} setBrowseState={setBrowseState} radius={radius} setRadius={setRadius}
+          mapView={mapView} setMapView={setMapView} browseState={browseState} setBrowseState={setBrowseState} browseQuery={browseQuery} setBrowseQuery={setBrowseQuery} radius={radius} setRadius={setRadius}
           fieldBox={fieldBox}
         />
       </div>

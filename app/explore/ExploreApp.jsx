@@ -460,6 +460,7 @@ export default function ExploreApp() {
   const [lakesData, setLakesData] = useState({}); // name -> /api/water payload's lakes[] — per-park, not the whole-map viewport pattern
   const [trailsData, setTrailsData] = useState({}); // name -> /api/trails payload ({hiking,offroad,ski}) — feeds the Trails tab list
   const [trailStatus, setTrailStatus] = useState(null); // {park, state: 'loading'|'error'|'empty'|'done', n} — visible trail-load feedback
+  const [busy, setBusy] = useState(false); // true while the map is fetching destinations for the view (Run-button feedback)
   const [selGateways, setSelGateways] = useState(null); // full stored gateway towns for the selected park/forest
   const [ui, setUi] = useState({
     panelOpen: true, filtersOpen: true, radius: 150, mapStyle: "dark",
@@ -675,6 +676,7 @@ export default function ExploreApp() {
     const seen = seenDestRef.current;
     const additions = [];
 
+    setBusy(true);
     try {
       const d = await fetch("/api/destinations?bbox=" + bbox + "&limit=400").then((r) => (r.ok ? r.json() : null));
       (d && d.destinations ? d.destinations : []).forEach((x) => {
@@ -687,8 +689,24 @@ export default function ExploreApp() {
         additions.push({ name: x.name, state: x.state || "", lat: x.lat, lng: x.lng, type: x.type, destId: x.id }); // destId → /park-status?dest=
       });
     } catch {}
+    finally { setBusy(false); }
 
     mergeAdditions(additions);
+  }
+
+  // "Run" the filters: fit the map to the currently-visible destinations, then let
+  // the idle handler pull fresh data for that view (with the busy spinner).
+  function runFilter() {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map) return;
+    const vis = visibleParks();
+    if (!vis.length) return;
+    setBusy(true);
+    const b = new g.maps.LatLngBounds();
+    vis.forEach((p) => b.extend({ lat: p.lat, lng: p.lng }));
+    map.fitBounds(b, 60);
+    patch({ panelOpen: window.innerWidth > 820 }); // on phones, close the panel to reveal the map
+    setTimeout(() => setBusy(false), 2500); // safety: clear the spinner even if the view didn't move
   }
 
   function mergeAdditions(adds) {
@@ -1591,10 +1609,16 @@ export default function ExploreApp() {
                   <TogRow glyph="▬" color={TRAIL_STYLE.ski} label="Ski routes" on={ui.layerSki} onClick={toggle("layerSki")} />
                 </div>
                 <div style={{ fontSize: ".68rem", color: "#7f8a82", lineHeight: 1.4, marginBottom: 12 }}>Trail, campground &amp; lake layers draw around the park you select.</div>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   <button onClick={() => patch({ destNational: true, destState: true, destForest: true, destLake: true, campgrounds: true, layerHiking: true, layerOffroad: true, layerSki: true })} style={{ flex: 1, cursor: "pointer", fontSize: ".78rem", fontWeight: 600, color: "#e7e3d8", background: "rgba(255,255,255,.04)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 10, padding: 8, fontFamily: "inherit" }}>All</button>
                   <button onClick={() => patch({ destNational: false, destState: false, destForest: false, destLake: false, campgrounds: false, layerHiking: false, layerOffroad: false, layerSki: false })} style={{ flex: 1, cursor: "pointer", fontSize: ".78rem", fontWeight: 600, color: "#e7e3d8", background: "rgba(255,255,255,.04)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 10, padding: 8, fontFamily: "inherit" }}>None</button>
                 </div>
+                {/* Run the filters — fit the map to results, with a loading spinner while data streams in */}
+                <button onClick={runFilter} disabled={busy} style={{ width: "100%", boxSizing: "border-box", marginBottom: 16, cursor: busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontSize: ".86rem", fontWeight: 700, fontFamily: "inherit", color: "#0b1710", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", border: "none", borderRadius: 12, padding: 12, boxShadow: "0 12px 30px -14px rgba(217,183,121,.6)", opacity: busy ? 0.85 : 1 }}>
+                  {busy
+                    ? <><span style={{ width: 15, height: 15, border: "2px solid rgba(11,23,16,.35)", borderTopColor: "#0b1710", borderRadius: "50%", display: "inline-block", animation: "ppspin .7s linear infinite" }} />Loading…</>
+                    : <>◎ Run · {visible.length} result{visible.length === 1 ? "" : "s"}</>}
+                </button>
               </div>
               </>
               )}

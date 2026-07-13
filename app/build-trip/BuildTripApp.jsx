@@ -323,6 +323,8 @@ export default function BuildTripApp() {
   // Save the current trip into My trips, then jump to that tab (spec §3.7 "+ Add my trip").
   function addMyTrip() { saveCurrentTrip(); setRailTab("mine"); }
 
+  // Start a fresh trip. Always opens the setup questionnaire — the user answers
+  // it every time they add a new trip (not just on first visit).
   function onNewTrip() {
     userEditedRef.current = true;
     setStops([]);
@@ -332,6 +334,7 @@ export default function BuildTripApp() {
     setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
     setRailTab("new");
     setAddSource(null); setAddMenuOpen(false);
+    setSetupOpen(true);
   }
 
   const removeStop = (i) => commitStops(stops.filter((_, x) => x !== i));

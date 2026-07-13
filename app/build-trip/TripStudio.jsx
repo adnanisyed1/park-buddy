@@ -177,8 +177,7 @@ export default function TripStudio(props) {
             <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: ".18em", color: "#8fd6a6", display: "flex", alignItems: "center", gap: 7 }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#8fd6a6", boxShadow: "0 0 10px #8fd6a6" }} />LIVE
             </div>
-            <button onClick={onNewTrip} title="Start a blank trip" style={{ cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 700, color: "#aab0ba", background: "transparent", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 999, padding: "7px 12px" }}>＋ Blank</button>
-            <button onClick={onEditSetup} className="ts-goldbtn" style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "#e8cf9a", background: "rgba(255,255,255,.04)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "8px 15px" }}>◈ Set up your trip</button>
+            <button onClick={onNewTrip} title="Start a fresh trip — answer the quick setup" className="ts-goldbtn" style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "#e8cf9a", background: "rgba(255,255,255,.04)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "8px 15px" }}>＋ Add a new trip</button>
             <div title="Account" style={{ width: 36, height: 36, flex: "none", borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "radial-gradient(circle at 30% 30%, #16281d, #0b1710)" }} />
           </div>
         </div>
@@ -339,7 +338,7 @@ export default function TripStudio(props) {
                       </div>
                     ))}
                   </div>
-                  <button onClick={onEditSetup} className="ts-goldbtn" style={{ width: "100%", marginTop: 14, padding: 11, borderRadius: 11, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontFamily: SANS, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>◈ Set up your trip</button>
+                  <button onClick={onEditSetup} className="ts-goldbtn" style={{ width: "100%", marginTop: 14, padding: 11, borderRadius: 11, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontFamily: SANS, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>◈ Edit your trip</button>
                 </div>
 
                 {/* your trip setup — summary card, above the itinerary (matches the design) */}

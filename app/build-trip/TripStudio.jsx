@@ -252,9 +252,14 @@ export default function TripStudio(props) {
             {mapView === "explore" && (
               <div style={{ position: "absolute", top: isMobile ? 100 : 96, left: 22, right: 22, maxWidth: 620, zIndex: 7, padding: 12, borderRadius: 18, background: "rgba(10,20,14,0.92)", border: "1px solid rgba(217,183,121,0.24)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", boxShadow: "0 24px 60px -22px rgba(0,0,0,0.85)" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160 }}>
-                    <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#7f8a82", fontSize: 13, pointerEvents: "none" }}>⌕</span>
-                    <input value={browseQuery || ""} onChange={(e) => setBrowseQuery && setBrowseQuery(e.target.value)} placeholder="Search parks, towns, trails, byways…" style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px 10px 32px", borderRadius: 11, border: "1px solid rgba(217,183,121,0.22)", background: "rgba(8,19,13,0.7)", color: "#f4f1ea", fontFamily: SANS, fontSize: 13, outline: "none" }} />
+                  <div style={{ flex: "1 1 220px", minWidth: 160 }}>
+                    <GeoAutocomplete
+                      placeholder="Search a park, town or address…"
+                      onType={(v) => setBrowseQuery && setBrowseQuery(v)}
+                      onPick={(s) => { addDestination && addDestination({ name: s.name, state: s.state, lat: s.lat, lng: s.lng, custom: true }); setBrowseQuery && setBrowseQuery(""); }}
+                      inputStyle={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 11, border: "1px solid rgba(217,183,121,0.22)", background: "rgba(8,19,13,0.7)", color: "#f4f1ea", fontFamily: SANS, fontSize: 13, outline: "none" }}
+                      fieldBox={fieldBox}
+                    />
                   </div>
                   <select value={browseState || ""} onChange={(e) => setBrowseState && setBrowseState(e.target.value)} style={{ ...filterField, padding: "9px 11px", fontSize: 12 }}>
                     <option value="">All states</option>
@@ -874,7 +879,7 @@ export default function TripStudio(props) {
           stops={stops} dayRanges={dayRanges}
           parksDb={parksDb} bywaysDb={bywaysDb}
           addActivity={addActivity}
-          addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress}
+          addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress} addDestination={addDestination}
           coordInput={coordInput} setCoordInput={setCoordInput} addCoords={addCoords}
           addrMsg={addrMsg} fieldBox={fieldBox}
         />
@@ -919,7 +924,7 @@ function DayPlanAdd({ onAdd, fieldBox }) {
 // → suggested rows (one tap logs a timed activity on the chosen day) → precise entry.
 const ADD_FILTERS = [["all", "All"], ["park", "Parks"], ["statePark", "State"], ["forest", "Forest"], ["scenic", "Scenic"], ["lake", "Lake"]];
 const TYPE_DOT = { park: "#8fd6a6", statePark: "#9ecbe8", forest: "#c9a35f", scenic: "#e8cf9a", lake: "#7fd2d6" };
-function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActivity, addrInput, setAddrInput, addAddress, coordInput, setCoordInput, addCoords, addrMsg, fieldBox }) {
+function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActivity, addrInput, setAddrInput, addAddress, addDestination, coordInput, setCoordInput, addCoords, addrMsg, fieldBox }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
   const [dayIdx, setDayIdx] = useState(0);
@@ -1004,9 +1009,12 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
             </div>
           )}
           {(precise === "address" || precise === "pin") && (
-            <div style={{ display: "flex", gap: 8, marginTop: 9 }}>
-              <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} placeholder={precise === "pin" ? "'Zion Lodge', a landmark…" : "123 Main St, a town…"} style={{ ...fieldBox, flex: 1 }} />
-              <button onClick={() => { addAddress(); onClose(); }} style={{ ...addBtn, width: 120, fontSize: 12, fontWeight: 700, fontFamily: SANS }}>+ Add this</button>
+            <div style={{ marginTop: 9 }}>
+              <GeoAutocomplete
+                placeholder={precise === "pin" ? "Start typing a place or landmark…" : "Start typing an address or town…"}
+                onPick={(s) => { addDestination && addDestination({ name: s.name, state: s.state, lat: s.lat, lng: s.lng, custom: true }); onClose(); }}
+                fieldBox={fieldBox}
+              />
             </div>
           )}
           {precise && addrMsg && <div style={{ fontSize: 12, color: "#aab0ba", marginTop: 7 }}>{addrMsg}</div>}
@@ -1019,7 +1027,7 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
 // Geocoding autocomplete input — as you type it queries /api/geocode?suggest=1 and
 // shows a live dropdown; picking one adds it as a stop. Used for State park / Lake /
 // Address / Any place. Debounced so we don't hammer Nominatim.
-function GeoAutocomplete({ placeholder, onPick, fieldBox }) {
+function GeoAutocomplete({ placeholder, onPick, onType, inputStyle, fieldBox }) {
   const [q, setQ] = useState("");
   const [list, setList] = useState([]);
   const [open, setOpen] = useState(false);
@@ -1039,11 +1047,11 @@ function GeoAutocomplete({ placeholder, onPick, fieldBox }) {
     }, 300);
     return () => tRef.current && clearTimeout(tRef.current);
   }, [q]);
-  const pick = (s) => { onPick(s); setQ(""); setList([]); setOpen(false); };
+  const pick = (s) => { onPick(s); setQ(""); setList([]); setOpen(false); if (onType) onType(""); };
   return (
     <div style={{ position: "relative" }}>
       <div style={{ display: "flex", gap: 9 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => list.length && setOpen(true)} placeholder={placeholder} style={{ ...fieldBox, flex: 1 }} />
+        <input value={q} onChange={(e) => { setQ(e.target.value); if (onType) onType(e.target.value); }} onFocus={() => list.length && setOpen(true)} placeholder={placeholder} style={inputStyle || { ...fieldBox, flex: 1 }} />
         {loading && <span className="ts-skel" style={{ width: 30, borderRadius: 10 }} />}
       </div>
       {open && list.length > 0 && (

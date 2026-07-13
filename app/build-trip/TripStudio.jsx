@@ -49,6 +49,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
+    expandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -249,7 +250,8 @@ export default function TripStudio(props) {
                       const hov = hoverIdx === i;
                       return (
                         <div key={s.name} draggable onDragStart={onDragStart(i)} onDragOver={onDragOver} onDrop={onDrop(i)} onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(null)}
-                          style={{ display: "flex", gap: 13, alignItems: "center", padding: 12, borderRadius: 15, background: hov ? "rgba(14,32,22,0.7)" : "rgba(11,23,16,0.55)", border: "1px solid " + (hov ? "rgba(217,183,121,0.4)" : "rgba(217,183,121,0.16)"), boxShadow: hov ? "0 10px 30px -12px rgba(217,183,121,0.35), inset 0 1px 0 rgba(217,183,121,0.12)" : "none", transform: hov ? "translateY(-1px)" : "none", transition: "border-color .2s, box-shadow .2s, transform .2s" }}>
+                          style={{ display: "flex", flexDirection: "column", padding: 12, borderRadius: 15, background: hov ? "rgba(14,32,22,0.7)" : "rgba(11,23,16,0.55)", border: "1px solid " + (hov ? "rgba(217,183,121,0.4)" : "rgba(217,183,121,0.16)"), boxShadow: hov ? "0 10px 30px -12px rgba(217,183,121,0.35), inset 0 1px 0 rgba(217,183,121,0.12)" : "none", transform: hov ? "translateY(-1px)" : "none", transition: "border-color .2s, box-shadow .2s, transform .2s" }}>
+                          <div style={{ display: "flex", gap: 13, alignItems: "center" }}>
                           <div style={{ width: 58, height: 58, flex: "none", borderRadius: 12, overflow: "hidden", position: "relative", border: "1px solid rgba(217,183,121,0.18)", background: THUMBS[i % THUMBS.length] }}>
                             <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
                             <div style={{ position: "absolute", bottom: 4, left: 5, fontFamily: MONO, fontSize: 7, letterSpacing: ".12em", color: "rgba(244,241,234,0.72)" }}>{(s.name || "").slice(0, 9).toUpperCase()}</div>
@@ -290,6 +292,34 @@ export default function TripStudio(props) {
                               <span style={{ width: 14, height: 1.5, background: "#aab0ba", borderRadius: 2 }} />
                             </div>
                           </div>
+                          </div>
+                          {/* Plan this day — per-stop activity timeline */}
+                          {toggleDayPlan && (() => {
+                            const acts = (dayPlans && dayPlans[s.name]) || [];
+                            const open = expandedStop === s.name;
+                            return (
+                              <div style={{ marginTop: 10, borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>
+                                <button onClick={(e) => { e.stopPropagation(); toggleDayPlan(s.name); }} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: MONO, fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: open ? "#e8cf9a" : "#8f9a90" }}>
+                                  <span style={{ display: "inline-block", transition: "transform .2s", transform: open ? "rotate(90deg)" : "none" }}>▸</span>
+                                  Plan this day{acts.length ? " · " + acts.length : ""}
+                                </button>
+                                {open && (
+                                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {acts.length === 0 && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "2px 0" }}>No activities yet — add your first below.</div>}
+                                    {acts.map((a) => (
+                                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,0.12)" }}>
+                                        <span style={{ fontFamily: MONO, fontSize: 10, color: "#c9a35f", minWidth: 40 }}>{a.time || "—"}</span>
+                                        <span style={{ fontSize: 14, lineHeight: 1 }}>{a.icon}</span>
+                                        <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
+                                        <span onClick={() => removeActivity(s.name, a.id)} title="Remove" style={{ cursor: "pointer", color: "#b06a4a", fontSize: 13, lineHeight: 1, opacity: 0.55 }}>×</span>
+                                      </div>
+                                    ))}
+                                    <DayPlanAdd onAdd={(act) => addActivity(s.name, act)} fieldBox={fieldBox} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -491,6 +521,38 @@ export default function TripStudio(props) {
 
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// "+ Add to this day" — pick an activity type (the same 8 sources), name it, time it.
+const DAY_ACT_TYPES = [["park", "◈", "National park"], ["statePark", "◆", "State park"], ["scenic", "⟿", "Scenic route"], ["lake", "≈", "Lake"], ["hike", "🥾", "Hike"], ["viewpoint", "🔭", "Viewpoint"], ["coord", "⌖", "Coordinates"], ["place", "✦", "Any place"]];
+function DayPlanAdd({ onAdd, fieldBox }) {
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState("hike");
+  const [name, setName] = useState("");
+  const [time, setTime] = useState("09:00");
+  const cur = DAY_ACT_TYPES.find((t) => t[0] === type) || DAY_ACT_TYPES[0];
+  function commit() {
+    const nm = name.trim(); if (!nm) return;
+    onAdd({ icon: cur[1], type, name: nm, time });
+    setName(""); setOpen(false);
+  }
+  if (!open) return (
+    <button onClick={() => setOpen(true)} style={{ marginTop: 2, alignSelf: "flex-start", padding: "7px 12px", borderRadius: 9, border: "1px dashed rgba(217,183,121,0.35)", background: "rgba(255,255,255,.03)", color: "#c9a35f", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>+ Add to this day</button>
+  );
+  return (
+    <div style={{ marginTop: 2, padding: 10, borderRadius: 11, border: "1px solid rgba(217,183,121,0.18)", background: "rgba(255,255,255,.02)" }}>
+      <div style={{ display: "flex", gap: 7 }}>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...fieldBox, flex: 1, color: "#1a2b21" }}>
+          {DAY_ACT_TYPES.map(([v, ic, label]) => <option key={v} value={v}>{ic}  {label}</option>)}
+        </select>
+        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...fieldBox, width: 104, flex: "none" }} />
+      </div>
+      <div style={{ display: "flex", gap: 7, marginTop: 7 }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") commit(); }} placeholder="What's the plan?" style={{ ...fieldBox, flex: 1 }} />
+        <button onClick={commit} style={addBtn}>＋</button>
       </div>
     </div>
   );

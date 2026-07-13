@@ -152,6 +152,8 @@ export default function BuildTripApp() {
   const [setupCollapsed, setSetupCollapsed] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [hoverIdx, setHoverIdx] = useState(null); // itinerary card ↔ map pin hover link
+  const [expandedStop, setExpandedStop] = useState(null); // stop name whose "Plan this day" timeline is open
+  const [dayPlans, setDayPlans] = useState({}); // { [stopName]: [{id, icon, type, name, time}] } — per-day activity timelines
   const [layersOpen, setLayersOpen] = useState(false); // Trip Studio map "Layers" control popover
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
@@ -165,6 +167,7 @@ export default function BuildTripApp() {
   useEffect(() => { layersRef.current = layers; }, [layers]);
 
   const mapDivRef = useRef(null);
+  const activityCounterRef = useRef(0); // stable ids for day-plan activities
   const keyInputRef = useRef(null);
   const mapObjRef = useRef(null);
   const routeMarkersRef = useRef([]);
@@ -301,6 +304,21 @@ export default function BuildTripApp() {
     userEditedRef.current = true;
     setStops((prev) => prev.map((s, idx) => (idx === i ? { ...s, nights: Math.max(1, (s.nights || 0) + dir) } : s)));
   }
+  // "Plan this day" — per-stop activity timelines (spec §3.3). Stored locally,
+  // keyed by stop name; the trip store itself stays a simple stop list.
+  function toggleDayPlan(name) { setExpandedStop((cur) => (cur === name ? null : name)); }
+  function addActivity(name, act) {
+    const id = "act_" + (activityCounterRef.current += 1);
+    setDayPlans((prev) => {
+      const list = (prev[name] || []).concat([{ id, ...act }]);
+      list.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+      return { ...prev, [name]: list };
+    });
+  }
+  function removeActivity(name, id) {
+    setDayPlans((prev) => ({ ...prev, [name]: (prev[name] || []).filter((a) => a.id !== id) }));
+  }
+
   // Save the current trip into My trips, then jump to that tab (spec §3.7 "+ Add my trip").
   function addMyTrip() { saveCurrentTrip(); setRailTab("mine"); }
 
@@ -350,7 +368,19 @@ export default function BuildTripApp() {
   // Auto-open the setup wizard on first visit (once per browser).
   useEffect(() => {
     try { if (!localStorage.getItem("pb_trip_setup_seen")) setSetupOpen(true); } catch {}
+    try {
+      const saved = JSON.parse(localStorage.getItem("pb_trip_dayplans") || "{}");
+      if (saved && typeof saved === "object") {
+        setDayPlans(saved);
+        let mx = 0; Object.values(saved).forEach((l) => (l || []).forEach((a) => { const n = parseInt(String(a.id).replace("act_", ""), 10); if (n > mx) mx = n; }));
+        activityCounterRef.current = mx;
+      }
+    } catch {}
   }, []);
+  // Persist day-plan timelines locally.
+  useEffect(() => {
+    try { localStorage.setItem("pb_trip_dayplans", JSON.stringify(dayPlans)); } catch {}
+  }, [dayPlans]);
 
   // Apply the wizard's answers back into the planner (dates, transport, budget).
   function applySetup(x) {
@@ -823,6 +853,7 @@ export default function BuildTripApp() {
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
+          expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}

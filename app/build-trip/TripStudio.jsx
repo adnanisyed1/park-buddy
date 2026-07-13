@@ -88,7 +88,7 @@ export default function TripStudio(props) {
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
-    addrInput, setAddrInput, addAddress, addrMsg,
+    addrInput, setAddrInput, addAddress, addrMsg, addDestination,
     coordInput, setCoordInput, addCoords,
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
@@ -798,13 +798,11 @@ export default function TripStudio(props) {
               </div>
             )}
             {["statePark", "lake", "address", "place"].includes(addSource) && (
-              <div>
-                <div style={{ display: "flex", gap: 9 }}>
-                  <input value={addrInput} onChange={(e) => setAddrInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAddress(); }} placeholder={{ statePark: "State park name…", lake: "Lake name…", address: "123 Main St, a town…", place: "'Zion Lodge', a landmark…" }[addSource]} style={{ ...fieldBox, flex: 1 }} />
-                  <button onClick={addAddress} style={addBtn}>＋</button>
-                </div>
-                {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
-              </div>
+              <GeoAutocomplete
+                placeholder={{ statePark: "Start typing a state park…", lake: "Start typing a lake…", address: "Start typing an address or town…", place: "Start typing a place or landmark…" }[addSource]}
+                onPick={(s) => { addDestination && addDestination({ name: s.name, state: s.state, lat: s.lat, lng: s.lng, custom: true }); setAddMenuOpen(false); setAddSource(null); }}
+                fieldBox={fieldBox}
+              />
             )}
             {addSource === "coord" && addCoords && (
               <div>
@@ -965,6 +963,50 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
           {precise && addrMsg && <div style={{ fontSize: 12, color: "#aab0ba", marginTop: 7 }}>{addrMsg}</div>}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Geocoding autocomplete input — as you type it queries /api/geocode?suggest=1 and
+// shows a live dropdown; picking one adds it as a stop. Used for State park / Lake /
+// Address / Any place. Debounced so we don't hammer Nominatim.
+function GeoAutocomplete({ placeholder, onPick, fieldBox }) {
+  const [q, setQ] = useState("");
+  const [list, setList] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const tRef = useRef(null);
+  const seqRef = useRef(0);
+  useEffect(() => {
+    if (tRef.current) clearTimeout(tRef.current);
+    const term = q.trim();
+    if (term.length < 3) { setList([]); setLoading(false); return; }
+    setLoading(true);
+    const seq = ++seqRef.current;
+    tRef.current = setTimeout(() => {
+      fetch("/api/geocode?suggest=1&q=" + encodeURIComponent(term))
+        .then((r) => r.json()).then((d) => { if (seq === seqRef.current) { setList((d && d.suggestions) || []); setOpen(true); setLoading(false); } })
+        .catch(() => { if (seq === seqRef.current) { setList([]); setLoading(false); } });
+    }, 300);
+    return () => tRef.current && clearTimeout(tRef.current);
+  }, [q]);
+  const pick = (s) => { onPick(s); setQ(""); setList([]); setOpen(false); };
+  return (
+    <div style={{ position: "relative" }}>
+      <div style={{ display: "flex", gap: 9 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => list.length && setOpen(true)} placeholder={placeholder} style={{ ...fieldBox, flex: 1 }} />
+        {loading && <span className="ts-skel" style={{ width: 30, borderRadius: 10 }} />}
+      </div>
+      {open && list.length > 0 && (
+        <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 6px)", zIndex: 30, background: "rgba(14,32,22,0.98)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 12, padding: 6, maxHeight: 240, overflowY: "auto", backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }} className="ts-scroll">
+          {list.map((s, i) => (
+            <div key={i} onClick={() => pick(s)} className="ts-menuitem" style={{ padding: "9px 11px", borderRadius: 9, cursor: "pointer" }}>
+              <div style={{ fontFamily: SANS, fontSize: 13, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+              <div style={{ fontFamily: MONO, fontSize: 9, color: "#7f8a82", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.fullName || s.state}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

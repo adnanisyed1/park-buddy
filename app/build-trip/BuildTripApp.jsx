@@ -986,7 +986,7 @@ export default function BuildTripApp() {
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}
-          addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress} addrMsg={addrMsg}
+          addrInput={addrInput} setAddrInput={setAddrInput} addAddress={addAddress} addrMsg={addrMsg} addDestination={addDestination}
           coordInput={coordInput} setCoordInput={setCoordInput} addCoords={addCoords}
           addMyTrip={addMyTrip}
           setupCollapsed={setupCollapsed} setSetupCollapsed={setSetupCollapsed}

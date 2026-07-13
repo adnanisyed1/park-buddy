@@ -92,7 +92,7 @@ export default function TripStudio(props) {
     coordInput, setCoordInput, addCoords,
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
-    routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute, previewRoute, setPreviewRoute,
+    routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute, previewRoute, setPreviewRoute, bywayDetail,
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, appleUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
@@ -355,6 +355,11 @@ export default function TripStudio(props) {
                 previewRoute.endpoints?.to && { label: previewRoute.endpoints.to, role: "End" },
               ].filter(Boolean);
               const lenChip = previewRoute.length || (previewRoute.lengthMi ? previewRoute.lengthMi + " mi" : "");
+              // Full named itinerary from the enriched record (every stop down the road),
+              // when it's loaded for THIS drive; otherwise the minimal from → via → to.
+              const detail = bywayDetail && bywayDetail.id === previewRoute.id ? bywayDetail : null;
+              const itin = detail ? (detail.itinerary || []).filter((s) => s && s.place) : [];
+              const KIND = { terminus: "Start / End", "park-entrance": "Park entrance", crossing: "Crossing", overlook: "Overlook", town: "Town" };
               return (
                 <div>
                   <button onClick={() => { setPreviewRoute(null); setPickTrip(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 12 }}>← Back to ready-made routes</button>
@@ -366,7 +371,31 @@ export default function TripStudio(props) {
                     </div>
                     {previewRoute.blurb && <div style={{ fontFamily: SANS, fontSize: 13, color: "#aab0ba", marginTop: 12, lineHeight: 1.55 }}>{previewRoute.blurb}</div>}
                   </div>
-                  {legs.length > 0 && (
+                  {itin.length >= 2 ? (
+                    <div style={{ ...glass, marginTop: 14 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+                        <div style={kicker}>The drive · every stop</div>
+                        <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", color: "#7f8a82" }}>{itin.length} STOPS</span>
+                      </div>
+                      <div style={{ marginTop: 12, position: "relative" }}>
+                        <div style={{ position: "absolute", left: 13, top: 10, bottom: 10, width: 2, background: "linear-gradient(180deg,rgba(217,183,121,0.5),rgba(217,183,121,0.1))" }} />
+                        {itin.map((s, idx) => (
+                          <div key={idx} style={{ position: "relative", display: "grid", gridTemplateColumns: "28px 1fr", gap: 12, alignItems: "start", padding: "9px 0" }}>
+                            <span style={{ position: "relative", zIndex: 1, width: 28, height: 28, flex: "none", borderRadius: "50%", background: s.kind === "park-entrance" ? "#1d4a37" : "#e8cf9a", border: "2px solid #0a1712", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 11, fontWeight: 800, color: s.kind === "park-entrance" ? "#e8cf9a" : "#0a1712" }}>{s.seq}</span>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                                <span style={{ fontFamily: SERIF, fontSize: 16.5, color: "#f4f1ea", lineHeight: 1.2 }}>{s.place}</span>
+                                {s.mileFromStart != null && <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".05em", color: "#d9b779", border: "1px solid rgba(217,183,121,0.25)", borderRadius: 999, padding: "1px 7px" }}>MI {s.mileFromStart.toFixed(1)}</span>}
+                                {KIND[s.kind] && <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".1em", textTransform: "uppercase", color: "#7f8a82" }}>{KIND[s.kind]}</span>}
+                              </div>
+                              {s.note && <div style={{ fontFamily: SANS, fontSize: 12, color: "#aab0ba", lineHeight: 1.45, marginTop: 3 }}>{s.note}</div>}
+                              {s.toNextMi != null && idx < itin.length - 1 && <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", color: "#7f8a82", marginTop: 5 }}>↓ {s.toNextMi.toFixed(1)} mi to next</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : legs.length > 0 && (
                     <div style={{ ...glass, marginTop: 14 }}>
                       <div style={kicker}>The drive</div>
                       <div style={{ marginTop: 12 }}>

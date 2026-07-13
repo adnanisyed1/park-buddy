@@ -149,6 +149,7 @@ export default function BuildTripApp() {
   const [railTab, setRailTab] = useState("new"); // Trip Studio mode: "new" editor | "premade" routes | "mine" saved trips
   const [mapView, setMapView] = useState("route"); // map mode: "route" (itinerary) | "explore" (discover + add)
   const [previewRoute, setPreviewRoute] = useState(null); // ready-made route shown in read-only preview (map + details)
+  const [bywayDetail, setBywayDetail] = useState(null); // Wikipedia/OSM-enriched record (full itinerary + route geometry) for a scenic-drive preview
   const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
   const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
   const [addSource, setAddSource] = useState(null); // Trip Studio "+ Add a stop" → "park" | "scenic" | "place" | null
@@ -782,9 +783,10 @@ export default function BuildTripApp() {
     routeLinesRef.current.forEach((l) => { try { l.setOptions({ visible: !previewing }); } catch {} });
     browseMarkersRef.current.forEach((m) => { try { m.setVisible(!previewing); } catch {} });
     if (!previewing) return;
-    // Scenic byway preview: trace the actual drive as a route line (Directions from
-    // the curated from → via → to place names, same as the /scenic-drives page). Falls
-    // back to a single representative pin when there are no endpoints or routing fails.
+    // Scenic byway preview: trace the actual drive on the map. Best case is the
+    // enriched record's real OSM road geometry + full named itinerary (every stop
+    // gets a numbered pin, same as the /scenic-drives page). Otherwise route the
+    // curated from → via → to through Directions, then fall back to a single pin.
     if (previewRoute.__byway) {
       const ep = previewRoute.endpoints;
       const fallbackPin = () => {
@@ -793,6 +795,21 @@ export default function BuildTripApp() {
         map.setCenter({ lat: previewRoute.lat, lng: previewRoute.lng });
         map.setZoom(7);
       };
+      const detail = bywayDetail && bywayDetail.id === previewRoute.id ? bywayDetail : null;
+      const osm = detail && Array.isArray(detail.routeLine) ? detail.routeLine : null;
+      const itin = detail ? (detail.itinerary || []).filter((s) => s.lat != null && s.place) : [];
+      if (osm && osm.length >= 2) {
+        const path = osm.map(([lat, lng]) => ({ lat, lng }));
+        previewCasingRef.current = new g.maps.Polyline({ path, map, strokeColor: "#0a1712", strokeOpacity: 0.75, strokeWeight: 5, zIndex: 2 });
+        previewLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#ffcf2e", strokeOpacity: 1, strokeWeight: 2.6, zIndex: 3 });
+        itin.forEach((s) => previewMarkersRef.current.push(new g.maps.Marker({
+          position: { lat: s.lat, lng: s.lng }, map, zIndex: 20, title: s.place + (s.mileFromStart != null ? " · mi " + s.mileFromStart.toFixed(1) : ""),
+          label: { text: String(s.seq), color: "#0a1712", fontSize: "11px", fontWeight: "800" },
+          icon: { path: g.maps.SymbolPath.CIRCLE, scale: 11, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 },
+        })));
+        const b = new g.maps.LatLngBounds(); path.forEach((c) => b.extend(c)); map.fitBounds(b, 60);
+        return;
+      }
       if (ep && ep.from && ep.to) {
         if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
         const reqId = ++previewReqRef.current;
@@ -827,7 +844,20 @@ export default function BuildTripApp() {
     previewLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#e8cf9a", strokeOpacity: 0.85, strokeWeight: 3, zIndex: 2, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 }, offset: "0", repeat: "14px" }] });
     map.fitBounds(bounds, 60);
   }
-  useEffect(() => { drawPreview(); }, [previewRoute, parksDb, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawPreview(); }, [previewRoute, parksDb, mapReady, bywayDetail]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Enrich a scenic-drive preview with its full itinerary + real OSM route geometry
+  // (the same per-byway record the /scenic-drives page uses). Best-effort: the base
+  // curated endpoints still draw a route while this loads or if it's missing.
+  useEffect(() => {
+    if (!previewRoute || !previewRoute.__byway || !previewRoute.id) { setBywayDetail(null); return; }
+    let on = true; const id = previewRoute.id;
+    setBywayDetail(null);
+    fetch("/byways/detail/" + id + ".json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (on && d && d.id === id) setBywayDetail(d); })
+      .catch(() => {});
+    return () => { on = false; };
+  }, [previewRoute]);
 
   // Hover a stop card → halo its map pin (design's card↔pin link).
   useEffect(() => {
@@ -1069,7 +1099,7 @@ export default function BuildTripApp() {
             { label: "Park passes", icon: "ticket", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
           ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
-          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute} previewRoute={previewRoute} setPreviewRoute={setPreviewRoute}
+          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute} previewRoute={previewRoute} setPreviewRoute={setPreviewRoute} bywayDetail={bywayDetail}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
           gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}

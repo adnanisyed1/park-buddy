@@ -89,7 +89,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
-    expandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity,
+    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -572,6 +572,23 @@ export default function TripStudio(props) {
                     )}
                   </div>
 
+                  {/* Trip origin — where you start from. Sets the first drive leg + travel day. */}
+                  {setOrigin && (
+                    <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 12, border: "1px dashed rgba(217,183,121,0.28)", background: "rgba(255,255,255,.02)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: origin ? 6 : 8 }}>
+                        <span style={{ color: "#8f9a90", display: "inline-flex" }}><TSIcon name="pin" size={13} /></span>
+                        <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "#8f9a90" }}>Starting from</span>
+                        {origin && <button onClick={() => setOrigin(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 11, cursor: "pointer" }}>Change</button>}
+                      </div>
+                      {origin ? (
+                        <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>{origin.name}</div>
+                      ) : (
+                        <GeoAutocomplete placeholder="Where are you starting from? (home, city, airport…)" fieldBox={fieldBox}
+                          onPick={(s) => setOrigin({ name: s.name, lat: s.lat, lng: s.lng })} />
+                      )}
+                    </div>
+                  )}
+
                   {!stops.length && <div style={{ fontSize: 13, color: "#7f8a82", padding: "10px 2px 4px", lineHeight: 1.6 }}>No stops yet — hit <b style={{ color: "#e8cf9a" }}>Add a stop</b> below, or load a ready-made route.</div>}
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -634,6 +651,10 @@ export default function TripStudio(props) {
                             const globalStart = stops.slice(0, i).reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1;
                             const dateFor = (d) => { if (!arriveISO) return ""; const dt = new Date(arriveISO + "T12:00:00"); dt.setDate(dt.getDate() + d); return dt.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); };
                             const sortByTime = (list) => list.slice().sort((x, y) => (x.time || "~").localeCompare(y.time || "~"));
+                            // auto drive leg into this base — shows on its arrival day (Day 1)
+                            const legFrom = i > 0 ? (stops[i - 1] && stops[i - 1].name) : (origin && origin.name);
+                            const legMi = i > 0 ? s.legMi : originLegMi;
+                            const legHrs = legMi != null ? Math.max(1, Math.round(legMi / 55)) : null;
                             return (
                               <div style={{ marginTop: 10, borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>
                                 <button onClick={(e) => { e.stopPropagation(); toggleDayPlan(s.name); }} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: MONO, fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: open ? "#e8cf9a" : "#8f9a90" }}>
@@ -654,7 +675,15 @@ export default function TripStudio(props) {
                                             <span style={{ fontFamily: SANS, fontSize: 11, color: "#8f9a90" }}>{dateFor(d)}</span>
                                           </div>
                                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                            {acts.length === 0 && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing planned yet.</div>}
+                                            {d === 0 && legFrom && legMi != null && (
+                                              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(224,185,120,0.06)", border: "1px dashed rgba(224,185,120,0.3)" }}>
+                                                <span style={{ fontFamily: MONO, fontSize: 10, color: "#8f9a90", minWidth: 38 }}>drive</span>
+                                                <span style={{ color: "#e0b978", display: "inline-flex", flex: "none" }}><TSIcon name="car" size={15} /></span>
+                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{legFrom} → {s.name}<span style={{ color: "#8f9a90", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7 }}>~{legHrs} H · {legMi} MI</span></span>
+                                                <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".1em", color: "#8f9a90", textTransform: "uppercase" }}>auto</span>
+                                              </div>
+                                            )}
+                                            {acts.length === 0 && !(d === 0 && legFrom && legMi != null) && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing planned yet.</div>}
                                             {acts.map((a) => (
                                               editBlock && editBlock.stop === s.name && editBlock.id === a.id ? (
                                                 <DayBlockEdit key={a.id} block={a} fieldBox={fieldBox}
@@ -675,6 +704,12 @@ export default function TripStudio(props) {
                                         </div>
                                       );
                                     })}
+                                    {setStopNights && (
+                                      <div style={{ display: "flex", gap: 8 }}>
+                                        <button onClick={(e) => { e.stopPropagation(); setStopNights(i, 1); }} style={{ flex: 1, padding: "8px 12px", borderRadius: 9, border: "1px dashed rgba(217,183,121,0.3)", background: "rgba(255,255,255,.02)", color: "#c9a35f", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>+ Add a day at {s.name}</button>
+                                        {dayCount > 1 && <button onClick={(e) => { e.stopPropagation(); setStopNights(i, -1); }} title="Remove the last day" style={{ padding: "8px 12px", borderRadius: 9, border: "1px solid rgba(176,74,47,0.35)", background: "rgba(176,74,47,0.08)", color: "#d08c6a", fontFamily: SANS, fontSize: 11.5, cursor: "pointer" }}>− Day</button>}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -983,26 +1018,29 @@ export default function TripStudio(props) {
         const ep = sd.drive.endpoints || (sd.detail && sd.detail.endpoints) || null;
         const count = itin.length || (ep ? (ep.via ? ep.via.length : 0) + 2 : 0);
         const lenChip = sd.drive.length || (sd.drive.lengthMi ? sd.drive.lengthMi + " mi" : "");
-        const already = stops.some((s) => s.name === sd.drive.name);
-        const doAdd = (pos) => {
-          if (already) return;
-          insertScenicDrive && insertScenicDrive(sd.drive, pos, { expanded: scenicExpanded, detail: sd.detail });
-          setScenicAdd(null); setScenicDropPos(null); setScenicDragging(false); setPreviewRoute && setPreviewRoute(null); setMode && setMode("new");
+        const dayKey = (name, d) => name + "#" + d;
+        // Drop the drive onto a specific day → adds a Scenic-drive block to that day.
+        // Expanded also drops every waypoint onto the day as Sight blocks.
+        const doAddToDay = (stopName, dayIndex) => {
+          const b = sd.drive;
+          addActivity && addActivity(stopName, { type: "scenic", name: b.name, day: dayIndex, slug: b.id, ...(b.lat != null ? { lat: b.lat, lng: b.lng } : {}) });
+          if (scenicExpanded) itin.forEach((w) => addActivity && addActivity(stopName, { type: "sight", name: w.place + (w.mileFromStart != null ? " · mi " + w.mileFromStart.toFixed(1) : ""), day: dayIndex, ...(w.lat != null ? { lat: w.lat, lng: w.lng } : {}) }));
+          setScenicAdd(null); setScenicDropPos(null); setScenicDragging(false); setPreviewRoute && setPreviewRoute(null); setMode && setMode("new"); setExpandedStop && setExpandedStop(stopName);
         };
-        const gapStyle = (pos) => {
-          const active = scenicDropPos === pos;
-          return { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: active ? 44 : 26, borderRadius: 10, cursor: already ? "not-allowed" : "pointer", border: "1.5px dashed " + (active ? "#e8cf9a" : "rgba(217,183,121,0.28)"), background: active ? "rgba(232,207,154,0.12)" : "transparent", color: active ? "#f4f1ea" : "#7f8a82", fontFamily: MONO, fontSize: 8.5, letterSpacing: ".12em", textTransform: "uppercase", transition: "all .15s", margin: "5px 0" };
+        const DayTarget = (stopName, d, globalStart, dateFor) => {
+          const key = dayKey(stopName, d), active = scenicDropPos === key;
+          return (
+            <div key={key}
+              onDragOver={(e) => { e.preventDefault(); if (scenicDropPos !== key) setScenicDropPos(key); }}
+              onDragLeave={() => { if (scenicDropPos === key) setScenicDropPos(null); }}
+              onDrop={(e) => { e.preventDefault(); doAddToDay(stopName, d); }}
+              onClick={() => doAddToDay(stopName, d)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", margin: "6px 0", borderRadius: 10, cursor: "pointer", border: "1.5px dashed " + (active ? "#e8cf9a" : "rgba(217,183,121,0.28)"), background: active ? "rgba(232,207,154,0.12)" : "transparent", transition: "all .15s" }}>
+              <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: active ? "#f4f1ea" : "#c9a35f" }}>Day {globalStart + d}</span>
+              <span style={{ fontFamily: SANS, fontSize: 11, color: active ? "#e8cf9a" : "#8f9a90" }}>{active ? "⟿ Drop here" : dateFor(d)}</span>
+            </div>
+          );
         };
-        const Gap = (pos, label) => (
-          <div key={"gap" + pos}
-            onDragOver={(e) => { e.preventDefault(); if (scenicDropPos !== pos) setScenicDropPos(pos); }}
-            onDragLeave={() => { if (scenicDropPos === pos) setScenicDropPos(null); }}
-            onDrop={(e) => { e.preventDefault(); doAdd(pos); }}
-            onClick={() => doAdd(pos)}
-            style={gapStyle(pos)}>
-            {scenicDropPos === pos ? "⟿ Drop " + sd.drive.name + " here" : (label || "+ place here")}
-          </div>
-        );
         return (
           <div onClick={() => { setScenicAdd(null); setScenicDropPos(null); }} style={{ position: "fixed", inset: 0, zIndex: 96, background: "rgba(4,9,7,0.78)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 780, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
@@ -1010,37 +1048,36 @@ export default function TripStudio(props) {
                 <div>
                   <div style={kicker}>Add scenic drive to {tripName || "your trip"}</div>
                   <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea", marginTop: 6 }}>{sd.drive.name}</div>
-                  <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 4 }}>Drag the drive into your itinerary — or tap a spot — to choose where it goes.</div>
+                  <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 4 }}>Drag the drive onto a day — or tap one — to add it to that day&rsquo;s plan.</div>
                 </div>
                 <button onClick={() => { setScenicAdd(null); setScenicDropPos(null); }} style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
               </div>
               <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 288px", gap: 16, padding: 20 }}>
-                {/* LEFT — the trip, with drop gaps */}
+                {/* LEFT — the trip's days, each a drop target */}
                 <div>
-                  <div style={{ ...kicker, marginBottom: 6 }}>Your trip{stops.length ? " · " + stops.length + " stop" + (stops.length === 1 ? "" : "s") : ""}</div>
-                  {!stops.length && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "6px 0" }}>This trip has no stops yet — drop the drive to start it.</div>}
-                  {Gap(0, stops.length ? "At the very start" : "Start my trip with it")}
-                  {stops.map((s, i) => (
-                    <div key={s.name}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 12, background: "rgba(11,23,16,0.6)", border: "1px solid rgba(217,183,121,0.16)" }}>
-                        <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", border: "1px solid rgba(217,183,121,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 11, color: "#e8cf9a" }}>{i + 1}</span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".14em", textTransform: "uppercase", color: "#c9a35f" }}>{dayRanges[i] ? dayRanges[i].label : ""}{s.kind === "byway" ? " · scenic" : ""}</div>
-                          <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
-                        </div>
+                  <div style={{ ...kicker, marginBottom: 6 }}>Drop onto a day</div>
+                  {!stops.length && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "6px 0" }}>This trip has no stops yet — add a base first, then drop the drive on one of its days.</div>}
+                  {stops.map((s, i) => {
+                    const dayCount = Math.max(1, s.nights || 1);
+                    const arriveISO = dayRanges[i] && dayRanges[i].arrive;
+                    const globalStart = stops.slice(0, i).reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1;
+                    const dateFor = (d) => { if (!arriveISO) return ""; const dt = new Date(arriveISO + "T12:00:00"); dt.setDate(dt.getDate() + d); return dt.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); };
+                    return (
+                      <div key={s.name} style={{ marginBottom: 12 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", textTransform: "uppercase", color: "#8fd6a6" }}><TSIcon name="bed" size={11} />{s.name}</div>
+                        {Array.from({ length: dayCount }).map((_, d) => DayTarget(s.name, d, globalStart, dateFor))}
                       </div>
-                      {Gap(i + 1, i + 1 === stops.length ? "At the end" : null)}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {/* RIGHT — the scenic drive bucket (drag source) */}
                 <div>
                   <div style={{ ...kicker, marginBottom: 6 }}>This scenic drive</div>
                   <div
-                    draggable={!already}
+                    draggable
                     onDragStart={(e) => { setScenicDragging(true); try { e.dataTransfer.effectAllowed = "copy"; e.dataTransfer.setData("text/plain", sd.drive.id); } catch {} }}
                     onDragEnd={() => { setScenicDragging(false); setScenicDropPos(null); }}
-                    style={{ border: "1px solid rgba(217,183,121,0.35)", borderRadius: 14, background: "linear-gradient(160deg,rgba(232,207,154,0.12),rgba(11,23,16,0.5))", padding: 14, cursor: already ? "default" : "grab", opacity: scenicDragging ? 0.5 : 1, boxShadow: "0 14px 34px -18px rgba(217,183,121,0.5)" }}>
+                    style={{ border: "1px solid rgba(217,183,121,0.35)", borderRadius: 14, background: "linear-gradient(160deg,rgba(232,207,154,0.12),rgba(11,23,16,0.5))", padding: 14, cursor: "grab", opacity: scenicDragging ? 0.5 : 1, boxShadow: "0 14px 34px -18px rgba(217,183,121,0.5)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 18, color: "#e8cf9a" }}>⟿</span>
                       <span style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", lineHeight: 1.15 }}>{sd.drive.name}</span>
@@ -1049,7 +1086,7 @@ export default function TripStudio(props) {
                       {["ALL-AMERICAN ROAD", sd.drive.states, lenChip, count ? count + " stops" : null].filter(Boolean).map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".08em", padding: "2px 7px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
                     </div>
                     <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", color: "#8fd6a6", marginTop: 11, display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 12 }}>⠿</span>{already ? "Already in this trip" : (isMobile ? "Tap a spot in your trip →" : "Drag me into your trip ←")}
+                      <span style={{ fontSize: 12 }}>⠿</span>{isMobile ? "Tap a day to add it →" : "Drag me onto a day ←"}
                     </div>
                   </div>
                   {/* expand — swap start&end for all waypoints */}

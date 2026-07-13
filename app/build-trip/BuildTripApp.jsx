@@ -116,6 +116,7 @@ export default function BuildTripApp() {
   const [stops, setStops] = useState([]); // {name, state, lat, lng, nights, legMi}
   const [totalMilesOverride, setTotalMilesOverride] = useState(720); // design preset; null = sum legs
   const [showOnMap, setShowOnMap] = useState(true);
+  const [origin, setOrigin] = useState(null); // where the trip starts from (Home), {name, lat, lng} — drives the first leg + travel day
   const [loadedRoute, setLoadedRoute] = useState("mighty5");
   const [addSel, setAddSel] = useState("");
   const [addrInput, setAddrInput] = useState("");
@@ -502,6 +503,14 @@ export default function BuildTripApp() {
   useEffect(() => {
     try { localStorage.setItem("pb_trip_dayplans", JSON.stringify(dayPlans)); } catch {}
   }, [dayPlans]);
+
+  // Trip origin ("starting from") — where the first drive leg begins.
+  useEffect(() => {
+    try { const o = JSON.parse(localStorage.getItem("pb_trip_origin") || "null"); if (o && o.lat != null) setOrigin(o); } catch {}
+  }, []);
+  useEffect(() => {
+    try { if (origin && origin.lat != null) localStorage.setItem("pb_trip_origin", JSON.stringify(origin)); else localStorage.removeItem("pb_trip_origin"); } catch {}
+  }, [origin]);
 
   // Apply the wizard's answers back into the planner (dates, transport, budget).
   function applySetup(x) {
@@ -1116,6 +1125,8 @@ export default function BuildTripApp() {
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
+          origin={origin} setOrigin={setOrigin} originLegMi={origin && stops[0] ? Math.round(milesBetween(origin, stops[0]) * ROAD_FACTOR) : null}
+          setExpandedStop={setExpandedStop}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway}

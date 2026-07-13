@@ -505,6 +505,18 @@ export default function BuildTripApp() {
     // drawRoute/drawBrowse/drawLayers run from their effects once mapReady flips.
   }
 
+  // Trip-Studio route pin: dark core, gold ring, soft gold halo + gold numeral.
+  // The hovered variant grows the halo + brightens the ring (matches the design's
+  // "hover a stop card → halo its map pin" interaction).
+  function pinIcon(g, n, hov) {
+    const halo = hov ? 21 : 18, haloO = hov ? 0.32 : 0.15, ring = hov ? 13 : 12, rc = hov ? "#f6e6bd" : "#e8cf9a", rw = hov ? 3.2 : 2.6;
+    return {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="' + halo + '" fill="#e8cf9a" opacity="' + haloO + '"/><circle cx="22" cy="22" r="' + ring + '" fill="#0a1712" stroke="' + rc + '" stroke-width="' + rw + '"/><text x="22" y="26.5" font-family="sans-serif" font-size="13" font-weight="800" fill="' + rc + '" text-anchor="middle">' + n + "</text></svg>"),
+      scaledSize: new g.maps.Size(44, 44), anchor: new g.maps.Point(22, 22),
+    };
+  }
+
   function drawRoute() {
     const g = window.google;
     const map = mapObjRef.current;
@@ -521,13 +533,7 @@ export default function BuildTripApp() {
       const pos = { lat: s.lat, lng: s.lng };
       path.push(pos); bounds.extend(pos);
       routeMarkersRef.current.push(new g.maps.Marker({
-        position: pos, map, title: s.name,
-        icon: {
-          // Trip-Studio pin: dark core, bright gold ring, soft gold halo, gold numeral.
-          url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="18" fill="#e8cf9a" opacity="0.15"/><circle cx="22" cy="22" r="12" fill="#0a1712" stroke="#e8cf9a" stroke-width="2.6"/><text x="22" y="26.5" font-family="sans-serif" font-size="13" font-weight="800" fill="#e8cf9a" text-anchor="middle">' + (i + 1) + "</text></svg>"),
-          scaledSize: new g.maps.Size(44, 44), anchor: new g.maps.Point(22, 22),
-        },
+        position: pos, map, title: s.name, icon: pinIcon(g, i + 1, false),
       }));
     });
     map.fitBounds(bounds, 52);
@@ -658,6 +664,15 @@ export default function BuildTripApp() {
     if (layers.byway) paint(bywaysDb, "byway", "#e4be78", (d) => ({ kind: "byway", slug: d.id }));
   }
   useEffect(() => { drawBrowse(); }, [layers, browseState, browseQuery, parksDb, forestsDb, stateParksDb, bywaysDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hover a stop card → halo its map pin (design's card↔pin link).
+  useEffect(() => {
+    const g = window.google; if (!g) return;
+    routeMarkersRef.current.forEach((m, i) => {
+      const hov = i === hoverIdx;
+      try { m.setIcon(pinIcon(g, i + 1, hov)); m.setZIndex(hov ? 999 : 1); } catch {}
+    });
+  }, [hoverIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* -------- "on the map" layers: campgrounds / lakes / trails around each stop -------- */
 

@@ -71,6 +71,12 @@ function TSIcon({ name, size = 16 }) {
     case "hike": return <svg {...p}><path d="m8 2 1.5 3.5L8 9l2.5 2 1.5 5" /><circle cx="9" cy="4" r="1" /><path d="M13 8.5 15 11l4 2" /><path d="M4 22l3-7" /><path d="M14 22l-2-6" /></svg>;
     case "camera": return <svg {...p}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" /><circle cx="12" cy="13" r="3" /></svg>;
     case "edit": return <svg {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>;
+    case "mountain": return <svg {...p}><path d="M8 3 4 15l4-3 3 5 4-9 5 13H2" /></svg>;
+    case "trees": return <svg {...p}><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z" /><path d="M7 16v6" /><path d="M13 19v3" /><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5" /></svg>;
+    case "waves": return <svg {...p}><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.5 0 2.5 2 5 2 1.3 0 1.9-.5 2.5-1" /></svg>;
+    case "crosshair": return <svg {...p}><circle cx="12" cy="12" r="9" /><line x1="12" y1="2" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="2" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="22" y2="12" /></svg>;
+    case "home": return <svg {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M9 22V12h6v10" /></svg>;
+    case "star": return <svg {...p}><path d="m12 3 2.9 6 6.1.9-4.5 4.3 1 6.1L12 18l-5.5 2.9 1-6.1L3 9.9 9.1 9z" /></svg>;
     case "trash": return <svg {...p}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></svg>;
     default: return null;
   }
@@ -158,6 +164,8 @@ export default function TripStudio(props) {
         .ts-navtile { transition: border-color .18s, background .18s, color .18s, transform .08s; }
         .ts-navtile:hover { border-color: rgba(217,183,121,.5) !important; background: rgba(217,183,121,.09) !important; color: #f4f1ea !important; }
         .ts-navtile:active { transform: translateY(1px); }
+        .ts-srctile:hover { border-color: rgba(217,183,121,.45) !important; background: rgba(217,183,121,.07) !important; transform: translateY(-1px); }
+        .ts-srctile:active { transform: translateY(0); }
         .ts-budrow { transition: background .15s; border-radius: 10px; }
         .ts-budrow:hover { background: rgba(217,183,121,.05); }
         .ts-goldbtn { transition: transform .12s, box-shadow .22s, filter .22s; }
@@ -1168,65 +1176,108 @@ export default function TripStudio(props) {
       {/* desktop: add-a-stop popup (7 sources) — a real popup so it isn't clipped */}
       {addMenuOpen && (
         <div onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
-              <div>
-                <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea" }}>Add a base</div>
-                {(() => {
-                  const idx = addTargetIdx == null ? stops.length : addTargetIdx;
-                  const startDay = stops.slice(0, idx).reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1;
-                  const where = addTargetIdx == null ? (stops.length ? "after " + stops[stops.length - 1].name : "as your first base") : (addTargetIdx === 0 ? "at the very start" : "after " + stops[addTargetIdx - 1].name);
-                  return <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 3, lineHeight: 1.45 }}>A base is a place you sleep. Goes in <b style={{ color: "#c9a35f" }}>{where}</b> — starts on <b style={{ color: "#c9a35f" }}>Day {startDay}</b>, and its nights become day cards.</div>;
-                })()}
-              </div>
-              <button onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
-            </div>
-            {!addSource && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[["park", "◈", "National park"], ["statePark", "◆", "State park"], ["scenic", "⟿", "Scenic route"], ["lake", "≈", "Lake"], ["coord", "⌖", "Coordinates"], ["address", "⌂", "Address"], ["place", "✦", "Any place"]].map(([src, ic, label]) => (
-                  <button key={src} onClick={() => setAddSource(src)} className="ts-navtile" style={{ ...navTile, justifyContent: "flex-start", padding: "12px 13px", fontSize: 13 }}><span style={{ color: "#d9b779", marginRight: 4 }}>{ic}</span>{label}</button>
-                ))}
-              </div>
-            )}
-            {addSource === "park" && (
-              <div style={{ display: "flex", gap: 9 }}>
-                <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "var(--pb-muted)" }}>
-                  <option value="">Choose a park…</option>
-                  {parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => <option key={p.id} value={p.name}>{p.name} — {p.state}</option>)}
-                </select>
-                <button onClick={() => { addPark(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-              </div>
-            )}
-            {addSource === "scenic" && (
-              <div style={{ display: "flex", gap: 9 }}>
-                <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
-                  <option value="">Choose a scenic drive…</option>
-                  {[["all-american", "All-American Roads"], ["national-scenic-byway", "National Scenic Byways"], ["*", "Other scenic drives"]].map(([tier, label]) => {
-                    const rows = bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name));
-                    if (!rows.length) return null;
-                    return <optgroup key={tier} label={label}>{rows.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => <option key={b.id} value={b.id}>{b.name} — {b.states || b.state || ""}</option>)}</optgroup>;
-                  })}
-                </select>
-                <button onClick={() => { addByway(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
-              </div>
-            )}
-            {["statePark", "lake", "address", "place"].includes(addSource) && (
-              <GeoAutocomplete
-                placeholder={{ statePark: "Start typing a state park…", lake: "Start typing a lake…", address: "Start typing an address or town…", place: "Start typing a place or landmark…" }[addSource]}
-                onPick={(s) => { addDestination && addDestination({ name: s.name, state: s.state, lat: s.lat, lng: s.lng, custom: true }); setAddMenuOpen(false); setAddSource(null); }}
-                fieldBox={fieldBox}
-              />
-            )}
-            {addSource === "coord" && addCoords && (
-              <div>
-                <div style={{ display: "flex", gap: 9 }}>
-                  <input value={coordInput || ""} onChange={(e) => setCoordInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCoords(); }} placeholder="37.29, -113.05" style={{ ...fieldBox, flex: 1 }} />
-                  <button onClick={addCoords} style={addBtn}>＋</button>
-                </div>
-                {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
-              </div>
-            )}
-            {addSource && <button onClick={() => setAddSource(null)} style={{ marginTop: 12, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer" }}>← All sources</button>}
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 468, background: "linear-gradient(180deg,#0c1a12,#08120c)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 22, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", overflow: "hidden" }}>
+            {(() => {
+              const SRC = {
+                park: { icon: "mountain", label: "National park", hint: "The 63 U.S. parks", tint: "#8fd6a6" },
+                statePark: { icon: "trees", label: "State park", hint: "Search any state", tint: "#9ec96f" },
+                scenic: { icon: "route", label: "Scenic route", hint: "All-American Roads", tint: "#8fd3e0" },
+                lake: { icon: "waves", label: "Lake", hint: "Lakes & reservoirs", tint: "#7fb0d0" },
+                coord: { icon: "crosshair", label: "Coordinates", hint: "Drop a precise pin", tint: "#e0b978" },
+                address: { icon: "home", label: "Address", hint: "Home, hotel, town", tint: "#e0b978" },
+                place: { icon: "star", label: "Any place", hint: "Landmark or spot", tint: "#d9b779" },
+              };
+              const idx = addTargetIdx == null ? stops.length : addTargetIdx;
+              const startDay = stops.slice(0, idx).reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1;
+              const where = addTargetIdx == null ? (stops.length ? "After " + stops[stops.length - 1].name : "Your first base") : (addTargetIdx === 0 ? "At the very start" : "After " + stops[addTargetIdx - 1].name);
+              const cur = addSource ? SRC[addSource] : null;
+              return (
+                <>
+                  {/* header */}
+                  <div style={{ padding: "18px 20px 16px", borderBottom: "1px solid rgba(217,183,121,0.12)", background: "rgba(217,183,121,0.03)" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                        <span style={{ width: 38, height: 38, flex: "none", borderRadius: 11, background: "rgba(143,214,166,0.12)", border: "1px solid rgba(143,214,166,0.3)", color: "#8fd6a6", display: "flex", alignItems: "center", justifyContent: "center" }}><TSIcon name="bed" size={19} /></span>
+                        <div>
+                          <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea", lineHeight: 1 }}>Add a base</div>
+                          <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#8f9a90", marginTop: 3 }}>A place you sleep — its nights become day cards.</div>
+                        </div>
+                      </div>
+                      <button onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+                    </div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 13, padding: "5px 11px", borderRadius: 999, background: "rgba(232,207,154,0.1)", border: "1px solid rgba(217,183,121,0.3)" }}>
+                      <span style={{ color: "#c9a35f", display: "inline-flex" }}><TSIcon name="pin" size={12} /></span>
+                      <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".1em", textTransform: "uppercase", color: "#e8cf9a" }}>{where} · Starts Day {startDay}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 18 }}>
+                    {!addSource ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+                        {Object.entries(SRC).map(([src, m]) => (
+                          <button key={src} onClick={() => setAddSource(src)} className="ts-srctile" style={{ display: "flex", alignItems: "center", gap: 11, textAlign: "left", padding: "11px 12px", borderRadius: 13, border: "1px solid rgba(217,183,121,0.16)", background: "rgba(255,255,255,.02)", cursor: "pointer", transition: "border-color .15s, background .15s, transform .1s" }}>
+                            <span style={{ width: 34, height: 34, flex: "none", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: m.tint, background: hexA(m.tint, 0.12), border: "1px solid " + hexA(m.tint, 0.3) }}><TSIcon name={m.icon} size={17} /></span>
+                            <span style={{ minWidth: 0 }}>
+                              <span style={{ display: "block", fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "#f4f1ea", whiteSpace: "nowrap" }}>{m.label}</span>
+                              <span style={{ display: "block", fontFamily: SANS, fontSize: 10.5, color: "#7f8a82", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.hint}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div>
+                        <button onClick={() => setAddSource(null)} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12, background: "none", border: "none", color: "#8f9a90", fontFamily: SANS, fontSize: 12, cursor: "pointer", padding: 0 }}>← All sources</button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
+                          <span style={{ width: 30, height: 30, flex: "none", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: cur.tint, background: hexA(cur.tint, 0.12), border: "1px solid " + hexA(cur.tint, 0.3) }}><TSIcon name={cur.icon} size={15} /></span>
+                          <div>
+                            <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea", lineHeight: 1 }}>{cur.label}</div>
+                            <div style={{ fontFamily: SANS, fontSize: 10.5, color: "#7f8a82", marginTop: 2 }}>{cur.hint}</div>
+                          </div>
+                        </div>
+                        {addSource === "park" && (
+                          <div style={{ display: "flex", gap: 9 }}>
+                            <select value={addSel} onChange={(e) => setAddSel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addSel ? "#1a2b21" : "var(--pb-muted)" }}>
+                              <option value="">Choose a park…</option>
+                              {parksDb.filter((p) => !stops.some((s) => s.name === p.name)).map((p) => <option key={p.id} value={p.name}>{p.name} — {p.state}</option>)}
+                            </select>
+                            <button onClick={() => { addPark(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
+                          </div>
+                        )}
+                        {addSource === "scenic" && (
+                          <div style={{ display: "flex", gap: 9 }}>
+                            <select value={addBywaySel} onChange={(e) => setAddBywaySel(e.target.value)} style={{ ...fieldBox, flex: 1, color: addBywaySel ? "#1a2b21" : "var(--pb-muted)" }}>
+                              <option value="">Choose a scenic drive…</option>
+                              {[["all-american", "All-American Roads"], ["national-scenic-byway", "National Scenic Byways"], ["*", "Other scenic drives"]].map(([tier, label]) => {
+                                const rows = bywaysDb.filter((b) => (tier === "*" ? !["all-american", "national-scenic-byway"].includes(b.tier) : b.tier === tier) && !stops.some((s) => s.name === b.name));
+                                if (!rows.length) return null;
+                                return <optgroup key={tier} label={label}>{rows.slice().sort((a, b) => a.name.localeCompare(b.name)).map((b) => <option key={b.id} value={b.id}>{b.name} — {b.states || b.state || ""}</option>)}</optgroup>;
+                              })}
+                            </select>
+                            <button onClick={() => { addByway(); setAddMenuOpen(false); setAddSource(null); }} style={addBtn}>＋</button>
+                          </div>
+                        )}
+                        {["statePark", "lake", "address", "place"].includes(addSource) && (
+                          <GeoAutocomplete
+                            placeholder={{ statePark: "Start typing a state park…", lake: "Start typing a lake…", address: "Start typing an address or town…", place: "Start typing a place or landmark…" }[addSource]}
+                            onPick={(s) => { addDestination && addDestination({ name: s.name, state: s.state, lat: s.lat, lng: s.lng, custom: true }); setAddMenuOpen(false); setAddSource(null); }}
+                            fieldBox={fieldBox}
+                          />
+                        )}
+                        {addSource === "coord" && addCoords && (
+                          <div>
+                            <div style={{ display: "flex", gap: 9 }}>
+                              <input value={coordInput || ""} onChange={(e) => setCoordInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCoords(); }} placeholder="37.29, -113.05" style={{ ...fieldBox, flex: 1 }} />
+                              <button onClick={addCoords} style={addBtn}>＋</button>
+                            </div>
+                            {addrMsg && <div style={{ fontSize: 12, color: "var(--pb-ink-2)", marginTop: 7 }}>{addrMsg}</div>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

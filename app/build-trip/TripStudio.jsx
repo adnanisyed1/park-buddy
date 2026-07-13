@@ -67,6 +67,9 @@ function TSIcon({ name, size = 16 }) {
     case "printer": return <svg {...p}><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" /><rect width="12" height="8" x="6" y="14" /></svg>;
     case "book": return <svg {...p}><path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg>;
     case "fileup": return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M12 18v-6" /><path d="m9 15 3-3 3 3" /></svg>;
+    case "route": return <svg {...p}><circle cx="6" cy="19" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /><circle cx="18" cy="5" r="3" /></svg>;
+    case "hike": return <svg {...p}><path d="m8 2 1.5 3.5L8 9l2.5 2 1.5 5" /><circle cx="9" cy="4" r="1" /><path d="M13 8.5 15 11l4 2" /><path d="M4 22l3-7" /><path d="M14 22l-2-6" /></svg>;
+    case "camera": return <svg {...p}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" /><circle cx="12" cy="13" r="3" /></svg>;
     default: return null;
   }
 }
@@ -617,28 +620,50 @@ export default function TripStudio(props) {
                             </div>
                           </div>
                           </div>
-                          {/* Plan this day — per-stop activity timeline */}
+                          {/* Plan your days — the stop is a BASE; each night it anchors
+                              becomes its own day bucket of typed blocks. */}
                           {toggleDayPlan && (() => {
-                            const acts = (dayPlans && dayPlans[s.name]) || [];
+                            const all = (dayPlans && dayPlans[s.name]) || [];
                             const open = expandedStop === s.name;
+                            const dayCount = Math.max(1, s.nights || 1);
+                            const arriveISO = dayRanges[i] && dayRanges[i].arrive;
+                            const globalStart = stops.slice(0, i).reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1;
+                            const dateFor = (d) => { if (!arriveISO) return ""; const dt = new Date(arriveISO + "T12:00:00"); dt.setDate(dt.getDate() + d); return dt.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); };
+                            const sortByTime = (list) => list.slice().sort((x, y) => (x.time || "~").localeCompare(y.time || "~"));
                             return (
                               <div style={{ marginTop: 10, borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>
                                 <button onClick={(e) => { e.stopPropagation(); toggleDayPlan(s.name); }} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: MONO, fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: open ? "#e8cf9a" : "#8f9a90" }}>
                                   <span style={{ display: "inline-block", transition: "transform .2s", transform: open ? "rotate(90deg)" : "none" }}>▸</span>
-                                  Plan this day{acts.length ? " · " + acts.length : ""}
+                                  Plan your days{all.length ? " · " + all.length + " planned" : ""}
                                 </button>
                                 {open && (
-                                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                                    {acts.length === 0 && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "2px 0" }}>No activities yet — add your first below.</div>}
-                                    {acts.map((a) => (
-                                      <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,0.12)" }}>
-                                        <span style={{ fontFamily: MONO, fontSize: 10, color: "#c9a35f", minWidth: 40 }}>{a.time || "—"}</span>
-                                        <span style={{ fontSize: 14, lineHeight: 1 }}>{a.icon}</span>
-                                        <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
-                                        <span onClick={() => removeActivity(s.name, a.id)} title="Remove" style={{ cursor: "pointer", color: "#b06a4a", fontSize: 13, lineHeight: 1, opacity: 0.55 }}>×</span>
-                                      </div>
-                                    ))}
-                                    <DayPlanAdd onAdd={(act) => addActivity(s.name, act)} fieldBox={fieldBox} />
+                                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+                                    <div style={{ display: "inline-flex", alignSelf: "flex-start", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", textTransform: "uppercase", color: "#8fd6a6", background: "rgba(143,214,166,0.1)", border: "1px solid rgba(143,214,166,0.3)", borderRadius: 999, padding: "3px 9px" }}>
+                                      <TSIcon name="bed" size={11} />Base · {s.name} · {dayCount} day{dayCount === 1 ? "" : "s"}
+                                    </div>
+                                    {Array.from({ length: dayCount }).map((_, d) => {
+                                      const acts = sortByTime(all.filter((a) => (a.day || 0) === d));
+                                      return (
+                                        <div key={d} style={{ borderRadius: 11, border: "1px solid rgba(217,183,121,0.12)", background: "rgba(255,255,255,.02)", padding: "9px 11px" }}>
+                                          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: acts.length ? 8 : 4 }}>
+                                            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "#c9a35f" }}>Day {globalStart + d}</span>
+                                            <span style={{ fontFamily: SANS, fontSize: 11, color: "#8f9a90" }}>{dateFor(d)}</span>
+                                          </div>
+                                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                            {acts.length === 0 && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing planned yet.</div>}
+                                            {acts.map((a) => (
+                                              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,0.12)" }}>
+                                                <span style={{ fontFamily: MONO, fontSize: 10, color: "#c9a35f", minWidth: 38 }}>{a.time || "—"}</span>
+                                                <span style={{ color: "#e0b978", display: "inline-flex", flex: "none" }}>{a.type ? <TSIcon name={blockIcon(a.type)} size={15} /> : <span style={{ fontSize: 14 }}>{a.icon}</span>}</span>
+                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}<span style={{ color: "#7f8a82", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7, textTransform: "uppercase" }}>{TYPE_LABEL[a.type] || ""}</span></span>
+                                                <span onClick={() => removeActivity(s.name, a.id)} title="Remove" style={{ cursor: "pointer", color: "#b06a4a", fontSize: 13, lineHeight: 1, opacity: 0.55 }}>×</span>
+                                              </div>
+                                            ))}
+                                            <DayPlanAdd onAdd={(act) => addActivity(s.name, { ...act, day: d })} fieldBox={fieldBox} />
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -1120,18 +1145,26 @@ export default function TripStudio(props) {
   );
 }
 
-// "+ Add to this day" — pick an activity type (the same 8 sources), name it, time it.
-const DAY_ACT_TYPES = [["park", "◈", "National park"], ["statePark", "◆", "State park"], ["scenic", "⟿", "Scenic route"], ["lake", "≈", "Lake"], ["hike", "🥾", "Hike"], ["viewpoint", "🔭", "Viewpoint"], ["coord", "⌖", "Coordinates"], ["place", "✦", "Any place"]];
-function DayPlanAdd({ onAdd, fieldBox }) {
+// The six day-block types. A day is a bucket; each block inside it has a type,
+// an optional time, and (via TYPE_ICON) a monochrome line icon.
+const BLOCK_TYPES = [["drive", "car", "Drive"], ["stay", "bed", "Stay"], ["meal", "utensils", "Meal"], ["scenic", "route", "Scenic drive"], ["hike", "hike", "Hike"], ["sight", "camera", "Sight"]];
+const TYPE_ICON = { drive: "car", stay: "bed", meal: "utensils", scenic: "route", hike: "hike", sight: "camera",
+  // legacy day-plan types, mapped onto the new icon set
+  park: "pin", statePark: "pin", lake: "pin", viewpoint: "camera", coord: "pin", place: "pin" };
+const TYPE_LABEL = { drive: "Drive", stay: "Stay", meal: "Meal", scenic: "Scenic drive", hike: "Hike", sight: "Sight" };
+const blockIcon = (t) => TYPE_ICON[t] || "pin";
+
+// "+ Add to this day" — pick a block type, name it, time it. Time is optional
+// (leave blank for an unscheduled block that keeps manual order).
+function DayPlanAdd({ onAdd, fieldBox, defaultType = "hike" }) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState("hike");
+  const [type, setType] = useState(defaultType);
   const [name, setName] = useState("");
-  const [time, setTime] = useState("09:00");
-  const cur = DAY_ACT_TYPES.find((t) => t[0] === type) || DAY_ACT_TYPES[0];
+  const [time, setTime] = useState("");
   function commit() {
     const nm = name.trim(); if (!nm) return;
-    onAdd({ icon: cur[1], type, name: nm, time });
-    setName(""); setOpen(false);
+    onAdd({ type, name: nm, time });
+    setName(""); setTime(""); setOpen(false);
   }
   if (!open) return (
     <button onClick={() => setOpen(true)} style={{ marginTop: 2, alignSelf: "flex-start", padding: "7px 12px", borderRadius: 9, border: "1px dashed rgba(217,183,121,0.35)", background: "rgba(255,255,255,.03)", color: "#c9a35f", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>+ Add to this day</button>
@@ -1140,12 +1173,12 @@ function DayPlanAdd({ onAdd, fieldBox }) {
     <div style={{ marginTop: 2, padding: 10, borderRadius: 11, border: "1px solid rgba(217,183,121,0.18)", background: "rgba(255,255,255,.02)" }}>
       <div style={{ display: "flex", gap: 7 }}>
         <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...fieldBox, flex: 1, color: "#1a2b21" }}>
-          {DAY_ACT_TYPES.map(([v, ic, label]) => <option key={v} value={v}>{ic}  {label}</option>)}
+          {BLOCK_TYPES.map(([v, , label]) => <option key={v} value={v}>{label}</option>)}
         </select>
         <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...fieldBox, width: 104, flex: "none" }} />
       </div>
       <div style={{ display: "flex", gap: 7, marginTop: 7 }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") commit(); }} placeholder="What's the plan?" style={{ ...fieldBox, flex: 1 }} />
+        <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") commit(); }} placeholder={{ drive: "Where to?", stay: "Where are you staying?", meal: "Where are you eating?", scenic: "Which scenic drive?", hike: "Which trail?", sight: "What are you seeing?" }[type] || "What's the plan?"} style={{ ...fieldBox, flex: 1 }} />
         <button onClick={commit} style={addBtn}>＋</button>
       </div>
     </div>

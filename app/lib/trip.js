@@ -137,60 +137,6 @@ export function setStops(list) {
 
 export function clearTrip() { write([]); }
 
-// ---------------------------------------------------------------------------
-// Saved trips — named snapshots the user explicitly keeps (Build My Trip's
-// "My trips" rail). Distinct from the single live `pb_trip` above: this is a
-// LIST of full trip captures (stops + meta) you can reload later.
-//   pb_saved_trips → [{ id, name, savedAt, stops[], meta{}, days, miles }]
-// ---------------------------------------------------------------------------
-
-const SAVED_KEY = "pb_saved_trips";
-
-export function getSavedTrips() {
-  if (typeof window === "undefined") return [];
-  try { const a = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]"); return Array.isArray(a) ? a : []; }
-  catch { return []; }
-}
-
-function writeSaved(list) {
-  if (typeof window === "undefined") return;
-  try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch {}
-  try { window.dispatchEvent(new CustomEvent("pb:saved-trips")); } catch {}
-}
-
-// Snapshot the current trip under a name. Overwrites an existing save of the
-// same name (case-insensitive) so re-saving updates in place rather than piling
-// up duplicates. Returns the saved entry.
-export function saveTrip({ name, stops, meta, days, miles }) {
-  const nm = (name || "My trip").trim() || "My trip";
-  const entry = {
-    id: "t" + Date.now().toString(36),
-    name: nm,
-    savedAt: new Date().toISOString(),
-    stops: Array.isArray(stops) ? stops : [],
-    meta: meta || {},
-    days: days || 0,
-    miles: miles || 0,
-  };
-  const list = getSavedTrips().filter((t) => t.name.toLowerCase() !== nm.toLowerCase());
-  list.unshift(entry);
-  writeSaved(list);
-  return entry;
-}
-
-export function deleteSavedTrip(id) {
-  writeSaved(getSavedTrips().filter((t) => t.id !== id));
-  return getSavedTrips();
-}
-
-// Subscribe to saved-trips changes (same tab + cross-tab). Returns an unsubscribe fn.
-export function subscribeSavedTrips(fn) {
-  const onEvt = () => fn();
-  const onStorage = (e) => { if (!e || e.key === SAVED_KEY) fn(); };
-  if (typeof window !== "undefined") { window.addEventListener("pb:saved-trips", onEvt); window.addEventListener("storage", onStorage); }
-  return () => { if (typeof window !== "undefined") { window.removeEventListener("pb:saved-trips", onEvt); window.removeEventListener("storage", onStorage); } };
-}
-
 // Subscribe to any change (same tab). Returns an unsubscribe fn. Also picks up
 // cross-tab writes via the storage event.
 export function subscribeTrip(fn) {

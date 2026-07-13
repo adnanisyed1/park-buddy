@@ -12,7 +12,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
-import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta, getSavedTrips, saveTrip as storeSaveTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/trip";
+import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
+import { getSavedTrips, saveCurrentTrip as storeSaveCurrentTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
 import SiteHeader from "../components/SiteHeader";
 import TripSetupWizard from "./TripSetupWizard";
 
@@ -226,15 +227,14 @@ export default function BuildTripApp() {
     return subscribeSavedTrips(() => setSavedTrips(getSavedTrips()));
   }, []);
 
-  // Snapshot the current trip (stops + all setup answers) into "My trips".
+  // Snapshot the current trip into the shared saved-trips library ("My trips").
+  // Flush the live page state to the store first so the snapshot matches what's
+  // on screen (savedTrips.saveCurrentTrip reads the active trip from trip.js).
   function saveCurrentTrip() {
     if (!stops.length) { setSaveMsg("Add a stop first."); return; }
-    storeSaveTrip({
-      name: tripName || "My trip",
-      stops: stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })),
-      meta: { tripName, startDate, endDate, adults, infants, travelers, arrivalMode, tripScope, car, transport },
-      days: tripDays, miles: totalMiles,
-    });
+    tripSetStops(stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })));
+    tripSetMeta({ tripName, startDate, endDate, adults, infants, travelers, arrivalMode, tripScope, car, transport });
+    storeSaveCurrentTrip(tripName || "My trip");
     setSavedTrips(getSavedTrips());
     setSaveMsg("Saved to “My trips” ✓");
     setTimeout(() => setSaveMsg(""), 2600);
@@ -788,19 +788,22 @@ export default function BuildTripApp() {
                 </div>
               );
             })}
-            {railTab === "mine" && savedTrips.map((t) => (
-              <div key={t.id} onClick={() => loadSavedTrip(t)} style={{ flex: "none", width: 248, position: "relative", background: "linear-gradient(180deg,rgba(16,34,24,.9),rgba(9,20,14,.9))", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: "0 16px 40px -20px rgba(0,0,0,.7)" }}>
-                <button onClick={(e) => { e.stopPropagation(); deleteSavedTrip(t.id); }} title="Delete this saved trip" style={{ position: "absolute", top: 10, right: 10, width: 24, height: 24, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,20,14,.8)", color: "#b06a4a", cursor: "pointer", fontSize: ".95rem", lineHeight: 1 }}>×</button>
-                <div style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Saved trip 🧭</div>
-                <h3 style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.1, margin: "4px 30px 7px 0" }}>{t.name}</h3>
-                <p style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.45, margin: 0 }}>{(t.stops || []).slice(0, 4).map((s) => s.name).join(" · ")}{(t.stops || []).length > 4 ? " · +" + ((t.stops || []).length - 4) + " more" : ""}</p>
-                <div style={{ display: "flex", gap: 8, marginTop: 12, fontSize: ".72rem", color: "var(--pb-gold-soft)", fontWeight: 700 }}>
-                  <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{(t.stops || []).length} stops</span>
-                  {t.days ? <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{t.days} days</span> : null}
-                  {t.miles ? <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{t.miles} mi</span> : null}
+            {railTab === "mine" && savedTrips.map((t) => {
+              const nStops = (t.stops || []).length;
+              const nNights = (t.stops || []).reduce((a, s) => a + (Number(s.nights) || 0), 0);
+              return (
+                <div key={t.id} onClick={() => loadSavedTrip(t)} style={{ flex: "none", width: 248, position: "relative", background: "linear-gradient(180deg,rgba(16,34,24,.9),rgba(9,20,14,.9))", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: "0 16px 40px -20px rgba(0,0,0,.7)" }}>
+                  <button onClick={(e) => { e.stopPropagation(); deleteSavedTrip(t.id); }} title="Delete this saved trip" style={{ position: "absolute", top: 10, right: 10, width: 24, height: 24, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,20,14,.8)", color: "#b06a4a", cursor: "pointer", fontSize: ".95rem", lineHeight: 1 }}>×</button>
+                  <div style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Saved trip 🧭</div>
+                  <h3 style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.1, margin: "4px 30px 7px 0" }}>{t.name}</h3>
+                  <p style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.45, margin: 0 }}>{nStops ? (t.stops || []).slice(0, 4).map((s) => s.name).join(" · ") + (nStops > 4 ? " · +" + (nStops - 4) + " more" : "") : "No stops yet"}</p>
+                  <div style={{ display: "flex", gap: 8, marginTop: 12, fontSize: ".72rem", color: "var(--pb-gold-soft)", fontWeight: 700 }}>
+                    <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{nStops} stop{nStops === 1 ? "" : "s"}</span>
+                    {nNights ? <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{nNights} night{nNights === 1 ? "" : "s"}</span> : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {railTab === "mine" && !savedTrips.length && (
               <div style={{ flex: "none", maxWidth: 420, border: "1px dashed var(--pb-line-strong)", borderRadius: 20, padding: "18px 20px", color: "var(--pb-ink-2)", background: "rgba(9,20,14,.5)" }}>
                 <b style={{ fontFamily: serif, color: "var(--pb-ink)", fontSize: "1.05rem", display: "block", marginBottom: 5 }}>No saved trips yet</b>

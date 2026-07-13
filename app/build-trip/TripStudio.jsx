@@ -16,6 +16,9 @@ const MONO = "var(--pb-mono)";
 const kicker = { fontFamily: MONO, fontSize: 10, letterSpacing: ".24em", textTransform: "uppercase", color: "#d9b779" };
 const glass = { background: "rgba(14,32,22,0.5)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 18, padding: 18, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", boxShadow: "inset 0 1px 0 rgba(217,183,121,0.06)" };
 const THUMBS = ["linear-gradient(140deg,#2a3826,#12211a)", "linear-gradient(140deg,#3a2f1f,#141f18)", "linear-gradient(140deg,#3a241c,#161d15)", "linear-gradient(140deg,#3a2a1a,#181c14)", "linear-gradient(140deg,#26342a,#101d16)"];
+const US_STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
+const filterField = { background: "rgba(8,19,13,0.7)", border: "1px solid rgba(217,183,121,0.22)", borderRadius: 9, padding: "7px 10px", color: "#e8cf9a", fontFamily: SANS, fontSize: 11.5, outline: "none", colorScheme: "dark" };
+const miniBtn = { cursor: "pointer", fontFamily: MONO, fontSize: 9, letterSpacing: ".08em", textTransform: "uppercase", padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.16)", background: "transparent", color: "#7f8a82" };
 
 // Animate 0→value on first mount (ease-out cubic, ~1.1s); reflect later changes instantly.
 function CountUp({ value, format }) {
@@ -58,6 +61,7 @@ export default function TripStudio(props) {
     gmapsUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
     layers, setLayers, layersOpen, setLayersOpen,
+    mapView, setMapView, browseState, setBrowseState, radius, setRadius,
     fieldBox,
   } = props;
 
@@ -135,6 +139,37 @@ export default function TripStudio(props) {
             <div style={{ position: "absolute", top: 22, left: 26, zIndex: 3, fontFamily: MONO, fontSize: 10, letterSpacing: ".24em", textTransform: "uppercase", color: "#aab0ba", display: "flex", alignItems: "center", gap: 8, pointerEvents: "none", textShadow: "0 1px 8px rgba(0,0,0,.7)" }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#c9a35f" }} />{tripName || "Your route"}
             </div>
+
+            {/* Route ⇄ Explore toggle */}
+            {setMapView && (
+              <div style={{ position: "absolute", top: 50, left: 26, zIndex: 5, display: "flex", padding: 4, gap: 3, background: "rgba(11,23,16,0.62)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}>
+                {[["route", "Route"], ["explore", "Explore"]].map(([id, lbl]) => {
+                  const on = (mapView || "route") === id;
+                  return <button key={id} onClick={() => setMapView(id)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", padding: "6px 14px", borderRadius: 999, border: "none", color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>{lbl}</button>;
+                })}
+              </div>
+            )}
+
+            {/* Explore filter bar — drops in over the top of the map */}
+            {mapView === "explore" && (
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 4, padding: "14px 16px 12px", background: "linear-gradient(180deg, rgba(6,14,10,0.94), rgba(6,14,10,0.35))", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderBottom: "1px solid rgba(217,183,121,0.16)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".16em", textTransform: "uppercase", color: "#d9b779" }}>Discover · tap a pin to add</span>
+                <select value={browseState || ""} onChange={(e) => setBrowseState && setBrowseState(e.target.value)} style={filterField}>
+                  <option value="">All states</option>
+                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", textTransform: "uppercase", color: "#7f8a82" }}>Radius</span>
+                  <input type="range" min="10" max="150" step="5" value={radius || 50} onChange={(e) => setRadius && setRadius(+e.target.value)} style={{ width: 88, accentColor: "#d9b779" }} />
+                  <span style={{ fontFamily: MONO, fontSize: 9, color: "#aab0ba", minWidth: 34 }}>{radius || 50} mi</span>
+                </div>
+                {DEST_LAYERS.map(([k, ic, label]) => (
+                  <button key={k} onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} style={{ cursor: "pointer", fontFamily: SANS, fontSize: 11, padding: "6px 11px", borderRadius: 999, border: "1px solid " + (layers[k] ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: layers[k] ? "rgba(217,183,121,0.14)" : "transparent", color: layers[k] ? "#e8cf9a" : "#7f8a82" }}>{ic} {label}</button>
+                ))}
+                <button onClick={() => setLayers((l) => ({ ...l, np: true, statePark: true, forest: true, byway: true }))} style={miniBtn}>All</button>
+                <button onClick={() => setLayers((l) => ({ ...l, np: false, statePark: false, forest: false, byway: false }))} style={miniBtn}>None</button>
+              </div>
+            )}
 
             {/* layers control — tap a map marker to add these to the trip */}
             <div style={{ position: "absolute", top: 18, right: 18, zIndex: 4 }}>

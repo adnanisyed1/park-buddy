@@ -144,6 +144,7 @@ export default function BuildTripApp() {
   const [addBywaySel, setAddBywaySel] = useState("");
   const [coordInput, setCoordInput] = useState(""); // "lat, lng" for the Coordinates source
   const [railTab, setRailTab] = useState("new"); // Trip Studio mode: "new" editor | "premade" routes | "mine" saved trips
+  const [mapView, setMapView] = useState("route"); // map mode: "route" (itinerary) | "explore" (discover + add)
   const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
   const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
   const [addSource, setAddSource] = useState(null); // Trip Studio "+ Add a stop" → "park" | "scenic" | "place" | null
@@ -540,6 +541,15 @@ export default function BuildTripApp() {
   }
   useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Explore mode: hide the itinerary route + its numbered pins so discoverable place
+  // pins stand out; ensure at least one destination layer is on so there ARE pins.
+  useEffect(() => {
+    const explore = mapView === "explore";
+    routeLinesRef.current.forEach((l) => { try { l.setOptions({ visible: !explore }); } catch {} });
+    routeMarkersRef.current.forEach((m) => { try { m.setVisible(!explore); } catch {} });
+    if (explore) setLayers((l) => (l.np || l.statePark || l.forest || l.byway ? l : { ...l, np: true }));
+  }, [mapView, mapReady, stops]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ---------------- browse markers (Explore-style filters) ---------------- */
 
   // National forests dataset (for the "Forests" layer).
@@ -830,6 +840,7 @@ export default function BuildTripApp() {
           gmapsUrl={gmapsUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}
           layers={layers} setLayers={setLayers} layersOpen={layersOpen} setLayersOpen={setLayersOpen}
+          mapView={mapView} setMapView={setMapView} browseState={browseState} setBrowseState={setBrowseState} radius={radius} setRadius={setRadius}
           fieldBox={fieldBox}
         />
       </div>

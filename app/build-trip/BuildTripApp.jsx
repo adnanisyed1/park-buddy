@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
-import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
+import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta, getSavedTrips, saveTrip as storeSaveTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/trip";
 import SiteHeader from "../components/SiteHeader";
 import TripSetupWizard from "./TripSetupWizard";
 
@@ -120,6 +120,9 @@ export default function BuildTripApp() {
   const [stateParksDb, setStateParksDb] = useState([]);
   const [bywaysDb, setBywaysDb] = useState([]); // America's Byways (scenic drives) — add whole drives as trip stops
   const [addBywaySel, setAddBywaySel] = useState("");
+  const [railTab, setRailTab] = useState("premade"); // top rail: "premade" ready-made routes | "mine" saved trips
+  const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
+  const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
   const dirServiceRef = useRef(null);
@@ -216,6 +219,51 @@ export default function BuildTripApp() {
     setTotalMilesOverride(route.id === "mighty5" ? 720 : route.miles);
     setBudgetOverride(route.id === "mighty5" ? { fuel: 168, lodging: 1040, food: 560, passes: 72 } : { fuel: null, lodging: null, food: null, passes: null });
   }
+
+  // ---- saved trips ("My trips") ----
+  useEffect(() => {
+    setSavedTrips(getSavedTrips());
+    return subscribeSavedTrips(() => setSavedTrips(getSavedTrips()));
+  }, []);
+
+  // Snapshot the current trip (stops + all setup answers) into "My trips".
+  function saveCurrentTrip() {
+    if (!stops.length) { setSaveMsg("Add a stop first."); return; }
+    storeSaveTrip({
+      name: tripName || "My trip",
+      stops: stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })),
+      meta: { tripName, startDate, endDate, adults, infants, travelers, arrivalMode, tripScope, car, transport },
+      days: tripDays, miles: totalMiles,
+    });
+    setSavedTrips(getSavedTrips());
+    setSaveMsg("Saved to “My trips” ✓");
+    setTimeout(() => setSaveMsg(""), 2600);
+  }
+
+  // Reload a saved trip: restore its stops + every setup answer, and make it the
+  // live trip (so it persists + shows across the site).
+  function loadSavedTrip(t) {
+    userEditedRef.current = true;
+    const list = (t.stops || []).map((s) => ({ name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom, ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}) }));
+    setStops(recomputeLegs(list));
+    const m = t.meta || {};
+    setTripName(t.name || m.tripName || "My trip");
+    if (m.startDate) setStartDate(m.startDate);
+    setEndDateOverride(m.endDate || null);
+    if (m.adults) setAdults(m.adults);
+    if (m.infants != null) setInfants(m.infants);
+    if (m.arrivalMode) setArrivalMode(m.arrivalMode);
+    if (m.tripScope) setTripScope(m.tripScope);
+    if (m.car) setCar(m.car);
+    if (m.transport) setTransport(m.transport);
+    setLoadedRoute(null);
+    setTotalMilesOverride(null);
+    setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
+    setRailTab("mine");
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const deleteSavedTrip = (id) => { storeDeleteSavedTrip(id); setSavedTrips(getSavedTrips()); };
 
   const removeStop = (i) => commitStops(stops.filter((_, x) => x !== i));
   const addPark = () => {
@@ -713,14 +761,19 @@ export default function BuildTripApp() {
           </button>
         </section>
 
-        {/* prebuilt rail */}
+        {/* rail — toggle between ready-made routes and the user's saved trips */}
         <section style={{ maxWidth: 1320, margin: "0 auto", width: "100%", padding: "clamp(20px,3vw,30px) clamp(16px,3vw,28px) 6px", boxSizing: "border-box" }}>
-          <div style={{ fontSize: ".72rem", letterSpacing: ".12em", textTransform: "uppercase", color: "#e4be78", fontWeight: 800, marginBottom: 13, display: "flex", alignItems: "center", gap: 9, textShadow: "0 1px 8px rgba(0,0,0,.4)" }}>
+          <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "rgba(9,20,14,.75)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, marginBottom: 15 }}>
+            {[["premade", "Ready-made routes"], ["mine", "My trips" + (savedTrips.length ? " · " + savedTrips.length : "")]].map(([id, label]) => (
+              <button key={id} onClick={() => setRailTab(id)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".76rem", fontWeight: 800, letterSpacing: ".02em", padding: "8px 16px", borderRadius: 999, border: "none", color: railTab === id ? "var(--pb-bg)" : "#cdd8ce", background: railTab === id ? "var(--pb-grad-gold)" : "transparent" }}>{label}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: ".68rem", letterSpacing: ".1em", textTransform: "uppercase", color: "#e4be78", fontWeight: 800, marginBottom: 13, display: "flex", alignItems: "center", gap: 9, textShadow: "0 1px 8px rgba(0,0,0,.4)" }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#c79a4b" }} />
-            Browse ready-made itineraries · tap to load a full route
+            {railTab === "premade" ? "Tap a ready-made itinerary to load a full route" : "Your saved trips · tap to reload one"}
           </div>
           <div className="bt-scroller" style={{ display: "flex", gap: 14, overflowX: "auto", padding: "4px 2px 16px" }}>
-            {ROUTES.map((r) => {
+            {railTab === "premade" && ROUTES.map((r) => {
               const isLoaded = loadedRoute === r.id;
               return (
                 <div key={r.id} onClick={() => { userEditedRef.current = true; loadRoute(r); }} style={{ flex: "none", width: 248, background: "linear-gradient(180deg,rgba(16,34,24,.9),rgba(9,20,14,.9))", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: isLoaded ? "1.5px solid var(--pb-gold)" : "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: isLoaded ? "0 0 0 1px rgba(217,183,121,.3),0 16px 40px -20px rgba(0,0,0,.7)" : "0 16px 40px -20px rgba(0,0,0,.7)" }}>
@@ -735,6 +788,25 @@ export default function BuildTripApp() {
                 </div>
               );
             })}
+            {railTab === "mine" && savedTrips.map((t) => (
+              <div key={t.id} onClick={() => loadSavedTrip(t)} style={{ flex: "none", width: 248, position: "relative", background: "linear-gradient(180deg,rgba(16,34,24,.9),rgba(9,20,14,.9))", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "17px 18px", cursor: "pointer", boxShadow: "0 16px 40px -20px rgba(0,0,0,.7)" }}>
+                <button onClick={(e) => { e.stopPropagation(); deleteSavedTrip(t.id); }} title="Delete this saved trip" style={{ position: "absolute", top: 10, right: 10, width: 24, height: 24, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,20,14,.8)", color: "#b06a4a", cursor: "pointer", fontSize: ".95rem", lineHeight: 1 }}>×</button>
+                <div style={{ fontSize: ".64rem", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Saved trip 🧭</div>
+                <h3 style={{ fontFamily: serif, fontSize: "1.2rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.1, margin: "4px 30px 7px 0" }}>{t.name}</h3>
+                <p style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.45, margin: 0 }}>{(t.stops || []).slice(0, 4).map((s) => s.name).join(" · ")}{(t.stops || []).length > 4 ? " · +" + ((t.stops || []).length - 4) + " more" : ""}</p>
+                <div style={{ display: "flex", gap: 8, marginTop: 12, fontSize: ".72rem", color: "var(--pb-gold-soft)", fontWeight: 700 }}>
+                  <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{(t.stops || []).length} stops</span>
+                  {t.days ? <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{t.days} days</span> : null}
+                  {t.miles ? <span style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: "3px 10px" }}>{t.miles} mi</span> : null}
+                </div>
+              </div>
+            ))}
+            {railTab === "mine" && !savedTrips.length && (
+              <div style={{ flex: "none", maxWidth: 420, border: "1px dashed var(--pb-line-strong)", borderRadius: 20, padding: "18px 20px", color: "var(--pb-ink-2)", background: "rgba(9,20,14,.5)" }}>
+                <b style={{ fontFamily: serif, color: "var(--pb-ink)", fontSize: "1.05rem", display: "block", marginBottom: 5 }}>No saved trips yet</b>
+                <span style={{ fontSize: ".84rem", lineHeight: 1.5 }}>Build a trip below, then hit <b style={{ color: "var(--pb-gold-soft)" }}>Save trip</b> in the setup tile to keep it here for next time.</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -826,6 +898,43 @@ export default function BuildTripApp() {
                   </div>
                 </div>
               </div>
+
+              {/* trip-setup summary — the answers you gave in the wizard, at a glance */}
+              {(() => {
+                const ttLabel = { own: "My own car", rental: "Rental car", fly: "Fly in, then rent", rv: "RV / Camper" }[transport.type] || "My own car";
+                const rows = [
+                  ["Dates", startDate ? fmtDate(startDate) + " → " + fmtDate(endDate) : "—"],
+                  ["Length", (tripDays ? tripDays + " day" + (tripDays === 1 ? "" : "s") : "—") + (totalNights ? " · " + totalNights + " night" + (totalNights === 1 ? "" : "s") : "")],
+                  ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " · " + infants + " kid" + (infants === 1 ? "" : "s") : "")],
+                  ["Getting there", ttLabel + (transport.type === "fly" && transport.flightNo ? " · " + transport.flightNo : "")],
+                  ["Vehicle", transport.type === "rv" ? "RV / Camper" : car],
+                  ...(transport.type === "rental" || transport.type === "fly" ? [["Rental", (transport.rentalDaily ? "$" + transport.rentalDaily + "/day" : "rate not set") + (transport.rentalWhere ? " · " + transport.rentalWhere : "")]] : []),
+                  ["Fuel (est.)", fmtUsd(budget.fuel) + (transport.fuelState ? " · " + transport.fuelState : " · national avg")],
+                  ["Trip scope", tripScope === "crosscountry" ? "Cross-country route" : "Regional loop"],
+                ];
+                return (
+                  <div style={panel}>
+                    <div style={{ padding: "20px 20px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14 }}>
+                        <div style={{ fontSize: ".96rem", fontWeight: 800, color: "var(--pb-ink)", display: "flex", alignItems: "center", gap: 8 }}>⚙ Your trip setup</div>
+                        <button onClick={() => setSetupOpen(true)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 800, letterSpacing: ".03em", color: "var(--pb-gold-soft)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "6px 14px" }}>✎ Edit</button>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 16px" }}>
+                        {rows.map(([k, val]) => (
+                          <div key={k} style={{ minWidth: 0 }}>
+                            <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 2 }}>{k}</div>
+                            <div style={{ fontSize: ".86rem", fontWeight: 700, color: "var(--pb-ink)", lineHeight: 1.25, overflowWrap: "anywhere" }}>{val}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
+                        <button onClick={saveCurrentTrip} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 800, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "10px 20px" }}>💾 Save trip</button>
+                        {saveMsg && <span style={{ fontSize: ".78rem", fontWeight: 700, color: saveMsg.includes("first") ? "#c98a5a" : "#6fce93" }}>{saveMsg}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* step 1: trip details */}
               <div style={panel}>

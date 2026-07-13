@@ -117,6 +117,7 @@ export default function TripStudio(props) {
   const [viewRoute, setViewRoute] = useState(null); // ready-made route open in read-only view
   const [pickTrip, setPickTrip] = useState(false); // show the My-trips picklist inside the view popup
   const [confirmDelete, setConfirmDelete] = useState(null); // saved trip pending a delete confirmation
+  const [viewSaved, setViewSaved] = useState(null); // saved trip open in read-only preview
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
     const on = () => setIsMobile(mq.matches);
@@ -196,8 +197,8 @@ export default function TripStudio(props) {
             <div style={{ position: "absolute", inset: -64, opacity: 0.5, animation: "ts-gridDrift 26s linear infinite", pointerEvents: "none", backgroundImage: "linear-gradient(rgba(217,183,121,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(217,183,121,0.05) 1px, transparent 1px)", backgroundSize: "64px 64px", zIndex: 1 }} />
             <div ref={mapDivRef} style={{ position: "absolute", inset: 0, top: isMobile ? (sheetOpen ? 40 : 106) : 0 }} />
 
-            {/* map is locked until there's a trip to show (empty Edit-trip state) */}
-            {mode === "new" && !editing && !stops.length && (
+            {/* map stays locked until a trip exists — on any rail tab */}
+            {!editing && !stops.length && (
               <div style={{ position: "absolute", inset: 0, zIndex: 12, background: "rgba(6,13,10,0.72)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
                 <div style={{ display: "inline-flex", width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 14 }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
@@ -653,7 +654,7 @@ export default function TripStudio(props) {
                     const nights = (t.stops || []).reduce((a, s) => a + (Number(s.nights) || 0), 0);
                     return (
                       <div key={t.id} className="ts-hoverline" style={{ display: "flex", flexDirection: "column", gap: 12, background: "rgba(14,32,22,0.5)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 16, padding: 14, backdropFilter: "blur(10px)" }}>
-                        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                        <div onClick={() => setViewSaved(t)} style={{ display: "flex", gap: 14, alignItems: "center", cursor: "pointer" }}>
                           <div style={{ width: 96, height: 82, flex: "none", borderRadius: 12, position: "relative", overflow: "hidden", border: "1px solid rgba(217,183,121,0.18)", background: THUMBS[i % THUMBS.length] }}>
                             <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
                           </div>
@@ -677,6 +678,43 @@ export default function TripStudio(props) {
           </div>
         </div>
       </div>
+
+      {/* My-trips — read-only preview + Edit / Delete */}
+      {viewSaved && (() => {
+        const st = viewSaved.stops || [];
+        const nn = st.reduce((a, s) => a + (Number(s.nights) || 0), 0);
+        return (
+          <div onClick={() => setViewSaved(null)} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
+              <div style={{ flex: "none", padding: "18px 20px 14px", borderBottom: "1px solid rgba(217,183,121,0.12)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#7f8a82" }} />Trip preview</span>
+                  <button onClick={() => setViewSaved(null)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+                </div>
+                <div style={{ fontFamily: SERIF, fontSize: 23, fontWeight: 500, color: "#f4f1ea", marginTop: 8 }}>{viewSaved.name}</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{st.length} stop{st.length === 1 ? "" : "s"}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{nn} night{nn === 1 ? "" : "s"}</span>
+                </div>
+              </div>
+              <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
+                {!st.length && <div style={{ fontFamily: SANS, fontSize: 13, color: "#7f8a82", padding: "8px 0" }}>No stops yet in this trip.</div>}
+                {st.map((s, idx) => (
+                  <div key={s.name + idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 0", borderTop: idx ? "1px solid rgba(217,183,121,0.08)" : "none" }}>
+                    <span style={{ width: 26, height: 26, flex: "none", borderRadius: "50%", border: "1px solid rgba(217,183,121,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 11, color: "#e8cf9a" }}>{idx + 1}</span>
+                    <span style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>{s.name}</span>
+                    <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 9, color: "#7f8a82" }}>{(s.nights || 0)} night{(s.nights || 0) === 1 ? "" : "s"}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ flex: "none", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "12px 20px 18px", borderTop: "1px solid rgba(217,183,121,0.12)", background: "rgba(6,14,10,0.6)" }}>
+                <button onClick={() => { const t = viewSaved; setViewSaved(null); loadSavedTrip(t); }} className="ts-goldbtn" style={{ padding: 12, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Edit this trip</button>
+                <button onClick={() => { const t = viewSaved; setViewSaved(null); setConfirmDelete(t); }} className="ts-navtile" style={{ ...navTile, justifyContent: "center", color: "#c98a6a", borderColor: "rgba(176,106,74,0.4)" }}>Delete</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Ready-made itinerary — read-only view + Clone / Add-to-a-trip */}
       {viewRoute && (

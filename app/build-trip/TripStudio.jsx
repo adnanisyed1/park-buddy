@@ -166,7 +166,7 @@ export default function TripStudio(props) {
               <div style={{ width: 14, height: 14, border: "2px solid #0a1712", borderRadius: "50%" }} />
             </div>
             <div style={{ lineHeight: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 22, color: "#f4f1ea", letterSpacing: ".01em" }}>Trip Studio</div>
+              <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 22, color: "#f4f1ea", letterSpacing: ".01em" }}>Trip Studio</div>
               <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: ".26em", textTransform: "uppercase", color: "#7f8a82", marginTop: 3 }}>Park Buddy</div>
             </div>
           </div>
@@ -202,7 +202,7 @@ export default function TripStudio(props) {
                 <div style={{ display: "inline-flex", width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 14 }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                 </div>
-                <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea" }}>Your map appears here</div>
+                <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea" }}>Your map appears here</div>
                 <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#aab0ba", marginTop: 6, maxWidth: 280, lineHeight: 1.5 }}>Add a trip to plot your route, stops and live conditions.</div>
               </div>
             )}
@@ -324,7 +324,7 @@ export default function TripStudio(props) {
                 <div key={s.label} style={{ display: "flex", alignItems: "center" }}>
                   {i > 0 && <div style={{ width: 1, alignSelf: "stretch", background: "rgba(217,183,121,0.16)", margin: "8px 0" }} />}
                   <div style={{ padding: "10px 18px", textAlign: "center" }}>
-                    <div style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 600, color: i === 3 ? "#e8cf9a" : "#f4f1ea", lineHeight: 1 }}><CountUp value={s.num} format={s.fmt} /></div>
+                    <div style={{ fontFamily: SERIF, fontSize: 28, fontWeight: 500, color: i === 3 ? "#e8cf9a" : "#f4f1ea", lineHeight: 1 }}><CountUp value={s.num} format={s.fmt} /></div>
                     <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".22em", textTransform: "uppercase", color: "#7f8a82", marginTop: 6 }}>{s.label}</div>
                   </div>
                 </div>
@@ -341,7 +341,7 @@ export default function TripStudio(props) {
             {mode === "new" && !editing && !stops.length && (
               <div style={{ ...glass, textAlign: "center", padding: "40px 24px" }}>
                 <div style={{ display: "inline-flex", width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 16 }}><TSIcon name="pin" size={24} /></div>
-                <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 600, color: "#f4f1ea" }}>No trip yet</div>
+                <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 500, color: "#f4f1ea" }}>No trip yet</div>
                 <div style={{ fontFamily: SANS, fontSize: 13.5, color: "#aab0ba", lineHeight: 1.6, margin: "10px auto 22px", maxWidth: 320 }}>Add a new trip and answer a few quick questions, or pick one you&apos;ve saved or a ready-made itinerary.</div>
                 <button onClick={onNewTrip} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>＋ Add a new trip</button>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 10 }}>
@@ -364,11 +364,11 @@ export default function TripStudio(props) {
                     )}
                   </div>
                   <input value={tripName || ""} onChange={(e) => setTripName && setTripName(e.target.value)} placeholder="Name your trip"
-                    style={{ width: "100%", marginTop: 6, background: "transparent", border: "none", borderBottom: "1px dashed rgba(217,183,121,0.35)", color: "#f4f1ea", fontFamily: SERIF, fontSize: 26, fontWeight: 600, outline: "none", padding: "2px 0 6px", boxSizing: "border-box" }} />
+                    style={{ width: "100%", marginTop: 6, background: "transparent", border: "none", borderBottom: "1px dashed rgba(217,183,121,0.35)", color: "#f4f1ea", fontFamily: SERIF, fontSize: 26, fontWeight: 500, outline: "none", padding: "2px 0 6px", boxSizing: "border-box" }} />
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 14 }}>
                     {stat4.map((s, i) => (
                       <div key={s.label} style={{ background: "rgba(8,19,13,0.6)", border: "1px solid rgba(217,183,121,0.12)", borderRadius: 11, padding: "10px 6px", textAlign: "center", minWidth: 0 }}>
-                        <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 600, color: i === 3 ? "#e8cf9a" : "#f4f1ea", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis" }}><CountUp value={s.num} format={s.fmt} /></div>
+                        <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: i === 3 ? "#e8cf9a" : "#f4f1ea", lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis" }}><CountUp value={s.num} format={s.fmt} /></div>
                         <div style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".12em", textTransform: "uppercase", color: "#7f8a82", marginTop: 6 }}>{s.label}</div>
                       </div>
                     ))}
@@ -430,7 +430,7 @@ export default function TripStudio(props) {
                               {s.kind === "byway" && <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".08em", color: "#e8cf9a" }}>⛰ SCENIC</span>}
                               <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".16em", textTransform: "uppercase", color: "#c9a35f" }}>{dayRanges[i] ? dayRanges[i].label : ""}</span>
                             </div>
-                            <div style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.15, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                            <div style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 500, color: "#f4f1ea", lineHeight: 1.15, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                               <span style={{ fontFamily: SANS, fontSize: 11, color: "#7f8a82" }}>{
                                 i === 0
@@ -566,7 +566,7 @@ export default function TripStudio(props) {
                           <div style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.2 }}>{label}</div>
                           <div style={{ fontFamily: SANS, fontSize: 11, color: "#7f8a82", marginTop: 2 }}>{sub}</div>
                         </div>
-                        <div style={{ flex: "none", fontFamily: SERIF, fontSize: 17, fontWeight: 600, color: "#f4f1ea" }}><BudgetAmount k={k} /></div>
+                        <div style={{ flex: "none", fontFamily: SERIF, fontSize: 17, fontWeight: 500, color: "#f4f1ea" }}><BudgetAmount k={k} /></div>
                       </div>
                     )))}
                   </div>
@@ -575,7 +575,7 @@ export default function TripStudio(props) {
                       <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".2em", textTransform: "uppercase", color: "#7f8a82" }}>Estimated total</div>
                       <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#aab0ba", marginTop: 5 }}>≈ {fmtUsd(perPerson)} per person</div>
                     </div>
-                    <div style={{ fontFamily: SERIF, fontSize: 34, fontWeight: 600, color: "#e8cf9a", lineHeight: 1 }}>{fmtUsd(totalCost)}</div>
+                    <div style={{ fontFamily: SERIF, fontSize: 34, fontWeight: 500, color: "#e8cf9a", lineHeight: 1 }}>{fmtUsd(totalCost)}</div>
                   </div>
                   <div style={{ fontFamily: SANS, fontSize: 11, fontStyle: "italic", color: "#7f8a82", marginTop: 10 }}>Tap any amount to enter your real price.</div>
                 </div>
@@ -629,7 +629,7 @@ export default function TripStudio(props) {
                           <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.1 }}>{r.emoji} {r.name}</div>
+                          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea", lineHeight: 1.1 }}>{r.emoji} {r.name}</div>
                           <div style={{ fontSize: 11.5, color: "#aab0ba", marginTop: 5, lineHeight: 1.4 }}>{r.desc}</div>
                           <div style={{ display: "flex", gap: 8, marginTop: 11, flexWrap: "wrap" }}>
                             {[r.stops.length + " stops", r.days + " days", r.miles + " mi"].map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
@@ -658,7 +658,7 @@ export default function TripStudio(props) {
                             <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.1 }}>{t.name}</div>
+                            <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea", lineHeight: 1.1 }}>{t.name}</div>
                             <div style={{ fontSize: 11.5, color: "#aab0ba", marginTop: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n ? (t.stops || []).slice(0, 4).map((s) => s.name).join(" · ") : "No stops"}</div>
                             <span style={{ display: "inline-block", fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, marginTop: 10, background: "rgba(143,214,166,0.12)", color: "#8fd6a6" }}>{n} stop{n === 1 ? "" : "s"} · {nights} night{nights === 1 ? "" : "s"}</span>
                           </div>
@@ -687,7 +687,7 @@ export default function TripStudio(props) {
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#7f8a82" }} />Read-only itinerary</span>
                 <button onClick={() => { setViewRoute(null); setPickTrip(false); }} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
               </div>
-              <div style={{ fontFamily: SERIF, fontSize: 23, fontWeight: 600, color: "#f4f1ea", marginTop: 8 }}>{viewRoute.emoji} {viewRoute.name}</div>
+              <div style={{ fontFamily: SERIF, fontSize: 23, fontWeight: 500, color: "#f4f1ea", marginTop: 8 }}>{viewRoute.emoji} {viewRoute.name}</div>
               <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#aab0ba", marginTop: 5, lineHeight: 1.4 }}>{viewRoute.desc}</div>
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 {[viewRoute.stops.length + " stops", viewRoute.days + " days", viewRoute.miles + " mi"].map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
@@ -735,7 +735,7 @@ export default function TripStudio(props) {
             <div style={{ display: "inline-flex", width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", color: "#c98a6a", background: "rgba(176,106,74,0.12)", border: "1px solid rgba(176,106,74,0.35)", marginBottom: 14 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></svg>
             </div>
-            <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 600, color: "#f4f1ea" }}>Delete this trip?</div>
+            <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea" }}>Delete this trip?</div>
             <div style={{ fontFamily: SANS, fontSize: 13, color: "#aab0ba", marginTop: 8, lineHeight: 1.55 }}>“{confirmDelete.name}” will be permanently removed from your trips. This can’t be undone.</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22 }}>
               <button onClick={() => setConfirmDelete(null)} className="ts-navtile" style={{ ...navTile, justifyContent: "center" }}>Cancel</button>
@@ -754,7 +754,7 @@ export default function TripStudio(props) {
                 <div style={kicker}>Add to your trip</div>
                 <button onClick={() => setPendingRoute(null)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
               </div>
-              <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 600, color: "#f4f1ea", marginTop: 8 }}>{pendingRoute.emoji} {pendingRoute.name}</div>
+              <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: "#f4f1ea", marginTop: 8 }}>{pendingRoute.emoji} {pendingRoute.name}</div>
               <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 5 }}>Adds {pendingRoute.stops.filter((n) => !stops.some((s) => s.name === n)).length || pendingRoute.stops.length} stop{pendingRoute.stops.length === 1 ? "" : "s"} — pick where they go in your trip.</div>
             </div>
             <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px 20px 18px" }}>
@@ -859,7 +859,7 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
       <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 520, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderTopLeftRadius: 22, borderTopRightRadius: 22, boxShadow: "0 -30px 80px -20px rgba(0,0,0,0.9)" }}>
         {/* header */}
         <div style={{ flex: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 12px" }}>
-          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea" }}>Add a stop</div>
+          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea" }}>Add a stop</div>
           <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
         </div>
         {/* search */}

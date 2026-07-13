@@ -966,7 +966,7 @@ export default function BuildTripApp() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "7px 14px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.28)", background: "rgba(143,214,166,0.06)", fontFamily: "var(--pb-mono)", fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: "#cdd6cf" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#8fd6a6", boxShadow: "0 0 10px #8fd6a6" }} />Trip builder · live conditions baked in
           </div>
-          <h1 style={{ fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "clamp(38px,6.2vw,74px)", lineHeight: 1.03, letterSpacing: "-.01em", color: "#f4f1ea", margin: "20px 0 0", maxWidth: 940 }}>
+          <h1 style={{ fontFamily: "var(--pb-serif)", fontWeight: 500, fontSize: "clamp(40px,6.6vw,76px)", lineHeight: 1.0, letterSpacing: "-.015em", color: "#f7f4ec", margin: "20px 0 0", maxWidth: 940 }}>
             Build your <em style={{ fontStyle: "italic", background: "linear-gradient(120deg,#f0dca8,#c9a35f)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>national-parks</em> road trip
           </h1>
           <p style={{ fontFamily: "var(--pb-sans)", fontSize: "clamp(15px,1.5vw,18px)", lineHeight: 1.6, color: "#aab0ba", margin: "18px 0 0", maxWidth: 640 }}>

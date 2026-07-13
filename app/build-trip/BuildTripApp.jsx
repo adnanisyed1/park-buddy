@@ -257,6 +257,29 @@ export default function BuildTripApp() {
     setRailTab("new"); // show the loaded route in the editor
   }
 
+  // Merge a ready-made route INTO the current trip at a chosen position (index in
+  // the current stops list). Skips parks already in the trip. If the trip is empty,
+  // this becomes the trip (named after the route) and gets saved to My trips.
+  function insertRouteAt(route, index, db = parksDb) {
+    const add = route.stops
+      .map((name, i) => {
+        const p = db.find((x) => x.name === name);
+        return p ? { name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: route.nights[i], legMi: null } : null;
+      })
+      .filter(Boolean)
+      .filter((s) => !stops.some((x) => x.name === s.name));
+    if (!add.length) return;
+    const wasEmpty = stops.length === 0;
+    const next = stops.slice();
+    next.splice(Math.max(0, Math.min(index, next.length)), 0, ...add);
+    commitStops(next);
+    if (wasEmpty) {
+      setTripName(route.name);
+      if (!activeTripId) wantsSaveRef.current = true; // create the My-trips entry
+    }
+    setRailTab("new");
+  }
+
   // ---- saved trips ("My trips") ----
   useEffect(() => {
     setSavedTrips(getSavedTrips());
@@ -303,7 +326,20 @@ export default function BuildTripApp() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  const deleteSavedTrip = (id) => { storeDeleteSavedTrip(id); setSavedTrips(getSavedTrips()); };
+  const deleteSavedTrip = (id) => {
+    storeDeleteSavedTrip(id);
+    // If we're deleting the trip currently checked out, drop out of Edit mode and
+    // clear the canvas — otherwise the autosave immediately re-creates the entry.
+    if (id === activeTripId) {
+      setActiveTripId(null);
+      try { localStorage.removeItem("pb_active_trip_id"); } catch {}
+      setStops([]); setLoadedRoute(null); setTotalMilesOverride(null);
+      setTripName("My national-parks trip");
+      setBudgetOverride({ fuel: null, lodging: null, food: null, passes: null, flights: null, rental: null });
+      tripSetStops([]);
+    }
+    setSavedTrips(getSavedTrips());
+  };
 
   // Start a fresh, blank trip (the "New trip" action).
   // −/+ nights on a stop (min 1) — the itinerary stepper (Trip Studio spec 3a).
@@ -948,7 +984,7 @@ export default function BuildTripApp() {
             { label: "Park passes", icon: "ticket", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
           ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
-          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute}
+          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
           gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}

@@ -92,7 +92,7 @@ export default function TripStudio(props) {
     coordInput, setCoordInput, addCoords,
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
-    routes, loadedRoute, loadRoute,
+    routes, loadedRoute, loadRoute, insertRouteAt,
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, appleUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
@@ -113,6 +113,7 @@ export default function TripStudio(props) {
   const [isMobile, setIsMobile] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mobileAddOpen, setMobileAddOpen] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState(null); // ready-made route awaiting an insertion point
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 900px)");
     const on = () => setIsMobile(mq.matches);
@@ -191,6 +192,17 @@ export default function TripStudio(props) {
             : { flex: "1.62 1 0", position: "relative", overflow: "hidden", background: "radial-gradient(900px 620px at 60% 35%, #0d1f16, #08130d 70%)", minHeight: 520 }}>
             <div style={{ position: "absolute", inset: -64, opacity: 0.5, animation: "ts-gridDrift 26s linear infinite", pointerEvents: "none", backgroundImage: "linear-gradient(rgba(217,183,121,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(217,183,121,0.05) 1px, transparent 1px)", backgroundSize: "64px 64px", zIndex: 1 }} />
             <div ref={mapDivRef} style={{ position: "absolute", inset: 0, top: isMobile ? (sheetOpen ? 40 : 106) : 0 }} />
+
+            {/* map is locked until there's a trip to show (empty Edit-trip state) */}
+            {mode === "new" && !editing && !stops.length && (
+              <div style={{ position: "absolute", inset: 0, zIndex: 12, background: "rgba(6,13,10,0.72)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
+                <div style={{ display: "inline-flex", width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 14 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                </div>
+                <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea" }}>Your map appears here</div>
+                <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#aab0ba", marginTop: 6, maxWidth: 280, lineHeight: 1.5 }}>Add a trip to plot your route, stops and live conditions.</div>
+              </div>
+            )}
 
             {/* mobile grabber / peek header */}
             {isMobile && (
@@ -605,20 +617,23 @@ export default function TripStudio(props) {
 
             {mode === "premade" && (
               <div>
-                <div style={{ ...kicker, marginBottom: 16 }}>Ready-made routes · tap to load</div>
+                <div style={{ ...kicker, marginBottom: 16 }}>Ready-made routes</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {routes.map((r, i) => (
-                    <div key={r.id} onClick={() => loadRoute(r)} className="ts-hoverline" style={{ display: "flex", gap: 14, background: loadedRoute === r.id ? "rgba(14,32,22,0.8)" : "rgba(14,32,22,0.5)", border: "1px solid " + (loadedRoute === r.id ? "rgba(217,183,121,0.45)" : "rgba(217,183,121,0.16)"), borderRadius: 16, padding: 14, backdropFilter: "blur(10px)", cursor: "pointer" }}>
-                      <div style={{ width: 96, height: 82, flex: "none", borderRadius: 12, position: "relative", overflow: "hidden", border: "1px solid rgba(217,183,121,0.18)", background: THUMBS[i % THUMBS.length] }}>
-                        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.1 }}>{r.emoji} {r.name}</div>
-                        <div style={{ fontSize: 11.5, color: "#aab0ba", marginTop: 5, lineHeight: 1.4 }}>{r.desc}</div>
-                        <div style={{ display: "flex", gap: 8, marginTop: 11, flexWrap: "wrap" }}>
-                          {[r.stops.length + " stops", r.days + " days", r.miles + " mi"].map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
+                    <div key={r.id} className="ts-hoverline" style={{ display: "flex", flexDirection: "column", gap: 12, background: loadedRoute === r.id ? "rgba(14,32,22,0.8)" : "rgba(14,32,22,0.5)", border: "1px solid " + (loadedRoute === r.id ? "rgba(217,183,121,0.45)" : "rgba(217,183,121,0.16)"), borderRadius: 16, padding: 14, backdropFilter: "blur(10px)" }}>
+                      <div style={{ display: "flex", gap: 14 }}>
+                        <div style={{ width: 96, height: 82, flex: "none", borderRadius: 12, position: "relative", overflow: "hidden", border: "1px solid rgba(217,183,121,0.18)", background: THUMBS[i % THUMBS.length] }}>
+                          <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(217,183,121,0.14) 0 2px, transparent 2px 9px)" }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.1 }}>{r.emoji} {r.name}</div>
+                          <div style={{ fontSize: 11.5, color: "#aab0ba", marginTop: 5, lineHeight: 1.4 }}>{r.desc}</div>
+                          <div style={{ display: "flex", gap: 8, marginTop: 11, flexWrap: "wrap" }}>
+                            {[r.stops.length + " stops", r.days + " days", r.miles + " mi"].map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
+                          </div>
                         </div>
                       </div>
+                      <button onClick={() => { if (!stops.length) { insertRouteAt(r, 0); } else { setPendingRoute(r); } }} className="ts-goldbtn" style={{ width: "100%", padding: 11, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5, boxShadow: "0 10px 26px -12px rgba(217,183,121,0.6)" }}>{stops.length ? "＋ Add this itinerary to your trip" : "Use this itinerary"}</button>
                     </div>
                   ))}
                 </div>
@@ -627,8 +642,8 @@ export default function TripStudio(props) {
 
             {mode === "mine" && (
               <div>
-                <div style={{ ...kicker, marginBottom: 16 }}>My trips · tap to reload</div>
-                {!savedTrips.length && <div style={{ border: "1px dashed rgba(217,183,121,0.3)", borderRadius: 16, padding: 18, color: "#aab0ba", fontSize: 13, lineHeight: 1.55 }}><b style={{ fontFamily: SERIF, color: "#f4f1ea", fontSize: 16, display: "block", marginBottom: 5 }}>No saved trips yet</b>Build a trip under <b style={{ color: "#e8cf9a" }}>New trip</b>, then hit Save trip.</div>}
+                <div style={{ ...kicker, marginBottom: 16 }}>My trips · tap to open</div>
+                {!savedTrips.length && <div style={{ border: "1px dashed rgba(217,183,121,0.3)", borderRadius: 16, padding: 18, color: "#aab0ba", fontSize: 13, lineHeight: 1.55 }}><b style={{ fontFamily: SERIF, color: "#f4f1ea", fontSize: 16, display: "block", marginBottom: 5 }}>No saved trips yet</b>Hit <b style={{ color: "#e8cf9a" }}>＋ Add a new trip</b> to start one — it saves here automatically.</div>}
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {savedTrips.map((t, i) => {
                     const n = (t.stops || []).length;
@@ -654,6 +669,36 @@ export default function TripStudio(props) {
           </div>
         </div>
       </div>
+
+      {/* Ready-made itinerary → choose where to slot it into the current trip */}
+      {pendingRoute && (
+        <div onClick={() => setPendingRoute(null)} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, maxHeight: "86vh", display: "flex", flexDirection: "column", background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 20, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
+            <div style={{ flex: "none", padding: "18px 20px 12px", borderBottom: "1px solid rgba(217,183,121,0.12)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div style={kicker}>Add to your trip</div>
+                <button onClick={() => setPendingRoute(null)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+              </div>
+              <div style={{ fontFamily: SERIF, fontSize: 21, fontWeight: 600, color: "#f4f1ea", marginTop: 8 }}>{pendingRoute.emoji} {pendingRoute.name}</div>
+              <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 5 }}>Adds {pendingRoute.stops.filter((n) => !stops.some((s) => s.name === n)).length || pendingRoute.stops.length} stop{pendingRoute.stops.length === 1 ? "" : "s"} — pick where they go in your trip.</div>
+            </div>
+            <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px 20px 18px" }}>
+              {Array.from({ length: stops.length + 1 }).map((_, pos) => {
+                const label = pos === 0
+                  ? (stops.length ? "At the very start · before " + stops[0].name : "Start my trip with it")
+                  : pos === stops.length
+                    ? "At the end · after " + stops[stops.length - 1].name
+                    : "Between " + stops[pos - 1].name + " and " + stops[pos].name;
+                return (
+                  <button key={pos} onClick={() => { insertRouteAt(pendingRoute, pos); setPendingRoute(null); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "flex-start", textAlign: "left", marginBottom: 8, padding: "12px 14px", fontSize: 13 }}>
+                    <span style={{ fontFamily: MONO, fontSize: 9, color: "#c9a35f", marginRight: 4 }}>{pos + 1}.</span>{label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* mobile: search-first add-a-stop popup (spec §7a) */}
       {mobileAddOpen && (

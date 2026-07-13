@@ -48,6 +48,28 @@ function ModeIcon({ id }) {
   return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /></svg>;
 }
 
+// Monochrome line-icon set (Lucide geometry) — replaces emoji in the budget +
+// navigate tiles. stroke=currentColor so each takes its parent's color/tint.
+function TSIcon({ name, size = 16 }) {
+  const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (name) {
+    case "plane": return <svg {...p}><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" /></svg>;
+    case "car": return <svg {...p}><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C1.4 11.3 1 12 1 13v3c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><path d="M9 17h6" /><circle cx="17" cy="17" r="2" /></svg>;
+    case "caravan": return <svg {...p}><path d="M2 9a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v8h3v1a1 1 0 0 1-1 1h-2" /><path d="M2 17V9" /><rect width="6" height="4" x="5" y="10" rx="1" /><circle cx="10" cy="17" r="2" /><path d="M2 17h6" /></svg>;
+    case "fuel": return <svg {...p}><line x1="3" x2="15" y1="22" y2="22" /><line x1="4" x2="14" y1="9" y2="9" /><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18" /><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0V9.83a2 2 0 0 0-.59-1.42L18 5" /></svg>;
+    case "bed": return <svg {...p}><path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8" /><path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4" /><path d="M2 18h20" /><path d="M12 4v6" /></svg>;
+    case "utensils": return <svg {...p}><path d="M3 2v7c0 1.1.9 2 2 2a2 2 0 0 0 2-2V2" /><path d="M7 2v20" /><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" /></svg>;
+    case "ticket": return <svg {...p}><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /><path d="M13 5v2M13 17v2M13 11v2" /></svg>;
+    case "pin": return <svg {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>;
+    case "apple": return <svg {...p}><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z" /><path d="M10 2c1 .5 2 2 2 5" /></svg>;
+    case "chat": return <svg {...p}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>;
+    case "link": return <svg {...p}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>;
+    case "printer": return <svg {...p}><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" /><rect width="12" height="8" x="6" y="14" /></svg>;
+    case "book": return <svg {...p}><path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg>;
+    default: return null;
+  }
+}
+
 function ModeBtn({ id, label, mode, setMode }) {
   const on = mode === id;
   return (
@@ -113,6 +135,14 @@ export default function TripStudio(props) {
         .ts-scroll::-webkit-scrollbar { width: 8px; }
         .ts-scroll::-webkit-scrollbar-thumb { background: rgba(217,183,121,.18); border-radius: 8px; }
         .ts-hoverline:hover { border-color: rgba(217,183,121,.4) !important; }
+        .ts-navtile { transition: border-color .18s, background .18s, color .18s, transform .08s; }
+        .ts-navtile:hover { border-color: rgba(217,183,121,.5) !important; background: rgba(217,183,121,.09) !important; color: #f4f1ea !important; }
+        .ts-navtile:active { transform: translateY(1px); }
+        .ts-budrow { transition: background .15s; border-radius: 10px; }
+        .ts-budrow:hover { background: rgba(217,183,121,.05); }
+        .ts-goldbtn { transition: transform .12s, box-shadow .22s, filter .22s; }
+        .ts-goldbtn:hover { filter: brightness(1.05); box-shadow: 0 16px 42px -12px rgba(217,183,121,.75) !important; transform: translateY(-1px); }
+        .ts-goldbtn:active { transform: translateY(0); filter: brightness(.98); }
         @media (max-width: 900px) {
           .ts-body { flex-direction: column !important; }
           .ts-modules { order: 1; flex: none !important; border-left: none !important; max-height: none !important; overflow: visible !important; padding-bottom: 120px !important; }
@@ -402,7 +432,7 @@ export default function TripStudio(props) {
 
                   {/* add a stop */}
                   <div style={{ position: "relative", marginTop: 14 }}>
-                    <button onClick={() => { if (isMobile) { setMobileAddOpen(true); } else { setAddMenuOpen(!addMenuOpen); setAddSource(null); } }} style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
+                    <button onClick={() => { if (isMobile) { setMobileAddOpen(true); } else { setAddMenuOpen(!addMenuOpen); setAddSource(null); } }} className="ts-goldbtn" style={{ width: "100%", padding: 13, borderRadius: 13, border: "1px solid rgba(217,183,121,0.3)", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 600, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
                       <span style={{ fontSize: 17, lineHeight: 1 }}>+</span> Add a stop
                     </button>
                     {addMenuOpen && !addSource && (
@@ -493,8 +523,8 @@ export default function TripStudio(props) {
                   <div style={kicker}>Budget</div>
                   <div style={{ display: "flex", flexDirection: "column", marginTop: 14 }}>
                     {budgetLines.map(({ label, icon, tint, sub, k, show }) => (show === false ? null : (
-                      <div key={k} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: "1px solid rgba(217,183,121,0.09)" }}>
-                        <div style={{ width: 34, height: 34, flex: "none", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, background: hexA(tint, 0.14), border: "1px solid " + hexA(tint, 0.3) }}>{icon}</div>
+                      <div key={k} className="ts-budrow" style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 8px", margin: "0 -8px", borderTop: "1px solid rgba(217,183,121,0.09)" }}>
+                        <div style={{ width: 34, height: 34, flex: "none", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: tint, background: hexA(tint, 0.14), border: "1px solid " + hexA(tint, 0.3) }}><TSIcon name={icon} size={17} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "#f4f1ea", lineHeight: 1.2 }}>{label}</div>
                           <div style={{ fontFamily: SANS, fontSize: 11, color: "#7f8a82", marginTop: 2 }}>{sub}</div>
@@ -517,14 +547,14 @@ export default function TripStudio(props) {
                 <div style={{ ...glass, marginTop: 14 }}>
                   <div style={kicker}>Navigate &amp; share</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginTop: 14 }}>
-                    <a href={gmapsUrl} target="_blank" rel="noreferrer" style={navTile}>Google Maps</a>
-                    <a href={appleUrl} target="_blank" rel="noreferrer" style={navTile}>Apple Maps</a>
-                    <a href={waUrl} target="_blank" rel="noreferrer" style={navTile}>WhatsApp</a>
-                    <button onClick={copyLink} style={{ ...navTile, cursor: "pointer" }}>Copy link</button>
-                    <a href="/trip-print" style={navTile}>🖨 Print / PDF</a>
-                    <a href="/trip-book" style={navTile}>📖 Trip Book</a>
+                    <a href={gmapsUrl} target="_blank" rel="noreferrer" className="ts-navtile" style={navTile}><TSIcon name="pin" size={14} />Google Maps</a>
+                    <a href={appleUrl} target="_blank" rel="noreferrer" className="ts-navtile" style={navTile}><TSIcon name="apple" size={14} />Apple Maps</a>
+                    <a href={waUrl} target="_blank" rel="noreferrer" className="ts-navtile" style={navTile}><TSIcon name="chat" size={14} />WhatsApp</a>
+                    <button onClick={copyLink} className="ts-navtile" style={{ ...navTile, cursor: "pointer" }}><TSIcon name="link" size={14} />Copy link</button>
+                    <a href="/trip-print" className="ts-navtile" style={navTile}><TSIcon name="printer" size={14} />Print / PDF</a>
+                    <a href="/trip-book" className="ts-navtile" style={navTile}><TSIcon name="book" size={14} />Trip Book</a>
                   </div>
-                  <a href="/trip-mode" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", width: "100%", marginTop: 12, padding: 13, borderRadius: 13, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
+                  <a href="/trip-mode" className="ts-goldbtn" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", width: "100%", marginTop: 12, padding: 13, borderRadius: 13, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>
                     <span style={{ display: "inline-flex", width: 8, height: 8, borderRadius: "50%", border: "2px solid #0a1712" }} />Start Trip Mode
                   </a>
                 </div>
@@ -546,7 +576,7 @@ export default function TripStudio(props) {
 
                 {/* add my trip → My trips */}
                 {addMyTrip && (
-                  <button onClick={addMyTrip} style={{ width: "100%", marginTop: 14, padding: 14, borderRadius: 13, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, cursor: "pointer", boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>+ Add my trip</button>
+                  <button onClick={addMyTrip} className="ts-goldbtn" style={{ width: "100%", marginTop: 14, padding: 14, borderRadius: 13, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 13.5, cursor: "pointer", boxShadow: "0 12px 30px -12px rgba(217,183,121,0.6)" }}>+ Add my trip</button>
                 )}
               </div>
             )}

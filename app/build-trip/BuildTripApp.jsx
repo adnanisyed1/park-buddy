@@ -882,12 +882,12 @@ export default function BuildTripApp() {
           onEditSetup={() => setSetupOpen(true)} onSaveTrip={saveCurrentTrip} saveMsg={saveMsg}
           budgetOpen={budgetOpen} setBudgetOpen={setBudgetOpen}
           budgetLines={[
-            { label: "Flights", icon: "✈️", tint: "#6fb4d6", k: "flights", sub: adults + " adult" + (adults === 1 ? "" : "s") + (arrivalMode === "fly" ? "" : " · not flying"), show: budget.flights > 0 || budgetOverride.flights != null },
-            { label: transport.type === "rv" ? "RV rental" : "Rental car", icon: transport.type === "rv" ? "🚐" : "🚙", tint: "#7fb0d0", k: "rental", sub: transport.rentalDaily ? fmtUsd(transport.rentalDaily) + "/day × " + tripDays + " day" + (tripDays === 1 ? "" : "s") : "tap to enter real price", show: budget.rental > 0 || budgetOverride.rental != null },
-            { label: "Fuel", icon: "⛽", tint: "#d6795a", k: "fuel", sub: totalMiles + " mi" + (transport.fuelState ? " · " + transport.fuelState : "") },
-            { label: "Lodging", icon: "🏨", tint: "#d68fa0", k: "lodging", sub: totalNights + " night" + (totalNights === 1 ? "" : "s") },
-            { label: "Food", icon: "🍔", tint: "#e0b46a", k: "food", sub: adults + " adult" + (adults === 1 ? "" : "s") },
-            { label: "Park passes", icon: "🎟️", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
+            { label: "Flights", icon: "plane", tint: "#6fb4d6", k: "flights", sub: adults + " adult" + (adults === 1 ? "" : "s") + (arrivalMode === "fly" ? "" : " · not flying"), show: budget.flights > 0 || budgetOverride.flights != null },
+            { label: transport.type === "rv" ? "RV rental" : "Rental car", icon: transport.type === "rv" ? "caravan" : "car", tint: "#7fb0d0", k: "rental", sub: transport.rentalDaily ? fmtUsd(transport.rentalDaily) + "/day × " + tripDays + " day" + (tripDays === 1 ? "" : "s") : "tap to enter real price", show: budget.rental > 0 || budgetOverride.rental != null },
+            { label: "Fuel", icon: "fuel", tint: "#d6795a", k: "fuel", sub: totalMiles + " mi" + (transport.fuelState ? " · " + transport.fuelState : "") },
+            { label: "Lodging", icon: "bed", tint: "#d68fa0", k: "lodging", sub: totalNights + " night" + (totalNights === 1 ? "" : "s") },
+            { label: "Food", icon: "utensils", tint: "#e0b46a", k: "food", sub: adults + " adult" + (adults === 1 ? "" : "s") },
+            { label: "Park passes", icon: "ticket", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
           ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
           routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute}

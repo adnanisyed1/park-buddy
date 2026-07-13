@@ -148,6 +148,7 @@ export default function BuildTripApp() {
   const [coordInput, setCoordInput] = useState(""); // "lat, lng" for the Coordinates source
   const [railTab, setRailTab] = useState("new"); // Trip Studio mode: "new" editor | "premade" routes | "mine" saved trips
   const [mapView, setMapView] = useState("route"); // map mode: "route" (itinerary) | "explore" (discover + add)
+  const [previewRoute, setPreviewRoute] = useState(null); // ready-made route shown in read-only preview (map + details)
   const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
   const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
   const [addSource, setAddSource] = useState(null); // Trip Studio "+ Add a stop" → "park" | "scenic" | "place" | null
@@ -163,6 +164,8 @@ export default function BuildTripApp() {
   const dirServiceRef = useRef(null);
   const routeGenRef = useRef(0); // ignores stale Directions callbacks
   const browseMarkersRef = useRef([]);
+  const previewMarkersRef = useRef([]); // ready-made route preview pins
+  const previewLineRef = useRef(null);
   const layerOverlaysRef = useRef([]); // campground/lake markers + trail polylines
   const layerCacheRef = useRef({}); // `${stopName}|${kind}` → data (avoid refetching)
   const layerGenRef = useRef(0); // cancels stale async layer draws
@@ -763,6 +766,30 @@ export default function BuildTripApp() {
   }
   useEffect(() => { drawBrowse(); }, [layers, browseState, browseQuery, parksDb, forestsDb, stateParksDb, bywaysDb, stops, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ready-made route PREVIEW: draw the route's stops (gold pins + a connecting line)
+  // on the map without touching the active trip. Hides the live route/pins while open.
+  function drawPreview() {
+    const g = window.google, map = mapObjRef.current;
+    if (!g || !map || !mapReadyRef.current) return;
+    previewMarkersRef.current.forEach((m) => m.setMap(null)); previewMarkersRef.current = [];
+    if (previewLineRef.current) { previewLineRef.current.setMap(null); previewLineRef.current = null; }
+    const previewing = !!previewRoute;
+    routeMarkersRef.current.forEach((m) => { try { m.setVisible(!previewing); } catch {} });
+    routeLinesRef.current.forEach((l) => { try { l.setOptions({ visible: !previewing }); } catch {} });
+    browseMarkersRef.current.forEach((m) => { try { m.setVisible(!previewing); } catch {} });
+    if (!previewing) return;
+    const pts = (previewRoute.stops || []).map((name) => parksDb.find((p) => p.name === name)).filter(Boolean);
+    if (!pts.length) return;
+    const path = [], bounds = new g.maps.LatLngBounds();
+    pts.forEach((p, i) => {
+      const pos = { lat: p.lat, lng: p.lng }; path.push(pos); bounds.extend(pos);
+      previewMarkersRef.current.push(new g.maps.Marker({ position: pos, map, title: p.name, icon: pinIcon(g, i + 1, false) }));
+    });
+    previewLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#e8cf9a", strokeOpacity: 0.85, strokeWeight: 3, zIndex: 2, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 }, offset: "0", repeat: "14px" }] });
+    map.fitBounds(bounds, 60);
+  }
+  useEffect(() => { drawPreview(); }, [previewRoute, parksDb, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Hover a stop card → halo its map pin (design's card↔pin link).
   useEffect(() => {
     const g = window.google; if (!g) return;
@@ -1003,7 +1030,7 @@ export default function BuildTripApp() {
             { label: "Park passes", icon: "ticket", tint: "#d68fbf", k: "passes", sub: "tap to enter real price" },
           ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
-          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute}
+          routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute} previewRoute={previewRoute} setPreviewRoute={setPreviewRoute}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
           gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}

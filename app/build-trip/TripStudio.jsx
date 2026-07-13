@@ -92,7 +92,7 @@ export default function TripStudio(props) {
     coordInput, setCoordInput, addCoords,
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
-    routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute,
+    routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute, previewRoute, setPreviewRoute,
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, appleUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
@@ -107,6 +107,8 @@ export default function TripStudio(props) {
 
   const sn = statNum || { stops: 0, days: 0, miles: 0, cost: 0 };
   const stat4 = [{ label: "Stops", num: sn.stops }, { label: "Days", num: sn.days }, { label: "Drive miles", num: sn.miles }, { label: "Est. cost", num: sn.cost, fmt: fmtUsd }];
+  // Switching rail tabs exits any open route preview.
+  const switchMode = (id) => { if (setPreviewRoute) setPreviewRoute(null); setPickTrip(false); setMode(id); };
 
   // Mobile: the map becomes a pull-up bottom sheet + the "+ Add a stop" button
   // opens a search-first popup (spec §7 / §7a). Detected client-side to keep SSR stable.
@@ -173,9 +175,9 @@ export default function TripStudio(props) {
           </div>
 
           <div style={{ display: "flex", padding: 5, gap: 4, background: "rgba(8,19,13,0.7)", border: "1px solid rgba(217,183,121,0.16)", borderRadius: 999, ...(isMobile ? { order: 3, flex: "1 1 100%", justifyContent: "center" } : { position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)" }) }} className="ts-switcher">
-            <ModeBtn id="new" label="Edit trip" mode={mode} setMode={setMode} />
-            <ModeBtn id="premade" label="Ready-made routes" mode={mode} setMode={setMode} />
-            <ModeBtn id="mine" label={"My trips" + (savedTrips.length ? " · " + savedTrips.length : "")} mode={mode} setMode={setMode} />
+            <ModeBtn id="new" label="Edit trip" mode={previewRoute ? "" : mode} setMode={switchMode} />
+            <ModeBtn id="premade" label="Ready-made routes" mode={previewRoute ? "" : mode} setMode={switchMode} />
+            <ModeBtn id="mine" label={"My trips" + (savedTrips.length ? " · " + savedTrips.length : "")} mode={previewRoute ? "" : mode} setMode={switchMode} />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -197,8 +199,8 @@ export default function TripStudio(props) {
             <div style={{ position: "absolute", inset: -64, opacity: 0.5, animation: "ts-gridDrift 26s linear infinite", pointerEvents: "none", backgroundImage: "linear-gradient(rgba(217,183,121,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(217,183,121,0.05) 1px, transparent 1px)", backgroundSize: "64px 64px", zIndex: 1 }} />
             <div ref={mapDivRef} style={{ position: "absolute", inset: 0, top: isMobile ? (sheetOpen ? 40 : 106) : 0 }} />
 
-            {/* map stays locked until a trip exists — on any rail tab */}
-            {!editing && !stops.length && (
+            {/* map stays locked until a trip exists — on any rail tab (not while previewing a route) */}
+            {!editing && !stops.length && !previewRoute && (
               <div style={{ position: "absolute", inset: 0, zIndex: 12, background: "rgba(6,13,10,0.72)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
                 <div style={{ display: "inline-flex", width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 14 }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
@@ -339,7 +341,54 @@ export default function TripStudio(props) {
           {/* RIGHT MODULES */}
           <div className="ts-modules ts-scroll" style={{ flex: "1 1 0", minWidth: 0, maxWidth: 560, borderLeft: "1px solid rgba(217,183,121,0.12)", background: "linear-gradient(180deg,#0b1710,#08130d)", overflowY: "auto", maxHeight: "82vh", padding: 22 }}>
 
-            {mode === "new" && !editing && !stops.length && (
+            {/* PREVIEW MODE — a ready-made route shown read-only on the map (left) + details here */}
+            {previewRoute && (
+              <div>
+                <button onClick={() => { setPreviewRoute(null); setPickTrip(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 12 }}>← Back to ready-made routes</button>
+                <div style={{ ...glass }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#7f8a82" }} />Read-only preview</span>
+                  <div style={{ fontFamily: SERIF, fontSize: 25, fontWeight: 500, color: "#f4f1ea", marginTop: 8, lineHeight: 1.1 }}>{previewRoute.emoji} {previewRoute.name}</div>
+                  <div style={{ fontFamily: SANS, fontSize: 13, color: "#aab0ba", marginTop: 6, lineHeight: 1.5 }}>{previewRoute.desc}</div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                    {[previewRoute.stops.length + " stops", previewRoute.days + " days", previewRoute.miles + " mi"].map((t) => <span key={t} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.3)", color: "#d9b779" }}>{t}</span>)}
+                  </div>
+                </div>
+                <div style={{ ...glass, marginTop: 14 }}>
+                  <div style={kicker}>The route</div>
+                  <div style={{ marginTop: 12 }}>
+                    {previewRoute.stops.map((name, idx) => (
+                      <div key={name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderTop: idx ? "1px solid rgba(217,183,121,0.08)" : "none" }}>
+                        <span style={{ width: 28, height: 28, flex: "none", borderRadius: "50%", border: "1px solid rgba(217,183,121,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 12, color: "#e8cf9a" }}>{idx + 1}</span>
+                        <span style={{ fontFamily: SERIF, fontSize: 17, color: "#f4f1ea" }}>{name}</span>
+                        <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 9, color: "#7f8a82" }}>{previewRoute.nights[idx]} night{previewRoute.nights[idx] === 1 ? "" : "s"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ ...glass, marginTop: 14 }}>
+                  {!pickTrip ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <button onClick={() => { const r = previewRoute; setPreviewRoute(null); cloneRoute(r); }} className="ts-goldbtn" style={{ padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5 }}>Clone as a new trip</button>
+                      <button onClick={() => setPickTrip(true)} className="ts-navtile" style={{ ...navTile, justifyContent: "center" }}>Add to an existing trip</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Add to which trip?</div>
+                      {editing && stops.length > 0 && (
+                        <button onClick={() => { const r = previewRoute; setPreviewRoute(null); setPickTrip(false); setPendingRoute(r); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span>{tripName || "Current trip"}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#8fd6a6" }}>EDITING NOW</span></button>
+                      )}
+                      {savedTrips.filter((t) => !(editing && t.name === tripName)).map((t) => (
+                        <button key={t.id} onClick={() => { const r = previewRoute; setPreviewRoute(null); setPickTrip(false); loadSavedTrip(t); setPendingRoute(r); }} className="ts-navtile" style={{ ...navTile, width: "100%", justifyContent: "space-between", marginBottom: 8 }}><span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span><span style={{ fontFamily: MONO, fontSize: 8.5, color: "#7f8a82" }}>{(t.stops || []).length} stops</span></button>
+                      ))}
+                      {!savedTrips.length && !(editing && stops.length) && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "4px 0 10px", lineHeight: 1.5 }}>No trips yet — clone this one to start.</div>}
+                      <button onClick={() => setPickTrip(false)} style={{ marginTop: 4, background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 12, cursor: "pointer" }}>← Back</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!previewRoute && mode === "new" && !editing && !stops.length && (
               <div style={{ ...glass, textAlign: "center", padding: "40px 24px" }}>
                 <div style={{ display: "inline-flex", width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 16 }}><TSIcon name="pin" size={24} /></div>
                 <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 500, color: "#f4f1ea" }}>No trip yet</div>
@@ -352,7 +401,7 @@ export default function TripStudio(props) {
               </div>
             )}
 
-            {mode === "new" && (editing || stops.length > 0) && (
+            {!previewRoute && mode === "new" && (editing || stops.length > 0) && (
               <div>
                 {/* trip header — editable name + count-up stat bar + setup button */}
                 <div style={{ ...glass, marginBottom: 14 }}>
@@ -566,7 +615,7 @@ export default function TripStudio(props) {
               </div>
             )}
 
-            {mode === "premade" && (
+            {!previewRoute && mode === "premade" && (
               <div>
                 <div style={{ ...kicker, marginBottom: 16 }}>Ready-made routes</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -584,14 +633,14 @@ export default function TripStudio(props) {
                           </div>
                         </div>
                       </div>
-                      <button onClick={() => { setViewRoute(r); setPickTrip(false); }} className="ts-goldbtn" style={{ width: "100%", padding: 11, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5, boxShadow: "0 10px 26px -12px rgba(217,183,121,0.6)" }}>View itinerary</button>
+                      <button onClick={() => { setPreviewRoute(r); setPickTrip(false); }} className="ts-goldbtn" style={{ width: "100%", padding: 11, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontWeight: 700, fontSize: 12.5, boxShadow: "0 10px 26px -12px rgba(217,183,121,0.6)" }}>View itinerary</button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {mode === "mine" && (
+            {!previewRoute && mode === "mine" && (
               <div>
                 <div style={{ ...kicker, marginBottom: 16 }}>My trips · tap to open</div>
                 {!savedTrips.length && <div style={{ border: "1px dashed rgba(217,183,121,0.3)", borderRadius: 16, padding: 18, color: "#aab0ba", fontSize: 13, lineHeight: 1.55 }}><b style={{ fontFamily: SERIF, color: "#f4f1ea", fontSize: 16, display: "block", marginBottom: 5 }}>No saved trips yet</b>Hit <b style={{ color: "#e8cf9a" }}>＋ Add a new trip</b> to start one — it saves here automatically.</div>}

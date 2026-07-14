@@ -168,6 +168,7 @@ export default function BuildTripApp() {
   const [baseInfo, setBaseInfo] = useState({}); // base name -> { alerts:[{title,category,url}], reservation:string|null, parkCode:string }
   const [planningDay, setPlanningDay] = useState(null); // `${name}#${d}` while "Plan this day" is fetching
   const [planMsg, setPlanMsg] = useState({}); // `${name}#${d}` -> short result message
+  const [planningAll, setPlanningAll] = useState(null); // progress message while "Plan all my days" runs
   const [prevOrder, setPrevOrder] = useState(null); // stops snapshot for "undo optimize"
   const [optimizeMsg, setOptimizeMsg] = useState(""); // result of the last optimize action
   const [keyOverlay, setKeyOverlay] = useState(false);
@@ -588,6 +589,29 @@ export default function BuildTripApp() {
     } finally {
       setPlanningDay(null);
     }
+  }
+
+  // Auto-plan EVERY empty day across the whole trip, in order, using the same nearby-
+  // fetch + realistic day scheduler as "Plan this day". Skips days that already have
+  // activities so it never clobbers the user's own plans.
+  async function planAllDays() {
+    if (planningAll) return;
+    const bases = stops.filter((s) => s.lat != null);
+    let planned = 0, total = 0;
+    bases.forEach((s) => { total += Math.max(1, s.nights || 1); });
+    let done = 0;
+    for (const s of bases) {
+      const nights = Math.max(1, s.nights || 1);
+      for (let d = 0; d < nights; d++) {
+        done++;
+        setPlanningAll("Planning " + s.name + " — day " + (d + 1) + " (" + done + "/" + total + ")…");
+        const has = (dayPlans[s.name] || []).some((a) => (a.day || 0) === d);
+        if (has) continue;
+        try { await planDay(s.name, d, s); planned++; } catch {}
+      }
+    }
+    setPlanningAll("Planned " + planned + " day" + (planned === 1 ? "" : "s") + " with realistic timings ✨");
+    setTimeout(() => setPlanningAll(null), 4000);
   }
 
   // Save the current trip into My trips, then jump to that tab (spec §3.7 "+ Add my trip").
@@ -1501,7 +1525,7 @@ export default function BuildTripApp() {
           statNum={{ stops: stops.length, days: totalNights, miles: totalMiles, cost: totalCost }}
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} wx={wx} baseInfo={baseInfo} STOP_STATUS={STOP_STATUS}
-          planDay={planDay} planningDay={planningDay} planMsg={planMsg}
+          planDay={planDay} planningDay={planningDay} planMsg={planMsg} planAllDays={planAllDays} planningAll={planningAll}
           optimizeOrder={optimizeOrder} undoOptimize={undoOptimize} optimizeMsg={optimizeMsg} canUndoOptimize={!!prevOrder}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} editStop={editStop} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}

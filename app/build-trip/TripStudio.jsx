@@ -103,7 +103,7 @@ export default function TripStudio(props) {
   const {
     mode, setMode, onNewTrip, editing,
     stat, statNum, tripName, setTripName,
-    stops, dayRanges, verdicts, wx, baseInfo, planDay, planningDay, planMsg, optimizeOrder, undoOptimize, optimizeMsg, canUndoOptimize, STOP_STATUS,
+    stops, dayRanges, verdicts, wx, baseInfo, planDay, planningDay, planMsg, planAllDays, planningAll, optimizeOrder, undoOptimize, optimizeMsg, canUndoOptimize, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, editStop, addMyTrip, hoverIdx, setHoverIdx,
     expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, originLegMin, interLegMi, interLegMin, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
@@ -672,13 +672,21 @@ export default function TripStudio(props) {
 
                   {!stops.length && <div style={{ fontSize: 13, color: "#7f8a82", padding: "10px 2px 4px", lineHeight: 1.6 }}>No bases yet — hit <b style={{ color: "#e8cf9a" }}>Add a base</b> below, or load a ready-made route. A base is a place you sleep; its nights become day cards.</div>}
 
-                  {optimizeOrder && stops.length >= 3 && (
+                  {(optimizeOrder || planAllDays) && stops.length >= 1 && (
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
-                      <button onClick={() => optimizeOrder()} className="ts-navtile" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 11px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.03)", color: "#e8cf9a", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
-                        <TSIcon name="route" size={13} />Optimize order
-                      </button>
-                      {canUndoOptimize && <button onClick={() => undoOptimize()} style={{ background: "none", border: "none", color: "#8f9a90", fontFamily: SANS, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Undo</button>}
+                      {optimizeOrder && stops.length >= 3 && (
+                        <button onClick={() => optimizeOrder()} className="ts-navtile" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 11px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.03)", color: "#e8cf9a", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                          <TSIcon name="route" size={13} />Optimize order
+                        </button>
+                      )}
+                      {optimizeOrder && canUndoOptimize && <button onClick={() => undoOptimize()} style={{ background: "none", border: "none", color: "#8f9a90", fontFamily: SANS, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Undo</button>}
                       {optimizeMsg && <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".06em", color: "#8fd6a6" }}>{optimizeMsg}</span>}
+                      {planAllDays && stops.some((s) => s.lat != null) && (
+                        <button onClick={() => planAllDays()} disabled={!!planningAll && !/Planned|✨/.test(planningAll)} className="ts-navtile" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 11px", borderRadius: 9, border: "1px solid rgba(143,214,166,0.3)", background: "rgba(143,214,166,0.06)", color: "#8fd6a6", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                          <span style={{ fontSize: 12 }}>✨</span>Plan all my days
+                        </button>
+                      )}
+                      {planningAll && <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".06em", color: "#e8cf9a" }}>{planningAll}</span>}
                     </div>
                   )}
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

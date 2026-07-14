@@ -158,10 +158,15 @@ export default function TripStudio(props) {
     on(); mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
-  // Nudge the Google map to re-measure after the sheet finishes animating.
+  // When the pull-up sheet finishes opening, the map grows from a sliver to full height.
+  // Re-measure it (resize) AND replay the route framing (pb-map-refit) — the initial fit
+  // ran against the collapsed sheet, so without a replay the map stays zoomed to the world.
   useEffect(() => {
-    if (!isMobile) return;
-    const t = setTimeout(() => window.dispatchEvent(new Event("resize")), 430);
+    if (!isMobile || !sheetOpen) return;
+    const t = setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+      window.dispatchEvent(new Event("pb-map-refit"));
+    }, 430);
     return () => clearTimeout(t);
   }, [sheetOpen, isMobile]);
 

@@ -216,6 +216,7 @@ export default function BuildTripApp() {
   const activityCounterRef = useRef(0); // stable ids for day-plan activities
   const keyInputRef = useRef(null);
   const mapObjRef = useRef(null);
+  const lastFitRef = useRef(null); // last { bounds, pad } we framed — replayed when the mobile map sheet opens
   const myLocRef = useRef(null); // "you are here" marker on the Edit-Trip map
   const routeMarkersRef = useRef([]);
   const routeLinesRef = useRef([]); // per-leg polylines (road or straight fallback)
@@ -774,6 +775,28 @@ export default function BuildTripApp() {
     };
   }
 
+  // Frame the map to `bounds`, remembering the last frame so we can replay it. On mobile
+  // the map lives in a collapsed pull-up sheet (~0 height) when it first fits, which makes
+  // Google zoom out to the whole world; replaying the fit once the sheet is open (see the
+  // "pb-map-refit" listener) restores the correct zoom.
+  function fitMap(bounds, pad) {
+    const map = mapObjRef.current;
+    if (!map || !bounds || (bounds.isEmpty && bounds.isEmpty())) return;
+    lastFitRef.current = { bounds, pad };
+    map.fitBounds(bounds, pad);
+  }
+  // Re-fit when the mobile map sheet finishes opening (TripStudio dispatches this).
+  useEffect(() => {
+    const refit = () => {
+      const map = mapObjRef.current, f = lastFitRef.current;
+      if (map && f && f.bounds && !(f.bounds.isEmpty && f.bounds.isEmpty())) {
+        try { map.fitBounds(f.bounds, f.pad); } catch {}
+      }
+    };
+    window.addEventListener("pb-map-refit", refit);
+    return () => window.removeEventListener("pb-map-refit", refit);
+  }, []);
+
   function drawRoute() {
     const g = window.google;
     const map = mapObjRef.current;
@@ -810,7 +833,7 @@ export default function BuildTripApp() {
       const fmiles = Math.round(milesBetween(origin, airport));
       setFlightInfo({ fromName: origin.name, toName: airport.name, toCode: airport.code, miles: fmiles, hrs: Math.max(1, Math.round((fmiles / 500 + 1) * 10) / 10) });
     } else setFlightInfo(null);
-    map.fitBounds(bounds, 52);
+    fitMap(bounds, 52);
 
     // Driving chain start: the arrival airport when flying, else Home (if set), else
     // just the bases. Real driving distance from Directions.
@@ -998,7 +1021,7 @@ export default function BuildTripApp() {
           label: { text: String(s.seq), color: "#0a1712", fontSize: "11px", fontWeight: "800" },
           icon: { path: g.maps.SymbolPath.CIRCLE, scale: 11, fillColor: "#e8cf9a", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 },
         })));
-        const b = new g.maps.LatLngBounds(); path.forEach((c) => b.extend(c)); map.fitBounds(b, 60);
+        const b = new g.maps.LatLngBounds(); path.forEach((c) => b.extend(c)); fitMap(b, 60);
         return;
       }
       if (ep && ep.from && ep.to) {
@@ -1010,7 +1033,7 @@ export default function BuildTripApp() {
           previewCasingRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#0a1712", strokeOpacity: 0.7, strokeWeight: 6, zIndex: 2 });
           previewLineRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#e8cf9a", strokeOpacity: 1, strokeWeight: 3, zIndex: 3 });
           (r.legEndpoints || []).forEach((loc, i) => previewMarkersRef.current.push(new g.maps.Marker({ position: loc, map, icon: pinIcon(g, i + 1, false) })));
-          const b = new g.maps.LatLngBounds(); opath.forEach((c) => b.extend(c)); if (!opath.length) return; map.fitBounds(b, 60);
+          const b = new g.maps.LatLngBounds(); opath.forEach((c) => b.extend(c)); if (!opath.length) return; fitMap(b, 60);
         });
       } else {
         fallbackPin();
@@ -1025,7 +1048,7 @@ export default function BuildTripApp() {
       previewMarkersRef.current.push(new g.maps.Marker({ position: pos, map, title: p.name, icon: pinIcon(g, i + 1, false) }));
     });
     previewLineRef.current = new g.maps.Polyline({ path, map, strokeColor: "#e8cf9a", strokeOpacity: 0.85, strokeWeight: 3, zIndex: 2, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 }, offset: "0", repeat: "14px" }] });
-    map.fitBounds(bounds, 60);
+    fitMap(bounds, 60);
   }
   useEffect(() => { drawPreview(); }, [previewRoute, parksDb, mapReady, bywayDetail]); // eslint-disable-line react-hooks/exhaustive-deps
   // Enrich a scenic-drive preview with its full itinerary + real OSM route geometry

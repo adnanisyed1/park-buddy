@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
 import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
 import { getSavedTrips, upsertActiveTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
+import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
 import SiteHeader from "../components/SiteHeader";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
@@ -117,6 +118,7 @@ export default function BuildTripApp() {
   const [totalMilesOverride, setTotalMilesOverride] = useState(720); // design preset; null = sum legs
   const [showOnMap, setShowOnMap] = useState(true);
   const [origin, setOrigin] = useState(null); // where the trip starts from (Home), {name, lat, lng} — drives the first leg + travel day
+  const [mapPrefs, setMapPrefsState] = useState(() => getMapPrefs()); // platform-wide map theme + type
   const [loadedRoute, setLoadedRoute] = useState("mighty5");
   const [addSel, setAddSel] = useState("");
   const [addrInput, setAddrInput] = useState("");
@@ -664,14 +666,30 @@ export default function BuildTripApp() {
     document.head.appendChild(s);
   }
 
+  // Change the platform-wide map theme/type from the map-style menu, and apply it
+  // to this map live. Every other map on the site reads the same pref on load.
+  function setMapPref(patch) {
+    const next = setMapPrefs(patch);
+    setMapPrefsState(next);
+    const g = window.google, map = mapObjRef.current;
+    if (g && map) { const mo = mapOptionsFor(next, MAP_DARK); map.setOptions({ mapTypeId: mo.mapTypeId, styles: mo.styles }); }
+  }
+  useEffect(() => subscribeMapPrefs((p) => {
+    setMapPrefsState(p);
+    const g = window.google, map = mapObjRef.current;
+    if (g && map) { const mo = mapOptionsFor(p, MAP_DARK); map.setOptions({ mapTypeId: mo.mapTypeId, styles: mo.styles }); }
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
+
   function initMap() {
     const el = mapDivRef.current;
     if (!el || !window.google) return;
     const g = window.google;
+    const mo = mapOptionsFor(getMapPrefs(), MAP_DARK);
     mapObjRef.current = new g.maps.Map(el, {
-      center: { lat: 38.05, lng: -111.3 }, zoom: 7, mapTypeId: "roadmap",
+      center: { lat: 38.05, lng: -111.3 }, zoom: 7,
+      mapTypeId: mo.mapTypeId, styles: mo.styles,
       disableDefaultUI: true, zoomControl: true, gestureHandling: "cooperative",
-      styles: MAP_DARK, backgroundColor: "#08130d", // dark Trip-Studio canvas
+      backgroundColor: "#08130d", // dark Trip-Studio canvas
     });
     mapReadyRef.current = true;
     setMapReady(true); // re-runs the marker-draw effects with fresh data closures
@@ -1175,6 +1193,7 @@ export default function BuildTripApp() {
           origin={origin} setOrigin={setOrigin} originLegMi={origin && stops[0] ? Math.round(milesBetween(origin, stops[0]) * ROAD_FACTOR) : null}
           setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}
           setAddAt={(i) => { addAtRef.current = i; }}
+          mapPrefs={mapPrefs} setMapPref={setMapPref}
           addSource={addSource} setAddSource={setAddSource} addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
           parksDb={parksDb} addSel={addSel} setAddSel={setAddSel} addPark={addPark}
           bywaysDb={bywaysDb} addBywaySel={addBywaySel} setAddBywaySel={setAddBywaySel} addByway={addByway} forestsDb={forestsDb}

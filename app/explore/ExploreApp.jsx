@@ -18,6 +18,7 @@ import { getClient, initAuth, openAuth } from "../lib/auth";
 import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
 import { fetchElevationProfile } from "../lib/elevationClient";
 import { getStops as tripStops, addStop as tripAdd, removeStop as tripRemove, subscribeTrip } from "../lib/trip";
+import { getMapPrefs, setMapPrefs, mapOptionsFor, subscribeMapPrefs } from "../lib/mapPrefs";
 // Lakes and trails come live from /api/water (USGS GNIS) and /api/trails (NPS
 // Public Trails) — government ArcGIS REST services, no auth/rate-limiting/
 // seeding needed (unlike OpenStreetMap/Overpass, which blocks datacenter IPs).
@@ -635,13 +636,15 @@ export default function ExploreApp() {
     const el = mapDivRef.current;
     if (!el || !window.google) return;
     const g = window.google;
-    const ms = MAP_STYLES[mapStyleRef.current] || MAP_STYLES.dark;
+    const mo = mapOptionsFor(getMapPrefs(), MAP_STYLE);
     const map = new g.maps.Map(el, {
       center: { lat: 39.5, lng: -98.5 }, zoom: 4, minZoom: 3, maxZoom: 14,
-      mapTypeId: ms.mapTypeId, disableDefaultUI: true, gestureHandling: "cooperative",
-      backgroundColor: ms.backgroundColor, styles: ms.styles,
+      mapTypeId: mo.mapTypeId, disableDefaultUI: true, gestureHandling: "cooperative",
+      backgroundColor: getMapPrefs().theme === "dark" ? "#0a1712" : "#dbe6ea", styles: mo.styles,
     });
     mapObjRef.current = map;
+    // Follow the platform-wide map style set from any map's "Map style" menu.
+    subscribeMapPrefs((p) => { const m = mapObjRef.current; if (m) { const o = mapOptionsFor(p, MAP_STYLE); m.setOptions({ mapTypeId: o.mapTypeId, styles: o.styles, backgroundColor: p.theme === "dark" ? "#0a1712" : "#dbe6ea" }); } });
     markersRef.current = new Map();
 
     const bounds = new g.maps.LatLngBounds();
@@ -1306,9 +1309,9 @@ export default function ExploreApp() {
     if (s !== "dark" && s !== "standard") return;
     mapStyleRef.current = s;
     patch({ mapStyle: s });
-    try { localStorage.setItem("pb_map_style", s); } catch {}
-    const m = mapObjRef.current, ms = MAP_STYLES[s];
-    if (m && ms) m.setOptions({ mapTypeId: ms.mapTypeId, styles: ms.styles, backgroundColor: ms.backgroundColor });
+    // Drive the platform-wide map pref so the choice carries to every other map
+    // (the subscription applies it to this map live).
+    setMapPrefs(s === "dark" ? { theme: "dark", type: "roadmap" } : { theme: "light", type: "terrain" });
   }
 
   const zoomIn = () => { const m = mapObjRef.current; if (m) m.setZoom(m.getZoom() + 1); };

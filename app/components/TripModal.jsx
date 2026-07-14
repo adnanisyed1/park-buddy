@@ -7,6 +7,7 @@ import { getStops, getMeta, setMeta, removeStop, setNights, moveStop, subscribeT
 import { saveCurrentTrip } from "../lib/savedTrips";
 import loadScript from "./load-script";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
+import { getMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
 
 // Cache the driving route geometry per trip signature so re-opening the modal
 // doesn't re-hit Directions. Plain {lat,lng} arrays → reusable across map instances.
@@ -118,7 +119,8 @@ export default function TripModal() {
       const g = window.google;
       let map = mapInstanceRef.current;
       if (!map || map.getDiv() !== mapDivRef.current) {
-        map = new g.maps.Map(mapDivRef.current, { disableDefaultUI: true, zoomControl: true, gestureHandling: "cooperative", clickableIcons: false, backgroundColor: "#e8eae4" });
+        const tmo = mapOptionsFor(getMapPrefs());
+        map = new g.maps.Map(mapDivRef.current, { mapTypeId: tmo.mapTypeId, styles: tmo.styles, disableDefaultUI: true, zoomControl: true, gestureHandling: "cooperative", clickableIcons: false, backgroundColor: getMapPrefs().theme === "dark" ? "#0a1712" : "#e8eae4" });
         mapInstanceRef.current = map;
       }
       mapMarkersRef.current.forEach((m) => m.setMap(null)); mapMarkersRef.current = [];

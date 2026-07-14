@@ -5,6 +5,7 @@ import { fetchElevationProfile } from "../lib/elevationClient";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { SectionTitle } from "../components/StatusShell";
 import { nearestPointOnPath, pointAtMile, bearingTo, compassLabel } from "../lib/trailStats";
+import { getMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
 
 const ACCENT = "#e8cf9a";
 const NAV_COLOR = "#2c7a9e"; // distinct from ACCENT so "where you are" never looks like "where your mouse is"
@@ -242,8 +243,9 @@ export default function TrailRouteChart({ trailKey, path, category }) {
   useEffect(() => {
     if (!mapsLoaded || !mapDivRef.current || !Array.isArray(path) || path.length < 2 || mapObjRef.current) return;
     const g = window.google;
+    const mo = mapOptionsFor(getMapPrefs());
     const map = new g.maps.Map(mapDivRef.current, {
-      mapTypeId: "hybrid", mapTypeControl: true, gestureHandling: "cooperative",
+      mapTypeId: mo.mapTypeId, styles: mo.styles, mapTypeControl: true, gestureHandling: "cooperative",
       streetViewControl: false, fullscreenControl: false, scaleControl: true,
     });
     mapObjRef.current = map;

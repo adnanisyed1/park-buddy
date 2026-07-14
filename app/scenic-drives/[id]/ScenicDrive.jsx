@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ensureMapsLoaded } from "../../lib/googleMapsLoader";
+import { getMapPrefs, mapOptionsFor } from "../../lib/mapPrefs";
 import { usePhoto } from "../../components/PhotoThumb";
 import SiteHeader from "../../components/SiteHeader";
 import RouteItinerary from "./RouteItinerary";
@@ -211,7 +212,8 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   useEffect(() => {
     if (!mapsLoaded || !mapDivRef.current || mapObjRef.current || !window.google) return;
     const g = window.google;
-    const map = new g.maps.Map(mapDivRef.current, { mapTypeId: "terrain", mapTypeControl: true, streetViewControl: false, fullscreenControl: false, gestureHandling: "cooperative" });
+    const smo = mapOptionsFor(getMapPrefs());
+    const map = new g.maps.Map(mapDivRef.current, { mapTypeId: smo.mapTypeId, styles: smo.styles, mapTypeControl: true, streetViewControl: false, fullscreenControl: false, gestureHandling: "cooperative" });
     mapObjRef.current = map;
     map.setCenter({ lat: drive.lat, lng: drive.lng });
     map.setZoom(drive.approxLoc ? 6 : 9); // approximate location → show the region

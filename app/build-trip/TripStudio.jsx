@@ -78,6 +78,7 @@ function TSIcon({ name, size = 16 }) {
     case "home": return <svg {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M9 22V12h6v10" /></svg>;
     case "star": return <svg {...p}><path d="m12 3 2.9 6 6.1.9-4.5 4.3 1 6.1L12 18l-5.5 2.9 1-6.1L3 9.9 9.1 9z" /></svg>;
     case "flag": return <svg {...p}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>;
+    case "map": return <svg {...p}><path d="M9 3 3.5 5.2A1 1 0 0 0 3 6.1v13.4a.5.5 0 0 0 .7.5L9 18l6 3 5.5-2.2a1 1 0 0 0 .5-.9V4.5a.5.5 0 0 0-.7-.5L15 6z" /><path d="M9 3v15M15 6v15" /></svg>;
     case "trash": return <svg {...p}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M10 11v6M14 11v6" /></svg>;
     default: return null;
   }
@@ -108,7 +109,7 @@ export default function TripStudio(props) {
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, appleUrl, waUrl, copyLink,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
-    layers, setLayers, layersOpen, setLayersOpen,
+    layers, setLayers, layersOpen, setLayersOpen, mapPrefs, setMapPref,
     mapView, setMapView, browseState, setBrowseState, browseQuery, setBrowseQuery, radius, setRadius,
     fieldBox,
   } = props;
@@ -133,6 +134,7 @@ export default function TripStudio(props) {
   const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
   const [scenicDragging, setScenicDragging] = useState(false);
   const [addTargetIdx, setAddTargetIdx] = useState(null); // where the next "Add a base" inserts (null = end)
+  const [mapMenuOpen, setMapMenuOpen] = useState(false); // map style (theme + type) menu
   const [stayFor, setStayFor] = useState(null); // base name whose "stay" popup is open
   const [stayTab, setStayTab] = useState("search"); // search | link | pdf
   const [stayLink, setStayLink] = useState("");
@@ -315,9 +317,32 @@ export default function TripStudio(props) {
               </div>
             )}
 
-            {/* Route mode — layers control (button + dropdown), top-right. */}
+            {/* Map style — theme (dark/regular) + type (map/satellite/terrain), platform-wide. Top-right. */}
+            {setMapPref && mapPrefs && (
+              <div style={{ position: "absolute", top: 18, right: 18, zIndex: 5 }}>
+                <button onClick={() => setMapMenuOpen(!mapMenuOpen)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".14em", textTransform: "uppercase", color: mapMenuOpen ? "#0a1712" : "#e8cf9a", background: mapMenuOpen ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "7px 13px", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", gap: 7 }}><TSIcon name="map" size={12} /> Map style</button>
+                {mapMenuOpen && (
+                  <div style={{ marginTop: 8, width: 218, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 12, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>
+                    <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Theme · applies everywhere</div>
+                    <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                      {[["dark", "Dark"], ["light", "Regular"]].map(([v, label]) => (
+                        <button key={v} onClick={() => setMapPref({ theme: v })} style={{ flex: 1, padding: "8px 6px", borderRadius: 9, cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 600, border: "1px solid " + (mapPrefs.theme === v ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: mapPrefs.theme === v ? "rgba(232,207,154,0.14)" : "transparent", color: mapPrefs.theme === v ? "#f4f1ea" : "#8f9a90" }}>{label}</button>
+                      ))}
+                    </div>
+                    <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".16em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 8 }}>Map type</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {[["roadmap", "Map"], ["satellite", "Satellite"], ["terrain", "Terrain"]].map(([v, label]) => (
+                        <button key={v} onClick={() => setMapPref({ type: v })} style={{ flex: 1, padding: "8px 4px", borderRadius: 9, cursor: "pointer", fontFamily: SANS, fontSize: 11, fontWeight: 600, border: "1px solid " + (mapPrefs.type === v ? "rgba(217,183,121,0.5)" : "rgba(217,183,121,0.16)"), background: mapPrefs.type === v ? "rgba(232,207,154,0.14)" : "transparent", color: mapPrefs.type === v ? "#f4f1ea" : "#8f9a90" }}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Route mode — layers control (button + dropdown), top-right (below map style). */}
             {mapView !== "explore" && (
-              <div style={{ position: "absolute", top: 18, right: 18, zIndex: 4 }}>
+              <div style={{ position: "absolute", top: 60, right: 18, zIndex: 4 }}>
                 <button onClick={() => setLayersOpen(!layersOpen)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 9.5, letterSpacing: ".14em", textTransform: "uppercase", color: layersOpen ? "#0a1712" : "#e8cf9a", background: layersOpen ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(11,23,16,0.72)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 999, padding: "7px 13px", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", gap: 7 }}>◈ Layers</button>
                 {layersOpen && (
                   <div style={{ marginTop: 8, width: 210, background: "rgba(14,32,22,0.97)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 14, padding: 12, backdropFilter: "blur(20px)", boxShadow: "0 24px 60px -18px rgba(0,0,0,0.9)" }}>

@@ -10,13 +10,22 @@
 
 let sessionToken = null;
 
-function places() {
+// Load the Places library on demand via importLibrary — the Places-API-(New)-aware path.
+// We deliberately do NOT request `libraries=places` in the Maps bootstrap: eager-loading
+// the classic Places library runs a legacy-API activation probe that logs a
+// LegacyApiNotActivatedMapError on every page even when only Places API (New) is enabled.
+async function ensurePlaces() {
   if (typeof window === "undefined") return null;
   const g = window.google;
-  return g && g.maps && g.maps.places ? g.maps.places : null;
+  if (!g || !g.maps) return null;
+  if (g.maps.places && g.maps.places.AutocompleteSuggestion) return g.maps.places;
+  if (typeof g.maps.importLibrary === "function") {
+    try { await g.maps.importLibrary("places"); } catch {}
+  }
+  return g.maps.places && g.maps.places.AutocompleteSuggestion ? g.maps.places : null;
 }
 function newSession() {
-  const p = places();
+  const p = typeof window !== "undefined" && window.google && window.google.maps ? window.google.maps.places : null;
   sessionToken = p && p.AutocompleteSessionToken ? new p.AutocompleteSessionToken() : null;
 }
 
@@ -25,7 +34,7 @@ function newSession() {
 export async function searchPlaces(query) {
   const q = (query || "").trim();
   if (q.length < 2) return [];
-  const p = places();
+  const p = await ensurePlaces();
   if (p && p.AutocompleteSuggestion) {
     if (!sessionToken) newSession();
     try {
@@ -60,7 +69,7 @@ export async function searchPlaces(query) {
 export async function resolvePlace(sug) {
   if (!sug) return null;
   if (sug.lat != null) return { name: sug.name, lat: sug.lat, lng: sug.lng, state: sug.state || "" };
-  const p = places();
+  const p = await ensurePlaces();
   if (p && sug._pred && sug._pred.toPlace) {
     try {
       const place = sug._pred.toPlace();

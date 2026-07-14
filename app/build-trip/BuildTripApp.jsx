@@ -18,6 +18,7 @@ import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor } from "../l
 import { computeRoute } from "../lib/googleRoutes";
 import { scheduleDay } from "../lib/dayScheduler";
 import { getSunTimes } from "../lib/sunmoon";
+import { fetchElevationProfile } from "../lib/elevationClient";
 import { reservationNote } from "../lib/parkReservations";
 import { encodeTrip } from "../lib/tripShare";
 import { buildIcs } from "../lib/tripIcs";
@@ -554,7 +555,9 @@ export default function BuildTripApp() {
         if (!tr.name || seen(tr.name) || !tr.path || !tr.path.length) return;
         if (tr.lengthMi != null && tr.lengthMi > 9) return;
         const mid = tr.path[Math.floor(tr.path.length / 2)];
-        hikes.push({ type: "hike", name: tr.name + (tr.lengthMi ? " · " + tr.lengthMi + " mi" : ""), lat: mid[0], lng: mid[1] });
+        // Keep the real length + path so we can time the hike from its data (miles +
+        // elevation gain), not a flat pace. Path is dropped before it's stored.
+        hikes.push({ type: "hike", name: tr.name + (tr.lengthMi ? " · " + tr.lengthMi + " mi" : ""), lat: mid[0], lng: mid[1], lengthMi: tr.lengthMi != null ? tr.lengthMi : null, _id: tr.id, _path: tr.path });
       });
       // Sights — a park's ranger-curated Things-to-do (named + photographed + geolocated).
       if (code) {
@@ -577,13 +580,21 @@ export default function BuildTripApp() {
       if (sights[0]) chosen.push(sights[0]);
       if (sights[1]) chosen.push(sights[1]);
       else if (hikes[1]) chosen.push(hikes[1]);
+      // For each chosen hike, derive its REAL elevation gain from the trail's path (Google
+      // Elevation, cached) so its time reflects the actual climb, not just distance.
+      for (const c of chosen) {
+        if (c.type === "hike" && c._path && c._path.length > 1) {
+          try { const prof = await fetchElevationProfile("trailgain_" + (c._id || c.name), c._path); if (prof && prof.gainFt != null) c.gainFt = prof.gainFt; } catch {}
+        }
+        delete c._path; delete c._id; // don't persist the heavy path onto the day plan
+      }
       // Real clock times: schedule from ~30 min after sunrise (fall back 08:30), chaining
-      // each activity's estimated length + the drive between them — no more fixed 9/12:30/15:30.
+      // each activity's data-driven length + the drive between them — no fixed 9/12:30/15:30.
       let sun = null; try { sun = getSunTimes(new Date(), base.lat, base.lng); } catch {}
       const startMin = sun && sun.rise ? sun.rise.getHours() * 60 + sun.rise.getMinutes() + 30 : 8 * 60 + 30;
       const sched = scheduleDay(chosen, { startMin, origin: base });
       const picks = sched.items;
-      picks.forEach((p) => addActivity(name, { type: p.type, name: p.name, lat: p.lat, lng: p.lng, time: p.time, day: dayIdx }));
+      picks.forEach((p) => addActivity(name, { type: p.type, name: p.name, lat: p.lat, lng: p.lng, time: p.time, day: dayIdx, lengthMi: p.lengthMi != null ? p.lengthMi : undefined, gainFt: p.gainFt != null ? p.gainFt : undefined }));
       setPlanMsg((m) => ({ ...m, [key]: picks.length ? "Added " + picks.length + " nearby" : "No suggestions found nearby" }));
     } catch {
       setPlanMsg((m) => ({ ...m, [key]: "Couldn't load suggestions" }));

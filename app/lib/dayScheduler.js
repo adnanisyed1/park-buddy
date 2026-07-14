@@ -13,6 +13,8 @@
 //   ROAD_FACTOR 1.25 — straight-line → real road distance (same factor the PDF uses).
 // These are estimates and are labelled as such everywhere they surface ("~", "Est.").
 
+import { estimateHikeMinutes } from "./trailStats";
+
 export const HIKE_MPH = 2;
 export const DRIVE_MPH = 40;
 export const ROAD_FACTOR = 1.25;
@@ -27,15 +29,17 @@ export function milesBetween(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
-// Estimated on-site minutes for one activity block. A hike scales with its distance
-// (pulled from `lengthMi` or a "· 4.2 mi" suffix in the name); everything else uses a
-// sensible per-type baseline.
+// Estimated on-site minutes for one activity block. A HIKE is data-driven — its real
+// length + elevation gain (Naismith's rule via trailStats), so a flat lake loop and a
+// steep climb of the same distance differ correctly. Everything else uses a per-type
+// baseline. `lengthMi`/`gainFt` ride on the block when we plan from trail data; we fall
+// back to a "· 4.2 mi" suffix in the name, then a gentle default.
 export function activityMinutes(block) {
   const b = block || {};
   const m = /([\d.]+)\s*mi\b/i.exec(b.name || "");
   const miles = b.lengthMi != null ? Number(b.lengthMi) : (m ? parseFloat(m[1]) : null);
   switch (b.type) {
-    case "hike": return Math.round((miles && miles > 0 ? miles : 3) / HIKE_MPH * 60) + 20;
+    case "hike": return estimateHikeMinutes(miles != null && miles > 0 ? miles : 3, b.gainFt);
     case "meal": return 60;
     case "scenic": return 90;   // a scenic drive / byway segment
     case "sight": return 40;    // viewpoint, arch, waterfall, ranger program

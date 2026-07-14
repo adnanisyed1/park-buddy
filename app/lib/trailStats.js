@@ -13,8 +13,14 @@ function milesBetween(aLat, aLng, bLat, bLng) {
 }
 
 // Naismith's-rule-style estimate: ~2 mph base pace + 30 min per 1000 ft of gain.
+// A hike's time is DATA-DRIVEN — its real length + elevation gain, so a flat 3-mi lake
+// loop and a 3-mi climb get very different estimates. Returns whole minutes.
+export function estimateHikeMinutes(mi, gainFt) {
+  const m = Math.max(0, Number(mi) || 0), g = Math.max(0, Number(gainFt) || 0);
+  return Math.round(m * 30 + (g / 1000) * 30);
+}
 export function estimateTimeLabel(mi, gainFt) {
-  const minutes = mi * 30 + (gainFt / 1000) * 30;
+  const minutes = estimateHikeMinutes(mi, gainFt);
   if (minutes < 60) return Math.round(minutes / 5) * 5 + " min";
   const h = Math.floor(minutes / 60), m = Math.round((minutes % 60) / 5) * 5;
   return h + "h" + (m ? " " + m + "m" : "");

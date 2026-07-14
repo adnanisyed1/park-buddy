@@ -119,6 +119,14 @@
     }
     actions.forEach(function (a) { runAction(T, a); });
   }
+  // Group added checklist items by their section for clear "added to Pack / Do" feedback.
+  var SECT = { pack: '🎒 Pack', grab: '🛒 Grab', do: '📍 Do' };
+  function sectionSummary(addedItems) {
+    var by = { pack: [], grab: [], do: [] };
+    (addedItems || []).forEach(function (i) { (by[i.cat] || by.pack).push(i.label); });
+    return ['pack', 'grab', 'do'].filter(function (c) { return by[c].length; })
+      .map(function (c) { return SECT[c] + ': ' + by[c].join(', '); }).join('  ·  ');
+  }
   function runAction(T, a) {
     var inp = a.input || {};
     try {
@@ -134,8 +142,12 @@
       } else if (a.name === 'generate_checklist') {
         T.generateChecklist(); note('\u2713 Drafted your Pack & Go checklist below');
       } else if (a.name === 'add_checklist_items') {
-        if (window.PBChecklist) { var rc = window.PBChecklist.addItems(inp.items || []); window.PBChecklist.open(); note('\u2713 Added to your checklist: ' + ((rc.added || []).join(', ') || 'nothing new')); }
-        else { note('\u2715 Checklist is on the Build a Trip page \u2014 open it to add items.'); }
+        if (window.PBChecklist) {
+          var rc = window.PBChecklist.addItems(inp.items || []);
+          window.PBChecklist.open();
+          var summ = sectionSummary(rc.addedItems);
+          note(summ ? '\u2713 Added to your list \u2014 ' + summ : '\u2713 Those were already on your list');
+        } else { note('\u2715 Open the \u201cBuild a Trip\u201d page to add these to your Pack & Go list.'); }
       } else if (a.name === 'save_passport') {
         T.downloadPassport(); note('\u2713 Opened your Trip Passport PDF');
       }

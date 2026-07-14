@@ -462,7 +462,7 @@
   window.PBChecklist = {
     addItems: function (arr) {
       if (!Array.isArray(arr)) return { ok: false, error: 'expected a list' };
-      var added = [];
+      var added = [], addedItems = [];
       arr.forEach(function (it) {
         var cat = (it && it.cat || '').toLowerCase();
         if (['pack', 'grab', 'do'].indexOf(cat) < 0) cat = 'pack';
@@ -470,9 +470,10 @@
         if (!label || has(label)) return;
         items.push({ id: uid(), cat: cat, label: String(label).slice(0, 80), note: (it && it.note) || '', done: false });
         added.push(label);
+        addedItems.push({ label: String(label), cat: cat }); // carries the section for section-aware feedback
       });
       if (added.length) { save(); renderLists(); }
-      return { ok: true, added: added };
+      return { ok: true, added: added, addedItems: addedItems };
     },
     state: function () {
       return { total: items.length, done: items.filter(function (x) { return x.done; }).length,

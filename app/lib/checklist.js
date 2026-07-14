@@ -20,7 +20,9 @@ function write(items) {
 export function getChecklist() { return read(); }
 export function subscribeChecklist(fn) { subs.add(fn); return () => subs.delete(fn); }
 
-// Add items, skipping ones whose label already exists. Returns how many were added.
+// Add items, skipping ones whose label already exists. Returns the array of items that
+// were actually added (each with its `cat` section) so callers can give section-aware
+// feedback like "added to your Pack list". `.length` still works as a truthy/count check.
 export function addChecklistItems(newItems) {
   const cur = read();
   const have = new Set(cur.map((i) => (i.label || "").toLowerCase()));
@@ -28,7 +30,7 @@ export function addChecklistItems(newItems) {
     .filter((i) => i && i.label && !have.has(i.label.toLowerCase()))
     .map((i) => ({ id: "ck_" + Date.now().toString(36) + "_" + (counter++), cat: ["pack", "grab", "do"].includes(i.cat) ? i.cat : "pack", label: String(i.label).slice(0, 80), why: i.why || "", done: false }));
   if (add.length) write([...cur, ...add]);
-  return add.length;
+  return add;
 }
 export function addChecklistItem(cat, label) { return addChecklistItems([{ cat, label }]); }
 export function toggleChecklistItem(id) { write(read().map((i) => (i.id === id ? { ...i, done: !i.done } : i))); }

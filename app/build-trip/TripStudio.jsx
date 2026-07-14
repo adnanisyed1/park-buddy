@@ -1728,7 +1728,30 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const recRef = useRef(null);
   const [adding, setAdding] = useState(null);
   const [addVal, setAddVal] = useState("");
+  const [confirm, setConfirm] = useState(null);   // section-aware "added to Pack/Do" message
+  const [flashCats, setFlashCats] = useState(null); // Set of cats to highlight briefly
   useEffect(() => subscribeChecklist(() => force((n) => n + 1)), []);
+  const SECT_LABEL = { pack: "🎒 Pack", grab: "🛒 Grab", do: "📍 Do" };
+  // Build a section-grouped summary of what was just added, for screen + voice.
+  const summarize = (added) => {
+    const by = { pack: [], grab: [], do: [] };
+    (added || []).forEach((i) => { (by[i.cat] || by.pack).push(i.label); });
+    const cats = ["pack", "grab", "do"].filter((c) => by[c].length);
+    const screen = cats.map((c) => SECT_LABEL[c] + ": " + by[c].join(", ")).join("  ·  ");
+    const spokenName = { pack: "Pack", grab: "Grab-on-the-way", do: "Do-at-the-destination" };
+    const spoken = cats.map((c) => by[c].slice(0, 5).join(", ") + " to your " + spokenName[c] + " list").join("; and ");
+    return { screen, spoken, cats };
+  };
+  // Flash the affected section cards + hold a confirmation line for a few seconds.
+  const announce = (added, fromVoice) => {
+    if (!added || !added.length) { if (fromVoice) speakBack("Those were already on your list."); return; }
+    const { screen, spoken, cats } = summarize(added);
+    setConfirm(screen);
+    setFlashCats(new Set(cats));
+    setTimeout(() => setFlashCats(null), 2600);
+    setTimeout(() => setConfirm((c) => (c === screen ? null : c)), 6000);
+    if (fromVoice) speakBack("Added " + spoken + ".");
+  };
   const canVoice = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const startVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1754,7 +1777,7 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const pct = items.length ? Math.round((done / items.length) * 100) : 0;
   const startISO = dayRanges && dayRanges[0] && dayRanges[0].arrive;
   const monthIdx = startISO ? new Date(startISO + "T12:00:00").getMonth() : null;
-  const generate = () => { addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); };
+  const generate = () => { const added = addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); announce(added, false); };
   // "Describe your trip" → the Ask Park Buddy agent (its add_checklist_items tool),
   // grounded in the current trip; keyword rules are the offline fallback.
   const runDesc = async (override, fromVoice) => {
@@ -1771,10 +1794,9 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
       if (aiItems && aiItems.length) applied = aiItems;
     } catch {}
     const toAdd = applied || parseDescription(t);
-    addChecklistItems(toAdd);
-    // Speak a short confirmation back when the request came by voice, so it's a real
-    // two-way exchange ("Added 6 things to your list.").
-    if (fromVoice && toAdd && toAdd.length) speakBack("Added " + toAdd.length + " thing" + (toAdd.length === 1 ? "" : "s") + " to your list: " + toAdd.slice(0, 5).map((i) => i.label).join(", ") + ".");
+    const added = addChecklistItems(toAdd); // returns the items actually added, each with its section
+    // Confirm on screen + (if spoken) aloud, naming the exact section each item landed in.
+    announce(added, fromVoice);
     setDesc(""); setBusy(false);
   };
   // Read a short reply aloud (voice-out) — only used when the user spoke to us.
@@ -1807,14 +1829,21 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
               <button onClick={() => runDesc()} disabled={busy} className="ts-goldbtn" style={{ flex: "none", minWidth: 54, padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>{busy ? "…" : "Ask"}</button>
             </div>
           </div>
+          {confirm && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "9px 11px", borderRadius: 10, background: "rgba(143,214,166,0.08)", border: "1px solid rgba(143,214,166,0.32)" }}>
+              <span style={{ fontSize: 13, flex: "none", color: "#8fd6a6" }}>✓</span>
+              <span style={{ fontFamily: SANS, fontSize: 12, color: "#cfe6d5", lineHeight: 1.45 }}><b style={{ color: "#8fd6a6" }}>Added to your list</b> — {confirm}</span>
+            </div>
+          )}
           <button onClick={generate} className="ts-goldbtn" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.4)", background: "linear-gradient(120deg, rgba(232,207,154,0.16), rgba(201,163,95,0.12))", color: "#e8cf9a", fontFamily: SANS, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             <span style={{ fontSize: 12 }}>✨</span>Generate from my trip
           </button>
           {PACK_CATS.map(([cat, emoji, title]) => {
             const its = items.filter((i) => i.cat === cat);
+            const flash = flashCats && flashCats.has(cat);
             return (
-              <div key={cat}>
-                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "#c9a35f", marginBottom: 7 }}>{emoji} {title}</div>
+              <div key={cat} style={{ borderRadius: 10, margin: "0 -8px", padding: "6px 8px", transition: "background .5s, box-shadow .5s", background: flash ? "rgba(143,214,166,0.09)" : "transparent", boxShadow: flash ? "0 0 0 1px rgba(143,214,166,0.4)" : "none" }}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: flash ? "#8fd6a6" : "#c9a35f", transition: "color .5s", marginBottom: 7 }}>{emoji} {title}{flash ? " · just added" : ""}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {its.length === 0 && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing yet.</div>}
                   {its.map((i) => (

@@ -1658,15 +1658,14 @@ const TYPE_DOT = { park: "#8fd6a6", statePark: "#9ecbe8", forest: "#c9a35f", sce
 function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActivity, addrInput, setAddrInput, addAddress, addDestination, coordInput, setCoordInput, addCoords, addrMsg, fieldBox }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
-  const [dayIdx, setDayIdx] = useState(0);
-  const [time, setTime] = useState("09:00");
   const [precise, setPrecise] = useState(null); // "coord" | "address" | "pin" | null
   const [added, setAdded] = useState("");
 
-  // Suggestion pool from our real datasets: parks + scenic drives.
+  // Suggestion pool from our real datasets: parks + scenic drives (with coordinates so a
+  // tap can add the base directly).
   const pool = [
-    ...(parksDb || []).map((p) => ({ name: p.name, type: "park", icon: "◈", region: p.state, cat: "National park" })),
-    ...(bywaysDb || []).map((b) => ({ name: b.name, type: "scenic", icon: "⟿", region: b.states || b.state || "", cat: "Scenic route" })),
+    ...(parksDb || []).map((p) => ({ name: p.name, type: "park", icon: "◈", region: p.state, cat: "National park", lat: p.lat, lng: p.lng, state: p.state })),
+    ...(bywaysDb || []).map((b) => ({ name: b.name, type: "scenic", icon: "⟿", region: b.states || b.state || "", cat: "Scenic route", lat: b.lat, lng: b.lng, kind: "byway", slug: b.id })),
   ];
   const ql = q.trim().toLowerCase();
   const results = pool
@@ -1675,11 +1674,13 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
     .filter((r) => !stops.some((s) => s.name === r.name && false)) // keep dupes visible; day-activities can repeat
     .slice(0, 14);
 
-  const day = stops[dayIdx];
+  // Tapping a result adds it as a BASE (a place you sleep), inserted at the chosen
+  // position — matching the desktop add-a-base flow. Precise entry below covers anything
+  // not in the quick list.
   function pick(r) {
-    if (!day) { setAdded("Add a base first — use precise entry below."); return; }
-    addActivity(day.name, { icon: r.icon, type: r.type, name: r.name, time });
-    setAdded(r.name + " → " + day.name + " · " + time);
+    if (r.lat == null) { setAdded("That place has no saved location — use precise entry below."); return; }
+    addDestination({ name: r.name, state: r.state || r.region || "", lat: r.lat, lng: r.lng, kind: r.kind, slug: r.slug });
+    onClose();
   }
 
   return (
@@ -1700,15 +1701,6 @@ function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActiv
             const on = filter === k;
             return <button key={k} onClick={() => setFilter(k)} style={{ flex: "none", cursor: "pointer", fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: "7px 13px", borderRadius: 999, border: "1px solid " + (on ? "transparent" : "rgba(217,183,121,0.22)"), color: on ? "#0a1712" : "#aab0ba", background: on ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "transparent" }}>{label}</button>;
           })}
-        </div>
-        {/* add-to bar */}
-        <div style={{ flex: "none", display: "flex", gap: 8, alignItems: "center", padding: "8px 18px 10px", borderBottom: "1px solid rgba(217,183,121,0.12)" }}>
-          <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "#7f8a82", flex: "none" }}>Add to</span>
-          <select value={dayIdx} onChange={(e) => setDayIdx(+e.target.value)} style={{ ...fieldBox, flex: 1, minWidth: 0 }}>
-            {stops.length === 0 && <option value={0}>No days yet</option>}
-            {stops.map((s, i) => <option key={s.name} value={i}>{(dayRanges[i] ? dayRanges[i].label : "Day " + (i + 1)) + " · " + s.name}</option>)}
-          </select>
-          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...fieldBox, width: 100, flex: "none" }} />
         </div>
         {/* results */}
         <div className="ts-scroll" style={{ flex: 1, overflowY: "auto", padding: "10px 18px" }}>

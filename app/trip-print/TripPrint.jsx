@@ -48,6 +48,7 @@ export default function TripPrint() {
   const [ready, setReady] = useState(false);
   const [stops, setStops] = useState([]);
   const [meta, setMeta] = useState({});
+  const [mapImgErr, setMapImgErr] = useState(false);
 
   useEffect(() => {
     let on = true;
@@ -150,8 +151,23 @@ export default function TripPrint() {
               </div>
             </div>
 
-            {/* route map (SVG — always prints) */}
-            {pts.length > 0 && (
+            {/* route map — a real static-map snapshot fitted to the whole route (falls
+                back to the SVG sketch when the map key / route geometry isn't available) */}
+            {pts.length > 0 && (() => {
+              let gkey = "";
+              try { gkey = (typeof localStorage !== "undefined" && localStorage.getItem("pb_gmaps_key")) || ""; } catch {}
+              if (!gkey) gkey = process.env.NEXT_PUBLIC_GMAPS_KEY || (typeof window !== "undefined" && window.GMAPS_KEY) || "";
+              let mt = "roadmap"; try { const mp = JSON.parse(localStorage.getItem("pb_map_prefs") || "{}"); mt = mp.type === "satellite" ? "hybrid" : mp.type === "terrain" ? "terrain" : "roadmap"; } catch {}
+              const markers = mapped.map((s, i) => "&markers=" + encodeURIComponent("size:mid|color:0x1D3941|label:" + (i + 1) + "|" + s.lat + "," + s.lng)).join("");
+              const staticUrl = (gkey && meta.routePolyline)
+                ? "https://maps.googleapis.com/maps/api/staticmap?size=640x360&scale=2&maptype=" + mt + "&path=color:0xc79a4bff|weight:4|enc:" + encodeURIComponent(meta.routePolyline) + markers + "&key=" + gkey
+                : null;
+              if (staticUrl && !mapImgErr) return (
+                <div className="tp-break" style={{ ...card, padding: 0, overflow: "hidden", marginBottom: 22 }}>
+                  <img src={staticUrl} alt="Your route" onError={() => setMapImgErr(true)} style={{ display: "block", width: "100%", height: "auto" }} />
+                </div>
+              );
+              return (
               <div className="tp-break" style={{ ...card, padding: 0, overflow: "hidden", marginBottom: 22 }}>
                 <svg viewBox={"0 0 " + W + " " + H} style={{ display: "block", width: "100%", height: "auto", background: "#eef1e6" }}>
                   {[0.25, 0.5, 0.75].map((f) => (<line key={"h" + f} x1="0" y1={H * f} x2={W} y2={H * f} stroke="#20241c" strokeOpacity="0.05" />))}
@@ -165,7 +181,8 @@ export default function TripPrint() {
                   ))}
                 </svg>
               </div>
-            )}
+              );
+            })()}
 
             {/* day-by-day */}
             <div style={{ marginBottom: 22 }}>

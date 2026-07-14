@@ -679,7 +679,7 @@ export default function BuildTripApp() {
     const s = document.createElement("script");
     s.id = "pb-gm-js";
     s.async = true;
-    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&libraries=places&v=weekly&loading=async&callback=__pbBtInit";
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&libraries=places,geometry&v=weekly&loading=async&callback=__pbBtInit";
     s.onerror = () => { setKeyMsg("Could not load Google Maps. Check your connection or the key."); setKeyOverlay(true); };
     document.head.appendChild(s);
   }
@@ -798,12 +798,13 @@ export default function BuildTripApp() {
     });
     const hasOrigin = !!(origin && origin.lat != null);
     (async () => {
-      let meters = 0, secs = 0, originMi = null; const perStopMi = []; // perStopMi[k] = real miles into stops[k]
+      let meters = 0, secs = 0, originMi = null; const perStopMi = []; const fullPath = []; // perStopMi[k] = real miles into stops[k]
       for (let t = 0; t < reqStops.length - 1; t++) {
         const a = reqStops[t], b = reqStops[t + 1];
         const r = await routeLeg(a, b, 0);
         if (gen !== routeGenRef.current || !mapReadyRef.current) return; // stale — a newer draw superseded us
         const destStopIdx = hasOrigin ? t : t + 1; // which stops[] index this leg arrives at
+        if (r.ok && r.path) r.path.forEach((p) => fullPath.push(p));
         if (r.ok) {
           // glow: a wide, soft gold casing under a bright thin line (Trip-Studio look)
           routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#e8cf9a", strokeOpacity: 0.22, strokeWeight: 13, zIndex: 1 }));
@@ -822,6 +823,16 @@ export default function BuildTripApp() {
         setRoadInfo(meters > 0 ? { miles: Math.round(meters / 1609.34), mins: Math.round(secs / 60) } : null);
         setOriginRoadMi(hasOrigin ? originMi : null);
         setInterLegMi(perStopMi);
+        // Encode a (decimated) polyline of the whole route so the Print/PDF can render
+        // a real static map snapshot that fits the entire route.
+        try {
+          const enc = g.maps.geometry && g.maps.geometry.encoding;
+          if (enc && fullPath.length > 1) {
+            const step = Math.max(1, Math.ceil(fullPath.length / 300)); // keep the URL well under limits
+            const sampled = fullPath.filter((_, idx) => idx % step === 0 || idx === fullPath.length - 1);
+            tripSetMeta({ routePolyline: enc.encodePath(sampled) });
+          }
+        } catch {}
       }
     })();
   }

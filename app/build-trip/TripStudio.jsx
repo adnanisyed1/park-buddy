@@ -137,6 +137,7 @@ export default function TripStudio(props) {
   const [addTargetIdx, setAddTargetIdx] = useState(null); // where the next "Add a base" inserts (null = end)
   const [mapMenuOpen, setMapMenuOpen] = useState(false); // map style (theme + type) menu
   const [stayFor, setStayFor] = useState(null); // base name whose "stay" popup is open
+  const stayFileRef = useRef(null);
   const [stayTab, setStayTab] = useState("search"); // search | link | pdf
   const [stayLink, setStayLink] = useState("");
   const [stayMsg, setStayMsg] = useState("");
@@ -704,8 +705,9 @@ export default function TripStudio(props) {
                                   <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: SANS, fontSize: 11.5, color: "#aab0ba" }}>
                                     <span style={{ color: "#8fd6a6", display: "inline-flex" }}><TSIcon name="bed" size={12} /></span>
                                     <span style={{ color: "#8f9a90" }}>Staying at</span>
+                                    {lodge.snapshot && <img src={lodge.snapshot} alt="Booking snapshot" onClick={(e) => { e.stopPropagation(); window.open(lodge.snapshot, "_blank"); }} title="View your booking snapshot" style={{ width: 20, height: 20, flex: "none", borderRadius: 5, objectFit: "cover", border: "1px solid rgba(217,183,121,0.35)", cursor: "pointer" }} />}
                                     <span style={{ color: "#f4f1ea", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lodge.name}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); setStayTab("search"); setStayLink(""); setStayMsg(""); setStayFor(s.name); }} title="Change" style={{ marginLeft: "auto", background: "none", border: "none", color: "#8f9a90", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="edit" size={11} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); setStayTab(lodge.snapshot ? "pdf" : "search"); setStayLink(""); setStayMsg(""); setStayFor(s.name); }} title="Change" style={{ marginLeft: "auto", background: "none", border: "none", color: "#8f9a90", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="edit" size={11} /></button>
                                     <button onClick={(e) => { e.stopPropagation(); setStopLodging(s.name, null); }} title="Clear" style={{ background: "none", border: "none", color: "#b06a4a", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="trash" size={11} /></button>
                                   </div>
                                 ) : (
@@ -1230,7 +1232,7 @@ export default function TripStudio(props) {
               </div>
               <div style={{ padding: 18 }}>
                 <div style={{ display: "flex", gap: 6, marginBottom: 14, background: "rgba(255,255,255,.02)", border: "1px solid rgba(217,183,121,0.12)", borderRadius: 11, padding: 4 }}>
-                  {Tab("search", "Search")}{Tab("link", "Map link")}{Tab("pdf", "Confirmation PDF")}
+                  {Tab("search", "Search")}{Tab("link", "Map link")}{Tab("pdf", "Snapshot")}
                 </div>
                 {stayTab === "search" && (
                   <AddressPicker placeholder="Search a hotel, lodge, or address…" fieldBox={fieldBox}
@@ -1246,14 +1248,40 @@ export default function TripStudio(props) {
                     {stayMsg && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#aab0ba", marginTop: 8 }}>{stayMsg}</div>}
                   </div>
                 )}
-                {stayTab === "pdf" && (
-                  <div style={{ textAlign: "center", padding: "18px 12px", border: "1px dashed rgba(217,183,121,0.28)", borderRadius: 14, background: "rgba(255,255,255,.02)" }}>
-                    <span style={{ display: "inline-flex", width: 40, height: 40, borderRadius: 11, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 10 }}><TSIcon name="fileup" size={20} /></span>
-                    <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>Drop your booking confirmation</div>
-                    <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 6, lineHeight: 1.55, maxWidth: 300, margin: "6px auto 0" }}>Auto-reading the hotel + address from a PDF confirmation is coming soon. For now, use <b style={{ color: "#c9a35f", cursor: "pointer" }} onClick={() => { setStayTab("search"); setStayMsg(""); }}>Search</b> or paste a <b style={{ color: "#c9a35f", cursor: "pointer" }} onClick={() => { setStayTab("link"); setStayMsg(""); }}>Map link</b>.</div>
-                    <span style={{ display: "inline-block", marginTop: 12, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".12em", textTransform: "uppercase", color: "#8f9a90", border: "1px solid rgba(217,183,121,0.25)", borderRadius: 999, padding: "4px 11px" }}>Coming soon</span>
-                  </div>
-                )}
+                {stayTab === "pdf" && (() => {
+                  const snap = lodging && lodging[stayFor] && lodging[stayFor].snapshot;
+                  const onFile = (file) => {
+                    if (!file) return;
+                    if (!/^image\//.test(file.type)) { setStayMsg("Upload a photo or screenshot (JPG/PNG) of your confirmation."); return; }
+                    setStayMsg("Adding your snapshot…");
+                    readSnapshot(file).then((dataUrl) => {
+                      const cur = (lodging && lodging[stayFor]) || {};
+                      setStopLodging(stayFor, { ...cur, name: cur.name || "Booked stay", snapshot: dataUrl });
+                      setStayMsg("Snapshot attached ✓");
+                    }).catch(() => setStayMsg("Couldn't read that image — try another."));
+                  };
+                  return (
+                    <div>
+                      <input ref={stayFileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => onFile(e.target.files && e.target.files[0])} />
+                      {snap ? (
+                        <div>
+                          <img src={snap} alt="Your booking confirmation" style={{ width: "100%", maxHeight: 220, objectFit: "contain", borderRadius: 12, border: "1px solid rgba(217,183,121,0.2)", background: "#000", cursor: "pointer" }} onClick={() => window.open(snap, "_blank")} />
+                          <div style={{ display: "flex", gap: 9, marginTop: 10 }}>
+                            <button onClick={() => stayFileRef.current && stayFileRef.current.click()} className="ts-navtile" style={{ ...navTile, flex: 1, justifyContent: "center" }}>Replace snapshot</button>
+                            <button onClick={() => { const cur = { ...(lodging[stayFor] || {}) }; delete cur.snapshot; if (cur.name || cur.lat != null) setStopLodging(stayFor, cur); else setStopLodging(stayFor, null); setStayMsg(""); }} style={{ padding: "10px 14px", borderRadius: 11, border: "1px solid rgba(176,74,47,0.35)", background: "rgba(176,74,47,0.08)", color: "#d08c6a", fontFamily: SANS, fontSize: 12.5, cursor: "pointer" }}>Remove</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => stayFileRef.current && stayFileRef.current.click()} style={{ width: "100%", textAlign: "center", padding: "22px 12px", border: "1px dashed rgba(217,183,121,0.3)", borderRadius: 14, background: "rgba(255,255,255,.02)", cursor: "pointer" }}>
+                          <span style={{ display: "inline-flex", width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 10 }}><TSIcon name="camera" size={21} /></span>
+                          <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>Upload a snapshot of your booking</div>
+                          <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 6, lineHeight: 1.55, maxWidth: 320, margin: "6px auto 0" }}>Take a photo or screenshot of your hotel confirmation and attach it here — you can view it anytime on this stay. Set the location with <b style={{ color: "#c9a35f" }} onClick={(e) => { e.stopPropagation(); setStayTab("search"); setStayMsg(""); }}>Search</b> or a <b style={{ color: "#c9a35f" }} onClick={(e) => { e.stopPropagation(); setStayTab("link"); setStayMsg(""); }}>Map link</b>.</div>
+                        </button>
+                      )}
+                      {stayMsg && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#aab0ba", marginTop: 9 }}>{stayMsg}</div>}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -1424,6 +1452,28 @@ function parseMapLink(raw) {
   if (m) return { lat: Number(m[1]), lng: Number(m[2]), name };
   if (name) return { name };
   return null;
+}
+// Read a picked image (a snapshot/photo of a booking confirmation) and downscale it
+// to a small JPEG data URL so it fits comfortably in local storage.
+function readSnapshot(file, maxPx = 1000) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) { reject(new Error("not-image")); return; }
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => reject(new Error("decode"));
+      img.src = fr.result;
+    };
+    fr.onerror = () => reject(new Error("read"));
+    fr.readAsDataURL(file);
+  });
 }
 const US_STATE_NAMES = ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"];
 const TYPE_ICON = { drive: "car", stay: "bed", meal: "utensils", scenic: "route", hike: "hike", sight: "camera",

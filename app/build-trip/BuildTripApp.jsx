@@ -79,6 +79,36 @@ function detailedPath(route) {
   (route.legs || []).forEach((l) => (l.steps || []).forEach((st) => (st.path || []).forEach((p) => pts.push(p))));
   return pts.length ? pts : (route.overview_path || []);
 }
+// Major US airports — used to route a FLY arrival: fly to the nearest big airport to
+// the first base, then drive from there. {code, name, lat, lng}.
+const AIRPORTS = [
+  { code: "ATL", name: "Atlanta", lat: 33.6407, lng: -84.4277 }, { code: "AUS", name: "Austin", lat: 30.1975, lng: -97.6664 },
+  { code: "BNA", name: "Nashville", lat: 36.1263, lng: -86.6774 }, { code: "BOS", name: "Boston", lat: 42.3656, lng: -71.0096 },
+  { code: "BOI", name: "Boise", lat: 43.5644, lng: -116.2228 }, { code: "BWI", name: "Baltimore", lat: 39.1774, lng: -76.6684 },
+  { code: "BUR", name: "Burbank", lat: 34.2007, lng: -118.3585 }, { code: "BZN", name: "Bozeman", lat: 45.7772, lng: -111.1530 },
+  { code: "CLT", name: "Charlotte", lat: 35.2140, lng: -80.9431 }, { code: "COS", name: "Colorado Springs", lat: 38.8058, lng: -104.7008 },
+  { code: "DEN", name: "Denver", lat: 39.8561, lng: -104.6737 }, { code: "DFW", name: "Dallas–Fort Worth", lat: 32.8998, lng: -97.0403 },
+  { code: "DTW", name: "Detroit", lat: 42.2124, lng: -83.3534 }, { code: "EWR", name: "Newark", lat: 40.6895, lng: -74.1745 },
+  { code: "FLG", name: "Flagstaff", lat: 35.1385, lng: -111.6713 }, { code: "GEG", name: "Spokane", lat: 47.6199, lng: -117.5338 },
+  { code: "GJT", name: "Grand Junction", lat: 39.1224, lng: -108.5267 }, { code: "IAD", name: "Washington Dulles", lat: 38.9531, lng: -77.4565 },
+  { code: "IAH", name: "Houston", lat: 29.9902, lng: -95.3368 }, { code: "JAC", name: "Jackson Hole", lat: 43.6073, lng: -110.7377 },
+  { code: "JFK", name: "New York JFK", lat: 40.6413, lng: -73.7781 }, { code: "LAS", name: "Las Vegas", lat: 36.0840, lng: -115.1537 },
+  { code: "LAX", name: "Los Angeles", lat: 33.9416, lng: -118.4085 }, { code: "MCO", name: "Orlando", lat: 28.4312, lng: -81.3081 },
+  { code: "MIA", name: "Miami", lat: 25.7959, lng: -80.2870 }, { code: "MSP", name: "Minneapolis", lat: 44.8848, lng: -93.2223 },
+  { code: "MSO", name: "Missoula", lat: 46.9163, lng: -114.0906 }, { code: "ORD", name: "Chicago O'Hare", lat: 41.9742, lng: -87.9073 },
+  { code: "PDX", name: "Portland", lat: 45.5898, lng: -122.5951 }, { code: "PHX", name: "Phoenix", lat: 33.4342, lng: -112.0116 },
+  { code: "RAP", name: "Rapid City", lat: 44.0453, lng: -103.0574 }, { code: "RDU", name: "Raleigh–Durham", lat: 35.8801, lng: -78.7880 },
+  { code: "RNO", name: "Reno", lat: 39.4991, lng: -119.7681 }, { code: "SAN", name: "San Diego", lat: 32.7338, lng: -117.1933 },
+  { code: "SAT", name: "San Antonio", lat: 29.5337, lng: -98.4698 }, { code: "SEA", name: "Seattle", lat: 47.4502, lng: -122.3088 },
+  { code: "SFO", name: "San Francisco", lat: 37.6213, lng: -122.3790 }, { code: "SLC", name: "Salt Lake City", lat: 40.7899, lng: -111.9791 },
+  { code: "SMF", name: "Sacramento", lat: 38.6951, lng: -121.5908 }, { code: "STL", name: "St. Louis", lat: 38.7487, lng: -90.3700 },
+  { code: "TPA", name: "Tampa", lat: 27.9755, lng: -82.5332 }, { code: "TUS", name: "Tucson", lat: 32.1161, lng: -110.9410 },
+];
+function nearestAirport(pt) {
+  let best = null, bd = Infinity;
+  for (const a of AIRPORTS) { const d = milesBetween(pt, a); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
 function milesBetween(a, b) {
   const R = 3958.8, toRad = Math.PI / 180;
   const dLat = (b.lat - a.lat) * toRad, dLng = (b.lng - a.lng) * toRad;
@@ -175,6 +205,7 @@ export default function BuildTripApp() {
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route (incl. the Home→first-base leg)
   const [originRoadMi, setOriginRoadMi] = useState(null); // real driving miles Home → first base
   const [interLegMi, setInterLegMi] = useState([]); // real driving miles into stops[k] from stops[k-1] (index-aligned to stops)
+  const [flightInfo, setFlightInfo] = useState(null); // when flying: { fromName, toName, toCode, miles, hrs } for the arrival flight
   const dirServiceRef = useRef(null);
   const routeGenRef = useRef(0); // ignores stale Directions callbacks
   const browseMarkersRef = useRef([]);
@@ -769,16 +800,29 @@ export default function BuildTripApp() {
         position: pos, map, title: s.name, icon: pinIcon(g, i + 1, false),
       }));
     });
-    // Trip origin (Home) — its own marker; it anchors the first drive leg.
+    // How the trip reaches the region. FLY → a flight leg (Home → nearest airport to
+    // the first base) then driving from that airport. Otherwise driving from Home.
+    const flying = arrivalMode === "fly" && origin && origin.lat != null && stops[0];
+    const airport = flying ? nearestAirport(stops[0]) : null;
+    // Trip origin (Home / departure) marker.
     if (origin && origin.lat != null) {
       bounds.extend({ lat: origin.lat, lng: origin.lng });
-      routeMarkersRef.current.push(new g.maps.Marker({ position: { lat: origin.lat, lng: origin.lng }, map, title: "Start · " + origin.name, icon: { path: g.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#8fd6a6", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2.5 } }));
+      routeMarkersRef.current.push(new g.maps.Marker({ position: { lat: origin.lat, lng: origin.lng }, map, title: (flying ? "Fly from · " : "Start · ") + origin.name, icon: { path: g.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#8fd6a6", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2.5 } }));
     }
+    // Flight leg: a dashed great-circle line Home → arrival airport + an airport marker.
+    if (flying && airport) {
+      bounds.extend({ lat: airport.lat, lng: airport.lng });
+      routeLinesRef.current.push(new g.maps.Polyline({ path: [{ lat: origin.lat, lng: origin.lng }, { lat: airport.lat, lng: airport.lng }], map, geodesic: true, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeColor: "#7fb0d0", strokeOpacity: 0.9, scale: 3 }, offset: "0", repeat: "14px" }] }));
+      routeMarkersRef.current.push(new g.maps.Marker({ position: { lat: airport.lat, lng: airport.lng }, map, title: "Fly into · " + airport.name + " (" + airport.code + ")", label: { text: "✈", color: "#0a1712", fontSize: "12px" }, icon: { path: g.maps.SymbolPath.CIRCLE, scale: 11, fillColor: "#7fb0d0", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2 } }));
+      const fmiles = Math.round(milesBetween(origin, airport));
+      setFlightInfo({ fromName: origin.name, toName: airport.name, toCode: airport.code, miles: fmiles, hrs: Math.max(1, Math.round((fmiles / 500 + 1) * 10) / 10) });
+    } else setFlightInfo(null);
     map.fitBounds(bounds, 52);
 
-    // Route legs: Home → first base (if origin set), then base → base. Real driving
-    // distance from Directions; the first leg's miles feed the Home→base display.
-    const reqStops = (origin && origin.lat != null) ? [{ lat: origin.lat, lng: origin.lng, name: origin.name }, ...stops] : stops.slice();
+    // Driving chain start: the arrival airport when flying, else Home (if set), else
+    // just the bases. Real driving distance from Directions.
+    const driveStart = flying && airport ? { lat: airport.lat, lng: airport.lng, name: airport.name + " (" + airport.code + ")" } : (origin && origin.lat != null ? { lat: origin.lat, lng: origin.lng, name: origin.name } : null);
+    const reqStops = driveStart ? [driveStart, ...stops] : stops.slice();
     if (reqStops.length < 2) { setRoadInfo(null); setOriginRoadMi(null); return; }
     if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
     const mapObj = mapObjRef.current;
@@ -796,7 +840,7 @@ export default function BuildTripApp() {
         } else resolve({ ok: false });
       });
     });
-    const hasOrigin = !!(origin && origin.lat != null);
+    const hasOrigin = !!driveStart;
     (async () => {
       let meters = 0, secs = 0, originMi = null; const perStopMi = []; const fullPath = []; // perStopMi[k] = real miles into stops[k]
       for (let t = 0; t < reqStops.length - 1; t++) {
@@ -836,7 +880,7 @@ export default function BuildTripApp() {
       }
     })();
   }
-  useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady, origin]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady, origin, arrivalMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Explore mode: hide the itinerary route + its numbered pins so discoverable place
   // pins stand out; ensure at least one destination layer is on so there ARE pins.
@@ -1235,7 +1279,7 @@ export default function BuildTripApp() {
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
-          origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi}
+          origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi} flightInfo={flightInfo}
           setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}
           setAddAt={(i) => { addAtRef.current = i; }}
           mapPrefs={mapPrefs} setMapPref={setMapPref}

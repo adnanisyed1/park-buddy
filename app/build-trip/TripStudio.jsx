@@ -98,7 +98,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
-    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, lodging, setStopLodging, setAddAt,
+    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark, forestsDb,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -726,8 +726,11 @@ export default function TripStudio(props) {
                             const globalStart = stops.slice(0, i).reduce((a, x) => a + Math.max(1, x.nights || 1), 0) + 1;
                             const dateFor = (d) => { if (!arriveISO) return ""; const dt = new Date(arriveISO + "T12:00:00"); dt.setDate(dt.getDate() + d); return dt.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); };
                             const sortByTime = (list) => list.slice().sort((x, y) => (x.time || "~").localeCompare(y.time || "~"));
-                            // auto drive leg into this base — shows on its arrival day (Day 1)
-                            const legFrom = i > 0 ? (stops[i - 1] && stops[i - 1].name) : (origin && origin.name);
+                            // auto travel legs into this base — shown on its arrival day (Day 1).
+                            // When flying, the first base is reached by a flight leg (origin → arrival
+                            // airport) then a drive from that airport; so the drive's "from" is the airport.
+                            const flyLeg = i === 0 && flightInfo ? flightInfo : null;
+                            const legFrom = i > 0 ? (stops[i - 1] && stops[i - 1].name) : (flyLeg ? (flyLeg.toName + " (" + flyLeg.toCode + ")") : (origin && origin.name));
                             const legMi = i > 0 ? (interLegMi && interLegMi[i] != null ? interLegMi[i] : null) : originLegMi;
                             const legHrs = legMi != null ? Math.max(1, Math.round(legMi / 55)) : null;
                             return (
@@ -750,6 +753,14 @@ export default function TripStudio(props) {
                                             <span style={{ fontFamily: SANS, fontSize: 11, color: "#8f9a90" }}>{dateFor(d)}</span>
                                           </div>
                                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                            {d === 0 && flyLeg && (
+                                              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(127,176,208,0.07)", border: "1px dashed rgba(127,176,208,0.35)" }}>
+                                                <span style={{ fontFamily: MONO, fontSize: 10, color: "#8f9a90", minWidth: 38 }}>fly</span>
+                                                <span style={{ color: "#7fb0d0", display: "inline-flex", flex: "none" }}><TSIcon name="plane" size={15} /></span>
+                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{flyLeg.fromName} → {flyLeg.toName} ({flyLeg.toCode})<span style={{ color: "#8f9a90", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7 }}>~{flyLeg.hrs} H · {flyLeg.miles} MI</span></span>
+                                                <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".1em", color: "#8f9a90", textTransform: "uppercase" }}>auto</span>
+                                              </div>
+                                            )}
                                             {d === 0 && legFrom && (
                                               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(224,185,120,0.06)", border: "1px dashed rgba(224,185,120,0.3)" }}>
                                                 <span style={{ fontFamily: MONO, fontSize: 10, color: "#8f9a90", minWidth: 38 }}>drive</span>

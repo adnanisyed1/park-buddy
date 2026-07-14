@@ -24,6 +24,7 @@ function miBetween(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 const usd = (n) => "$" + Math.round(n).toLocaleString("en-US");
+const BLOCK_EMOJI = { drive: "🚗", stay: "🛏", meal: "🍽", scenic: "⛰", hike: "🥾", sight: "📸" };
 const fmtDate = (iso) => { try { return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }); } catch { return iso; } };
 
 // aspect-preserving projection of stops into a WxH box (mid-lat lng correction)
@@ -53,6 +54,7 @@ export default function TripPrint() {
   const [meta, setMeta] = useState({});
   const [mapImgErr, setMapImgErr] = useState(false);
   const [routePoly, setRoutePoly] = useState("");
+  const [dayPlans, setDayPlans] = useState({});
 
   useEffect(() => {
     let on = true;
@@ -75,7 +77,10 @@ export default function TripPrint() {
         const c = s.lat != null && s.lng != null ? s : coord[s.name];
         return c ? { name: s.name, nights: s.nights || 0, lat: c.lat, lng: c.lng, state: s.state || c.state || "", custom: !!s.custom } : { name: s.name, nights: s.nights || 0, state: s.state || "" };
       });
-      if (on) { setStops(resolved); setMeta(m); setReady(true); }
+      // Day-plan blocks: from the shared payload, else the local store.
+      let dp = shared ? (shared.dayPlans || {}) : {};
+      if (!shared) { try { dp = JSON.parse(localStorage.getItem("pb_trip_dayplans") || "{}") || {}; } catch { dp = {}; } }
+      if (on) { setStops(resolved); setMeta(m); setDayPlans(dp); setReady(true); }
     })();
     return () => { on = false; };
   }, []);
@@ -136,7 +141,7 @@ export default function TripPrint() {
     let arrive = "";
     if (startDate) { const d = new Date(startDate); d.setDate(d.getDate() + (start - 1)); arrive = d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
     dayCursor = end + 1;
-    return { ...s, label: start === end ? "Day " + start : "Days " + start + "–" + end, arrive, legMi: mapped.includes(s) ? legMi[mapped.indexOf(s)] : null };
+    return { ...s, start, span, label: start === end ? "Day " + start : "Days " + start + "–" + end, arrive, legMi: mapped.includes(s) ? legMi[mapped.indexOf(s)] : null };
   });
   const totalDays = dayCursor - 1;
 
@@ -232,7 +237,27 @@ export default function TripPrint() {
                       <div style={{ fontSize: ".82rem", color: "#6a6553", marginTop: 2 }}>
                         {[s.state, (s.nights || 0) + " night" + ((s.nights || 0) === 1 ? "" : "s"), i > 0 && s.legMi != null ? s.legMi + " mi from " + dayRows[i - 1].name : null, s.custom ? "custom stop" : null].filter(Boolean).join(" · ")}
                       </div>
-                      <div style={{ borderTop: "1px dashed #e3ddcf", marginTop: 8, paddingTop: 6, fontSize: ".78rem", color: "#9a927c" }}>Notes / plans: ______________________________________________</div>
+                      {(() => {
+                        const blocks = (dayPlans[s.name] || []).slice().sort((a, b) => ((a.day || 0) - (b.day || 0)) || (a.time || "").localeCompare(b.time || ""));
+                        if (!blocks.length) return <div style={{ borderTop: "1px dashed #e3ddcf", marginTop: 8, paddingTop: 6, fontSize: ".78rem", color: "#9a927c" }}>Notes / plans: ______________________________________________</div>;
+                        const byDay = {};
+                        blocks.forEach((b) => { (byDay[b.day || 0] = byDay[b.day || 0] || []).push(b); });
+                        return (
+                          <div style={{ borderTop: "1px dashed #e3ddcf", marginTop: 8, paddingTop: 8, display: "flex", flexDirection: "column", gap: 7 }}>
+                            {Object.keys(byDay).sort((a, c) => Number(a) - Number(c)).map((dk) => (
+                              <div key={dk}>
+                                <div style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c79a4b", marginBottom: 3 }}>Day {s.start + Number(dk)}</div>
+                                {byDay[dk].map((b, bi) => (
+                                  <div key={bi} style={{ display: "flex", gap: 8, fontSize: ".82rem", color: "#3a3931", padding: "1px 0" }}>
+                                    <span style={{ minWidth: 44, color: "#9a927c", fontVariantNumeric: "tabular-nums" }}>{b.time || "—"}</span>
+                                    <span>{BLOCK_EMOJI[b.type] || "•"} {b.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}

@@ -160,7 +160,9 @@ export default function BuildTripApp() {
   const [editingBudget, setEditingBudget] = useState(null); // key being edited
   const [verdicts, setVerdicts] = useState({}); // name -> {status, note}
   const [wx, setWx] = useState({}); // base name -> { periods, timeZone } — 7-day forecast for per-day conditions
-  const [baseInfo, setBaseInfo] = useState({}); // base name -> { alerts:[{title,category,url}], reservation:string|null }
+  const [baseInfo, setBaseInfo] = useState({}); // base name -> { alerts:[{title,category,url}], reservation:string|null, parkCode:string }
+  const [planningDay, setPlanningDay] = useState(null); // `${name}#${d}` while "Plan this day" is fetching
+  const [planMsg, setPlanMsg] = useState({}); // `${name}#${d}` -> short result message
   const [keyOverlay, setKeyOverlay] = useState(false);
   const [keyMsg, setKeyMsg] = useState("Paste a Google Maps JavaScript API key to load the live map.");
   // Step-by-step setup wizard (Trip details → Transportation). Auto-opens on first
@@ -466,6 +468,56 @@ export default function BuildTripApp() {
   }
   function updateActivity(name, id, patch) {
     setDayPlans((prev) => ({ ...prev, [name]: (prev[name] || []).map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
+  }
+  // "Plan this day for me" — assemble a day from REAL nearby places around the base:
+  // a morning hike (NPS trails) + a couple of named sights (park Things-to-do when it's a
+  // park, else OSM named features). Deduped against what's already planned; nothing invented.
+  async function planDay(name, dayIdx, base) {
+    if (!base || base.lat == null) return;
+    const key = name + "#" + dayIdx;
+    setPlanningDay(key);
+    try {
+      const la = base.lat.toFixed(4), ln = base.lng.toFixed(4);
+      const code = (baseInfo[name] && baseInfo[name].parkCode) || "";
+      const existing = new Set((dayPlans[name] || []).map((a) => (a.name || "").toLowerCase().split(" · ")[0]));
+      const seen = (n) => existing.has((n || "").toLowerCase().split(" · ")[0]);
+      const hikes = [], sights = [];
+      // Trails near the base → hikes (reasonable day-hike length), point from mid-path.
+      const t = await fetch("/api/trails?lat=" + la + "&lng=" + ln + "&radius=25").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      ((t && t.hiking) || []).forEach((tr) => {
+        if (!tr.name || seen(tr.name) || !tr.path || !tr.path.length) return;
+        if (tr.lengthMi != null && tr.lengthMi > 9) return;
+        const mid = tr.path[Math.floor(tr.path.length / 2)];
+        hikes.push({ type: "hike", name: tr.name + (tr.lengthMi ? " · " + tr.lengthMi + " mi" : ""), lat: mid[0], lng: mid[1] });
+      });
+      // Sights — a park's ranger-curated Things-to-do (named + photographed + geolocated).
+      if (code) {
+        const td = await fetch("/api/thingstodo?parkCode=" + encodeURIComponent(code)).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        ((td && td.items) || []).forEach((it) => {
+          if (it.lat != null && it.title && !seen(it.title)) sights.push({ type: "sight", name: it.title, lat: it.lat, lng: it.lng });
+        });
+      }
+      // Supplement with named natural features (viewpoints, waterfalls, arches, peaks).
+      if (sights.length < 2) {
+        const bbox = (base.lat - 0.35) + "," + (base.lng - 0.45) + "," + (base.lat + 0.35) + "," + (base.lng + 0.45);
+        const wp = await fetch("/api/waypoints?bbox=" + bbox).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        ((wp && wp.features) || []).filter((f) => /viewpoint|waterfall|arch|peak|pass|glacier|spring/.test(f.type || "")).forEach((f) => {
+          if (f.name && !seen(f.name)) sights.push({ type: "sight", name: f.name, lat: f.lat, lng: f.lng });
+        });
+      }
+      // Compose a paced day: morning hike, midday + afternoon sights (fall back to a 2nd hike).
+      const picks = [];
+      if (hikes[0]) picks.push({ ...hikes[0], time: "09:00" });
+      if (sights[0]) picks.push({ ...sights[0], time: "12:30" });
+      if (sights[1]) picks.push({ ...sights[1], time: "15:30" });
+      else if (hikes[1]) picks.push({ ...hikes[1], time: "15:30" });
+      picks.forEach((p) => addActivity(name, { ...p, day: dayIdx }));
+      setPlanMsg((m) => ({ ...m, [key]: picks.length ? "Added " + picks.length + " nearby" : "No suggestions found nearby" }));
+    } catch {
+      setPlanMsg((m) => ({ ...m, [key]: "Couldn't load suggestions" }));
+    } finally {
+      setPlanningDay(null);
+    }
   }
 
   // Save the current trip into My trips, then jump to that tab (spec §3.7 "+ Add my trip").
@@ -1215,16 +1267,16 @@ export default function BuildTripApp() {
     stops.forEach((s) => {
       if (!s || baseInfo[s.name] !== undefined) return;
       const code = parkCodeFor(s.name);
-      if (!code) { setBaseInfo((b) => ({ ...b, [s.name]: { alerts: [], reservation: null } })); return; }
+      if (!code) { setBaseInfo((b) => ({ ...b, [s.name]: { alerts: [], reservation: null, parkCode: "" } })); return; }
       const reservation = reservationNote(code);
       fetch("/api/nps?parkCode=" + encodeURIComponent(code))
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (cancelled) return;
           const alerts = ((d && d.alerts) || []).slice(0, 6).map((a) => ({ title: a.title, category: a.category || "", url: a.url || "" }));
-          setBaseInfo((b) => ({ ...b, [s.name]: { alerts, reservation } }));
+          setBaseInfo((b) => ({ ...b, [s.name]: { alerts, reservation, parkCode: code } }));
         })
-        .catch(() => { if (!cancelled) setBaseInfo((b) => ({ ...b, [s.name]: { alerts: [], reservation } })); });
+        .catch(() => { if (!cancelled) setBaseInfo((b) => ({ ...b, [s.name]: { alerts: [], reservation, parkCode: code } })); });
     });
     return () => { cancelled = true; };
   }, [stops, parksDb]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1334,6 +1386,7 @@ export default function BuildTripApp() {
           statNum={{ stops: stops.length, days: totalNights, miles: totalMiles, cost: totalCost }}
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} wx={wx} baseInfo={baseInfo} STOP_STATUS={STOP_STATUS}
+          planDay={planDay} planningDay={planningDay} planMsg={planMsg}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi} flightInfo={flightInfo}

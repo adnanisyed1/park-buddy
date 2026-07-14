@@ -98,7 +98,7 @@ export default function TripStudio(props) {
   const {
     mode, setMode, onNewTrip, editing,
     stat, statNum, tripName, setTripName,
-    stops, dayRanges, verdicts, wx, baseInfo, STOP_STATUS,
+    stops, dayRanges, verdicts, wx, baseInfo, planDay, planningDay, planMsg, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
     expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
@@ -842,6 +842,18 @@ export default function TripStudio(props) {
                                               </div>
                                               )
                                             ))}
+                                            {planDay && s.lat != null && (() => {
+                                              const pk = s.name + "#" + d;
+                                              const loading = planningDay === pk;
+                                              return (
+                                                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+                                                  <button onClick={(e) => { e.stopPropagation(); if (!loading) planDay(s.name, d, s); }} disabled={loading} className="ts-goldbtn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.4)", background: "linear-gradient(120deg, rgba(232,207,154,0.16), rgba(201,163,95,0.12))", color: "#e8cf9a", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1 }}>
+                                                    <span style={{ fontSize: 12 }}>✨</span>{loading ? "Finding nearby…" : (acts.length ? "Suggest more" : "Plan this day for me")}
+                                                  </button>
+                                                  {planMsg && planMsg[pk] && !loading && <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".06em", color: "#8f9a90" }}>{planMsg[pk]}</span>}
+                                                </div>
+                                              );
+                                            })()}
                                             <DayPlanAdd onAdd={(act) => addActivity(s.name, { ...act, day: d })} fieldBox={fieldBox} />
                                           </div>
                                         </div>

@@ -1665,9 +1665,24 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const [, force] = useState(0);
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recRef = useRef(null);
   const [adding, setAdding] = useState(null);
   const [addVal, setAddVal] = useState("");
   useEffect(() => subscribeChecklist(() => force((n) => n + 1)), []);
+  const canVoice = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const startVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || listening) return;
+    try {
+      const rec = new SR(); recRef.current = rec;
+      rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 1;
+      rec.onresult = (e) => { const t = e.results[0][0].transcript; setDesc(t); runDesc(t); };
+      rec.onend = () => setListening(false);
+      rec.onerror = () => setListening(false);
+      setListening(true); rec.start();
+    } catch { setListening(false); }
+  };
   const items = getChecklist();
   const done = items.filter((i) => i.done).length;
   const pct = items.length ? Math.round((done / items.length) * 100) : 0;
@@ -1676,8 +1691,8 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const generate = () => { addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); };
   // "Describe your trip" → the Ask Park Buddy agent (its add_checklist_items tool),
   // grounded in the current trip; keyword rules are the offline fallback.
-  const runDesc = async () => {
-    const t = desc.trim();
+  const runDesc = async (override) => {
+    const t = (typeof override === "string" ? override : desc).trim();
     if (!t || busy) return;
     setBusy(true); setOpen(true);
     let applied = null;
@@ -1711,8 +1726,11 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
           <div>
             <div style={{ fontFamily: SANS, fontSize: 12, color: "#8f9a90", marginBottom: 7 }}>Describe your trip and we&apos;ll suggest what to bring.</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder="Camping with a baby in winter…" disabled={busy} style={{ ...fieldBox, flex: 1, opacity: busy ? 0.6 : 1 }} />
-              <button onClick={runDesc} disabled={busy} className="ts-goldbtn" style={{ flex: "none", minWidth: 54, padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>{busy ? "…" : "Ask"}</button>
+              <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder={listening ? "Listening…" : "Camping with a baby in winter…"} disabled={busy} style={{ ...fieldBox, flex: 1, opacity: busy ? 0.6 : 1 }} />
+              {canVoice && (
+                <button onClick={() => (listening ? recRef.current && recRef.current.stop() : startVoice())} disabled={busy} title="Speak your trip" aria-label="Speak your trip" style={{ flex: "none", width: 40, borderRadius: 10, border: "1px solid " + (listening ? "rgba(127,176,208,0.6)" : "rgba(217,183,121,0.3)"), background: listening ? "rgba(127,176,208,0.18)" : "rgba(255,255,255,.04)", color: listening ? "#7fb0d0" : "#e8cf9a", fontSize: 15, cursor: busy ? "default" : "pointer" }}>🎤</button>
+              )}
+              <button onClick={() => runDesc()} disabled={busy} className="ts-goldbtn" style={{ flex: "none", minWidth: 54, padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>{busy ? "…" : "Ask"}</button>
             </div>
           </div>
           <button onClick={generate} className="ts-goldbtn" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.4)", background: "linear-gradient(120deg, rgba(232,207,154,0.16), rgba(201,163,95,0.12))", color: "#e8cf9a", fontFamily: SANS, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>

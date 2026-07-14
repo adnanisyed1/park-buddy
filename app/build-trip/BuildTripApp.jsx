@@ -228,6 +228,7 @@ export default function BuildTripApp() {
   const mapObjRef = useRef(null);
   const lastFitRef = useRef(null); // last { bounds, pad } we framed — replayed when the mobile map sheet opens
   const myLocRef = useRef(null); // "you are here" marker on the Edit-Trip map
+  const myLocHaloRef = useRef(null); // soft blue accuracy halo under the you-are-here dot
   const routeMarkersRef = useRef([]);
   const routeLinesRef = useRef([]); // per-leg polylines (road or straight fallback)
   const dragIdxRef = useRef(null);
@@ -846,8 +847,10 @@ export default function BuildTripApp() {
         btn.style.opacity = "1";
         const p = { lat: pos.coords.latitude, lng: pos.coords.longitude }, gg = window.google, map = mapObjRef.current;
         if (!gg || !map) return;
+        if (myLocHaloRef.current) myLocHaloRef.current.setPosition(p);
+        else myLocHaloRef.current = new gg.maps.Marker({ position: p, map, zIndex: 998, clickable: false, icon: { path: gg.maps.SymbolPath.CIRCLE, scale: 16, fillColor: "#2f80ed", fillOpacity: 0.18, strokeColor: "#2f80ed", strokeOpacity: 0.35, strokeWeight: 1 } });
         if (myLocRef.current) myLocRef.current.setPosition(p);
-        else myLocRef.current = new gg.maps.Marker({ position: p, map, zIndex: 999, title: "You are here", icon: { path: gg.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#4c9be8", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2.5 } });
+        else myLocRef.current = new gg.maps.Marker({ position: p, map, zIndex: 999, title: "You are here", icon: { path: gg.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#2f80ed", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2.5 } });
         map.panTo(p); map.setZoom(Math.max(map.getZoom() || 7, 9));
       }, () => { btn.style.opacity = "1"; }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
     };
@@ -907,6 +910,20 @@ export default function BuildTripApp() {
       routeMarkersRef.current.push(new g.maps.Marker({
         position: pos, map, title: s.name, icon: pinIcon(g, i + 1, false),
       }));
+    });
+    // Day-plan activities that carry a location — small colored dots so the things you
+    // planned for each day actually show up on the map (hikes, sights, meals, stays).
+    const ACT_COLOR = { hike: "#8fd6a6", sight: "#e8cf9a", meal: "#e0906a", scenic: "#c9a35f", drive: "#e0b978", stay: "#8fd6a6" };
+    Object.keys(dayPlans || {}).forEach((stopName) => {
+      (dayPlans[stopName] || []).forEach((a) => {
+        if (a.lat == null || a.lng == null) return;
+        bounds.extend({ lat: a.lat, lng: a.lng });
+        routeMarkersRef.current.push(new g.maps.Marker({
+          position: { lat: a.lat, lng: a.lng }, map, zIndex: 6,
+          title: (a.name || "") + (a.time ? " · " + a.time : ""),
+          icon: { path: g.maps.SymbolPath.CIRCLE, scale: 5, fillColor: ACT_COLOR[a.type] || "#e0b978", fillOpacity: 0.95, strokeColor: "#0a1712", strokeWeight: 1.5 },
+        }));
+      });
     });
     // How the trip reaches the region. FLY → a flight leg (Home → nearest airport to
     // the first base) then driving from that airport. Otherwise driving from Home.
@@ -986,7 +1003,7 @@ export default function BuildTripApp() {
       }
     })();
   }
-  useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady, origin, arrivalMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady, origin, arrivalMode, dayPlans]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Explore mode: hide the itinerary route + its numbered pins so discoverable place
   // pins stand out; ensure at least one destination layer is on so there ARE pins.

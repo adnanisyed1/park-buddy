@@ -16,6 +16,12 @@
       SERIF = "var(--pb-serif,'Cormorant Garamond',Georgia,serif)",
       MONO = "var(--pb-mono,'Space Mono',ui-monospace,monospace)";
 
+  // The Park Buddy brand mark used everywhere: a dark (forest) pine inside a gold box
+  // (see app/components/SiteHeader.jsx Logo). Same SVG path so it matches 1:1.
+  function pineSvg(px) {
+    return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 24 24" fill="' + BG + '" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z"/><rect x="11" y="18" width="2" height="4"/></svg>';
+  }
+
   var history = []; // [{role, content}]
 
   // --- Voice: live speech-in (transcribe as you talk) + speech-out (read replies back) ---
@@ -58,11 +64,11 @@
     var s = document.createElement('style'); s.id = 'pbask-css';
     s.textContent =
       '.pbask-fab{position:fixed;right:18px;bottom:18px;z-index:99000;display:flex;align-items:center;gap:9px;background:linear-gradient(150deg,#123822,' + BG + ');color:' + INK + ';border:1px solid ' + LINE2 + ';border-radius:999px;padding:13px 18px;font-family:' + SANS + ';font-weight:600;font-size:.9rem;cursor:pointer;box-shadow:0 16px 40px -14px rgba(0,0,0,.7)}' +
-      '.pbask-fab .spark{font-size:1.05rem;color:' + GOLD + '}' +
+      '.pbask-fab .pbask-mark{width:24px;height:24px;flex:none;border-radius:7px;background:linear-gradient(120deg,' + GOLD + ',' + GOLD2 + ');display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(217,183,121,.4)}' +
       '.pbask-panel{position:fixed;right:18px;bottom:18px;z-index:99001;width:min(390px,calc(100vw - 28px));height:min(580px,calc(100vh - 36px));background:' + SURFACE + ';border:1px solid ' + LINE + ';border-radius:22px;box-shadow:0 40px 100px -40px rgba(0,0,0,.9);display:none;flex-direction:column;overflow:hidden;font-family:' + SANS + '}' +
       '.pbask-panel.open{display:flex}' +
       '.pbask-head{background:linear-gradient(135deg,' + SURFACE2 + ',' + BG + ');color:' + INK + ';padding:15px 17px;display:flex;align-items:center;gap:11px;border-bottom:1px solid ' + LINE + '}' +
-      '.pbask-head .lg{width:36px;height:36px;flex:none;border-radius:10px;background:rgba(232,207,154,.14);border:1px solid ' + LINE2 + ';display:flex;align-items:center;justify-content:center;font-size:1.05rem}' +
+      '.pbask-head .lg{width:34px;height:34px;flex:none;border-radius:9px;background:linear-gradient(120deg,' + GOLD + ',' + GOLD2 + ');box-shadow:0 0 18px rgba(217,183,121,.35);display:flex;align-items:center;justify-content:center}' +
       '.pbask-head b{font-family:' + SERIF + ';font-weight:600;font-size:1.28rem;line-height:1.05;display:block;color:' + INK + ';letter-spacing:.01em}' +
       '.pbask-head small{color:' + MUTED + ';font-family:' + MONO + ';font-size:.6rem;letter-spacing:.14em;text-transform:uppercase}' +
       '.pbask-x{background:rgba(255,255,255,.06);border:1px solid ' + LINE + ';color:' + INK2 + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.95rem}' +
@@ -242,10 +248,10 @@
   function mount() {
     css();
     var fab = document.createElement('button'); fab.className = 'pbask-fab';
-    fab.innerHTML = '<span class="spark">\u2728</span> Ask Park Buddy';
+    fab.innerHTML = '<span class="pbask-mark">' + pineSvg(14) + '</span> Ask Park Buddy';
     var panel = document.createElement('div'); panel.className = 'pbask-panel';
     panel.innerHTML =
-      '<div class="pbask-head"><span class="lg">\uD83C\uDF32</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-spk' + (ttsOn ? '' : ' off') + '" title="Read replies aloud">' + (ttsOn ? '\uD83D\uDD0A' : '\uD83D\uDD07') + '</button><button class="pbask-x" title="Close">\u2715</button></div>' +
+      '<div class="pbask-head"><span class="lg">' + pineSvg(17) + '</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-spk' + (ttsOn ? '' : ' off') + '" title="Read replies aloud">' + (ttsOn ? '\uD83D\uDD0A' : '\uD83D\uDD07') + '</button><button class="pbask-x" title="Close">\u2715</button></div>' +
       '<div class="pbask-body"></div>' +
       '<div class="pbask-note">Grounded in National Park Service data \u00b7 not live weather</div>' +
       '<div class="pbask-foot"><button class="pbask-mic" title="Speak">\uD83C\uDFA4</button><input type="text" placeholder="Describe your trip\u2026" maxlength="240"><button class="pbask-send" title="Send">\u2191</button></div>';

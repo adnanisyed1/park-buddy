@@ -72,6 +72,13 @@ const fmtShort = (iso) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
+// The precise, road-hugging route geometry — Google's per-step path points, not the
+// decimated overview_path (which straightens curves). This is what Google's own line uses.
+function detailedPath(route) {
+  const pts = [];
+  (route.legs || []).forEach((l) => (l.steps || []).forEach((st) => (st.path || []).forEach((p) => pts.push(p))));
+  return pts.length ? pts : (route.overview_path || []);
+}
 function milesBetween(a, b) {
   const R = 3958.8, toRad = Math.PI / 180;
   const dLat = (b.lat - a.lat) * toRad, dLng = (b.lng - a.lng) * toRad;
@@ -783,7 +790,7 @@ export default function BuildTripApp() {
       dirServiceRef.current.route({ origin: { lat: a.lat, lng: a.lng }, destination: { lat: b.lat, lng: b.lng }, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
         if (status === "OK" && res && res.routes && res.routes[0]) {
           const lg = res.routes[0];
-          resolve({ ok: true, path: lg.overview_path, meters: lg.legs.reduce((s, l) => s + (l.distance ? l.distance.value : 0), 0), secs: lg.legs.reduce((s, l) => s + (l.duration ? l.duration.value : 0), 0) });
+          resolve({ ok: true, path: detailedPath(lg), meters: lg.legs.reduce((s, l) => s + (l.distance ? l.distance.value : 0), 0), secs: lg.legs.reduce((s, l) => s + (l.duration ? l.duration.value : 0), 0) });
         } else if (attempt < 2 && status !== "ZERO_RESULTS" && status !== "NOT_FOUND" && status !== "REQUEST_DENIED") {
           setTimeout(() => routeLeg(a, b, attempt + 1).then(resolve), 500 * (attempt + 1));
         } else resolve({ ok: false });
@@ -959,7 +966,7 @@ export default function BuildTripApp() {
         }, (res, status) => {
           if (reqId !== previewReqRef.current) return; // a newer preview replaced this one
           if (status !== "OK" || !res || !res.routes || !res.routes[0]) { fallbackPin(); return; }
-          const opath = res.routes[0].overview_path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() }));
+          const opath = detailedPath(res.routes[0]).map((ll) => ({ lat: ll.lat(), lng: ll.lng() }));
           previewCasingRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#0a1712", strokeOpacity: 0.7, strokeWeight: 6, zIndex: 2 });
           previewLineRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#e8cf9a", strokeOpacity: 1, strokeWeight: 3, zIndex: 3 });
           const legs = res.routes[0].legs || [];

@@ -311,7 +311,10 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
       dirServiceRef.current.route({ ...req, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
         if (mapObjRef.current !== map) return; // component/map changed under us
         if (status === "OK" && res.routes && res.routes[0]) {
-          solidRoute(res.routes[0].overview_path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() })));
+          // Precise per-step geometry (hugs the road), not the decimated overview_path.
+          const rt = res.routes[0]; const pathPts = [];
+          (rt.legs || []).forEach((l) => (l.steps || []).forEach((st) => (st.path || []).forEach((p) => pathPts.push(p))));
+          solidRoute((pathPts.length ? pathPts : rt.overview_path).map((ll) => ({ lat: ll.lat(), lng: ll.lng() })));
         } else if (pts.length >= 2) dashedConnector();
         else if (pts.length === 1) { map.setCenter({ lat: pts[0].lat, lng: pts[0].lng }); map.setZoom(drive.approxLoc ? 8 : 11); }
         else anchorPin();

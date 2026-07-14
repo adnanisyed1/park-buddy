@@ -103,7 +103,7 @@ export default function TripStudio(props) {
     mode, setMode, onNewTrip, editing,
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, wx, baseInfo, planDay, planningDay, planMsg, optimizeOrder, undoOptimize, optimizeMsg, canUndoOptimize, STOP_STATUS,
-    onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
+    onDragStart, onDragOver, onDrop, removeStop, setStopNights, editStop, addMyTrip, hoverIdx, setHoverIdx,
     expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark, forestsDb,
@@ -153,6 +153,7 @@ export default function TripStudio(props) {
   const [spSel, setSpSel] = useState("");
   const [spLoading, setSpLoading] = useState(false);
   const [editBlock, setEditBlock] = useState(null); // { stop, id } — day block being edited inline
+  const [editBase, setEditBase] = useState(null); // { i, name } — base being renamed/moved inline
   const [confirmDelBlock, setConfirmDelBlock] = useState(null); // { stop, id, name, dayNum } — delete-confirm popup
   const [viewRoute, setViewRoute] = useState(null); // ready-made route open in read-only view
   const [pickTrip, setPickTrip] = useState(false); // show the My-trips picklist inside the view popup
@@ -638,10 +639,32 @@ export default function TripStudio(props) {
                         {origin && <button onClick={() => setOrigin(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "#7f8a82", fontFamily: SANS, fontSize: 11, cursor: "pointer" }}>Change</button>}
                       </div>
                       {origin ? (
-                        <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>{origin.name}</div>
+                        <>
+                          <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>{origin.name}</div>
+                          {/* Getting there: the travel time from home to the first stop. */}
+                          {stops[0] && (() => {
+                            const first = stops[0].name;
+                            if (flightInfo) return (
+                              <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 7, fontFamily: SANS, fontSize: 12, color: "#cbd2c9" }}>
+                                <span style={{ color: "#7fb0d0", display: "inline-flex" }}><TSIcon name="plane" size={13} /></span>
+                                Fly to {flightInfo.toName} ({flightInfo.toCode}) · ~{flightInfo.hrs} h{originLegMi != null ? ", then " + Math.max(1, Math.round(originLegMi / 55)) + " h drive to " + first : ", then drive to " + first}
+                              </div>
+                            );
+                            const hrs = originLegMi != null ? Math.max(1, Math.round(originLegMi / 55)) : null;
+                            return (
+                              <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 7, fontFamily: SANS, fontSize: 12, color: "#cbd2c9" }}>
+                                <span style={{ color: "#e0b978", display: "inline-flex" }}><TSIcon name="car" size={13} /></span>
+                                Getting to {first}: {originLegMi != null ? "~" + hrs + " h · " + originLegMi + " mi" : "measuring…"}
+                              </div>
+                            );
+                          })()}
+                        </>
                       ) : (
-                        <GeoAutocomplete placeholder="Where are you starting from? (home, city, airport…)" fieldBox={fieldBox}
-                          onPick={(s) => setOrigin({ name: s.name, lat: s.lat, lng: s.lng })} />
+                        <>
+                          <GeoAutocomplete placeholder="Where are you starting from? (home, city, airport…)" fieldBox={fieldBox}
+                            onPick={(s) => setOrigin({ name: s.name, lat: s.lat, lng: s.lng })} />
+                          {stops.length > 0 && <div style={{ marginTop: 7, fontFamily: SANS, fontSize: 11.5, color: "#8f9a90", lineHeight: 1.5 }}>Add your home and we&apos;ll show the drive (or flight) time to your first stop.</div>}
+                        </>
                       )}
                     </div>
                   )}
@@ -713,6 +736,7 @@ export default function TripStudio(props) {
                           </div>
                           <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                             <span onClick={() => removeStop(i)} title="Remove" style={{ cursor: "pointer", color: "#b06a4a", fontSize: 15, lineHeight: 1, opacity: hov ? 1 : 0.35 }}>×</span>
+                            {editStop && s.kind !== "byway" && <span onClick={() => setEditBase({ i, name: s.name })} title="Edit base" className="ts-iconbtn" style={{ cursor: "pointer", color: "#8f9a90", display: "inline-flex", opacity: hov ? 1 : 0.35 }}><TSIcon name="edit" size={13} /></span>}
                             <div style={{ display: "flex", flexDirection: "column", gap: 3, cursor: "grab", opacity: 0.5 }}>
                               <span style={{ width: 14, height: 1.5, background: "#aab0ba", borderRadius: 2 }} />
                               <span style={{ width: 14, height: 1.5, background: "#aab0ba", borderRadius: 2 }} />
@@ -720,6 +744,21 @@ export default function TripStudio(props) {
                             </div>
                           </div>
                           </div>
+                          {/* Inline base editor — rename and/or move this base to a different place. */}
+                          {editBase && editBase.i === i && (
+                            <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 10, padding: 11, borderRadius: 12, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(8,19,13,0.6)", display: "flex", flexDirection: "column", gap: 9 }}>
+                              <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".12em", textTransform: "uppercase", color: "#c9a35f" }}>Edit base</div>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <input value={editBase.name} onChange={(e) => setEditBase({ ...editBase, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") { editStop(i, { name: editBase.name }); setEditBase(null); } if (e.key === "Escape") setEditBase(null); }} placeholder="Base name" style={{ ...fieldBox, flex: 1 }} />
+                                <button onClick={() => { editStop(i, { name: editBase.name }); setEditBase(null); }} style={{ flex: "none", padding: "0 14px", borderRadius: 9, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Save</button>
+                              </div>
+                              <div>
+                                <div style={{ fontFamily: SANS, fontSize: 11, color: "#8f9a90", marginBottom: 5 }}>Move this base to a different place:</div>
+                                <GeoAutocomplete placeholder="Search a park, town or address…" fieldBox={fieldBox} onPick={(pl) => { if (pl && pl.lat != null) { editStop(i, { name: pl.name, lat: pl.lat, lng: pl.lng, state: pl.state || "" }); setEditBase(null); } }} />
+                              </div>
+                              <button onClick={() => setEditBase(null)} style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#8f9a90", fontFamily: SANS, fontSize: 11, cursor: "pointer", padding: 0 }}>Cancel</button>
+                            </div>
+                          )}
                           {/* Live alerts + a timed-entry heads-up for this base (national parks only). */}
                           {(alerts.length > 0 || resNote) && (
                             <div style={{ marginTop: 9, display: "flex", flexDirection: "column", gap: 5 }}>

@@ -144,6 +144,24 @@ export default function TripMode() {
           <div style={{ ...card, textAlign: "center", marginTop: 20, color: "var(--pb-muted)" }}>Your trip is empty. <a href="/build-trip" style={{ color: "var(--pb-gold)" }}>Build it first →</a></div>
         ) : (
           <>
+            {/* Getting there — travel from home to the first stop. */}
+            {meta.origin && meta.origin.name && stops[0] && (() => {
+              const mi = meta.originMiles;
+              const hrs = mi != null ? Math.max(1, Math.round(mi / 55)) : null;
+              const fly = meta.arrivalMode === "fly";
+              return (
+                <div style={{ ...card, marginTop: 6, display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: "1.3rem" }}>{fly ? "✈️" : "🚗"}</span>
+                  <div>
+                    <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Getting there</div>
+                    <div style={{ fontSize: ".95rem", marginTop: 2 }}>
+                      From <b>{meta.origin.name}</b> to <b>{stops[0].name}</b>{fly ? " — fly in, then drive" : ""}{mi != null ? " · ~" + hrs + " h · " + mi + " mi" : ""}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* stops: photos + conditions */}
             <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", margin: "30px 0 14px" }}>Your stops</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

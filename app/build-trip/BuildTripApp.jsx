@@ -402,7 +402,7 @@ export default function BuildTripApp() {
   // on screen (savedTrips.saveCurrentTrip reads the active trip from trip.js).
   function saveCurrentTrip() {
     tripSetStops(stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })));
-    tripSetMeta({ tripName, startDate, endDate, adults, infants, travelers, arrivalMode, tripScope, car, transport });
+    tripSetMeta({ tripName, startDate, endDate, adults, infants, travelers, arrivalMode, tripScope, car, transport, origin });
     // Document model: keep the checked-out entry (activeTripId) in sync; otherwise
     // create a new My-trips entry and check it out.
     const entry = upsertActiveTrip(activeTripId, tripName || "My trip");
@@ -427,6 +427,7 @@ export default function BuildTripApp() {
     if (m.adults) setAdults(m.adults);
     if (m.infants != null) setInfants(m.infants);
     if (m.arrivalMode) setArrivalMode(m.arrivalMode);
+    if (m.origin && m.origin.lat != null) setOrigin(m.origin);
     if (m.tripScope) setTripScope(m.tripScope);
     if (m.car) setCar(m.car);
     if (m.transport) setTransport(m.transport);
@@ -457,6 +458,22 @@ export default function BuildTripApp() {
   function setStopNights(i, dir) {
     userEditedRef.current = true;
     setStops((prev) => prev.map((s, idx) => (idx === i ? { ...s, nights: Math.max(1, (s.nights || 0) + dir) } : s)));
+  }
+  // Edit an existing base: rename and/or move it to a different place. Migrates the
+  // base's day plans + lodging to the new name, and drops its cached conditions so the
+  // weather/alerts/verdict refetch for the new name or coordinates.
+  function editStop(i, patch) {
+    const old = stops[i];
+    if (!old || !patch) return;
+    const oldN = old.name, newN = (patch.name || oldN).trim() || oldN;
+    if (newN !== oldN && stops.some((s, x) => x !== i && s.name === newN)) { patch = { ...patch, name: oldN }; } // avoid duplicate names
+    const finalNew = (patch.name || oldN).trim() || oldN;
+    userEditedRef.current = true;
+    setStops((prev) => { const n = prev.slice(); if (!n[i]) return prev; n[i] = { ...n[i], ...patch, name: finalNew }; return recomputeLegs(n); });
+    const renameKey = (obj) => { if (!obj || !obj[oldN] || finalNew === oldN) return obj; const c = { ...obj }; c[finalNew] = c[oldN]; delete c[oldN]; return c; };
+    if (finalNew !== oldN) { setDayPlans(renameKey); setLodging(renameKey); setExpandedStop((e) => (e === oldN ? finalNew : e)); }
+    const drop = (obj) => { const c = { ...obj }; delete c[oldN]; delete c[finalNew]; return c; };
+    setVerdicts(drop); setWx(drop); setBaseInfo(drop);
   }
   // "Plan this day" — per-stop activity timelines (spec §3.3). Stored locally,
   // keyed by stop name; the trip store itself stays a simple stop list.
@@ -737,6 +754,7 @@ export default function BuildTripApp() {
         if (m.adults) setAdults(m.adults); else if (m.travelers) setAdults(m.travelers);
         if (m.infants != null) setInfants(m.infants);
         if (m.arrivalMode) setArrivalMode(m.arrivalMode);
+        if (m.origin && m.origin.lat != null) setOrigin(m.origin);
         if (m.tripScope) setTripScope(m.tripScope);
         setLoadedRoute(null);
         setTotalMilesOverride(null);
@@ -773,7 +791,7 @@ export default function BuildTripApp() {
     const managed = new Set(stops.map((s) => s.name));
     const preserved = tripStops().filter((s) => !managed.has(s.name));
     tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })), ...preserved]);
-    tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate, transport });
+    tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate, transport, origin });
     // Document model: once a trip is "checked out" (activeTripId) or the questionnaire
     // was just submitted (wantsSaveRef), autosave every edit into that My-trips entry.
     if (activeTripId) {
@@ -1468,7 +1486,7 @@ export default function BuildTripApp() {
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} wx={wx} baseInfo={baseInfo} STOP_STATUS={STOP_STATUS}
           planDay={planDay} planningDay={planningDay} planMsg={planMsg}
           optimizeOrder={optimizeOrder} undoOptimize={undoOptimize} optimizeMsg={optimizeMsg} canUndoOptimize={!!prevOrder}
-          onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
+          onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} editStop={editStop} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi} flightInfo={flightInfo}
           setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}

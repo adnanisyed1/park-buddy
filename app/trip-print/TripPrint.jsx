@@ -35,14 +35,14 @@ const BRONZE = "#a9772f", GOLD = "#c9a35f", GOLD_LT = "#e8cf9a", MUTE = "#5f6b60
 const SERIF = "var(--pb-serif), 'Cormorant Garamond', 'Spectral', Georgia, serif";
 const MONO = "var(--pb-mono), 'Space Mono', ui-monospace, monospace";
 
-// Section header: ◇ diamond · serif title · hairline rule · mono note (field-notes style).
+// Section header: serif title · hairline rule · filled gold ◆ · mono note (field-notes style).
 function SectionHead({ children, note }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 14px" }}>
-      <span style={{ color: BRONZE, fontSize: 12, lineHeight: 1, flex: "none" }}>◇</span>
-      <h2 style={{ fontFamily: SERIF, fontSize: "1.5rem", fontWeight: 600, color: INK, margin: 0, whiteSpace: "nowrap", letterSpacing: ".01em" }}>{children}</h2>
-      <span style={{ flex: 1, height: 1, background: HAIR }} />
-      {note ? <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: MUTE2, whiteSpace: "nowrap" }}>{note}</span> : null}
+    <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "0 0 18px" }}>
+      <h2 style={{ fontFamily: SERIF, fontSize: "1.75rem", fontWeight: 600, color: DEEP, margin: 0, whiteSpace: "nowrap", letterSpacing: ".005em" }}>{children}</h2>
+      <span style={{ flex: 1, height: 1, background: "rgba(34,48,42,0.16)" }} />
+      <span style={{ width: 6, height: 6, flex: "none", background: GOLD, transform: "rotate(45deg)", display: "inline-block" }} />
+      {note ? <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".24em", textTransform: "uppercase", color: BRONZE, whiteSpace: "nowrap" }}>{note}</span> : null}
     </div>
   );
 }
@@ -239,10 +239,10 @@ export default function TripPrint() {
             {/* cover masthead */}
             <div className="tp-break" style={{ marginBottom: 26 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
-                <span style={{ width: 22, height: 22, flex: "none", borderRadius: 6, background: TEAL, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill={GOLD_LT}><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
+                <span style={{ width: 28, height: 28, flex: "none", borderRadius: 8, background: TEAL, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ width: 11, height: 11, border: "2px solid " + GOLD_LT, borderRadius: "50%" }} />
                 </span>
-                <span style={{ ...label, letterSpacing: ".26em", color: BRONZE }}>Park Buddy · Field notes</span>
+                <span style={{ ...label, fontSize: 10, letterSpacing: ".34em", color: BRONZE }}>Park Buddy · Field Notes</span>
               </div>
               {(() => {
                 const name = meta.tripName || "My national-parks trip";

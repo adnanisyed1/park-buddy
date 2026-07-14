@@ -28,20 +28,44 @@ function miBetween(a, b) {
 const usd = (n) => "$" + Math.round(n).toLocaleString("en-US");
 const BLOCK_EMOJI = { drive: "🚗", stay: "🛏", meal: "🍽", scenic: "⛰", hike: "🥾", sight: "📸" };
 
-// Print identity — a warm, editorial travel-document palette (light, print-safe).
-const PAPER = "#f6f1e6", INK = "#23271e", TEAL = "#183138", GOLD = "#bd8f3f", GOLD_LT = "#e0b56f", MUTE = "#8c8369", HAIR = "#e7dfce";
+// Print identity — the "Field Notes" travel-document palette (Claude Design handoff:
+// warm creams, forest greens, bronze/gold, a rust accent). Light + print-safe.
+const PAGE = "#efe7d6", PAPER = "#faf6ec", CARD = "#fffdf8", INK = "#22302a", TEAL = "#23453a", DEEP = "#1a2620";
+const BRONZE = "#a9772f", GOLD = "#c9a35f", GOLD_LT = "#e8cf9a", MUTE = "#5f6b60", MUTE2 = "#94917f", HAIR = "#e6ddc8", RUST = "#b5643c";
 const SERIF = "var(--pb-serif), 'Cormorant Garamond', 'Spectral', Georgia, serif";
-const MONO = "var(--pb-mono), ui-monospace, monospace";
+const MONO = "var(--pb-mono), 'Space Mono', ui-monospace, monospace";
 
-// A section header: gold tick · serif title · hairline rule running to the edge.
+// Section header: ◇ diamond · serif title · hairline rule · mono note (field-notes style).
 function SectionHead({ children, note }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 12px" }}>
-      <span style={{ width: 6, height: 6, flex: "none", borderRadius: "50%", background: GOLD }} />
-      <h2 style={{ fontFamily: SERIF, fontSize: "1.3rem", fontWeight: 600, color: TEAL, margin: 0, whiteSpace: "nowrap", letterSpacing: ".01em" }}>{children}</h2>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 14px" }}>
+      <span style={{ color: BRONZE, fontSize: 12, lineHeight: 1, flex: "none" }}>◇</span>
+      <h2 style={{ fontFamily: SERIF, fontSize: "1.5rem", fontWeight: 600, color: INK, margin: 0, whiteSpace: "nowrap", letterSpacing: ".01em" }}>{children}</h2>
       <span style={{ flex: 1, height: 1, background: HAIR }} />
-      {note ? <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: MUTE, whiteSpace: "nowrap" }}>{note}</span> : null}
+      {note ? <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: MUTE2, whiteSpace: "nowrap" }}>{note}</span> : null}
     </div>
+  );
+}
+
+// The decorative field-notes hero: layered mountain range, sun, gold contour lines.
+function HeroBand() {
+  return (
+    <svg viewBox="0 0 900 196" preserveAspectRatio="none" style={{ display: "block", width: "100%", height: "clamp(120px,26vw,200px)" }}>
+      <rect x="0" y="0" width="900" height="196" fill="#f3ead6" />
+      <g stroke="rgba(201,163,95,0.35)" strokeWidth="1" fill="none">
+        <path d="M0,44 C160,30 320,54 480,40 S780,28 900,42" />
+        <path d="M0,66 C180,52 340,76 520,60 S800,50 900,64" />
+      </g>
+      <circle cx="686" cy="78" r="34" fill="#e8cf9a" />
+      <circle cx="686" cy="78" r="34" fill="none" stroke="rgba(169,119,47,0.4)" strokeWidth="1" />
+      <polygon points="0,150 120,92 230,124 360,64 480,112 620,58 760,104 900,74 900,196 0,196" fill="#c6d2c0" />
+      <polygon points="0,196 90,128 210,158 330,104 470,146 600,100 740,140 900,110 900,196" fill="rgba(201,163,95,0.55)" />
+      <polygon points="360,64 336,88 386,88" fill="#faf6ec" />
+      <polygon points="620,58 598,82 644,82" fill="#faf6ec" />
+      <polygon points="0,196 150,140 300,170 430,134 560,166 700,128 820,158 900,144 900,196" fill="#23453a" />
+      <polygon points="150,140 132,160 170,160" fill="#e9efe4" />
+      <polygon points="700,128 682,150 720,150" fill="#e9efe4" />
+    </svg>
   );
 }
 const fmtDate = (iso) => { try { return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }); } catch { return iso; } };
@@ -173,58 +197,80 @@ export default function TripPrint() {
   const W = 640, H = 300;
   const pts = fitProject(mapped.map((s, i) => ({ name: s.name, lat: s.lat, lng: s.lng, i: stops.indexOf(s) })), W, H, 34);
 
+  // A one-line field-notes subtitle derived from the trip.
+  const uniqStates = [...new Set(stops.map((s) => s.state).filter(Boolean))];
+  const region = uniqStates.length === 1 ? uniqStates[0] : uniqStates.length === 2 ? uniqStates.join(" & ") : uniqStates.length ? "the American West" : "the national parks";
+  const scopeWord = meta.tripScope === "crosscountry" ? "cross-country route" : "loop";
+  const tagline = "A " + totalDays + "-day " + scopeWord + " through " + region + ".";
+
   const doPrint = () => { try { window.print(); } catch {} };
 
   const card = { border: "1px solid " + HAIR, borderRadius: 14, padding: "16px 18px", background: "#fffdf8" };
   const label = { fontFamily: MONO, fontSize: 10.5, letterSpacing: ".2em", textTransform: "uppercase", color: MUTE };
 
   return (
-    <div style={{ background: PAPER, minHeight: "100vh", color: INK, fontFamily: "var(--pb-sans), 'Hanken Grotesk', system-ui, sans-serif" }}>
+    <div style={{ background: PAGE, minHeight: "100vh", color: INK, fontFamily: "var(--pb-sans), 'Inter', 'Hanken Grotesk', system-ui, sans-serif" }}>
       <style>{`
-        @page { margin: 14mm; }
-        @media screen and (max-width: 560px) { .tp-two { grid-template-columns: 1fr !important; } }
+        @page { margin: 12mm; }
+        @media screen and (max-width: 560px) { .tp-two { grid-template-columns: 1fr !important; } .tp-stats { grid-template-columns: 1fr 1fr !important; } }
         @media print {
           .tp-noprint { display: none !important; }
-          .tp-sheet { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
+          .tp-sheet { box-shadow: none !important; margin: 0 !important; max-width: none !important; border-radius: 0 !important; }
           .tp-break { break-inside: avoid; }
           body { background: #fff !important; }
         }
       `}</style>
 
       {/* toolbar (screen only) */}
-      <div className="tp-noprint" style={{ position: "sticky", top: 0, zIndex: 5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px clamp(14px,4vw,40px)", background: "#20241c", color: "#f4efe4" }}>
-        <a href="/build-trip" style={{ color: "#e4be78", textDecoration: "none", fontWeight: 700, fontSize: ".9rem" }}>← Back to Build My Trip</a>
-        <button onClick={doPrint} style={{ cursor: "pointer", fontFamily: "inherit", fontWeight: 800, fontSize: ".88rem", color: "#20241c", background: "linear-gradient(120deg,#e4be78,#c79a4b)", border: "none", borderRadius: 999, padding: "10px 20px" }}>🖨 Print / Save as PDF</button>
+      <div className="tp-noprint" style={{ position: "sticky", top: 0, zIndex: 5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px clamp(14px,4vw,40px)", background: DEEP, color: PAPER }}>
+        <a href="/build-trip" style={{ color: GOLD, textDecoration: "none", fontWeight: 700, fontSize: ".9rem" }}>← Back to Build My Trip</a>
+        <button onClick={doPrint} style={{ cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: ".88rem", color: DEEP, background: "linear-gradient(120deg," + GOLD_LT + "," + GOLD + ")", border: "none", borderRadius: 999, padding: "10px 20px" }}>🖨 Print / Save as PDF</button>
       </div>
 
-      <div className="tp-sheet" style={{ maxWidth: 860, margin: "24px auto", background: "#fff", boxShadow: "0 20px 60px -30px rgba(0,0,0,.3)", borderRadius: 16, padding: "clamp(22px,4vw,44px)" }}>
+      <div className="tp-sheet" style={{ maxWidth: 880, margin: "24px auto", background: CARD, boxShadow: "0 24px 70px -34px rgba(26,38,32,.5)", borderRadius: 16, overflow: "hidden", border: "1px solid " + HAIR }}>
         {!ready ? (
-          <div style={{ padding: "60px 0", textAlign: "center", color: "#8a8067" }}>Preparing your itinerary…</div>
+          <div style={{ padding: "80px 24px", textAlign: "center", color: MUTE2 }}>Preparing your itinerary…</div>
         ) : stops.length === 0 ? (
-          <div style={{ padding: "60px 0", textAlign: "center", color: "#8a8067" }}>Your trip is empty. <a href="/build-trip" style={{ color: "#c79a4b" }}>Build it first →</a></div>
+          <div style={{ padding: "80px 24px", textAlign: "center", color: MUTE2 }}>Your trip is empty. <a href="/build-trip" style={{ color: BRONZE }}>Build it first →</a></div>
         ) : (
           <>
+            <HeroBand />
+            <div style={{ padding: "clamp(22px,4vw,44px)" }}>
             {/* cover masthead */}
-            <div className="tp-break" style={{ marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+            <div className="tp-break" style={{ marginBottom: 26 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
                 <span style={{ width: 22, height: 22, flex: "none", borderRadius: 6, background: TEAL, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill={GOLD_LT}><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
                 </span>
-                <span style={{ ...label, letterSpacing: ".24em" }}>Park Buddy · Road-trip itinerary</span>
+                <span style={{ ...label, letterSpacing: ".26em", color: BRONZE }}>Park Buddy · Field notes</span>
               </div>
-              <h1 style={{ fontFamily: SERIF, fontSize: "clamp(2.2rem,6vw,3.4rem)", fontWeight: 600, margin: "0 0 14px", lineHeight: 1.02, color: INK, letterSpacing: "-.01em" }}>{meta.tripName || "My national-parks trip"}</h1>
-              <div style={{ height: 2, background: GOLD, marginBottom: 3 }} />
-              <div style={{ height: 1, background: GOLD, opacity: 0.4, marginBottom: 16 }} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10 }}>
+              {(() => {
+                const name = meta.tripName || "My national-parks trip";
+                const parts = name.trim().split(" ");
+                const last = parts.length > 1 ? parts.pop() : null;
+                return (
+                  <h1 style={{ fontFamily: SERIF, fontSize: "clamp(2.4rem,6.5vw,3.6rem)", fontWeight: 600, margin: "0 0 8px", lineHeight: 1.0, color: INK, letterSpacing: "-.01em" }}>
+                    {parts.join(" ")}{last ? " " : ""}{last ? <em style={{ fontStyle: "italic", color: GOLD }}>{last}</em> : null}
+                  </h1>
+                );
+              })()}
+              <div style={{ fontSize: "1rem", color: MUTE, marginBottom: 14 }}>{tagline}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                <span style={{ color: BRONZE, fontSize: 11 }}>◆</span>
+                <span style={{ width: 90, height: 1.5, background: "linear-gradient(90deg," + GOLD + ",transparent)" }} />
+              </div>
+              {/* stat ledger — vertical-rule dividers */}
+              <div className="tp-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", borderTop: "1px solid " + HAIR, borderBottom: "1px solid " + HAIR }}>
                 {[
-                  ["Dates", startDate ? fmtDate(meta.startDate).replace(/, \d{4}$/, "") + (meta.endDate ? " – " + fmtDate(meta.endDate).replace(/^\w+, /, "") : "") : "Not set"],
-                  ["Route", stops.length + " stop" + (stops.length === 1 ? "" : "s") + " · " + totalDays + " day" + (totalDays === 1 ? "" : "s")],
-                  ["Driving", "≈ " + totalMiles.toLocaleString() + " mi"],
-                  ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : "")],
-                ].map(([k, v]) => (
-                  <div key={k} style={{ border: "1px solid " + HAIR, borderRadius: 11, padding: "9px 12px", background: "#fffdf8" }}>
-                    <div style={{ ...label, fontSize: 8.5, letterSpacing: ".14em", marginBottom: 3 }}>{k}</div>
-                    <div style={{ fontFamily: SERIF, fontSize: "1.02rem", fontWeight: 600, color: TEAL, lineHeight: 1.15 }}>{v}</div>
+                  ["Dates", startDate ? fmtDate(meta.startDate).replace(/,? \d{4}$/, "") + (meta.endDate ? " – " + fmtDate(meta.endDate).replace(/^\w+,? /, "") : "") : "Not set", startDate ? (new Date(meta.startDate + "T12:00:00").getFullYear()) : ""],
+                  ["Route", stops.length + " stop" + (stops.length === 1 ? "" : "s"), totalDays + " day" + (totalDays === 1 ? "" : "s") + " on the road"],
+                  ["Driving", "≈ " + totalMiles.toLocaleString() + " mi", "total distance"],
+                  ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " + " + infants : ""), meta.car || "Midsize SUV"],
+                ].map(([k, v, sub], ix) => (
+                  <div key={k} style={{ padding: "14px 16px 14px " + (ix === 0 ? "0" : "16px"), borderLeft: ix === 0 ? "none" : "1px solid " + HAIR }}>
+                    <div style={{ ...label, fontSize: 8.5, letterSpacing: ".16em", marginBottom: 5, color: BRONZE }}>{k}</div>
+                    <div style={{ fontFamily: SERIF, fontSize: "1.15rem", fontWeight: 600, color: INK, lineHeight: 1.1 }}>{v}</div>
+                    {sub ? <div style={{ fontSize: ".78rem", color: MUTE2, marginTop: 2 }}>{sub}</div> : null}
                   </div>
                 ))}
               </div>
@@ -248,13 +294,13 @@ export default function TripPrint() {
               );
               return (
               <div className="tp-break" style={{ ...card, padding: 0, overflow: "hidden", marginBottom: 22 }}>
-                <svg viewBox={"0 0 " + W + " " + H} style={{ display: "block", width: "100%", height: "auto", background: "#eef1e6" }}>
+                <svg viewBox={"0 0 " + W + " " + H} style={{ display: "block", width: "100%", height: "auto", background: "#e8efe2" }}>
                   {[0.25, 0.5, 0.75].map((f) => (<line key={"h" + f} x1="0" y1={H * f} x2={W} y2={H * f} stroke="#20241c" strokeOpacity="0.05" />))}
                   {[0.2, 0.4, 0.6, 0.8].map((f) => (<line key={"v" + f} x1={W * f} y1="0" x2={W * f} y2={H} stroke="#20241c" strokeOpacity="0.05" />))}
-                  {pts.length > 1 && (<polyline points={pts.map((p) => p.x + "," + p.y).join(" ")} fill="none" stroke="#c79a4b" strokeWidth="3" strokeDasharray="7 6" strokeLinecap="round" strokeLinejoin="round" />)}
+                  {pts.length > 1 && (<polyline points={pts.map((p) => p.x + "," + p.y).join(" ")} fill="none" stroke={BRONZE} strokeWidth="3" strokeDasharray="7 6" strokeLinecap="round" strokeLinejoin="round" />)}
                   {pts.map((p, i) => (
                     <g key={i}>
-                      <circle cx={p.x} cy={p.y} r="13" fill="#1d3941" stroke="#e4be78" strokeWidth="2.5" />
+                      <circle cx={p.x} cy={p.y} r="13" fill={TEAL} stroke={GOLD_LT} strokeWidth="2.5" />
                       <text x={p.x} y={p.y + 4.5} textAnchor="middle" fontSize="13" fontWeight="800" fill="#fff" fontFamily="sans-serif">{i + 1}</text>
                     </g>
                   ))}
@@ -263,32 +309,34 @@ export default function TripPrint() {
               );
             })()}
 
-            {/* day-by-day */}
-            <div style={{ marginBottom: 24 }}>
+            {/* day-by-day — timeline rail with gold-ring bullets + faint watermark numbers */}
+            <div style={{ marginBottom: 26 }}>
               <SectionHead note={totalDays + " days"}>Day by day</SectionHead>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 12, paddingLeft: 26 }}>
+                <div aria-hidden="true" style={{ position: "absolute", left: 6, top: 10, bottom: 10, width: 1, background: "repeating-linear-gradient(" + HAIR + " 0 4px, transparent 4px 9px)" }} />
                 {dayRows.map((s, i) => (
-                  <div key={i} className="tp-break" style={{ ...card, display: "flex", gap: 14, alignItems: "flex-start" }}>
-                    <span style={{ width: 34, height: 34, flex: "none", borderRadius: "50%", background: TEAL, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontWeight: 600, fontSize: "1.1rem", border: "2px solid " + GOLD_LT }}>{i + 1}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                  <div key={i} className="tp-break" style={{ ...card, position: "relative", overflow: "hidden" }}>
+                    <span aria-hidden="true" style={{ position: "absolute", left: -26, top: 18, width: 13, height: 13, borderRadius: "50%", background: CARD, border: "2px solid " + GOLD, boxShadow: "0 0 0 3px " + PAPER }} />
+                    <span aria-hidden="true" style={{ position: "absolute", right: 12, top: -8, fontFamily: SERIF, fontSize: "5rem", fontWeight: 600, color: "rgba(35,69,58,0.06)", lineHeight: 1, pointerEvents: "none" }}>{String(i + 1).padStart(2, "0")}</span>
+                    <div style={{ position: "relative" }}>
                       <div style={{ fontFamily: MONO, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: GOLD }}>{s.label}{s.arrive ? " · arrive " + s.arrive : ""}</div>
                       <div style={{ fontFamily: SERIF, fontSize: "1.4rem", fontWeight: 600, lineHeight: 1.12, color: TEAL, marginTop: 1 }}>{s.name}</div>
-                      <div style={{ fontSize: ".82rem", color: "#6a6553", marginTop: 3 }}>
+                      <div style={{ fontSize: ".82rem", color: MUTE, marginTop: 3 }}>
                         {[s.state, (s.nights || 0) + " night" + ((s.nights || 0) === 1 ? "" : "s"), i > 0 && s.legMi != null ? s.legMi + " mi from " + dayRows[i - 1].name : null, s.custom ? "custom stop" : null].filter(Boolean).join(" · ")}
                       </div>
                       {(() => {
                         const blocks = (dayPlans[s.name] || []).slice().sort((a, b) => ((a.day || 0) - (b.day || 0)) || (a.time || "").localeCompare(b.time || ""));
-                        if (!blocks.length) return <div style={{ borderTop: "1px dashed #e3ddcf", marginTop: 8, paddingTop: 6, fontSize: ".78rem", color: "#9a927c" }}>Notes / plans: ______________________________________________</div>;
+                        if (!blocks.length) return <div style={{ borderTop: "1px dashed " + HAIR, marginTop: 8, paddingTop: 6, fontSize: ".78rem", color: MUTE2 }}>Notes / plans: ______________________________________________</div>;
                         const byDay = {};
                         blocks.forEach((b) => { (byDay[b.day || 0] = byDay[b.day || 0] || []).push(b); });
                         return (
-                          <div style={{ borderTop: "1px dashed #e3ddcf", marginTop: 8, paddingTop: 8, display: "flex", flexDirection: "column", gap: 7 }}>
+                          <div style={{ borderTop: "1px dashed " + HAIR, marginTop: 8, paddingTop: 8, display: "flex", flexDirection: "column", gap: 7 }}>
                             {Object.keys(byDay).sort((a, c) => Number(a) - Number(c)).map((dk) => (
                               <div key={dk}>
                                 <div style={{ fontFamily: MONO, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: GOLD, marginBottom: 3 }}>Day {s.start + Number(dk)}</div>
                                 {byDay[dk].map((b, bi) => (
-                                  <div key={bi} style={{ display: "flex", gap: 8, fontSize: ".82rem", color: "#3a3931", padding: "1px 0" }}>
-                                    <span style={{ minWidth: 44, color: "#9a927c", fontVariantNumeric: "tabular-nums" }}>{b.time || "—"}</span>
+                                  <div key={bi} style={{ display: "flex", gap: 8, fontSize: ".82rem", color: INK, padding: "1px 0" }}>
+                                    <span style={{ minWidth: 44, color: MUTE2, fontVariantNumeric: "tabular-nums" }}>{b.time || "—"}</span>
                                     <span>{BLOCK_EMOJI[b.type] || "•"} {b.name}</span>
                                   </div>
                                 ))}
@@ -310,15 +358,15 @@ export default function TripPrint() {
               <div style={card}>
                 <div style={{ fontFamily: SERIF, fontSize: "1.05rem", fontWeight: 600, color: TEAL, marginBottom: 8 }}>Estimated budget</div>
                 {Object.entries(budget).map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: ".9rem", borderBottom: "1px solid #f2ecdc" }}><span style={{ color: "#4a4636" }}>{k}</span><b>{usd(v)}</b></div>
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: ".9rem", borderBottom: "1px solid " + HAIR }}><span style={{ color: MUTE }}>{k}</span><b>{usd(v)}</b></div>
                 ))}
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "2px solid #c79a4b", fontFamily: "var(--pb-serif), serif" }}><b style={{ fontSize: "1.05rem" }}>Total</b><b style={{ fontSize: "1.3rem", color: "#1d3941" }}>{usd(total)}</b></div>
-                <div style={{ textAlign: "right", fontSize: ".72rem", color: "#9a927c", marginTop: 3 }}>≈ {usd(total / Math.max(1, party))} per person · planning estimate</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 8, paddingTop: 8, borderTop: "2px solid " + GOLD, fontFamily: SERIF }}><b style={{ fontSize: "1.05rem", color: INK }}>Total</b><b style={{ fontSize: "1.45rem", color: TEAL }}>{usd(total)}</b></div>
+                <div style={{ textAlign: "right", fontSize: ".72rem", color: MUTE2, marginTop: 3 }}>≈ {usd(total / Math.max(1, party))} per person · planning estimate</div>
               </div>
               <div style={card}>
                 <div style={{ fontFamily: SERIF, fontSize: "1.05rem", fontWeight: 600, color: TEAL, marginBottom: 8 }}>Trip at a glance</div>
                 {[["Getting there", meta.arrivalMode === "fly" ? "Fly in + rental car" : "Driving the whole way"], ["Trip scope", meta.tripScope === "crosscountry" ? "Cross-country route" : "Loop around the destination"], ["Rental car", meta.car || "Midsize SUV"], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Total driving", "≈ " + totalMiles.toLocaleString() + " mi"], ["Nights", totalNights]].map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: ".9rem", borderBottom: "1px solid #f2ecdc" }}><span style={{ color: "#6a6553" }}>{k}</span><b style={{ textAlign: "right" }}>{v}</b></div>
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: ".9rem", borderBottom: "1px solid " + HAIR }}><span style={{ color: MUTE }}>{k}</span><b style={{ textAlign: "right" }}>{v}</b></div>
                 ))}
               </div>
               </div>
@@ -334,11 +382,11 @@ export default function TripPrint() {
                       if (!its.length) return null;
                       return (
                         <div key={cat} style={card}>
-                          <div style={{ fontWeight: 800, fontSize: ".92rem", marginBottom: 7 }}>{emoji} {title}</div>
+                          <div style={{ fontFamily: SERIF, fontSize: "1.08rem", fontWeight: 600, color: TEAL, marginBottom: 7 }}>{emoji} {title}</div>
                           {its.map((it, ix) => (
-                            <div key={ix} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "3px 0", fontSize: ".84rem", color: "#3a3628" }}>
-                              <span style={{ width: 13, height: 13, flex: "none", marginTop: 2, border: "1.5px solid #9a927c", borderRadius: 3, background: it.done ? "#9a927c" : "transparent" }} />
-                              <span style={{ textDecoration: it.done ? "line-through" : "none", color: it.done ? "#9a927c" : "#3a3628" }}>{it.label}</span>
+                            <div key={ix} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "3px 0", fontSize: ".84rem", color: INK }}>
+                              <span style={{ width: 13, height: 13, flex: "none", marginTop: 2, border: "1.5px solid " + GOLD, borderRadius: 3, background: it.done ? BRONZE : "transparent" }} />
+                              <span style={{ textDecoration: it.done ? "line-through" : "none", color: it.done ? MUTE2 : INK }}>{it.label}</span>
                             </div>
                           ))}
                         </div>
@@ -346,10 +394,10 @@ export default function TripPrint() {
                     })
                   : Object.entries(CHECKLIST).map(([group, items]) => (
                       <div key={group} style={card}>
-                        <div style={{ fontWeight: 800, fontSize: ".92rem", marginBottom: 7 }}>{group}</div>
+                        <div style={{ fontFamily: SERIF, fontSize: "1.08rem", fontWeight: 600, color: TEAL, marginBottom: 7 }}>{group}</div>
                         {items.map((it) => (
-                          <div key={it} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "3px 0", fontSize: ".84rem", color: "#3a3628" }}>
-                            <span style={{ width: 13, height: 13, flex: "none", marginTop: 2, border: "1.5px solid #9a927c", borderRadius: 3 }} />{it}
+                          <div key={it} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "3px 0", fontSize: ".84rem", color: INK }}>
+                            <span style={{ width: 13, height: 13, flex: "none", marginTop: 2, border: "1.5px solid " + GOLD, borderRadius: 3 }} />{it}
                           </div>
                         ))}
                       </div>
@@ -357,8 +405,13 @@ export default function TripPrint() {
               </div>
             </div>
 
-            <div style={{ borderTop: "1px solid #e3ddcf", marginTop: 20, paddingTop: 12, fontSize: ".72rem", color: "#9a927c", lineHeight: 1.5 }}>
-              Distances &amp; costs are planning estimates. Check each park&apos;s live status, permits and closures before you go. Made with Park Buddy · theparkbuddy.com
+            {/* footer */}
+            <div style={{ borderTop: "1px solid " + HAIR, marginTop: 26, paddingTop: 16, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ color: TEAL, fontSize: 12, lineHeight: 1 }}>▲</span>
+              <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: ".18em", textTransform: "uppercase", color: BRONZE }}>Made with Park Buddy · theparkbuddy.com</span>
+              <span style={{ flex: 1, minWidth: 20 }} />
+              <span style={{ fontSize: ".72rem", color: MUTE2, lineHeight: 1.4 }}>Distances &amp; costs are planning estimates — check each park&apos;s live status before you go.</span>
+            </div>
             </div>
           </>
         )}

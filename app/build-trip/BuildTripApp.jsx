@@ -158,6 +158,7 @@ export default function BuildTripApp() {
   const travelers = adults + infants; // party size (for lodging/food/per-person)
   const [editingBudget, setEditingBudget] = useState(null); // key being edited
   const [verdicts, setVerdicts] = useState({}); // name -> {status, note}
+  const [wx, setWx] = useState({}); // base name -> { periods, timeZone } — 7-day forecast for per-day conditions
   const [keyOverlay, setKeyOverlay] = useState(false);
   const [keyMsg, setKeyMsg] = useState("Paste a Google Maps JavaScript API key to load the live map.");
   // Step-by-step setup wizard (Trip details → Transportation). Auto-opens on first
@@ -1178,6 +1179,22 @@ export default function BuildTripApp() {
     });
   }, [stops]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Per-base 7-day forecast for the day planner (one weather.gov call per base covers all
+  // its days). Stored as { periods, timeZone }; TripStudio maps each day's date onto it.
+  useEffect(() => {
+    const PB = typeof window !== "undefined" && window.PBVerdict;
+    if (!PB || !PB.fetchForecast) return;
+    stops.forEach((s) => {
+      if (!s || s.lat == null || wx[s.name]) return;
+      try {
+        PB.fetchForecast(s.lat, s.lng, (f) => {
+          if (!f || !f.periods) return;
+          setWx((w) => ({ ...w, [s.name]: { periods: f.periods, timeZone: f.timeZone || "" } }));
+        });
+      } catch {}
+    });
+  }, [stops]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function saveKey() {
     const v = keyInputRef.current && keyInputRef.current.value.trim();
     if (!v) return;
@@ -1282,7 +1299,7 @@ export default function BuildTripApp() {
           stat={{ stops: String(stops.length), days: String(totalNights), miles: String(totalMiles), cost: fmtUsd(totalCost) }}
           statNum={{ stops: stops.length, days: totalNights, miles: totalMiles, cost: totalCost }}
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
-          stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
+          stops={stops} dayRanges={dayRanges} verdicts={verdicts} wx={wx} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi} flightInfo={flightInfo}

@@ -2,6 +2,8 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { searchPlaces, resolvePlace } from "../lib/placeSearch";
+import { dayWeather, skyIcon } from "../lib/dayConditions";
+import { getSunTimes, fmtTime } from "../lib/sunmoon";
 
 // Trip Studio — the futuristic reskin of Build My Trip, ported from the Claude
 // Design prototype (Downloads/Trip Studio.dc.html). PRESENTATIONAL ONLY: every
@@ -96,7 +98,7 @@ export default function TripStudio(props) {
   const {
     mode, setMode, onNewTrip, editing,
     stat, statNum, tripName, setTripName,
-    stops, dayRanges, verdicts, STOP_STATUS,
+    stops, dayRanges, verdicts, wx, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
     expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
@@ -751,12 +753,37 @@ export default function TripStudio(props) {
                                     </div>
                                     {Array.from({ length: dayCount }).map((_, d) => {
                                       const acts = sortByTime(all.filter((a) => (a.day || 0) === d));
+                                      // Live conditions for this exact day + base: real NWS forecast (within ~7 days)
+                                      // + computed sun times, both keyed to the day's date and the base's coords.
+                                      const dISO = arriveISO ? (() => { const dt = new Date(arriveISO + "T12:00:00"); dt.setDate(dt.getDate() + d); return dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0"); })() : null;
+                                      const baseWx = wx && wx[s.name];
+                                      const wcond = baseWx && baseWx.periods ? dayWeather(baseWx.periods, dISO) : null;
+                                      const wtz = baseWx && baseWx.timeZone;
+                                      const sun = (s.lat != null && dISO) ? getSunTimes(new Date(dISO + "T12:00:00"), s.lat, s.lng) : null;
                                       return (
                                         <div key={d} style={{ borderRadius: 11, border: "1px solid rgba(217,183,121,0.12)", background: "rgba(255,255,255,.02)", padding: "9px 11px" }}>
                                           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: acts.length ? 8 : 4 }}>
                                             <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "#c9a35f" }}>Day {globalStart + d}</span>
                                             <span style={{ fontFamily: SANS, fontSize: 11, color: "#8f9a90" }}>{dateFor(d)}</span>
                                           </div>
+                                          {(wcond || (sun && wtz)) && (
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                                              {wcond && (
+                                                <span title={wcond.sky + (wcond.wind ? " · wind " + wcond.wind : "")} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, background: wcond.verdict ? wcond.verdict.c + "22" : "rgba(255,255,255,.04)", border: "1px solid " + (wcond.verdict ? wcond.verdict.c + "66" : "rgba(217,183,121,0.18)"), fontFamily: MONO, fontSize: 9, letterSpacing: ".02em", color: "#f4f1ea" }}>
+                                                  <span style={{ fontSize: 11, lineHeight: 1 }}>{skyIcon(wcond.sky)}</span>
+                                                  {wcond.hi != null ? wcond.hi + "°" : ""}{wcond.lo != null ? " / " + wcond.lo + "°" : ""}
+                                                  {wcond.sky && <span style={{ color: "#aab0ba", fontFamily: SANS, fontSize: 10.5, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wcond.sky}</span>}
+                                                </span>
+                                              )}
+                                              {sun && wtz && sun.sunrise && (
+                                                <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: MONO, fontSize: 9, letterSpacing: ".02em", color: "#8f9a90" }}>
+                                                  <span title="Sunrise (park time)">☀ {fmtTime(sun.sunrise, wtz)}</span>
+                                                  <span title="Sunset (park time)">🌇 {fmtTime(sun.sunset, wtz)}</span>
+                                                  {sun.goldenHour && <span title="Evening golden hour" style={{ color: "#c9a35f" }}>📸 {fmtTime(sun.goldenHour, wtz)}</span>}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
                                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                             {d === 0 && flyLeg && (
                                               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(127,176,208,0.07)", border: "1px dashed rgba(127,176,208,0.35)" }}>

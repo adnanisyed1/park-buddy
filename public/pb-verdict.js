@@ -59,23 +59,28 @@
   // Fetch live conditions for a lat/lng and evaluate. cb(result|null).
   // Weather only (no NPS closures) — the planner strip is a quick read; the full
   // status page layers in closures. Cached per-rounded-coord for the session.
-  var _pcache={};
-  function fetchPeriods(lat,lng,cb){
+  var _pcache={},_tzcache={};
+  // Full forecast for a point: { periods, timeZone }. timeZone is the point's IANA zone
+  // (from the weather.gov points response) so callers can render sun/forecast times in
+  // the destination's local time, not the viewer's. Cached per-rounded-coord.
+  function fetchForecast(lat,lng,cb){
     var key=lat.toFixed(3)+','+lng.toFixed(3);
-    if(_pcache[key]){ cb(_pcache[key]); return; }
+    if(_pcache[key]){ cb({periods:_pcache[key], timeZone:_tzcache[key]||''}); return; }
     fetch('https://api.weather.gov/points/'+lat.toFixed(4)+','+lng.toFixed(4),{headers:{Accept:'application/geo+json'}})
       .then(function(r){if(!r.ok)throw 0;return r.json();})
       .then(function(d){
         // weather.gov returns forecast:null for some points (territories, marine
         // areas, outages) — fetching null produced a bogus GET /null 404.
         if(!d||!d.properties||!d.properties.forecast)throw 0;
+        _tzcache[key]=d.properties.timeZone||'';
         return fetch(d.properties.forecast,{headers:{Accept:'application/geo+json'}});
       })
       .then(function(r){if(!r.ok)throw 0;return r.json();})
-      .then(function(d){ _pcache[key]=d.properties.periods; cb(_pcache[key]); })
+      .then(function(d){ _pcache[key]=d.properties.periods; cb({periods:_pcache[key], timeZone:_tzcache[key]||''}); })
       .catch(function(){ cb(null); });
   }
+  function fetchPeriods(lat,lng,cb){ fetchForecast(lat,lng,function(f){ cb(f?f.periods:null); }); }
   // today's verdict (used by the map + status page)
   function fetchVerdict(lat,lng,cb){ fetchPeriods(lat,lng,function(per){ cb(per?evaluate(per,0,0):null); }); }
-  window.PBVerdict={evaluate:evaluate, fetchVerdict:fetchVerdict, fetchPeriods:fetchPeriods, vnum:vnum};
+  window.PBVerdict={evaluate:evaluate, fetchVerdict:fetchVerdict, fetchPeriods:fetchPeriods, fetchForecast:fetchForecast, vnum:vnum};
 })();

@@ -1202,12 +1202,15 @@ export default function BuildTripApp() {
   // have these; towns/forests/custom stops resolve to no code and are left blank.
   useEffect(() => {
     let cancelled = false;
+    const parks = (typeof window !== "undefined" && window.TRIP_PARKS) || [];
+    const codes = (typeof window !== "undefined" && window.NPS_CODE) || {};
+    // Wait for the parks dataset to load before resolving codes — otherwise a base is
+    // wrongly cached as "not a park" and never re-checked (the effect re-runs when
+    // parksDb populates, via the dep below).
+    if (!parks.length) return;
     const parkCodeFor = (name) => {
-      try {
-        const parks = window.TRIP_PARKS || [], codes = window.NPS_CODE || {};
-        const p = parks.find((x) => x.name === name);
-        return p ? (codes[p.id] || codes[String(p.id)] || "") : "";
-      } catch { return ""; }
+      const p = parks.find((x) => x.name === name);
+      return p ? (codes[p.id] || codes[String(p.id)] || "") : "";
     };
     stops.forEach((s) => {
       if (!s || baseInfo[s.name] !== undefined) return;
@@ -1224,7 +1227,7 @@ export default function BuildTripApp() {
         .catch(() => { if (!cancelled) setBaseInfo((b) => ({ ...b, [s.name]: { alerts: [], reservation } })); });
     });
     return () => { cancelled = true; };
-  }, [stops]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stops, parksDb]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function saveKey() {
     const v = keyInputRef.current && keyInputRef.current.value.trim();

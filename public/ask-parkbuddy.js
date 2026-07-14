@@ -1,14 +1,20 @@
 /* Park Buddy — "Ask Park Buddy" AI trip-planning widget.
    A floating chat button + panel that POSTs to /api/agent (the server-side
-   NPS-grounded agent). Plain web component, teal theme, no build step.
+   NPS-grounded agent). Plain web component, Park Buddy dark theme, no build step.
    Drop <script src="/ask-parkbuddy.js"></script> on any page and it mounts. */
 (function () {
   if (window.__pbAsk) return;
   window.__pbAsk = true;
 
-  var GOLD = '#c79a4b', GOLD2 = '#e4be78', TEAL = '#2c5562', TEALD = '#16303a',
-      CREAM = '#fbf6ea', PAPER = '#fffdf7', INK = '#1a2b21', HEAD = '#1d3941', MUTED = '#8c8473', LINE = '#e7ddca';
-  var SANS = "'Hanken Grotesk',system-ui,sans-serif", SERIF = "'Spectral',Georgia,serif";
+  // Park Buddy design system (globals.css tokens): dark forest + champagne gold,
+  // Cormorant Garamond display serif, Inter body, Space Mono micro-labels.
+  var GOLD = '#e8cf9a', GOLD2 = '#c9a35f', GOLDSOFT = '#d9b779',
+      BG = '#0a1712', SURFACE = '#0b1710', SURFACE2 = '#0e2016',
+      INK = '#f4f1ea', INK2 = '#aab0ba', MUTED = '#7f8a82', GREEN = '#8fd6a6',
+      LINE = 'rgba(217,183,121,0.16)', LINE2 = 'rgba(217,183,121,0.30)';
+  var SANS = "var(--pb-sans,'Inter',system-ui,sans-serif)",
+      SERIF = "var(--pb-serif,'Cormorant Garamond',Georgia,serif)",
+      MONO = "var(--pb-mono,'Space Mono',ui-monospace,monospace)";
 
   var history = []; // [{role, content}]
 
@@ -51,45 +57,46 @@
     if (document.getElementById('pbask-css')) return;
     var s = document.createElement('style'); s.id = 'pbask-css';
     s.textContent =
-      '.pbask-fab{position:fixed;right:18px;bottom:18px;z-index:99000;display:flex;align-items:center;gap:9px;background:linear-gradient(150deg,' + TEAL + ',' + TEALD + ');color:' + CREAM + ';border:1px solid rgba(228,190,120,.45);border-radius:999px;padding:13px 18px;font-family:' + SANS + ';font-weight:800;font-size:.9rem;cursor:pointer;box-shadow:0 16px 38px -14px rgba(8,18,12,.6)}' +
-      '.pbask-fab .spark{font-size:1.05rem}' +
-      '.pbask-panel{position:fixed;right:18px;bottom:18px;z-index:99001;width:min(390px,calc(100vw - 28px));height:min(580px,calc(100vh - 36px));background:' + CREAM + ';border:1px solid ' + LINE + ';border-radius:22px;box-shadow:0 40px 90px -34px rgba(8,18,12,.7);display:none;flex-direction:column;overflow:hidden;font-family:' + SANS + '}' +
+      '.pbask-fab{position:fixed;right:18px;bottom:18px;z-index:99000;display:flex;align-items:center;gap:9px;background:linear-gradient(150deg,#123822,' + BG + ');color:' + INK + ';border:1px solid ' + LINE2 + ';border-radius:999px;padding:13px 18px;font-family:' + SANS + ';font-weight:600;font-size:.9rem;cursor:pointer;box-shadow:0 16px 40px -14px rgba(0,0,0,.7)}' +
+      '.pbask-fab .spark{font-size:1.05rem;color:' + GOLD + '}' +
+      '.pbask-panel{position:fixed;right:18px;bottom:18px;z-index:99001;width:min(390px,calc(100vw - 28px));height:min(580px,calc(100vh - 36px));background:' + SURFACE + ';border:1px solid ' + LINE + ';border-radius:22px;box-shadow:0 40px 100px -40px rgba(0,0,0,.9);display:none;flex-direction:column;overflow:hidden;font-family:' + SANS + '}' +
       '.pbask-panel.open{display:flex}' +
-      '.pbask-head{background:linear-gradient(135deg,' + TEAL + ',' + TEALD + ');color:' + CREAM + ';padding:15px 17px;display:flex;align-items:center;gap:11px}' +
-      '.pbask-head .lg{width:34px;height:34px;flex:none;border-radius:10px;background:rgba(228,190,120,.18);display:flex;align-items:center;justify-content:center;font-size:1.1rem}' +
-      '.pbask-head b{font-family:' + SERIF + ';font-weight:700;font-size:1.08rem;display:block}' +
-      '.pbask-head small{color:rgba(251,246,234,.7);font-size:.72rem}' +
-      '.pbask-x{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:' + CREAM + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.95rem}' +
-      '.pbask-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:11px;background:' + CREAM + '}' +
+      '.pbask-head{background:linear-gradient(135deg,' + SURFACE2 + ',' + BG + ');color:' + INK + ';padding:15px 17px;display:flex;align-items:center;gap:11px;border-bottom:1px solid ' + LINE + '}' +
+      '.pbask-head .lg{width:36px;height:36px;flex:none;border-radius:10px;background:rgba(232,207,154,.14);border:1px solid ' + LINE2 + ';display:flex;align-items:center;justify-content:center;font-size:1.05rem}' +
+      '.pbask-head b{font-family:' + SERIF + ';font-weight:600;font-size:1.28rem;line-height:1.05;display:block;color:' + INK + ';letter-spacing:.01em}' +
+      '.pbask-head small{color:' + MUTED + ';font-family:' + MONO + ';font-size:.6rem;letter-spacing:.14em;text-transform:uppercase}' +
+      '.pbask-x{background:rgba(255,255,255,.06);border:1px solid ' + LINE + ';color:' + INK2 + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.95rem}' +
+      '.pbask-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:11px;background:' + BG + '}' +
       '.pbask-msg{max-width:86%;padding:11px 14px;border-radius:16px;font-size:.9rem;line-height:1.55;word-break:break-word;overflow-wrap:anywhere}' +
-      '.pbask-msg.bot{align-self:flex-start;background:' + PAPER + ';border:1px solid ' + LINE + ';color:' + INK + ';border-bottom-left-radius:5px}' +
+      '.pbask-msg.bot{align-self:flex-start;background:rgba(255,255,255,.03);border:1px solid ' + LINE + ';color:' + INK + ';border-bottom-left-radius:5px}' +
       '.pbask-msg.bot>div+div{margin-top:8px}' +               // breathing room between paragraphs
       '.pbask-msg.bot>div+ul,.pbask-msg.bot ul+div{margin-top:8px}' +
-      '.pbask-msg.user{align-self:flex-end;background:linear-gradient(135deg,' + TEAL + ',' + TEALD + ');color:' + CREAM + ';border-bottom-right-radius:5px}' +
-      // Live "you are speaking" bubble: fully readable (no fade/italic), pulsing gold ring,
-      // grows to show the WHOLE message as you talk, with a clear listening label.
+      '.pbask-msg.user{align-self:flex-end;background:' + 'linear-gradient(135deg,' + GOLD + ',' + GOLD2 + ');color:' + BG + ';font-weight:500;border-bottom-right-radius:5px}' +
+      // Live "you are speaking" bubble: fully readable, pulsing gold ring, grows to show
+      // the WHOLE message as you talk, with a clear listening label.
       '.pbask-msg.user.live{max-width:92%;opacity:1;font-style:normal;animation:pbasklive 1.4s ease-in-out infinite}' +
-      '@keyframes pbasklive{0%,100%{box-shadow:0 0 0 2px rgba(228,190,120,.28)}50%{box-shadow:0 0 0 2px rgba(228,190,120,.75)}}' +
-      '.pbask-msg.user.live::after{content:"\\1F3A4 Listening\\2026";display:block;font-size:.62rem;font-weight:800;letter-spacing:.05em;opacity:.9;margin-top:6px}' +
-      '.pbask-spk{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:' + CREAM + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.9rem}' +
+      '@keyframes pbasklive{0%,100%{box-shadow:0 0 0 2px rgba(232,207,154,.3)}50%{box-shadow:0 0 0 2px rgba(232,207,154,.8)}}' +
+      '.pbask-msg.user.live::after{content:"\\1F3A4 Listening\\2026";display:block;font-family:' + MONO + ';font-size:.58rem;font-weight:700;letter-spacing:.08em;opacity:.85;margin-top:6px}' +
+      '.pbask-spk{margin-left:auto;background:rgba(255,255,255,.06);border:1px solid ' + LINE + ';color:' + INK2 + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.9rem}' +
       '.pbask-spk.off{opacity:.5}' +
-      '.pbask-msg b{color:' + HEAD + '}.pbask-msg.user b{color:#fff}.pbask-msg ul{margin:6px 0 0;padding-left:18px}.pbask-msg li{margin:3px 0}' +
+      '.pbask-msg b{color:' + GOLD + '}.pbask-msg.user b{color:' + BG + '}.pbask-msg ul{margin:6px 0 0;padding-left:18px}.pbask-msg li{margin:3px 0}' +
       '.pbask-sugs{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}' +
-      '.pbask-sug{background:' + PAPER + ';border:1px solid ' + LINE + ';color:' + TEAL + ';font-family:inherit;font-weight:700;font-size:.78rem;padding:8px 12px;border-radius:999px;cursor:pointer;text-align:left}' +
-      '.pbask-sug:hover{border-color:' + GOLD + '}' +
-      '.pbask-typing{align-self:flex-start;display:flex;gap:4px;padding:12px 15px;background:' + PAPER + ';border:1px solid ' + LINE + ';border-radius:15px}' +
+      '.pbask-sug{background:rgba(255,255,255,.03);border:1px solid ' + LINE + ';color:' + GOLD + ';font-family:' + SANS + ';font-weight:600;font-size:.78rem;padding:8px 12px;border-radius:999px;cursor:pointer;text-align:left}' +
+      '.pbask-sug:hover{border-color:' + LINE2 + ';background:rgba(232,207,154,.06)}' +
+      '.pbask-typing{align-self:flex-start;display:flex;gap:4px;padding:12px 15px;background:rgba(255,255,255,.03);border:1px solid ' + LINE + ';border-radius:15px}' +
       '.pbask-typing span{width:7px;height:7px;border-radius:50%;background:' + GOLD + ';animation:pbaskb 1s infinite}' +
       '.pbask-typing span:nth-child(2){animation-delay:.15s}.pbask-typing span:nth-child(3){animation-delay:.3s}' +
       '@keyframes pbaskb{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}' +
-      '.pbask-foot{border-top:1px solid ' + LINE + ';padding:11px;display:flex;gap:8px;background:' + PAPER + '}' +
-      '.pbask-mic{flex:none;border:1px solid ' + LINE + ';border-radius:12px;background:#fff;color:' + TEAL + ';font-size:1.05rem;width:44px;cursor:pointer}' +
-      '.pbask-mic.rec{background:#d9534f;border-color:#d9534f;color:#fff;animation:pbaskrec 1.1s infinite}' +
-      '@keyframes pbaskrec{0%{box-shadow:0 0 0 0 rgba(217,83,79,.5)}70%{box-shadow:0 0 0 8px rgba(217,83,79,0)}100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}}' +
-      '.pbask-act{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;background:rgba(47,125,79,.1);border:1px solid rgba(47,125,79,.3);color:#256b41;font-size:.78rem;font-weight:700;padding:8px 12px;border-radius:11px}' +
-      '.pbask-foot input{flex:1;min-width:0;border:1px solid ' + LINE + ';border-radius:12px;padding:11px 13px;font-family:inherit;font-size:.9rem;color:' + INK + ';background:#fff;outline:none}' +
-      '.pbask-foot input:focus{border-color:' + GOLD + ';box-shadow:0 0 0 3px rgba(199,154,75,.16)}' +
-      '.pbask-send{flex:none;border:none;border-radius:12px;background:linear-gradient(120deg,' + GOLD2 + ',' + GOLD + ');color:#15241c;font-size:1.1rem;width:44px;cursor:pointer}' +
-      '.pbask-note{font-size:.66rem;color:' + MUTED + ';text-align:center;padding:0 0 8px;background:' + PAPER + '}';
+      '.pbask-foot{border-top:1px solid ' + LINE + ';padding:11px;display:flex;gap:8px;background:' + SURFACE + '}' +
+      '.pbask-mic{flex:none;border:1px solid ' + LINE2 + ';border-radius:12px;background:rgba(255,255,255,.04);color:' + GOLD + ';font-size:1.05rem;width:44px;cursor:pointer}' +
+      '.pbask-mic.rec{background:#c0473a;border-color:#c0473a;color:#fff;animation:pbaskrec 1.1s infinite}' +
+      '@keyframes pbaskrec{0%{box-shadow:0 0 0 0 rgba(192,71,58,.5)}70%{box-shadow:0 0 0 8px rgba(192,71,58,0)}100%{box-shadow:0 0 0 0 rgba(192,71,58,0)}}' +
+      '.pbask-act{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;background:rgba(143,214,166,.1);border:1px solid rgba(143,214,166,.3);color:' + GREEN + ';font-family:' + MONO + ';font-size:.68rem;letter-spacing:.04em;font-weight:700;padding:8px 12px;border-radius:11px}' +
+      '.pbask-foot input{flex:1;min-width:0;border:1px solid ' + LINE2 + ';border-radius:12px;padding:11px 13px;font-family:' + SANS + ';font-size:.9rem;color:' + INK + ';background:rgba(255,255,255,.04);outline:none;color-scheme:dark}' +
+      '.pbask-foot input::placeholder{color:' + MUTED + '}' +
+      '.pbask-foot input:focus{border-color:' + GOLD + ';box-shadow:0 0 0 3px rgba(232,207,154,.16)}' +
+      '.pbask-send{flex:none;border:none;border-radius:12px;background:linear-gradient(120deg,' + GOLD + ',' + GOLD2 + ');color:' + BG + ';font-size:1.1rem;width:44px;cursor:pointer;box-shadow:0 6px 18px -8px rgba(217,183,121,.6)}' +
+      '.pbask-note{font-size:.62rem;font-family:' + MONO + ';letter-spacing:.06em;color:' + MUTED + ';text-align:center;padding:0 0 8px;background:' + SURFACE + '}';
     document.head.appendChild(s);
   }
 
@@ -238,7 +245,7 @@
     fab.innerHTML = '<span class="spark">\u2728</span> Ask Park Buddy';
     var panel = document.createElement('div'); panel.className = 'pbask-panel';
     panel.innerHTML =
-      '<div class="pbask-head"><span class="lg">\uD83E\uDDED</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-spk' + (ttsOn ? '' : ' off') + '" title="Read replies aloud">' + (ttsOn ? '\uD83D\uDD0A' : '\uD83D\uDD07') + '</button><button class="pbask-x" title="Close">\u2715</button></div>' +
+      '<div class="pbask-head"><span class="lg">\uD83C\uDF32</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-spk' + (ttsOn ? '' : ' off') + '" title="Read replies aloud">' + (ttsOn ? '\uD83D\uDD0A' : '\uD83D\uDD07') + '</button><button class="pbask-x" title="Close">\u2715</button></div>' +
       '<div class="pbask-body"></div>' +
       '<div class="pbask-note">Grounded in National Park Service data \u00b7 not live weather</div>' +
       '<div class="pbask-foot"><button class="pbask-mic" title="Speak">\uD83C\uDFA4</button><input type="text" placeholder="Describe your trip\u2026" maxlength="240"><button class="pbask-send" title="Send">\u2191</button></div>';

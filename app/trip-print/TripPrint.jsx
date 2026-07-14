@@ -13,6 +13,7 @@ import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { computeRoute } from "../lib/googleRoutes";
+import { decodeTrip } from "../lib/tripShare";
 
 const FUEL_PER_MI = 0.2333, LODGING_PER_NIGHT = 130, FOOD_PER_PERSON_DAY = 35, ROAD_FACTOR = 1.25;
 
@@ -56,8 +57,11 @@ export default function TripPrint() {
   useEffect(() => {
     let on = true;
     (async () => {
-      const raw = getStops();
-      const m = getMeta();
+      // A shared trip travels in the URL (?t=…); fall back to the local trip store.
+      let shared = null;
+      try { const t = new URLSearchParams(window.location.search).get("t"); if (t) shared = decodeTrip(t); } catch {}
+      const raw = shared ? shared.stops : getStops();
+      const m = shared ? shared.meta : getMeta();
       const coord = {};
       try {
         await loadScript("/trip-data.js");

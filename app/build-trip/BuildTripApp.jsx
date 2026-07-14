@@ -17,6 +17,8 @@ import { getSavedTrips, upsertActiveTrip, deleteSavedTrip as storeDeleteSavedTri
 import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
 import { computeRoute } from "../lib/googleRoutes";
 import { reservationNote } from "../lib/parkReservations";
+import { encodeTrip } from "../lib/tripShare";
+import { buildIcs } from "../lib/tripIcs";
 import SiteHeader from "../components/SiteHeader";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
@@ -1324,15 +1326,41 @@ export default function BuildTripApp() {
 
   /* ---------------- share links (production-correct, real waypoints) ---------------- */
 
-  const gmapsUrl = stops.length >= 2
-    ? "https://www.google.com/maps/dir/" + stops.map((s) => s.lat + "," + s.lng).join("/")
+  // Route handoffs — prepend the trip origin (home/airport) when set so the directions
+  // start where the traveler actually leaves from, not at the first park.
+  const routePts = (origin && origin.lat != null ? [{ lat: origin.lat, lng: origin.lng }] : []).concat(stops.filter((s) => s.lat != null).map((s) => ({ lat: s.lat, lng: s.lng })));
+  const gmapsUrl = routePts.length >= 2
+    ? "https://www.google.com/maps/dir/" + routePts.map((p) => p.lat + "," + p.lng).join("/")
     : "https://www.google.com/maps";
-  const appleUrl = stops.length >= 2
-    ? "https://maps.apple.com/?saddr=" + stops[0].lat + "," + stops[0].lng + "&daddr=" + stops.slice(1).map((s) => s.lat + "," + s.lng).join("+to:")
+  const appleUrl = routePts.length >= 2
+    ? "https://maps.apple.com/?saddr=" + routePts[0].lat + "," + routePts[0].lng + "&daddr=" + routePts.slice(1).map((p) => p.lat + "," + p.lng).join("+to:")
     : "https://maps.apple.com";
   const shareText = tripName + " — " + stops.map((s) => s.name).join(" → ") + " · " + totalMiles + " mi, " + totalNights + " days. Planned with ParkBuddy.";
-  const waUrl = "https://wa.me/?text=" + encodeURIComponent(shareText);
-  const copyLink = () => { try { navigator.clipboard.writeText(window.location.href); } catch {} };
+  // A shareable, read-only copy of the whole trip encoded into the link (the trip itself
+  // lives in localStorage, so a bare URL would open empty on someone else's device).
+  const shareUrl = () => {
+    try {
+      const enc = encodeTrip({ stops, meta: { tripName, startDate, endDate, adults, infants, travelers: adults, arrivalMode }, dayPlans });
+      return (typeof window !== "undefined" ? window.location.origin : "") + "/trip-print?t=" + enc;
+    } catch { return typeof window !== "undefined" ? window.location.href : ""; }
+  };
+  const waUrl = "https://wa.me/?text=" + encodeURIComponent(shareText + " ");
+  const [shareCopied, setShareCopied] = useState(false);
+  const copyLink = () => { try { navigator.clipboard.writeText(shareUrl()); setShareCopied(true); setTimeout(() => setShareCopied(false), 2500); } catch {} };
+  // Download the trip as an .ics calendar (Apple/Google/Outlook).
+  const downloadIcs = () => {
+    try {
+      const d = new Date(); const p = (n) => String(n).padStart(2, "0");
+      const stamp = d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + "T" + p(d.getUTCHours()) + p(d.getUTCMinutes()) + p(d.getUTCSeconds()) + "Z";
+      const ics = buildIcs({ tripName, stops, dayRanges, dayPlans, stamp });
+      const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = (tripName || "trip").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {}
+  };
 
   /* ---------------- shared style fragments (design verbatim) ---------------- */
 
@@ -1450,7 +1478,7 @@ export default function BuildTripApp() {
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
           routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute} previewRoute={previewRoute} setPreviewRoute={setPreviewRoute} bywayDetail={bywayDetail} insertScenicDrive={insertScenicDrive}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
-          gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink}
+          gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink} shareCopied={shareCopied} downloadIcs={downloadIcs}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}
           layers={layers} setLayers={setLayers} layersOpen={layersOpen} setLayersOpen={setLayersOpen}
           mapView={mapView} setMapView={setMapView} browseState={browseState} setBrowseState={setBrowseState} browseQuery={browseQuery} setBrowseQuery={setBrowseQuery} radius={radius} setRadius={setRadius}

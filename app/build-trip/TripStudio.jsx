@@ -66,6 +66,8 @@ function TSIcon({ name, size = 16 }) {
     case "pin": return <svg {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>;
     case "apple": return <svg {...p}><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z" /><path d="M10 2c1 .5 2 2 2 5" /></svg>;
     case "chat": return <svg {...p}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>;
+    case "check": return <svg {...p}><path d="M20 6 9 17l-5-5" /></svg>;
+    case "calendar": return <svg {...p}><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18M8 2v4M16 2v4" /></svg>;
     case "link": return <svg {...p}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>;
     case "printer": return <svg {...p}><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" /><rect width="12" height="8" x="6" y="14" /></svg>;
     case "book": return <svg {...p}><path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg>;
@@ -110,7 +112,7 @@ export default function TripStudio(props) {
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
     routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute, previewRoute, setPreviewRoute, bywayDetail, insertScenicDrive,
     savedTrips, loadSavedTrip, deleteSavedTrip,
-    gmapsUrl, appleUrl, waUrl, copyLink,
+    gmapsUrl, appleUrl, waUrl, copyLink, shareCopied, downloadIcs,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
     layers, setLayers, layersOpen, setLayersOpen, mapPrefs, setMapPref,
     mapView, setMapView, browseState, setBrowseState, browseQuery, setBrowseQuery, radius, setRadius,
@@ -938,7 +940,8 @@ export default function TripStudio(props) {
                     <a href={gmapsUrl} target="_blank" rel="noreferrer" className="ts-navtile" style={navTile}><TSIcon name="pin" size={14} />Google Maps</a>
                     <a href={appleUrl} target="_blank" rel="noreferrer" className="ts-navtile" style={navTile}><TSIcon name="apple" size={14} />Apple Maps</a>
                     <a href={waUrl} target="_blank" rel="noreferrer" className="ts-navtile" style={navTile}><TSIcon name="chat" size={14} />WhatsApp</a>
-                    <button onClick={copyLink} className="ts-navtile" style={{ ...navTile, cursor: "pointer" }}><TSIcon name="link" size={14} />Copy link</button>
+                    <button onClick={copyLink} className="ts-navtile" style={{ ...navTile, cursor: "pointer", color: shareCopied ? "#8fd6a6" : undefined, borderColor: shareCopied ? "rgba(143,214,166,0.4)" : undefined }}><TSIcon name={shareCopied ? "check" : "link"} size={14} />{shareCopied ? "Link copied!" : "Share link"}</button>
+                    {downloadIcs && <button onClick={downloadIcs} className="ts-navtile" style={{ ...navTile, cursor: "pointer" }}><TSIcon name="calendar" size={14} />Add to calendar</button>}
                     <a href="/trip-print" className="ts-navtile" style={navTile}><TSIcon name="printer" size={14} />Print / PDF</a>
                     <a href="/trip-book" className="ts-navtile" style={navTile}><TSIcon name="book" size={14} />Trip Book</a>
                   </div>

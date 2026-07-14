@@ -98,7 +98,7 @@ export default function TripStudio(props) {
   const {
     mode, setMode, onNewTrip, editing,
     stat, statNum, tripName, setTripName,
-    stops, dayRanges, verdicts, wx, STOP_STATUS,
+    stops, dayRanges, verdicts, wx, baseInfo, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
     expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
@@ -648,6 +648,10 @@ export default function TripStudio(props) {
                     {stops.map((s, i) => {
                       const v = verdicts[s.name];
                       const st = STOP_STATUS[v ? v.status : "loading"];
+                      const info = baseInfo && baseInfo[s.name];
+                      const alerts = (info && info.alerts) || [];
+                      const resNote = info && info.reservation;
+                      const alertColor = (cat) => /clos/i.test(cat) ? "#c0473a" : /danger/i.test(cat) ? "#cf7338" : /caution/i.test(cat) ? "#d4a23f" : "#7fb0d0";
                       const hov = hoverIdx === i;
                       const openAddAt = (idx) => { setAddAt && setAddAt(idx); setAddTargetIdx(idx); if (isMobile) { setMobileAddOpen(true); } else { setAddSource(null); setAddMenuOpen(true); } };
                       return (
@@ -703,6 +707,27 @@ export default function TripStudio(props) {
                             </div>
                           </div>
                           </div>
+                          {/* Live alerts + a timed-entry heads-up for this base (national parks only). */}
+                          {(alerts.length > 0 || resNote) && (
+                            <div style={{ marginTop: 9, display: "flex", flexDirection: "column", gap: 5 }}>
+                              {resNote && (
+                                <div style={{ display: "flex", alignItems: "flex-start", gap: 7, padding: "6px 9px", borderRadius: 9, background: "rgba(212,162,63,0.08)", border: "1px solid rgba(212,162,63,0.28)" }}>
+                                  <span style={{ fontSize: 12, lineHeight: 1.3, flex: "none" }}>🎫</span>
+                                  <span style={{ fontFamily: SANS, fontSize: 11.5, color: "#e8cf9a", lineHeight: 1.35 }}>{resNote} <a href={"https://www.nps.gov/planyourvisit/passes.htm"} onClick={(e) => e.stopPropagation()} target="_blank" rel="noopener noreferrer" style={{ color: "#c9a35f", textDecoration: "underline" }}>Reserve →</a></span>
+                                </div>
+                              )}
+                              {alerts.slice(0, 3).map((a, ai) => (
+                                <a key={ai} href={a.url || undefined} onClick={(e) => e.stopPropagation()} target="_blank" rel="noopener noreferrer" title={a.title} style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none", padding: "5px 9px", borderRadius: 9, background: "rgba(255,255,255,.02)", border: "1px solid rgba(217,183,121,0.14)" }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: alertColor(a.category), flex: "none", boxShadow: "0 0 6px " + alertColor(a.category) }} />
+                                  <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".08em", textTransform: "uppercase", color: alertColor(a.category), flex: "none" }}>{(a.category || "Alert").replace(/^Park /, "")}</span>
+                                  <span style={{ fontFamily: SANS, fontSize: 11.5, color: "#cbd2c9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</span>
+                                </a>
+                              ))}
+                              {alerts.length > 3 && (
+                                <a href={"/parks/" + (s.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")} onClick={(e) => e.stopPropagation()} style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", color: "#8f9a90", textDecoration: "none", paddingLeft: 4 }}>+{alerts.length - 3} more alert{alerts.length - 3 === 1 ? "" : "s"} →</a>
+                              )}
+                            </div>
+                          )}
                           {/* Staying at — the actual lodging for this base (when it differs from the headline place, e.g. sleep in the gateway town). */}
                           {setStopLodging && (() => {
                             const lodge = lodging && lodging[s.name];

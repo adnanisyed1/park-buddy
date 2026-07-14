@@ -16,6 +16,7 @@ import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, s
 import { getSavedTrips, upsertActiveTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
 import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
 import { computeRoute } from "../lib/googleRoutes";
+import { reservationNote } from "../lib/parkReservations";
 import SiteHeader from "../components/SiteHeader";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
@@ -159,6 +160,7 @@ export default function BuildTripApp() {
   const [editingBudget, setEditingBudget] = useState(null); // key being edited
   const [verdicts, setVerdicts] = useState({}); // name -> {status, note}
   const [wx, setWx] = useState({}); // base name -> { periods, timeZone } — 7-day forecast for per-day conditions
+  const [baseInfo, setBaseInfo] = useState({}); // base name -> { alerts:[{title,category,url}], reservation:string|null }
   const [keyOverlay, setKeyOverlay] = useState(false);
   const [keyMsg, setKeyMsg] = useState("Paste a Google Maps JavaScript API key to load the live map.");
   // Step-by-step setup wizard (Trip details → Transportation). Auto-opens on first
@@ -1195,6 +1197,35 @@ export default function BuildTripApp() {
     });
   }, [stops]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Per-base NPS alerts/closures + a timed-entry heads-up, keyed to the base that owns
+  // them. Only bases that resolve to a national park (name → TRIP_PARKS id → NPS code)
+  // have these; towns/forests/custom stops resolve to no code and are left blank.
+  useEffect(() => {
+    let cancelled = false;
+    const parkCodeFor = (name) => {
+      try {
+        const parks = window.TRIP_PARKS || [], codes = window.NPS_CODE || {};
+        const p = parks.find((x) => x.name === name);
+        return p ? (codes[p.id] || codes[String(p.id)] || "") : "";
+      } catch { return ""; }
+    };
+    stops.forEach((s) => {
+      if (!s || baseInfo[s.name] !== undefined) return;
+      const code = parkCodeFor(s.name);
+      if (!code) { setBaseInfo((b) => ({ ...b, [s.name]: { alerts: [], reservation: null } })); return; }
+      const reservation = reservationNote(code);
+      fetch("/api/nps?parkCode=" + encodeURIComponent(code))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (cancelled) return;
+          const alerts = ((d && d.alerts) || []).slice(0, 6).map((a) => ({ title: a.title, category: a.category || "", url: a.url || "" }));
+          setBaseInfo((b) => ({ ...b, [s.name]: { alerts, reservation } }));
+        })
+        .catch(() => { if (!cancelled) setBaseInfo((b) => ({ ...b, [s.name]: { alerts: [], reservation } })); });
+    });
+    return () => { cancelled = true; };
+  }, [stops]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function saveKey() {
     const v = keyInputRef.current && keyInputRef.current.value.trim();
     if (!v) return;
@@ -1299,7 +1330,7 @@ export default function BuildTripApp() {
           stat={{ stops: String(stops.length), days: String(totalNights), miles: String(totalMiles), cost: fmtUsd(totalCost) }}
           statNum={{ stops: stops.length, days: totalNights, miles: totalMiles, cost: totalCost }}
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
-          stops={stops} dayRanges={dayRanges} verdicts={verdicts} wx={wx} STOP_STATUS={STOP_STATUS}
+          stops={stops} dayRanges={dayRanges} verdicts={verdicts} wx={wx} baseInfo={baseInfo} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi} flightInfo={flightInfo}

@@ -133,6 +133,10 @@ export default function TripStudio(props) {
   const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
   const [scenicDragging, setScenicDragging] = useState(false);
   const [addTargetIdx, setAddTargetIdx] = useState(null); // where the next "Add a base" inserts (null = end)
+  const [stayFor, setStayFor] = useState(null); // base name whose "stay" popup is open
+  const [stayTab, setStayTab] = useState("search"); // search | link | pdf
+  const [stayLink, setStayLink] = useState("");
+  const [stayMsg, setStayMsg] = useState("");
   const [forestSel, setForestSel] = useState(""); // national-forest picker
   const [spState, setSpState] = useState(""); // state-park: chosen state
   const [spList, setSpList] = useState([]);   // state-park: parks in that state
@@ -675,13 +679,11 @@ export default function TripStudio(props) {
                                     <span style={{ color: "#8fd6a6", display: "inline-flex" }}><TSIcon name="bed" size={12} /></span>
                                     <span style={{ color: "#8f9a90" }}>Staying at</span>
                                     <span style={{ color: "#f4f1ea", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lodge.name}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); setStopLodging(s.name, null); }} title="Clear" style={{ marginLeft: "auto", background: "none", border: "none", color: "#7f8a82", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="trash" size={11} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); setStayTab("search"); setStayLink(""); setStayMsg(""); setStayFor(s.name); }} title="Change" style={{ marginLeft: "auto", background: "none", border: "none", color: "#8f9a90", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="edit" size={11} /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); setStopLodging(s.name, null); }} title="Clear" style={{ background: "none", border: "none", color: "#b06a4a", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="trash" size={11} /></button>
                                   </div>
                                 ) : (
-                                  <div onClick={(e) => e.stopPropagation()}>
-                                    <GeoAutocomplete placeholder="Staying at… (hotel, cabin, town — optional)" fieldBox={fieldBox}
-                                      onPick={(x) => setStopLodging(s.name, { name: x.name, lat: x.lat, lng: x.lng })} />
-                                  </div>
+                                  <button onClick={(e) => { e.stopPropagation(); setStayTab("search"); setStayLink(""); setStayMsg(""); setStayFor(s.name); }} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 11px", borderRadius: 9, border: "1px dashed rgba(143,214,166,0.35)", background: "rgba(143,214,166,0.06)", color: "#8fd6a6", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}><TSIcon name="bed" size={13} />＋ Add your stay</button>
                                 )}
                               </div>
                             );
@@ -1165,6 +1167,73 @@ export default function TripStudio(props) {
         );
       })()}
 
+      {/* Add / change your stay (lodging) for a base — search, paste a maps link, or a PDF */}
+      {stayFor && (() => {
+        const closeStay = () => { setStayFor(null); setStayLink(""); setStayMsg(""); };
+        const resolveLink = async () => {
+          const parsed = parseMapLink(stayLink);
+          if (!parsed) { setStayMsg("Paste a Google or Apple Maps link, or an address."); return; }
+          setStayMsg("Finding…");
+          try {
+            if (parsed.lat != null) {
+              let name = parsed.name;
+              if (!name) { const d = await fetch("/api/geocode?rev=1&lat=" + parsed.lat + "&lng=" + parsed.lng).then((r) => (r.ok ? r.json() : null)); name = (d && d.name) || "Saved location"; }
+              setStopLodging(stayFor, { name, lat: parsed.lat, lng: parsed.lng }); closeStay();
+            } else {
+              const d = await fetch("/api/geocode?q=" + encodeURIComponent(parsed.name)).then((r) => (r.ok ? r.json() : null));
+              if (d && d.found) { setStopLodging(stayFor, { name: d.name, lat: d.lat, lng: d.lng }); closeStay(); }
+              else setStayMsg("Couldn't find that place — try a hotel name or address.");
+            }
+          } catch { setStayMsg("Couldn't read that — try again."); }
+        };
+        const Tab = (id, label) => (
+          <button onClick={() => { setStayTab(id); setStayMsg(""); }} style={{ flex: 1, padding: "8px 6px", borderRadius: 9, border: "1px solid " + (stayTab === id ? "rgba(217,183,121,0.4)" : "transparent"), background: stayTab === id ? "rgba(232,207,154,0.1)" : "transparent", color: stayTab === id ? "#e8cf9a" : "#8f9a90", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>{label}</button>
+        );
+        return (
+          <div onClick={closeStay} style={{ position: "fixed", inset: 0, zIndex: 96, background: "rgba(4,9,7,0.78)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: "linear-gradient(180deg,#0c1a12,#08120c)", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 22, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)" }}>
+              <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid rgba(217,183,121,0.12)", background: "rgba(217,183,121,0.03)", borderRadius: "22px 22px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                  <span style={{ width: 38, height: 38, flex: "none", borderRadius: 11, background: "rgba(143,214,166,0.12)", border: "1px solid rgba(143,214,166,0.3)", color: "#8fd6a6", display: "flex", alignItems: "center", justifyContent: "center" }}><TSIcon name="bed" size={19} /></span>
+                  <div>
+                    <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea", lineHeight: 1 }}>Where are you staying?</div>
+                    <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#8f9a90", marginTop: 3 }}>Lodging for {stayFor}</div>
+                  </div>
+                </div>
+                <button onClick={closeStay} style={{ flex: "none", width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: "pointer" }}>✕</button>
+              </div>
+              <div style={{ padding: 18 }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 14, background: "rgba(255,255,255,.02)", border: "1px solid rgba(217,183,121,0.12)", borderRadius: 11, padding: 4 }}>
+                  {Tab("search", "Search")}{Tab("link", "Map link")}{Tab("pdf", "Confirmation PDF")}
+                </div>
+                {stayTab === "search" && (
+                  <AddressPicker placeholder="Search a hotel, lodge, or address…" fieldBox={fieldBox}
+                    onPick={(x) => { setStopLodging(stayFor, { name: x.name, lat: x.lat, lng: x.lng }); closeStay(); }} />
+                )}
+                {stayTab === "link" && (
+                  <div>
+                    <div style={{ fontFamily: SANS, fontSize: 12, color: "#8f9a90", marginBottom: 8, lineHeight: 1.5 }}>Paste a <b style={{ color: "#c9a35f" }}>Google Maps</b> or <b style={{ color: "#c9a35f" }}>Apple Maps</b> link (or an address) for your hotel or lodge.</div>
+                    <div style={{ display: "flex", gap: 9 }}>
+                      <input value={stayLink} onChange={(e) => setStayLink(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") resolveLink(); }} placeholder="https://maps.app.goo.gl/…  or an address" style={{ ...fieldBox, flex: 1 }} />
+                      <button onClick={resolveLink} style={addBtn}>＋</button>
+                    </div>
+                    {stayMsg && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#aab0ba", marginTop: 8 }}>{stayMsg}</div>}
+                  </div>
+                )}
+                {stayTab === "pdf" && (
+                  <div style={{ textAlign: "center", padding: "18px 12px", border: "1px dashed rgba(217,183,121,0.28)", borderRadius: 14, background: "rgba(255,255,255,.02)" }}>
+                    <span style={{ display: "inline-flex", width: 40, height: 40, borderRadius: 11, alignItems: "center", justifyContent: "center", color: "#c9a35f", background: "rgba(217,183,121,0.1)", border: "1px solid rgba(217,183,121,0.28)", marginBottom: 10 }}><TSIcon name="fileup" size={20} /></span>
+                    <div style={{ fontFamily: SERIF, fontSize: 16, color: "#f4f1ea" }}>Drop your booking confirmation</div>
+                    <div style={{ fontFamily: SANS, fontSize: 12, color: "#7f8a82", marginTop: 6, lineHeight: 1.55, maxWidth: 300, margin: "6px auto 0" }}>Auto-reading the hotel + address from a PDF confirmation is coming soon. For now, use <b style={{ color: "#c9a35f", cursor: "pointer" }} onClick={() => { setStayTab("search"); setStayMsg(""); }}>Search</b> or paste a <b style={{ color: "#c9a35f", cursor: "pointer" }} onClick={() => { setStayTab("link"); setStayMsg(""); }}>Map link</b>.</div>
+                    <span style={{ display: "inline-block", marginTop: 12, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".12em", textTransform: "uppercase", color: "#8f9a90", border: "1px solid rgba(217,183,121,0.25)", borderRadius: 999, padding: "4px 11px" }}>Coming soon</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* delete a day block — confirm first */}
       {confirmDelBlock && (
         <div onClick={() => setConfirmDelBlock(null)} style={{ position: "fixed", inset: 0, zIndex: 97, background: "rgba(4,9,7,0.78)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -1314,6 +1383,22 @@ export default function TripStudio(props) {
 // The six day-block types. A day is a bucket; each block inside it has a type,
 // an optional time, and (via TYPE_ICON) a monochrome line icon.
 const BLOCK_TYPES = [["drive", "car", "Drive"], ["stay", "bed", "Stay"], ["meal", "utensils", "Meal"], ["scenic", "route", "Scenic drive"], ["hike", "hike", "Hike"], ["sight", "camera", "Sight"]];
+// Pull coordinates (and a place name if present) out of a Google/Apple Maps link
+// or a pasted address. Returns {lat,lng,name} | {name} | null.
+function parseMapLink(raw) {
+  const s = (raw || "").trim();
+  if (!s) return null;
+  let m = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)                       // google /@lat,lng
+    || s.match(/[?&](?:ll|q|sll|daddr|saddr|center)=(-?\d+\.\d+),(-?\d+\.\d+)/) // apple ?ll= / google ?q=
+    || s.match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);            // bare "lat, lng"
+  if (!m) { const a = s.match(/!3d(-?\d+\.\d+)/), b = s.match(/!4d(-?\d+\.\d+)/); if (a && b) m = [null, a[1], b[1]]; } // google !3d!4d
+  let name = "";
+  const pm = s.match(/\/place\/([^/@?]+)/) || s.match(/[?&](?:q|address)=([^&@]+)/);
+  if (pm && !/^-?\d+\.\d+,/.test(decodeURIComponent(pm[1]))) name = decodeURIComponent(pm[1].replace(/\+/g, " ")).trim();
+  if (m) return { lat: Number(m[1]), lng: Number(m[2]), name };
+  if (name) return { name };
+  return null;
+}
 const US_STATE_NAMES = ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"];
 const TYPE_ICON = { drive: "car", stay: "bed", meal: "utensils", scenic: "route", hike: "hike", sight: "camera",
   // legacy day-plan types, mapped onto the new icon set

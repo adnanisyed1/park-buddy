@@ -163,6 +163,8 @@ export default function BuildTripApp() {
   const [baseInfo, setBaseInfo] = useState({}); // base name -> { alerts:[{title,category,url}], reservation:string|null, parkCode:string }
   const [planningDay, setPlanningDay] = useState(null); // `${name}#${d}` while "Plan this day" is fetching
   const [planMsg, setPlanMsg] = useState({}); // `${name}#${d}` -> short result message
+  const [prevOrder, setPrevOrder] = useState(null); // stops snapshot for "undo optimize"
+  const [optimizeMsg, setOptimizeMsg] = useState(""); // result of the last optimize action
   const [keyOverlay, setKeyOverlay] = useState(false);
   const [keyMsg, setKeyMsg] = useState("Paste a Google Maps JavaScript API key to load the live map.");
   // Step-by-step setup wizard (Trip details → Transportation). Auto-opens on first
@@ -465,6 +467,36 @@ export default function BuildTripApp() {
   }
   function removeActivity(name, id) {
     setDayPlans((prev) => ({ ...prev, [name]: (prev[name] || []).filter((a) => a.id !== id) }));
+  }
+  // Reorder the bases with a nearest-neighbor pass to cut total driving. Straight-line
+  // distance decides the order (real road miles recompute after); only applies if it's a
+  // genuine improvement, and stashes the previous order so the user can undo.
+  function optimizeOrder() {
+    if (stops.length < 3 || stops.some((s) => s.lat == null)) { setOptimizeMsg(stops.some((s) => s.lat == null) ? "Some bases have no location" : "Too few bases to optimize"); return; }
+    const hasOrigin = origin && origin.lat != null;
+    const total = (arr) => { let sum = 0, prev = hasOrigin ? origin : null; for (const s of arr) { if (prev) sum += milesBetween(prev, s); prev = s; } return sum; };
+    const before = total(stops);
+    const remaining = stops.slice();
+    const ordered = [];
+    let cur;
+    if (hasOrigin) cur = origin; else { cur = remaining.shift(); ordered.push(cur); }
+    while (remaining.length) {
+      let bi = 0, bd = Infinity;
+      for (let k = 0; k < remaining.length; k++) { const d = milesBetween(cur, remaining[k]); if (d < bd) { bd = d; bi = k; } }
+      cur = remaining[bi]; ordered.push(cur); remaining.splice(bi, 1);
+    }
+    const after = total(ordered);
+    const changed = ordered.some((s, idx) => s.name !== stops[idx].name);
+    if (!changed || after >= before - 5) { setOptimizeMsg("Already an efficient order"); return; }
+    setPrevOrder(stops);
+    setStops(recomputeLegs(ordered));
+    setOptimizeMsg("Reordered — about " + Math.round(before - after) + " mi shorter");
+  }
+  function undoOptimize() {
+    if (!prevOrder) return;
+    setStops(recomputeLegs(prevOrder));
+    setPrevOrder(null);
+    setOptimizeMsg("Order restored");
   }
   function updateActivity(name, id, patch) {
     setDayPlans((prev) => ({ ...prev, [name]: (prev[name] || []).map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
@@ -1387,6 +1419,7 @@ export default function BuildTripApp() {
           tripName={tripName} setTripName={(v) => { userEditedRef.current = true; setTripName(v); }}
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} wx={wx} baseInfo={baseInfo} STOP_STATUS={STOP_STATUS}
           planDay={planDay} planningDay={planningDay} planMsg={planMsg}
+          optimizeOrder={optimizeOrder} undoOptimize={undoOptimize} optimizeMsg={optimizeMsg} canUndoOptimize={!!prevOrder}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
           origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi} flightInfo={flightInfo}

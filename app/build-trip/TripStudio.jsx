@@ -98,7 +98,7 @@ export default function TripStudio(props) {
   const {
     mode, setMode, onNewTrip, editing,
     stat, statNum, tripName, setTripName,
-    stops, dayRanges, verdicts, wx, baseInfo, planDay, planningDay, planMsg, STOP_STATUS,
+    stops, dayRanges, verdicts, wx, baseInfo, planDay, planningDay, planMsg, optimizeOrder, undoOptimize, optimizeMsg, canUndoOptimize, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
     expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
@@ -644,6 +644,15 @@ export default function TripStudio(props) {
 
                   {!stops.length && <div style={{ fontSize: 13, color: "#7f8a82", padding: "10px 2px 4px", lineHeight: 1.6 }}>No bases yet — hit <b style={{ color: "#e8cf9a" }}>Add a base</b> below, or load a ready-made route. A base is a place you sleep; its nights become day cards.</div>}
 
+                  {optimizeOrder && stops.length >= 3 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                      <button onClick={() => optimizeOrder()} className="ts-navtile" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 11px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.03)", color: "#e8cf9a", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>
+                        <TSIcon name="route" size={13} />Optimize order
+                      </button>
+                      {canUndoOptimize && <button onClick={() => undoOptimize()} style={{ background: "none", border: "none", color: "#8f9a90", fontFamily: SANS, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Undo</button>}
+                      {optimizeMsg && <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".06em", color: "#8fd6a6" }}>{optimizeMsg}</span>}
+                    </div>
+                  )}
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {stops.map((s, i) => {
                       const v = verdicts[s.name];
@@ -809,6 +818,19 @@ export default function TripStudio(props) {
                                               )}
                                             </div>
                                           )}
+                                          {(() => {
+                                            // Pacing heads-up: a long transit day (arrival day only) or a packed day.
+                                            const travelHrs = d === 0 ? ((flyLeg ? flyLeg.hrs : 0) + (legMi != null ? legHrs : 0)) : 0;
+                                            const pacing = travelHrs >= 5 ? "Long travel day — ~" + Math.round(travelHrs) + " h in transit, keep plans light"
+                                              : acts.length >= 5 ? "Packed day — " + acts.length + " things planned, leave some slack"
+                                              : null;
+                                            return pacing ? (
+                                              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "5px 9px", borderRadius: 9, background: "rgba(212,162,63,0.08)", border: "1px solid rgba(212,162,63,0.28)" }}>
+                                                <span style={{ fontSize: 11, flex: "none" }}>⏳</span>
+                                                <span style={{ fontFamily: SANS, fontSize: 11, color: "#e8cf9a" }}>{pacing}</span>
+                                              </div>
+                                            ) : null;
+                                          })()}
                                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                             {d === 0 && flyLeg && (
                                               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(127,176,208,0.07)", border: "1px dashed rgba(127,176,208,0.35)" }}>

@@ -12,19 +12,15 @@ import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
-import { subscribeTripMode, getPhotosFor, addPhoto, removePhoto, fileToDataUrl, getChecklist, toggleChecklist, getBreadcrumb, addCrumb, photoCount, distMiles } from "../lib/tripmode";
+import { subscribeTripMode, getPhotosFor, addPhoto, removePhoto, fileToDataUrl, getBreadcrumb, addCrumb, photoCount, distMiles } from "../lib/tripmode";
+import { getChecklist as getPackList, subscribeChecklist as subscribePackList, toggleChecklistItem } from "../lib/checklist";
+import { CATS as PACK_CATS } from "../lib/packgo";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 18, padding: 18 };
 const microLabel = { fontFamily: mono, fontSize: ".58rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)" };
 const VC = { go: "#4fd98a", prepare: "#e8cf9a", hold: "#e0906a" };
 
-const CHECKLIST = {
-  Essentials: ["America the Beautiful pass", "Water — ~1 L / person / hour", "Layers + rain shell", "Sun: hat, sunscreen, sunglasses", "First-aid + medications", "Headlamp / flashlight", "Offline maps downloaded", "Power bank / car charger"],
-  "On the road": ["Rental car + insurance", "Snacks & cooler", "Cash for gateway towns", "Roadside kit"],
-  "Stay & permits": ["Lodging / camp confirmations", "Timed-entry / wilderness permits", "Camping gear if needed"],
-  "For the story": ["Camera space cleared", "A small notebook", "Photo reminders on (below)"],
-};
 const ARRIVE_MI = 2; // within this many miles of a stop = "you've arrived"
 
 export default function TripMode() {
@@ -154,11 +150,9 @@ export default function TripMode() {
               {stops.map((s) => <StopCard key={s.name} s={s} cond={cond[s.name]} pos={pos} />)}
             </div>
 
-            {/* checklist */}
-            <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", margin: "34px 0 14px" }}>Packing &amp; prep</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14 }}>
-              {Object.entries(CHECKLIST).map(([group, items]) => <ChecklistCard key={group} group={group} items={items} />)}
-            </div>
+            {/* Pack & Go — the one checklist, built in Trip Studio */}
+            <h2 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", margin: "34px 0 14px" }}>Pack &amp; Go</h2>
+            <PackList />
           </>
         )}
       </div>
@@ -219,22 +213,32 @@ function StopCard({ s, cond, pos }) {
   );
 }
 
-function ChecklistCard({ group, items }) {
+// The single Pack & Go list, built in Trip Studio and checked off here on the road.
+function PackList() {
   const [, force] = useState(0);
-  const checked = getChecklist();
+  useEffect(() => subscribePackList(() => force((n) => n + 1)), []);
+  const items = getPackList();
+  if (!items.length) {
+    return (
+      <div style={{ ...card, padding: 16, color: "var(--pb-muted)", fontSize: ".9rem", lineHeight: 1.6 }}>
+        No packing list yet. Build one in <a href="/build-trip" style={{ color: "#e8cf9a" }}>Trip Studio → Pack &amp; Go</a> — it&apos;ll show up here to check off as you travel.
+      </div>
+    );
+  }
+  const groups = PACK_CATS.map(([cat, emoji, title]) => [cat, emoji, title, items.filter((i) => i.cat === cat)]).filter(([, , , its]) => its.length);
   return (
-    <div style={{ ...card, padding: 16 }}>
-      <div style={{ fontWeight: 700, fontSize: ".92rem", marginBottom: 8 }}>{group}</div>
-      {items.map((it) => {
-        const key = group + "|" + it;
-        const on = !!checked[key];
-        return (
-          <button key={it} onClick={() => { toggleChecklist(key); force((n) => n + 1); }} style={{ width: "100%", display: "flex", alignItems: "flex-start", gap: 9, padding: "6px 2px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
-            <span style={{ width: 16, height: 16, flex: "none", marginTop: 1, borderRadius: 4, border: "1.5px solid " + (on ? "#4fd98a" : "var(--pb-line-strong)"), background: on ? "#4fd98a" : "transparent", color: "#0b1710", fontSize: ".7rem", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>{on ? "✓" : ""}</span>
-            <span style={{ fontSize: ".85rem", color: on ? "var(--pb-muted)" : "var(--pb-ink-2)", textDecoration: on ? "line-through" : "none" }}>{it}</span>
-          </button>
-        );
-      })}
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14 }}>
+      {groups.map(([cat, emoji, title, its]) => (
+        <div key={cat} style={{ ...card, padding: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: ".92rem", marginBottom: 8 }}>{emoji} {title}</div>
+          {its.map((it) => (
+            <button key={it.id} onClick={() => { toggleChecklistItem(it.id); force((n) => n + 1); }} style={{ width: "100%", display: "flex", alignItems: "flex-start", gap: 9, padding: "6px 2px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+              <span style={{ width: 16, height: 16, flex: "none", marginTop: 1, borderRadius: 4, border: "1.5px solid " + (it.done ? "#4fd98a" : "var(--pb-line-strong)"), background: it.done ? "#4fd98a" : "transparent", color: "#0b1710", fontSize: ".7rem", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>{it.done ? "✓" : ""}</span>
+              <span style={{ fontSize: ".85rem", color: it.done ? "var(--pb-muted)" : "var(--pb-ink-2)", textDecoration: it.done ? "line-through" : "none" }}>{it.label}</span>
+            </button>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

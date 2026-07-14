@@ -14,6 +14,8 @@ import { getStops, getMeta } from "../lib/trip";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { computeRoute } from "../lib/googleRoutes";
 import { decodeTrip } from "../lib/tripShare";
+import { getChecklist } from "../lib/checklist";
+import { CATS as PACK_CATS } from "../lib/packgo";
 
 const FUEL_PER_MI = 0.2333, LODGING_PER_NIGHT = 130, FOOD_PER_PERSON_DAY = 35, ROAD_FACTOR = 1.25;
 
@@ -55,6 +57,7 @@ export default function TripPrint() {
   const [mapImgErr, setMapImgErr] = useState(false);
   const [routePoly, setRoutePoly] = useState("");
   const [dayPlans, setDayPlans] = useState({});
+  const [packItems, setPackItems] = useState([]);
 
   useEffect(() => {
     let on = true;
@@ -80,7 +83,8 @@ export default function TripPrint() {
       // Day-plan blocks: from the shared payload, else the local store.
       let dp = shared ? (shared.dayPlans || {}) : {};
       if (!shared) { try { dp = JSON.parse(localStorage.getItem("pb_trip_dayplans") || "{}") || {}; } catch { dp = {}; } }
-      if (on) { setStops(resolved); setMeta(m); setDayPlans(dp); setReady(true); }
+      const pack = shared ? (shared.checklist || []) : getChecklist();
+      if (on) { setStops(resolved); setMeta(m); setDayPlans(dp); setPackItems(pack); setReady(true); }
     })();
     return () => { on = false; };
   }, []);
@@ -284,18 +288,34 @@ export default function TripPrint() {
 
             {/* checklist */}
             <div className="tp-break" style={{ marginBottom: 12 }}>
-              <div style={{ ...label, marginBottom: 10 }}>Packing &amp; prep checklist</div>
+              <div style={{ ...label, marginBottom: 10 }}>{packItems.length ? "Pack & Go checklist" : "Packing & prep checklist"}</div>
               <div className="tp-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                {Object.entries(CHECKLIST).map(([group, items]) => (
-                  <div key={group} style={card}>
-                    <div style={{ fontWeight: 800, fontSize: ".92rem", marginBottom: 7 }}>{group}</div>
-                    {items.map((it) => (
-                      <div key={it} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "3px 0", fontSize: ".84rem", color: "#3a3628" }}>
-                        <span style={{ width: 13, height: 13, flex: "none", marginTop: 2, border: "1.5px solid #9a927c", borderRadius: 3 }} />{it}
+                {packItems.length
+                  ? PACK_CATS.map(([cat, emoji, title]) => {
+                      const its = packItems.filter((i) => i.cat === cat);
+                      if (!its.length) return null;
+                      return (
+                        <div key={cat} style={card}>
+                          <div style={{ fontWeight: 800, fontSize: ".92rem", marginBottom: 7 }}>{emoji} {title}</div>
+                          {its.map((it, ix) => (
+                            <div key={ix} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "3px 0", fontSize: ".84rem", color: "#3a3628" }}>
+                              <span style={{ width: 13, height: 13, flex: "none", marginTop: 2, border: "1.5px solid #9a927c", borderRadius: 3, background: it.done ? "#9a927c" : "transparent" }} />
+                              <span style={{ textDecoration: it.done ? "line-through" : "none", color: it.done ? "#9a927c" : "#3a3628" }}>{it.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })
+                  : Object.entries(CHECKLIST).map(([group, items]) => (
+                      <div key={group} style={card}>
+                        <div style={{ fontWeight: 800, fontSize: ".92rem", marginBottom: 7 }}>{group}</div>
+                        {items.map((it) => (
+                          <div key={it} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "3px 0", fontSize: ".84rem", color: "#3a3628" }}>
+                            <span style={{ width: 13, height: 13, flex: "none", marginTop: 2, border: "1.5px solid #9a927c", borderRadius: 3 }} />{it}
+                          </div>
+                        ))}
                       </div>
                     ))}
-                  </div>
-                ))}
               </div>
             </div>
 

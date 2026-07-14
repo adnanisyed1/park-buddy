@@ -1664,6 +1664,7 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const [open, setOpen] = useState(false);
   const [, force] = useState(0);
   const [desc, setDesc] = useState("");
+  const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(null);
   const [addVal, setAddVal] = useState("");
   useEffect(() => subscribeChecklist(() => force((n) => n + 1)), []);
@@ -1673,7 +1674,24 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const startISO = dayRanges && dayRanges[0] && dayRanges[0].arrive;
   const monthIdx = startISO ? new Date(startISO + "T12:00:00").getMonth() : null;
   const generate = () => { addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); };
-  const runDesc = () => { const t = desc.trim(); if (!t) return; addChecklistItems(parseDescription(t)); setDesc(""); setOpen(true); };
+  // "Describe your trip" → the Ask Park Buddy agent (its add_checklist_items tool),
+  // grounded in the current trip; keyword rules are the offline fallback.
+  const runDesc = async () => {
+    const t = desc.trim();
+    if (!t || busy) return;
+    setBusy(true); setOpen(true);
+    let applied = null;
+    try {
+      const cur = getChecklist();
+      const ctx = { trip: { stops: (stops || []).map((s) => s.name), startDate: startISO || "" }, checklist: { total: cur.length, items: cur.map((i) => ({ label: i.label })) } };
+      const r = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "Help me pack for this trip: " + t, context: ctx }) }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+      const act = r && Array.isArray(r.actions) ? r.actions.find((a) => a.name === "add_checklist_items") : null;
+      const aiItems = act && act.input && Array.isArray(act.input.items) ? act.input.items : null;
+      if (aiItems && aiItems.length) applied = aiItems;
+    } catch {}
+    addChecklistItems(applied || parseDescription(t));
+    setDesc(""); setBusy(false);
+  };
   const commitAdd = (cat) => { const v = addVal.trim(); if (v) addChecklistItem(cat, v); setAddVal(""); setAdding(null); };
   return (
     <div style={{ ...glass, marginTop: 14 }}>
@@ -1693,8 +1711,8 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
           <div>
             <div style={{ fontFamily: SANS, fontSize: 12, color: "#8f9a90", marginBottom: 7 }}>Describe your trip and we&apos;ll suggest what to bring.</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder="Camping with a baby in winter…" style={{ ...fieldBox, flex: 1 }} />
-              <button onClick={runDesc} className="ts-goldbtn" style={{ flex: "none", padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Ask</button>
+              <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder="Camping with a baby in winter…" disabled={busy} style={{ ...fieldBox, flex: 1, opacity: busy ? 0.6 : 1 }} />
+              <button onClick={runDesc} disabled={busy} className="ts-goldbtn" style={{ flex: "none", minWidth: 54, padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>{busy ? "…" : "Ask"}</button>
             </div>
           </div>
           <button onClick={generate} className="ts-goldbtn" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.4)", background: "linear-gradient(120deg, rgba(232,207,154,0.16), rgba(201,163,95,0.12))", color: "#e8cf9a", fontFamily: SANS, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>

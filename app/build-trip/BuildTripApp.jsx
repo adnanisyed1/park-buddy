@@ -19,6 +19,7 @@ import { computeRoute } from "../lib/googleRoutes";
 import { reservationNote } from "../lib/parkReservations";
 import { encodeTrip } from "../lib/tripShare";
 import { buildIcs } from "../lib/tripIcs";
+import { getChecklist } from "../lib/checklist";
 import SiteHeader from "../components/SiteHeader";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
@@ -1340,7 +1341,7 @@ export default function BuildTripApp() {
   // lives in localStorage, so a bare URL would open empty on someone else's device).
   const shareUrl = () => {
     try {
-      const enc = encodeTrip({ stops, meta: { tripName, startDate, endDate, adults, infants, travelers: adults, arrivalMode }, dayPlans });
+      const enc = encodeTrip({ stops, meta: { tripName, startDate, endDate, adults, infants, travelers: adults, arrivalMode }, dayPlans, checklist: getChecklist() });
       return (typeof window !== "undefined" ? window.location.origin : "") + "/trip-print?t=" + enc;
     } catch { return typeof window !== "undefined" ? window.location.href : ""; }
   };

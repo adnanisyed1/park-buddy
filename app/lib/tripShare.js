@@ -18,7 +18,7 @@ function b64urlDecode(s) {
   return new TextDecoder().decode(bytes);
 }
 
-export function encodeTrip({ stops = [], meta = {}, dayPlans = null } = {}) {
+export function encodeTrip({ stops = [], meta = {}, dayPlans = null, checklist = null } = {}) {
   const payload = {
     v: 1,
     s: stops.map((s) => {
@@ -32,6 +32,7 @@ export function encodeTrip({ stops = [], meta = {}, dayPlans = null } = {}) {
     m: { tn: meta.tripName || "", sd: meta.startDate || "", ed: meta.endDate || "", ad: meta.adults || meta.travelers || 2, inf: meta.infants || 0, am: meta.arrivalMode || "drive" },
   };
   if (dayPlans && Object.keys(dayPlans).length) payload.d = dayPlans;
+  if (checklist && checklist.length) payload.c = checklist.map((i) => ({ c: i.cat, l: i.label, d: i.done ? 1 : 0 }));
   return b64urlEncode(JSON.stringify(payload));
 }
 
@@ -43,7 +44,8 @@ export function decodeTrip(str) {
     const stops = p.s.map((s) => ({ name: s.n, nights: s.ni != null ? s.ni : 1, lat: s.la, lng: s.lo, state: s.st || "", kind: s.k, slug: s.sl }));
     const m = p.m || {};
     const meta = { tripName: m.tn || "", startDate: m.sd || "", endDate: m.ed || "", adults: m.ad || 2, infants: m.inf || 0, arrivalMode: m.am || "drive" };
-    return { stops, meta, dayPlans: p.d || {} };
+    const checklist = Array.isArray(p.c) ? p.c.map((i) => ({ cat: i.c || "pack", label: i.l || "", done: !!i.d })).filter((i) => i.label) : [];
+    return { stops, meta, dayPlans: p.d || {}, checklist };
   } catch {
     return null;
   }

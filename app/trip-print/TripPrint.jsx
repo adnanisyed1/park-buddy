@@ -27,6 +27,23 @@ function miBetween(a, b) {
 }
 const usd = (n) => "$" + Math.round(n).toLocaleString("en-US");
 const BLOCK_EMOJI = { drive: "🚗", stay: "🛏", meal: "🍽", scenic: "⛰", hike: "🥾", sight: "📸" };
+
+// Print identity — a warm, editorial travel-document palette (light, print-safe).
+const PAPER = "#f6f1e6", INK = "#23271e", TEAL = "#183138", GOLD = "#bd8f3f", GOLD_LT = "#e0b56f", MUTE = "#8c8369", HAIR = "#e7dfce";
+const SERIF = "var(--pb-serif), 'Cormorant Garamond', 'Spectral', Georgia, serif";
+const MONO = "var(--pb-mono), ui-monospace, monospace";
+
+// A section header: gold tick · serif title · hairline rule running to the edge.
+function SectionHead({ children, note }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 12px" }}>
+      <span style={{ width: 6, height: 6, flex: "none", borderRadius: "50%", background: GOLD }} />
+      <h2 style={{ fontFamily: SERIF, fontSize: "1.3rem", fontWeight: 600, color: TEAL, margin: 0, whiteSpace: "nowrap", letterSpacing: ".01em" }}>{children}</h2>
+      <span style={{ flex: 1, height: 1, background: HAIR }} />
+      {note ? <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: MUTE, whiteSpace: "nowrap" }}>{note}</span> : null}
+    </div>
+  );
+}
 const fmtDate = (iso) => { try { return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }); } catch { return iso; } };
 
 // aspect-preserving projection of stops into a WxH box (mid-lat lng correction)
@@ -154,11 +171,11 @@ export default function TripPrint() {
 
   const doPrint = () => { try { window.print(); } catch {} };
 
-  const card = { border: "1px solid #e3ddcf", borderRadius: 14, padding: "16px 18px", background: "#fff" };
-  const label = { fontFamily: "var(--pb-mono), ui-monospace, monospace", fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: "#8a8067" };
+  const card = { border: "1px solid " + HAIR, borderRadius: 14, padding: "16px 18px", background: "#fffdf8" };
+  const label = { fontFamily: MONO, fontSize: 10.5, letterSpacing: ".2em", textTransform: "uppercase", color: MUTE };
 
   return (
-    <div style={{ background: "#f4efe4", minHeight: "100vh", color: "#20241c", fontFamily: "var(--pb-sans), 'Hanken Grotesk', system-ui, sans-serif" }}>
+    <div style={{ background: PAPER, minHeight: "100vh", color: INK, fontFamily: "var(--pb-sans), 'Hanken Grotesk', system-ui, sans-serif" }}>
       <style>{`
         @page { margin: 14mm; }
         @media screen and (max-width: 560px) { .tp-two { grid-template-columns: 1fr !important; } }
@@ -183,15 +200,29 @@ export default function TripPrint() {
           <div style={{ padding: "60px 0", textAlign: "center", color: "#8a8067" }}>Your trip is empty. <a href="/build-trip" style={{ color: "#c79a4b" }}>Build it first →</a></div>
         ) : (
           <>
-            {/* cover */}
-            <div className="tp-break" style={{ borderBottom: "2px solid #e4be78", paddingBottom: 18, marginBottom: 22 }}>
-              <div style={label}>Park Buddy · Road-trip itinerary</div>
-              <h1 style={{ fontFamily: "var(--pb-serif), 'Spectral', Georgia, serif", fontSize: "clamp(1.9rem,5vw,2.9rem)", fontWeight: 700, margin: "6px 0 10px", lineHeight: 1.05 }}>{meta.tripName || "My national-parks trip"}</h1>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", fontSize: ".95rem", color: "#4a4636" }}>
-                {startDate && <span>{fmtDate(meta.startDate)}{meta.endDate ? " → " + fmtDate(meta.endDate) : ""}</span>}
-                <span>{stops.length} stop{stops.length === 1 ? "" : "s"} · {totalDays} day{totalDays === 1 ? "" : "s"}</span>
-                <span>≈ {totalMiles.toLocaleString()} mi driving</span>
-                <span>{adults} adult{adults === 1 ? "" : "s"}{infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : ""}</span>
+            {/* cover masthead */}
+            <div className="tp-break" style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+                <span style={{ width: 22, height: 22, flex: "none", borderRadius: 6, background: TEAL, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill={GOLD_LT}><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
+                </span>
+                <span style={{ ...label, letterSpacing: ".24em" }}>Park Buddy · Road-trip itinerary</span>
+              </div>
+              <h1 style={{ fontFamily: SERIF, fontSize: "clamp(2.2rem,6vw,3.4rem)", fontWeight: 600, margin: "0 0 14px", lineHeight: 1.02, color: INK, letterSpacing: "-.01em" }}>{meta.tripName || "My national-parks trip"}</h1>
+              <div style={{ height: 2, background: GOLD, marginBottom: 3 }} />
+              <div style={{ height: 1, background: GOLD, opacity: 0.4, marginBottom: 16 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10 }}>
+                {[
+                  ["Dates", startDate ? fmtDate(meta.startDate).replace(/, \d{4}$/, "") + (meta.endDate ? " – " + fmtDate(meta.endDate).replace(/^\w+, /, "") : "") : "Not set"],
+                  ["Route", stops.length + " stop" + (stops.length === 1 ? "" : "s") + " · " + totalDays + " day" + (totalDays === 1 ? "" : "s")],
+                  ["Driving", "≈ " + totalMiles.toLocaleString() + " mi"],
+                  ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : "")],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ border: "1px solid " + HAIR, borderRadius: 11, padding: "9px 12px", background: "#fffdf8" }}>
+                    <div style={{ ...label, fontSize: 8.5, letterSpacing: ".14em", marginBottom: 3 }}>{k}</div>
+                    <div style={{ fontFamily: SERIF, fontSize: "1.02rem", fontWeight: 600, color: TEAL, lineHeight: 1.15 }}>{v}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -229,16 +260,16 @@ export default function TripPrint() {
             })()}
 
             {/* day-by-day */}
-            <div style={{ marginBottom: 22 }}>
-              <div style={{ ...label, marginBottom: 10 }}>Day by day</div>
+            <div style={{ marginBottom: 24 }}>
+              <SectionHead note={totalDays + " days"}>Day by day</SectionHead>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {dayRows.map((s, i) => (
                   <div key={i} className="tp-break" style={{ ...card, display: "flex", gap: 14, alignItems: "flex-start" }}>
-                    <span style={{ width: 30, height: 30, flex: "none", borderRadius: "50%", background: "#1d3941", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: ".9rem", border: "2px solid #e4be78" }}>{i + 1}</span>
+                    <span style={{ width: 34, height: 34, flex: "none", borderRadius: "50%", background: TEAL, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SERIF, fontWeight: 600, fontSize: "1.1rem", border: "2px solid " + GOLD_LT }}>{i + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c79a4b" }}>{s.label}{s.arrive ? " · arrive " + s.arrive : ""}</div>
-                      <div style={{ fontFamily: "var(--pb-serif), 'Spectral', Georgia, serif", fontSize: "1.25rem", fontWeight: 700, lineHeight: 1.15 }}>{s.name}</div>
-                      <div style={{ fontSize: ".82rem", color: "#6a6553", marginTop: 2 }}>
+                      <div style={{ fontFamily: MONO, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: GOLD }}>{s.label}{s.arrive ? " · arrive " + s.arrive : ""}</div>
+                      <div style={{ fontFamily: SERIF, fontSize: "1.4rem", fontWeight: 600, lineHeight: 1.12, color: TEAL, marginTop: 1 }}>{s.name}</div>
+                      <div style={{ fontSize: ".82rem", color: "#6a6553", marginTop: 3 }}>
                         {[s.state, (s.nights || 0) + " night" + ((s.nights || 0) === 1 ? "" : "s"), i > 0 && s.legMi != null ? s.legMi + " mi from " + dayRows[i - 1].name : null, s.custom ? "custom stop" : null].filter(Boolean).join(" · ")}
                       </div>
                       {(() => {
@@ -250,7 +281,7 @@ export default function TripPrint() {
                           <div style={{ borderTop: "1px dashed #e3ddcf", marginTop: 8, paddingTop: 8, display: "flex", flexDirection: "column", gap: 7 }}>
                             {Object.keys(byDay).sort((a, c) => Number(a) - Number(c)).map((dk) => (
                               <div key={dk}>
-                                <div style={{ fontSize: ".6rem", fontWeight: 800, letterSpacing: ".07em", textTransform: "uppercase", color: "#c79a4b", marginBottom: 3 }}>Day {s.start + Number(dk)}</div>
+                                <div style={{ fontFamily: MONO, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: GOLD, marginBottom: 3 }}>Day {s.start + Number(dk)}</div>
                                 {byDay[dk].map((b, bi) => (
                                   <div key={bi} style={{ display: "flex", gap: 8, fontSize: ".82rem", color: "#3a3931", padding: "1px 0" }}>
                                     <span style={{ minWidth: 44, color: "#9a927c", fontVariantNumeric: "tabular-nums" }}>{b.time || "—"}</span>
@@ -269,9 +300,11 @@ export default function TripPrint() {
             </div>
 
             {/* budget + settings */}
-            <div className="tp-break tp-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 22 }}>
+            <div className="tp-break" style={{ marginBottom: 24 }}>
+              <SectionHead note="planning estimate">Budget &amp; logistics</SectionHead>
+              <div className="tp-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div style={card}>
-                <div style={{ ...label, marginBottom: 8 }}>Estimated budget</div>
+                <div style={{ fontFamily: SERIF, fontSize: "1.05rem", fontWeight: 600, color: TEAL, marginBottom: 8 }}>Estimated budget</div>
                 {Object.entries(budget).map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: ".9rem", borderBottom: "1px solid #f2ecdc" }}><span style={{ color: "#4a4636" }}>{k}</span><b>{usd(v)}</b></div>
                 ))}
@@ -279,16 +312,17 @@ export default function TripPrint() {
                 <div style={{ textAlign: "right", fontSize: ".72rem", color: "#9a927c", marginTop: 3 }}>≈ {usd(total / Math.max(1, party))} per person · planning estimate</div>
               </div>
               <div style={card}>
-                <div style={{ ...label, marginBottom: 8 }}>Trip at a glance</div>
+                <div style={{ fontFamily: SERIF, fontSize: "1.05rem", fontWeight: 600, color: TEAL, marginBottom: 8 }}>Trip at a glance</div>
                 {[["Getting there", meta.arrivalMode === "fly" ? "Fly in + rental car" : "Driving the whole way"], ["Trip scope", meta.tripScope === "crosscountry" ? "Cross-country route" : "Loop around the destination"], ["Rental car", meta.car || "Midsize SUV"], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Total driving", "≈ " + totalMiles.toLocaleString() + " mi"], ["Nights", totalNights]].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: ".9rem", borderBottom: "1px solid #f2ecdc" }}><span style={{ color: "#6a6553" }}>{k}</span><b style={{ textAlign: "right" }}>{v}</b></div>
                 ))}
+              </div>
               </div>
             </div>
 
             {/* checklist */}
             <div className="tp-break" style={{ marginBottom: 12 }}>
-              <div style={{ ...label, marginBottom: 10 }}>{packItems.length ? "Pack & Go checklist" : "Packing & prep checklist"}</div>
+              <SectionHead note={packItems.length ? (packItems.filter((i) => i.done).length + " / " + packItems.length + " packed") : null}>{packItems.length ? "Pack & Go" : "Packing & prep"}</SectionHead>
               <div className="tp-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 {packItems.length
                   ? PACK_CATS.map(([cat, emoji, title]) => {

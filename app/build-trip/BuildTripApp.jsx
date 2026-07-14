@@ -489,11 +489,13 @@ export default function BuildTripApp() {
     const changed = ordered.some((s, idx) => s.name !== stops[idx].name);
     if (!changed || after >= before - 5) { setOptimizeMsg("Already an efficient order"); return; }
     setPrevOrder(stops);
+    userEditedRef.current = true; // persist the new order to the shared trip store
     setStops(recomputeLegs(ordered));
     setOptimizeMsg("Reordered — about " + Math.round(before - after) + " mi shorter");
   }
   function undoOptimize() {
     if (!prevOrder) return;
+    userEditedRef.current = true;
     setStops(recomputeLegs(prevOrder));
     setPrevOrder(null);
     setOptimizeMsg("Order restored");

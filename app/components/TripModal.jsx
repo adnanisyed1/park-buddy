@@ -8,6 +8,7 @@ import { saveCurrentTrip } from "../lib/savedTrips";
 import loadScript from "./load-script";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { getMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
+import { computeRoute } from "../lib/googleRoutes";
 
 // Cache the driving route geometry per trip signature so re-opening the modal
 // doesn't re-hit Directions. Plain {lat,lng} arrays → reusable across map instances.
@@ -56,7 +57,6 @@ export default function TripModal() {
   const mapInstanceRef = useRef(null);
   const mapMarkersRef = useRef([]);
   const mapLinesRef = useRef([]);
-  const dirServiceRef = useRef(null);
 
   // Portal to <body> so the fixed overlay isn't trapped by an ancestor's
   // backdrop-filter / transform (SiteHeader's <nav> creates such a containing
@@ -144,18 +144,13 @@ export default function TripModal() {
         });
       };
       if (modalRouteCache[sig]) { drawLegs(modalRouteCache[sig]); return; }
-      if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
       (async () => {
         const legs = [];
         for (let i = 0; i < pts.length - 1; i++) {
           const a = pts[i], b = pts[i + 1];
-          const path = await new Promise((resolve) => {
-            dirServiceRef.current.route({ origin: { lat: a.lat, lng: a.lng }, destination: { lat: b.lat, lng: b.lng }, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
-              resolve(status === "OK" && res.routes && res.routes[0] ? res.routes[0].overview_path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() })) : null);
-            });
-          });
+          const r = await computeRoute(a, b);
           if (cancelled) return;
-          legs.push(path);
+          legs.push(r.ok && r.path && r.path.length ? r.path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() })) : null);
         }
         modalRouteCache[sig] = legs;
         if (!cancelled && mapInstanceRef.current === map) drawLegs(legs);

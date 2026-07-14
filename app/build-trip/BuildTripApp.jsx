@@ -15,6 +15,7 @@ import loadScript from "../components/load-script";
 import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
 import { getSavedTrips, upsertActiveTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
 import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
+import { computeRoute } from "../lib/googleRoutes";
 import SiteHeader from "../components/SiteHeader";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
@@ -72,13 +73,6 @@ const fmtShort = (iso) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
-// The precise, road-hugging route geometry — Google's per-step path points, not the
-// decimated overview_path (which straightens curves). This is what Google's own line uses.
-function detailedPath(route) {
-  const pts = [];
-  (route.legs || []).forEach((l) => (l.steps || []).forEach((st) => (st.path || []).forEach((p) => pts.push(p))));
-  return pts.length ? pts : (route.overview_path || []);
-}
 // Major US airports — used to route a FLY arrival: fly to the nearest big airport to
 // the first base, then drive from there. {code, name, lat, lng}.
 const AIRPORTS = [
@@ -206,8 +200,7 @@ export default function BuildTripApp() {
   const [originRoadMi, setOriginRoadMi] = useState(null); // real driving miles Home → first base
   const [interLegMi, setInterLegMi] = useState([]); // real driving miles into stops[k] from stops[k-1] (index-aligned to stops)
   const [flightInfo, setFlightInfo] = useState(null); // when flying: { fromName, toName, toCode, miles, hrs } for the arrival flight
-  const dirServiceRef = useRef(null);
-  const routeGenRef = useRef(0); // ignores stale Directions callbacks
+  const routeGenRef = useRef(0); // ignores stale route callbacks
   const browseMarkersRef = useRef([]);
   const previewMarkersRef = useRef([]); // ready-made route preview pins
   const previewLineRef = useRef(null);
@@ -824,22 +817,20 @@ export default function BuildTripApp() {
     const driveStart = flying && airport ? { lat: airport.lat, lng: airport.lng, name: airport.name + " (" + airport.code + ")" } : (origin && origin.lat != null ? { lat: origin.lat, lng: origin.lng, name: origin.name } : null);
     const reqStops = driveStart ? [driveStart, ...stops] : stops.slice();
     if (reqStops.length < 2) { setRoadInfo(null); setOriginRoadMi(null); return; }
-    if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
     const mapObj = mapObjRef.current;
-    // Route each consecutive LEG on its own. A single multi-waypoint request fails
-    // entirely if any one park's centroid isn't reachable by road (e.g. Zion's
-    // canyon interior), so per-leg we draw the real road where it routes and a
+    // Route each consecutive LEG on its own via the Routes API. A single multi-waypoint
+    // request fails entirely if any one park's centroid isn't reachable by road (e.g.
+    // Zion's canyon interior), so per-leg we draw the real road where it routes and a
     // dashed straight line only for the leg that can't.
-    const routeLeg = (a, b, attempt) => new Promise((resolve) => {
-      dirServiceRef.current.route({ origin: { lat: a.lat, lng: a.lng }, destination: { lat: b.lat, lng: b.lng }, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
-        if (status === "OK" && res && res.routes && res.routes[0]) {
-          const lg = res.routes[0];
-          resolve({ ok: true, path: detailedPath(lg), meters: lg.legs.reduce((s, l) => s + (l.distance ? l.distance.value : 0), 0), secs: lg.legs.reduce((s, l) => s + (l.duration ? l.duration.value : 0), 0) });
-        } else if (attempt < 2 && status !== "ZERO_RESULTS" && status !== "NOT_FOUND" && status !== "REQUEST_DENIED") {
-          setTimeout(() => routeLeg(a, b, attempt + 1).then(resolve), 500 * (attempt + 1));
-        } else resolve({ ok: false });
-      });
-    });
+    const routeLeg = async (a, b, attempt) => {
+      const r = await computeRoute(a, b);
+      if (r.ok) return { ok: true, path: r.path, meters: r.meters, secs: r.secs };
+      if (attempt < 2 && r.status !== "ZERO_RESULTS" && r.status !== "REQUEST_DENIED" && r.status !== "BAD_INPUT") {
+        await new Promise((res) => setTimeout(res, 500 * (attempt + 1)));
+        return routeLeg(a, b, attempt + 1);
+      }
+      return { ok: false };
+    };
     const hasOrigin = !!driveStart;
     (async () => {
       let meters = 0, secs = 0, originMi = null; const perStopMi = []; const fullPath = []; // perStopMi[k] = real miles into stops[k]
@@ -1011,22 +1002,14 @@ export default function BuildTripApp() {
         return;
       }
       if (ep && ep.from && ep.to) {
-        if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
         const reqId = ++previewReqRef.current;
-        dirServiceRef.current.route({
-          origin: ep.from,
-          destination: ep.to,
-          waypoints: (ep.via || []).map((v) => ({ location: v, stopover: false })),
-          travelMode: g.maps.TravelMode.DRIVING,
-        }, (res, status) => {
+        computeRoute(ep.from, ep.to, { via: ep.via || [] }).then((r) => {
           if (reqId !== previewReqRef.current) return; // a newer preview replaced this one
-          if (status !== "OK" || !res || !res.routes || !res.routes[0]) { fallbackPin(); return; }
-          const opath = detailedPath(res.routes[0]).map((ll) => ({ lat: ll.lat(), lng: ll.lng() }));
+          if (!r.ok || !r.path || !r.path.length) { fallbackPin(); return; }
+          const opath = r.path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() }));
           previewCasingRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#0a1712", strokeOpacity: 0.7, strokeWeight: 6, zIndex: 2 });
           previewLineRef.current = new g.maps.Polyline({ path: opath, map, strokeColor: "#e8cf9a", strokeOpacity: 1, strokeWeight: 3, zIndex: 3 });
-          const legs = res.routes[0].legs || [];
-          const pins = legs.length ? [legs[0].start_location, ...legs.map((lg) => lg.end_location)] : [];
-          pins.forEach((loc, i) => previewMarkersRef.current.push(new g.maps.Marker({ position: loc, map, icon: pinIcon(g, i + 1, false) })));
+          (r.legEndpoints || []).forEach((loc, i) => previewMarkersRef.current.push(new g.maps.Marker({ position: loc, map, icon: pinIcon(g, i + 1, false) })));
           const b = new g.maps.LatLngBounds(); opath.forEach((c) => b.extend(c)); if (!opath.length) return; map.fitBounds(b, 60);
         });
       } else {

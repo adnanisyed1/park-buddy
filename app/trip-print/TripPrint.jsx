@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
+import { computeRoute } from "../lib/googleRoutes";
 
 const FUEL_PER_MI = 0.2333, LODGING_PER_NIGHT = 130, FOOD_PER_PERSON_DAY = 35, ROAD_FACTOR = 1.25;
 
@@ -87,13 +88,12 @@ export default function TripPrint() {
       try {
         const ok = await ensureMapsLoaded();
         const g = window.google;
-        if (!ok || !g || !g.maps || !g.maps.DirectionsService) return;
-        const svc = new g.maps.DirectionsService();
+        if (!ok || !g || !g.maps) return;
         const full = [];
         for (let i = 0; i < mp.length - 1; i++) {
-          const r = await new Promise((res) => svc.route({ origin: { lat: mp[i].lat, lng: mp[i].lng }, destination: { lat: mp[i + 1].lat, lng: mp[i + 1].lng }, travelMode: g.maps.TravelMode.DRIVING }, (rr, st) => res(st === "OK" && rr && rr.routes && rr.routes[0] ? rr.routes[0] : null)));
+          const r = await computeRoute(mp[i], mp[i + 1]);
           if (cancelled) return;
-          if (r) (r.legs || []).forEach((l) => (l.steps || []).forEach((stp) => (stp.path || []).forEach((p) => full.push(p))));
+          if (r.ok && r.path) r.path.forEach((p) => full.push(p));
         }
         if (!cancelled && full.length > 1 && g.maps.geometry && g.maps.geometry.encoding) {
           const step = Math.max(1, Math.ceil(full.length / 300));

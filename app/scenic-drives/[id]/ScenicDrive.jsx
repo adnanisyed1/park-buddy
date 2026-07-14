@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ensureMapsLoaded } from "../../lib/googleMapsLoader";
 import { getMapPrefs, mapOptionsFor } from "../../lib/mapPrefs";
+import { computeRoute } from "../../lib/googleRoutes";
 import { usePhoto } from "../../components/PhotoThumb";
 import SiteHeader from "../../components/SiteHeader";
 import RouteItinerary from "./RouteItinerary";
@@ -145,7 +146,6 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   const routeLineRef = useRef(null);
   const routeCasingRef = useRef(null);
   const routeGlowRef = useRef(null);
-  const dirServiceRef = useRef(null);
   const filmTimer = useRef(null);
 
   // Live road status
@@ -306,15 +306,13 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
     }
 
     if (req) {
-      if (pts.length) fitTo(pts.map((h) => ({ lat: h.lat, lng: h.lng }))); // frame something while Directions resolves
-      if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
-      dirServiceRef.current.route({ ...req, travelMode: g.maps.TravelMode.DRIVING }, (res, status) => {
+      if (pts.length) fitTo(pts.map((h) => ({ lat: h.lat, lng: h.lng }))); // frame something while the route resolves
+      const via = (req.waypoints || []).map((w) => w.location);
+      computeRoute(req.origin, req.destination, { via }).then((r) => {
         if (mapObjRef.current !== map) return; // component/map changed under us
-        if (status === "OK" && res.routes && res.routes[0]) {
-          // Precise per-step geometry (hugs the road), not the decimated overview_path.
-          const rt = res.routes[0]; const pathPts = [];
-          (rt.legs || []).forEach((l) => (l.steps || []).forEach((st) => (st.path || []).forEach((p) => pathPts.push(p))));
-          solidRoute((pathPts.length ? pathPts : rt.overview_path).map((ll) => ({ lat: ll.lat(), lng: ll.lng() })));
+        if (r.ok && r.path && r.path.length) {
+          // Precise per-step geometry (hugs the road) from the Routes API polyline.
+          solidRoute(r.path.map((ll) => ({ lat: ll.lat(), lng: ll.lng() })));
         } else if (pts.length >= 2) dashedConnector();
         else if (pts.length === 1) { map.setCenter({ lat: pts[0].lat, lng: pts[0].lng }); map.setZoom(drive.approxLoc ? 8 : 11); }
         else anchorPin();

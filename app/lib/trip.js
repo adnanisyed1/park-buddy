@@ -48,9 +48,26 @@ function read() {
     .filter(Boolean);
 }
 
+// Persist a key; if storage is full, free space by dropping the OLDEST saved-trip
+// snapshots (recomputable, less precious than the live plan or photos) and retry, so the
+// active trip never silently fails to save. Fires pb:storage-full if it truly can't fit.
+function safeSet(key, value) {
+  if (typeof window === "undefined") return false;
+  try { localStorage.setItem(key, value); return true; } catch {}
+  for (let i = 0; i < 50; i++) {
+    let a; try { a = JSON.parse(localStorage.getItem("pb_saved_trips") || "[]"); } catch { a = []; }
+    if (!Array.isArray(a) || !a.length) break;
+    a.sort((x, y) => (y.savedAt || 0) - (x.savedAt || 0)); a.pop();
+    try { localStorage.setItem("pb_saved_trips", JSON.stringify(a)); window.dispatchEvent(new Event("pb:saved-trips")); } catch {}
+    try { localStorage.setItem(key, value); return true; } catch {}
+  }
+  try { window.dispatchEvent(new Event("pb:storage-full")); } catch {}
+  return false;
+}
+
 function write(stops) {
   if (typeof window === "undefined") return;
-  try { localStorage.setItem(KEY, JSON.stringify(stops)); } catch {}
+  safeSet(KEY, JSON.stringify(stops));
   notify();
 }
 
@@ -74,7 +91,7 @@ export function getMeta() {
 export function setMeta(patch) {
   if (typeof window === "undefined") return;
   const next = { ...getMeta(), ...patch };
-  try { localStorage.setItem(META_KEY, JSON.stringify(next)); } catch {}
+  safeSet(META_KEY, JSON.stringify(next));
   notify();
 }
 

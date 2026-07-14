@@ -196,6 +196,11 @@ export default function BuildTripApp() {
   const [bywayDetail, setBywayDetail] = useState(null); // Wikipedia/OSM-enriched record (full itinerary + route geometry) for a scenic-drive preview
   const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
   const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
+  useEffect(() => {
+    const onFull = () => { setSaveMsg("⚠ Storage full — remove old saved trips or trip photos to keep saving"); setTimeout(() => setSaveMsg(""), 6000); };
+    window.addEventListener("pb:storage-full", onFull);
+    return () => window.removeEventListener("pb:storage-full", onFull);
+  }, []);
   const [addSource, setAddSource] = useState(null); // Trip Studio "+ Add a stop" → "park" | "scenic" | "place" | null
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [setupCollapsed, setSetupCollapsed] = useState(false);
@@ -408,8 +413,8 @@ export default function BuildTripApp() {
     const entry = upsertActiveTrip(activeTripId, tripName || "My trip");
     if (!activeTripId) { setActiveTripId(entry.id); try { localStorage.setItem("pb_active_trip_id", entry.id); } catch {} }
     setSavedTrips(getSavedTrips());
-    setSaveMsg("Saved to “My trips” ✓");
-    setTimeout(() => setSaveMsg(""), 2600);
+    setSaveMsg(entry._saved === false ? "⚠ Storage full — remove old saved trips or trip photos to save" : "Saved to “My trips” ✓");
+    setTimeout(() => setSaveMsg(""), entry._saved === false ? 6000 : 2600);
   }
 
   // Reload a saved trip: restore its stops + every setup answer, and make it the

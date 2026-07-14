@@ -7,7 +7,22 @@ import { getStops, getMeta, setStops, setMeta } from "./trip";
 const KEY = "pb_saved_trips";
 const has = () => typeof window !== "undefined";
 function read() { if (!has()) return []; try { const a = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } }
-function write(list) { if (!has()) return; try { localStorage.setItem(KEY, JSON.stringify(list)); } catch {} if (has()) window.dispatchEvent(new Event("pb:saved-trips")); }
+// Persist the list; on a quota error, drop the OLDEST saved trips and retry so a save
+// never silently vanishes. Returns true if it landed. (The entry being saved is the
+// newest, so it's kept.)
+function write(list) {
+  if (!has()) return true;
+  const attempt = (arr) => { try { localStorage.setItem(KEY, JSON.stringify(arr)); return true; } catch { return false; } };
+  let ok = attempt(list);
+  if (!ok) {
+    let arr = list.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+    while (!ok && arr.length > 1) { arr = arr.slice(0, -1); ok = attempt(arr); }
+  }
+  window.dispatchEvent(new Event("pb:saved-trips"));
+  return ok;
+}
+// Drop the heavy, recomputable fields from a snapshot's meta so many saved trips fit.
+function leanMeta(meta, nm) { const m = { ...(meta || {}), tripName: nm }; delete m.routePolyline; return m; }
 function uid() { return "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 export function getSavedTrips() { return read().slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)); }
@@ -29,8 +44,8 @@ export function saveCurrentTrip(name) {
   const nm = ((name || meta.tripName || "Untitled trip") + "").trim() || "Untitled trip";
   const list = read();
   const existing = list.find((t) => (t.name || "").toLowerCase() === nm.toLowerCase());
-  const entry = { id: existing ? existing.id : uid(), name: nm, savedAt: Date.now(), stops: stops.map((s) => ({ ...s })), meta: { ...meta, tripName: nm } };
-  write(existing ? list.map((t) => (t.id === existing.id ? entry : t)) : [entry, ...list]);
+  const entry = { id: existing ? existing.id : uid(), name: nm, savedAt: Date.now(), stops: stops.map((s) => ({ ...s })), meta: leanMeta(meta, nm) };
+  entry._saved = write(existing ? list.map((t) => (t.id === existing.id ? entry : t)) : [entry, ...list]);
   return entry;
 }
 
@@ -43,8 +58,8 @@ export function upsertActiveTrip(id, name) {
   const nm = ((name || meta.tripName || "Untitled trip") + "").trim() || "Untitled trip";
   const list = read();
   const existing = id ? list.find((t) => t.id === id) : null;
-  const entry = { id: existing ? existing.id : uid(), name: nm, savedAt: Date.now(), stops: stops.map((s) => ({ ...s })), meta: { ...meta, tripName: nm } };
-  write(existing ? list.map((t) => (t.id === existing.id ? entry : t)) : [entry, ...list]);
+  const entry = { id: existing ? existing.id : uid(), name: nm, savedAt: Date.now(), stops: stops.map((s) => ({ ...s })), meta: leanMeta(meta, nm) };
+  entry._saved = write(existing ? list.map((t) => (t.id === existing.id ? entry : t)) : [entry, ...list]);
   return entry;
 }
 

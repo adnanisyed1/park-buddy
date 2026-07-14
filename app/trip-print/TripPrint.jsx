@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
 
-const FUEL_PER_MI = 0.2333, LODGING_PER_NIGHT = 130, FOOD_PER_PERSON_DAY = 35, ROAD_FACTOR = 1.6;
+const FUEL_PER_MI = 0.2333, LODGING_PER_NIGHT = 130, FOOD_PER_PERSON_DAY = 35, ROAD_FACTOR = 1.25;
 
 function miBetween(a, b) {
   const R = 3958.8, r = Math.PI / 180;
@@ -74,8 +74,10 @@ export default function TripPrint() {
 
   const mapped = stops.filter((s) => s.lat != null);
   const totalNights = stops.reduce((a, s) => a + (s.nights || 0), 0);
-  const legMi = mapped.map((s, i) => (i === 0 ? 0 : Math.round(miBetween(mapped[i - 1], s) * ROAD_FACTOR)));
-  const totalMiles = legMi.reduce((a, b) => a + b, 0);
+  // Prefer the REAL driving miles from Google Directions (saved on the trip by Trip
+  // Studio); fall back to a straight-line estimate only if they're absent.
+  const legMi = mapped.map((s, i) => (i === 0 ? 0 : (meta.legMiles && meta.legMiles[i] != null ? meta.legMiles[i] : Math.round(miBetween(mapped[i - 1], s) * ROAD_FACTOR))));
+  const totalMiles = meta.driveMiles != null ? meta.driveMiles : legMi.reduce((a, b) => a + b, 0);
   const adults = meta.adults || meta.travelers || 2;
   const infants = meta.infants || 0;
   const party = adults + infants;

@@ -536,6 +536,13 @@ export default function BuildTripApp() {
     setLodging((prev) => { const next = { ...prev }; if (val) next[name] = val; else delete next[name]; return next; });
   }
 
+  // Persist the REAL driving figures (from Google Directions) onto the trip so the
+  // Print/PDF and any other consumer show the same real miles — not a re-estimate.
+  useEffect(() => {
+    if (!userEditedRef.current || roadInfo == null) return;
+    try { tripSetMeta({ driveMiles: roadInfo.miles, driveMins: roadInfo.mins, legMiles: interLegMi, originMiles: originRoadMi }); } catch {}
+  }, [roadInfo, interLegMi, originRoadMi]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Trip origin ("starting from") — where the first drive leg begins.
   useEffect(() => {
     try { const o = JSON.parse(localStorage.getItem("pb_trip_origin") || "null"); if (o && o.lat != null) setOrigin(o); } catch {}

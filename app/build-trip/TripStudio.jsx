@@ -97,7 +97,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, addMyTrip, hoverIdx, setHoverIdx,
-    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, lodging, setStopLodging, setAddAt,
+    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark, forestsDb,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -667,7 +667,7 @@ export default function TripStudio(props) {
                               <span style={{ fontFamily: SANS, fontSize: 11, color: "#7f8a82" }}>{
                                 i === 0
                                   ? (dayRanges[i] && dayRanges[i].arrive ? "Arrive " + new Date(dayRanges[i].arrive + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" }) : (s.state || "Start"))
-                                  : [(s.legMi != null ? s.legMi + " mi from " + (stops[i - 1] ? stops[i - 1].name : "prev") : null), s.state].filter(Boolean).join(" · ")
+                                  : [(interLegMi && interLegMi[i] != null ? interLegMi[i] + " mi from " + (stops[i - 1] ? stops[i - 1].name : "prev") : null), s.state].filter(Boolean).join(" · ")
                               }</span>
                               {v
                                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 999, background: st.chipBg, border: "1px solid " + st.chipBorder, fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", color: st.chipText }}>
@@ -725,7 +725,7 @@ export default function TripStudio(props) {
                             const sortByTime = (list) => list.slice().sort((x, y) => (x.time || "~").localeCompare(y.time || "~"));
                             // auto drive leg into this base — shows on its arrival day (Day 1)
                             const legFrom = i > 0 ? (stops[i - 1] && stops[i - 1].name) : (origin && origin.name);
-                            const legMi = i > 0 ? s.legMi : originLegMi;
+                            const legMi = i > 0 ? (interLegMi && interLegMi[i] != null ? interLegMi[i] : null) : originLegMi;
                             const legHrs = legMi != null ? Math.max(1, Math.round(legMi / 55)) : null;
                             return (
                               <div style={{ marginTop: 10, borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>
@@ -747,15 +747,15 @@ export default function TripStudio(props) {
                                             <span style={{ fontFamily: SANS, fontSize: 11, color: "#8f9a90" }}>{dateFor(d)}</span>
                                           </div>
                                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                            {d === 0 && legFrom && legMi != null && (
+                                            {d === 0 && legFrom && (
                                               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(224,185,120,0.06)", border: "1px dashed rgba(224,185,120,0.3)" }}>
                                                 <span style={{ fontFamily: MONO, fontSize: 10, color: "#8f9a90", minWidth: 38 }}>drive</span>
                                                 <span style={{ color: "#e0b978", display: "inline-flex", flex: "none" }}><TSIcon name="car" size={15} /></span>
-                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{legFrom} → {s.name}<span style={{ color: "#8f9a90", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7 }}>~{legHrs} H · {legMi} MI</span></span>
+                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{legFrom} → {s.name}<span style={{ color: "#8f9a90", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7 }}>{legMi != null ? "~" + legHrs + " H · " + legMi + " MI" : "measuring…"}</span></span>
                                                 <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".1em", color: "#8f9a90", textTransform: "uppercase" }}>auto</span>
                                               </div>
                                             )}
-                                            {acts.length === 0 && !(d === 0 && legFrom && legMi != null) && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing planned yet.</div>}
+                                            {acts.length === 0 && !(d === 0 && legFrom) && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing planned yet.</div>}
                                             {acts.map((a) => (
                                               editBlock && editBlock.stop === s.name && editBlock.id === a.id ? (
                                                 <DayBlockEdit key={a.id} block={a} fieldBox={fieldBox}

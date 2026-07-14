@@ -167,6 +167,7 @@ export default function BuildTripApp() {
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route (incl. the Home→first-base leg)
   const [originRoadMi, setOriginRoadMi] = useState(null); // real driving miles Home → first base
+  const [interLegMi, setInterLegMi] = useState([]); // real driving miles into stops[k] from stops[k-1] (index-aligned to stops)
   const dirServiceRef = useRef(null);
   const routeGenRef = useRef(0); // ignores stale Directions callbacks
   const browseMarkersRef = useRef([]);
@@ -237,7 +238,7 @@ export default function BuildTripApp() {
   function recomputeLegs(list) {
     return list.map((s, i) => ({
       ...s,
-      legMi: i === 0 ? null : Math.round(milesBetween(list[i - 1], s) * ROAD_FACTOR),
+      legMi: null, // real driving miles come from Google Directions (interLegMi); no straight-line estimate
     }));
   }
 
@@ -783,25 +784,30 @@ export default function BuildTripApp() {
     });
     const hasOrigin = !!(origin && origin.lat != null);
     (async () => {
-      let meters = 0, secs = 0; const perLegMi = [];
-      for (let i = 0; i < reqStops.length - 1; i++) {
-        const a = reqStops[i], b = reqStops[i + 1];
+      let meters = 0, secs = 0, originMi = null; const perStopMi = []; // perStopMi[k] = real miles into stops[k]
+      for (let t = 0; t < reqStops.length - 1; t++) {
+        const a = reqStops[t], b = reqStops[t + 1];
         const r = await routeLeg(a, b, 0);
         if (gen !== routeGenRef.current || !mapReadyRef.current) return; // stale — a newer draw superseded us
+        const destStopIdx = hasOrigin ? t : t + 1; // which stops[] index this leg arrives at
         if (r.ok) {
           // glow: a wide, soft gold casing under a bright thin line (Trip-Studio look)
           routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#e8cf9a", strokeOpacity: 0.22, strokeWeight: 13, zIndex: 1 }));
           routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#f0dca8", strokeOpacity: 1, strokeWeight: 3.5, zIndex: 3 }));
-          meters += r.meters; secs += r.secs; perLegMi.push(Math.round(r.meters / 1609.34));
+          const mi = Math.round(r.meters / 1609.34);
+          meters += r.meters; secs += r.secs;
+          if (hasOrigin && t === 0) originMi = mi; else perStopMi[destStopIdx] = mi;
         } else {
+          // Can't be routed (e.g. a park centroid off-road) — draw a dashed connector,
+          // but leave the distance blank rather than inventing one.
           routeLinesRef.current.push(new g.maps.Polyline({ path: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }], map: mapObj, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#e4be78", scale: 3 }, offset: "0", repeat: "12px" }] }));
-          const mi = milesBetween(a, b) * ROAD_FACTOR; // straight-line → road estimate
-          meters += mi * 1609.34; secs += (mi / 55) * 3600; perLegMi.push(Math.round(mi));
+          if (hasOrigin && t === 0) originMi = null; else perStopMi[destStopIdx] = null;
         }
       }
       if (gen === routeGenRef.current) {
-        setRoadInfo({ miles: Math.round(meters / 1609.34), mins: Math.round(secs / 60) });
-        setOriginRoadMi(hasOrigin ? (perLegMi[0] ?? null) : null);
+        setRoadInfo(meters > 0 ? { miles: Math.round(meters / 1609.34), mins: Math.round(secs / 60) } : null);
+        setOriginRoadMi(hasOrigin ? originMi : null);
+        setInterLegMi(perStopMi);
       }
     })();
   }
@@ -1204,7 +1210,7 @@ export default function BuildTripApp() {
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
-          origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi != null ? originRoadMi : (origin && stops[0] ? Math.round(milesBetween(origin, stops[0]) * ROAD_FACTOR) : null)}
+          origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi}
           setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}
           setAddAt={(i) => { addAtRef.current = i; }}
           mapPrefs={mapPrefs} setMapPref={setMapPref}

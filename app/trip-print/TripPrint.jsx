@@ -85,12 +85,16 @@ export default function TripPrint() {
       const raw = shared ? shared.stops : getStops();
       const m = shared ? shared.meta : getMeta();
       const coord = {};
+      // Coord lookups for stops that don't already carry lat/lng (old saved trips by name).
+      // Time-bounded so a hung script/fetch never blocks the page on "Preparing…" — a
+      // shared link already has coordinates in its payload.
+      const withTimeout = (p, ms) => Promise.race([Promise.resolve(p).catch(() => null), new Promise((r) => setTimeout(() => r(null), ms))]);
       try {
-        await loadScript("/trip-data.js");
+        await withTimeout(loadScript("/trip-data.js"), 3500);
         (window.TRIP_PARKS || []).forEach((p) => { if (p && p.name) coord[p.name] = { lat: p.lat, lng: p.lng, state: p.state }; });
       } catch {}
       try {
-        const fd = await fetch("/national-forests.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        const fd = await withTimeout(fetch("/national-forests.json").then((r) => (r.ok ? r.json() : null)).catch(() => null), 3500);
         ((fd && fd.forests) || []).forEach((f) => { if (f && f.name) coord[f.name] = { lat: f.lat, lng: f.lng, state: f.state }; });
       } catch {}
       const resolved = raw.map((s) => {

@@ -303,6 +303,21 @@
       };
       mic.onclick = function () { if (reclive) stopListen(); else startListen(); };
     }
+
+    // Public API so ANY mic on the site (e.g. Trip Studio's Pack & Go) hands the voice
+    // conversation to THIS chat instead of running its own speech engine — one voice home.
+    window.PBAsk = {
+      open: function () { open(); },
+      openAndListen: function () {
+        open();
+        if (!SR) { note('🎤 Voice needs a supported browser — you can type here instead.'); return; }
+        // let the panel paint, then start listening + drop a "here's what I can do" cue
+        setTimeout(function () { note('🎤 Listening… tell me what to add or where to go.'); startListen(); }, 180);
+      },
+      ask: function (text) { open(); setTimeout(function () { stopSpeaking(); send(text); }, 150); },
+    };
+    // Also honor an event, in case a caller fires before this script finished mounting.
+    window.addEventListener('pb:ask-open-voice', function () { window.PBAsk.openAndListen(); });
   }
 
   if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);

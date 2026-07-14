@@ -1725,8 +1725,6 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const [, force] = useState(0);
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recRef = useRef(null);
   const [adding, setAdding] = useState(null);
   const [addVal, setAddVal] = useState("");
   const [confirm, setConfirm] = useState(null);   // section-aware "added to Pack/Do" message
@@ -1741,55 +1739,39 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
     return () => { if (typeof window !== "undefined") window.removeEventListener("pb:open-packgo", onOpen); };
   }, []);
   const SECT_LABEL = { pack: "🎒 Pack", grab: "🛒 Grab", do: "📍 Do" };
-  // Build a section-grouped summary of what was just added, for screen + voice.
+  // Section-grouped summary of what was just added (on-screen confirmation for typed adds).
   const summarize = (added) => {
     const by = { pack: [], grab: [], do: [] };
     (added || []).forEach((i) => { (by[i.cat] || by.pack).push(i.label); });
     const cats = ["pack", "grab", "do"].filter((c) => by[c].length);
     const screen = cats.map((c) => SECT_LABEL[c] + ": " + by[c].join(", ")).join("  ·  ");
-    const spokenName = { pack: "Pack", grab: "Grab-on-the-way", do: "Do-at-the-destination" };
-    const spoken = cats.map((c) => by[c].slice(0, 5).join(", ") + " to your " + spokenName[c] + " list").join("; and ");
-    return { screen, spoken, cats };
+    return { screen, cats };
   };
   // Flash the affected section cards + hold a confirmation line for a few seconds.
-  const announce = (added, fromVoice) => {
-    if (!added || !added.length) { if (fromVoice) speakBack("Those were already on your list."); return; }
-    const { screen, spoken, cats } = summarize(added);
+  const announce = (added) => {
+    if (!added || !added.length) return;
+    const { screen, cats } = summarize(added);
     setConfirm(screen);
     setFlashCats(new Set(cats));
     setTimeout(() => setFlashCats(null), 2600);
     setTimeout(() => setConfirm((c) => (c === screen ? null : c)), 6000);
-    if (fromVoice) speakBack("Added " + spoken + ".");
   };
-  const canVoice = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const startVoice = () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR || listening) return;
-    try {
-      const rec = new SR(); recRef.current = rec;
-      // Live transcription: interim results stream into the box AS YOU SPEAK, so you see
-      // exactly what it's hearing; on the final result we run it and speak a reply back.
-      rec.lang = "en-US"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-      let finalT = "";
-      rec.onresult = (e) => {
-        let interim = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) { const res = e.results[i]; if (res.isFinal) finalT += res[0].transcript; else interim += res[0].transcript; }
-        setDesc((finalT + " " + interim).trim());
-      };
-      rec.onend = () => { setListening(false); const v = finalT.trim(); if (v) runDesc(v, true); };
-      rec.onerror = () => setListening(false);
-      setListening(true); rec.start();
-    } catch { setListening(false); }
+  // Voice lives in ONE place — the Ask Park Buddy chat. The mic here just opens that
+  // conversation and starts listening, so we never run a second speech engine.
+  const openAskVoice = () => {
+    if (typeof window === "undefined") return;
+    if (window.PBAsk && window.PBAsk.openAndListen) window.PBAsk.openAndListen();
+    else { try { window.dispatchEvent(new Event("pb:ask-open-voice")); } catch {} }
   };
   const items = getChecklist();
   const done = items.filter((i) => i.done).length;
   const pct = items.length ? Math.round((done / items.length) * 100) : 0;
   const startISO = dayRanges && dayRanges[0] && dayRanges[0].arrive;
   const monthIdx = startISO ? new Date(startISO + "T12:00:00").getMonth() : null;
-  const generate = () => { const added = addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); announce(added, false); };
+  const generate = () => { const added = addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); announce(added); };
   // "Describe your trip" → the Ask Park Buddy agent (its add_checklist_items tool),
   // grounded in the current trip; keyword rules are the offline fallback.
-  const runDesc = async (override, fromVoice) => {
+  const runDesc = async (override) => {
     const t = (typeof override === "string" ? override : desc).trim();
     if (!t || busy) return;
     setBusy(true); setOpen(true);
@@ -1804,13 +1786,8 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
     } catch {}
     const toAdd = applied || parseDescription(t);
     const added = addChecklistItems(toAdd); // returns the items actually added, each with its section
-    // Confirm on screen + (if spoken) aloud, naming the exact section each item landed in.
-    announce(added, fromVoice);
+    announce(added); // on-screen section-grouped confirmation + flash
     setDesc(""); setBusy(false);
-  };
-  // Read a short reply aloud (voice-out) — only used when the user spoke to us.
-  const speakBack = (text) => {
-    try { if (!window.speechSynthesis) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text).slice(0, 400)); u.lang = "en-US"; u.rate = 1.03; window.speechSynthesis.speak(u); } catch {}
   };
   const commitAdd = (cat) => { const v = addVal.trim(); if (v) addChecklistItem(cat, v); setAddVal(""); setAdding(null); };
   return (
@@ -1829,23 +1806,11 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
       {open && (
         <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <div style={{ fontFamily: SANS, fontSize: 12, color: "#8f9a90", marginBottom: 7 }}>Describe your trip and we&apos;ll suggest what to bring.</div>
-            {listening && (
-              <div style={{ marginBottom: 8, padding: "10px 12px", borderRadius: 11, background: "rgba(127,176,208,0.08)", border: "1px solid rgba(127,176,208,0.4)", animation: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: desc ? 6 : 0 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7fb0d0", animation: "ts-pulse 1.3s infinite" }} />
-                  <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#7fb0d0" }}>🎤 Listening — say it all</span>
-                </div>
-                {/* the FULL spoken message, wrapping — never clipped to one line */}
-                {desc && <div style={{ fontFamily: SANS, fontSize: 13, color: "#f4f1ea", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{desc}</div>}
-              </div>
-            )}
+            <div style={{ fontFamily: SANS, fontSize: 12, color: "#8f9a90", marginBottom: 7 }}>Type what to bring — or tap the mic to talk it through with Park Buddy.</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder={listening ? "Listening…" : "Camping with a baby in winter…"} disabled={busy} style={{ ...fieldBox, flex: 1, opacity: busy ? 0.6 : 1 }} />
-              {canVoice && (
-                <button onClick={() => (listening ? recRef.current && recRef.current.stop() : startVoice())} disabled={busy} title="Speak your trip" aria-label="Speak your trip" style={{ flex: "none", width: 40, borderRadius: 10, border: "1px solid " + (listening ? "rgba(127,176,208,0.6)" : "rgba(217,183,121,0.3)"), background: listening ? "rgba(127,176,208,0.18)" : "rgba(255,255,255,.04)", color: listening ? "#7fb0d0" : "#e8cf9a", fontSize: 15, cursor: busy ? "default" : "pointer" }}>🎤</button>
-              )}
-              <button onClick={() => runDesc()} disabled={busy} className="ts-goldbtn" style={{ flex: "none", minWidth: 54, padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>{busy ? "…" : "Ask"}</button>
+              <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder="Add marinated chicken… or “I want to bake a cake”" disabled={busy} style={{ ...fieldBox, flex: 1, opacity: busy ? 0.6 : 1 }} />
+              <button onClick={openAskVoice} disabled={busy} title="Talk to Park Buddy" aria-label="Talk to Park Buddy" style={{ flex: "none", width: 40, borderRadius: 10, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontSize: 15, cursor: busy ? "default" : "pointer" }}>🎤</button>
+              <button onClick={() => runDesc()} disabled={busy} className="ts-goldbtn" style={{ flex: "none", minWidth: 54, padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>{busy ? "…" : "Add"}</button>
             </div>
           </div>
           {confirm && (

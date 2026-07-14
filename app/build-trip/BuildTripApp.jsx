@@ -21,7 +21,8 @@ import { getSunTimes } from "../lib/sunmoon";
 import { reservationNote } from "../lib/parkReservations";
 import { encodeTrip } from "../lib/tripShare";
 import { buildIcs } from "../lib/tripIcs";
-import { getChecklist } from "../lib/checklist";
+import { getChecklist, addChecklistItems } from "../lib/checklist";
+import { generateFromTrip } from "../lib/packgo";
 import SiteHeader from "../components/SiteHeader";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
@@ -1102,6 +1103,58 @@ export default function BuildTripApp() {
     if (d.slug) stop.slug = d.slug;
     insertStop(stop);
   }
+
+  // --- Floating "Ask Park Buddy" widget bridge ------------------------------------------
+  // The widget (public/ask-parkbuddy.js) applies its actions through window.PBTrip /
+  // window.PBChecklist, which historically existed ONLY in the legacy embed. Expose
+  // React-backed versions here so the floating agent lands trips + checklist items in the
+  // SAME live Trip Studio + Pack & Go the user is looking at (not a separate legacy store).
+  function resolveParkName(name) {
+    const n = (name || "").toLowerCase().trim(); if (!n) return null;
+    const db = parksDb.length ? parksDb : ((typeof window !== "undefined" && window.TRIP_PARKS) || []);
+    const bare = (s) => (s || "").toLowerCase().replace(/\s*national\s+park.*$/, "").trim();
+    return db.find((p) => p.name.toLowerCase() === n)
+      || db.find((p) => bare(p.name) === bare(name))
+      || db.find((p) => p.name.toLowerCase().includes(n) || (bare(p.name) && n.includes(bare(p.name))))
+      || null;
+  }
+  function apiBuildTrip(parkNames, opts) {
+    const resolved = (parkNames || []).map(resolveParkName).filter(Boolean);
+    const seen = new Set(); const uniq = resolved.filter((p) => !seen.has(p.name) && seen.add(p.name));
+    // build_itinerary REPLACES the trip — clear the store first so the persist effect's
+    // "preserve store-only stops" logic doesn't re-append the old itinerary.
+    if (uniq.length) { try { tripSetStops([]); } catch {} commitStops(uniq.map((p) => ({ name: p.name, state: p.state || "", lat: p.lat, lng: p.lng, nights: 2, legMi: null }))); }
+    if (opts) { if (opts.name) setTripName(opts.name); if (opts.startDate) setStartDate(opts.startDate); if (opts.travelers) setAdults(Math.max(1, Number(opts.travelers) || 1)); }
+    return { added: uniq.map((p) => p.name) };
+  }
+  function apiAddPark(name, nights) {
+    const p = resolveParkName(name); if (!p) return { ok: false, error: "couldn't find " + name };
+    if (stops.some((s) => s.name === p.name)) return { ok: false, error: p.name + " is already in your trip" };
+    addAtRef.current = null;
+    addDestination({ name: p.name, state: p.state || "", lat: p.lat, lng: p.lng });
+    return { ok: true, name: p.name };
+  }
+  // Keep the latest handlers/state reachable from the (once-installed) window bridge.
+  const bridgeRef = useRef({});
+  bridgeRef.current = { apiBuildTrip, apiAddPark, setTripName, setStartDate, setAdults, stops, startDate, adults, infants };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.PBTrip = {
+      buildTrip: (parks, o) => bridgeRef.current.apiBuildTrip(parks, o),
+      addPark: (name, nights) => bridgeRef.current.apiAddPark(name, nights),
+      setBasics: (o) => { const b = bridgeRef.current; if (!o) return; if (o.name) b.setTripName(o.name); if (o.startDate) b.setStartDate(o.startDate); if (o.travelers) b.setAdults(Math.max(1, Number(o.travelers) || 1)); },
+      generateChecklist: () => { const b = bridgeRef.current; const mi = b.startDate ? new Date(b.startDate + "T12:00:00").getMonth() : null; return addChecklistItems(generateFromTrip(b.stops, mi)); },
+      downloadPassport: () => { try { window.open("/trip-print", "_blank"); } catch {} },
+      state: () => { const b = bridgeRef.current; return { stops: (b.stops || []).map((s) => s.name), startDate: b.startDate, travelers: (Number(b.adults) || 0) + (Number(b.infants) || 0) }; },
+    };
+    window.PBChecklist = {
+      addItems: (arr) => { const added = addChecklistItems(Array.isArray(arr) ? arr : []); return { ok: true, added: added.map((i) => i.label), addedItems: added.map((i) => ({ label: i.label, cat: i.cat })) }; },
+      open: () => { try { window.dispatchEvent(new Event("pb:open-packgo")); } catch {} },
+      state: () => { const items = getChecklist(); return { total: items.length, done: items.filter((i) => i.done).length, items: items.map((i) => ({ label: i.label, cat: i.cat })) }; },
+    };
+    return () => { try { delete window.PBTrip; } catch { window.PBTrip = undefined; } try { delete window.PBChecklist; } catch { window.PBChecklist = undefined; } };
+  }, []);
+
   // Add a stop at raw coordinates ("lat, lng").
   function addCoords() {
     const nums = (coordInput || "").split(/[,\s]+/).map(Number).filter((n) => !isNaN(n));

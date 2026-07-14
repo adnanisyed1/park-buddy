@@ -1731,6 +1731,14 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const [confirm, setConfirm] = useState(null);   // section-aware "added to Pack/Do" message
   const [flashCats, setFlashCats] = useState(null); // Set of cats to highlight briefly
   useEffect(() => subscribeChecklist(() => force((n) => n + 1)), []);
+  const panelRef = useRef(null);
+  // The floating Ask-Park-Buddy widget fires this after it adds items via the bridge, so
+  // the list it wrote to opens and scrolls into view — you SEE where the items landed.
+  useEffect(() => {
+    const onOpen = () => { setOpen(true); setTimeout(() => { try { panelRef.current && panelRef.current.scrollIntoView({ behavior: "smooth", block: "center" }); } catch {} }, 60); };
+    if (typeof window !== "undefined") window.addEventListener("pb:open-packgo", onOpen);
+    return () => { if (typeof window !== "undefined") window.removeEventListener("pb:open-packgo", onOpen); };
+  }, []);
   const SECT_LABEL = { pack: "🎒 Pack", grab: "🛒 Grab", do: "📍 Do" };
   // Build a section-grouped summary of what was just added, for screen + voice.
   const summarize = (added) => {
@@ -1805,7 +1813,7 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   };
   const commitAdd = (cat) => { const v = addVal.trim(); if (v) addChecklistItem(cat, v); setAddVal(""); setAdding(null); };
   return (
-    <div style={{ ...glass, marginTop: 14 }}>
+    <div ref={panelRef} style={{ ...glass, marginTop: 14 }}>
       <div onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
         <span style={{ display: "inline-block", transition: "transform .2s", transform: open ? "rotate(90deg)" : "none", color: "#d9b779" }}>▸</span>
         <span style={kicker}>Pack &amp; Go</span>

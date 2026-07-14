@@ -58,8 +58,16 @@ export function generateFromTrip(stops = [], monthIdx = null) {
 }
 
 // Parse a free-form "describe your trip" line into items (keyword rules).
+// Food / consumables you'd buy on the way → the "Grab" section.
+const FOOD_RE = /\b(chicken|meat|beef|pork|steak|fish|shrimp|bacon|sausage|hot ?dogs?|burgers?|marinad\w*|food|snacks?|meals?|bread|buns?|eggs?|milk|cheese|butter|coffee|tea|beer|wine|soda|ice|drinks?|juice|fruit|veg\w*|salad|produce|charcoal|propane|firewood|s'?mores|marshmallows?|chips|jerky|oatmeal|granola|water)\b/i;
+// Things you do / arrange → the "Do" section.
+const DO_RE = /\b(permits?|reserv\w*|book\w*|licen\w*|tickets?|passes?|register|confirm|download|call)\b/i;
+function categorizeItem(s) { if (FOOD_RE.test(s)) return "grab"; if (DO_RE.test(s)) return "do"; return "pack"; }
+function titleCaseItem(s) { return s.replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase()); }
+
 export function parseDescription(text) {
-  const t = " " + (text || "").toLowerCase() + " ";
+  const raw = (text || "").trim();
+  const t = " " + raw.toLowerCase() + " ";
   const out = [];
   const a = (cat, label, why) => out.push({ cat, label, why: why || "From your description" });
   if (/(baby|babies|toddler|infant|kids?|children)/.test(t)) { a("pack", "Diapers / wipes & kid snacks"); a("pack", "Carrier or kid backpack"); }
@@ -72,7 +80,15 @@ export function parseDescription(text) {
   if (/(rain|wet|storm)/.test(t)) { a("pack", "Rain shell & dry bags"); }
   if (/(cold|snow|winter|ski)/.test(t)) { a("pack", "Insulated layers & traction"); }
   if (/(hot|desert|summer|heat)/.test(t)) { a("pack", "Extra water & sun protection"); }
-  if (!out.length) { a("pack", "Snacks, water & layers"); a("do", "Note one must-do for the trip"); }
+  if (!out.length) {
+    // No trip-descriptor matched. If the user simply NAMED item(s) — "marinated chicken",
+    // "bug spray, sunscreen" — add exactly those to a sensible section instead of inventing
+    // generic gear. Only fall back to a starter kit for a longer, vague description.
+    const items = raw.split(/,|;|\band\b|&|\/|\+/i).map((s) => s.trim()).filter((s) => s && s.length <= 40);
+    const itemLike = raw.length <= 60 && items.length && items.every((s) => s.split(/\s+/).length <= 5);
+    if (itemLike) items.forEach((it) => a(categorizeItem(it), titleCaseItem(it), "You added this"));
+    else { a("pack", "Snacks, water & layers"); a("do", "Note one must-do for the trip"); }
+  }
   return out;
 }
 

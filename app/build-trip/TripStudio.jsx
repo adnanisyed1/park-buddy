@@ -1797,7 +1797,7 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
     try {
       const cur = getChecklist();
       const ctx = { trip: { stops: (stops || []).map((s) => s.name), startDate: startISO || "" }, checklist: { total: cur.length, items: cur.map((i) => ({ label: i.label })) } };
-      const r = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "Help me pack for this trip: " + t, context: ctx }) }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+      const r = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "Update my Pack & Go checklist from this. If I named specific item(s), add exactly those to the right section (pack/grab/do) — don't swap them for generic gear. If I described my trip, suggest what to bring. Always call add_checklist_items. Input: " + t, context: ctx }) }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
       const act = r && Array.isArray(r.actions) ? r.actions.find((a) => a.name === "add_checklist_items") : null;
       const aiItems = act && act.input && Array.isArray(act.input.items) ? act.input.items : null;
       if (aiItems && aiItems.length) applied = aiItems;

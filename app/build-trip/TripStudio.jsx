@@ -4,6 +4,8 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { searchPlaces, resolvePlace } from "../lib/placeSearch";
 import { dayWeather, skyIcon } from "../lib/dayConditions";
 import { getSunTimes, fmtTime } from "../lib/sunmoon";
+import { CATS as PACK_CATS, generateFromTrip, parseDescription } from "../lib/packgo";
+import { getChecklist, subscribeChecklist, addChecklistItems, addChecklistItem, toggleChecklistItem, removeChecklistItem } from "../lib/checklist";
 
 // Trip Studio — the futuristic reskin of Build My Trip, ported from the Claude
 // Design prototype (Downloads/Trip Studio.dc.html). PRESENTATIONAL ONLY: every
@@ -908,6 +910,9 @@ export default function TripStudio(props) {
                   </div>
                 </div>
 
+                {/* Pack & Go — trip-aware checklist (collapsible, feeds Trip Mode + the PDF) */}
+                {stops.length > 0 && <PackGoPanel stops={stops} dayRanges={dayRanges} fieldBox={fieldBox} />}
+
                 {/* budget — full-width, itemized (matches the design) */}
                 <div style={{ ...glass, marginTop: 14 }}>
                   <div style={kicker}>Budget</div>
@@ -1653,6 +1658,83 @@ function DayPlanAdd({ onAdd, fieldBox, defaultType = "hike" }) {
 
 // Mobile add-a-stop popup (spec §7a): search → filter chips → "add to Day · time"
 // → suggested rows (one tap logs a timed activity on the chosen day) → precise entry.
+// Pack & Go — the trip-aware checklist panel (collapsible), sitting between the itinerary
+// and Budget. Reuses the shared checklist store so Trip Mode + the PDF show the same list.
+function PackGoPanel({ stops, dayRanges, fieldBox }) {
+  const [open, setOpen] = useState(false);
+  const [, force] = useState(0);
+  const [desc, setDesc] = useState("");
+  const [adding, setAdding] = useState(null);
+  const [addVal, setAddVal] = useState("");
+  useEffect(() => subscribeChecklist(() => force((n) => n + 1)), []);
+  const items = getChecklist();
+  const done = items.filter((i) => i.done).length;
+  const pct = items.length ? Math.round((done / items.length) * 100) : 0;
+  const startISO = dayRanges && dayRanges[0] && dayRanges[0].arrive;
+  const monthIdx = startISO ? new Date(startISO + "T12:00:00").getMonth() : null;
+  const generate = () => { addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); };
+  const runDesc = () => { const t = desc.trim(); if (!t) return; addChecklistItems(parseDescription(t)); setDesc(""); setOpen(true); };
+  const commitAdd = (cat) => { const v = addVal.trim(); if (v) addChecklistItem(cat, v); setAddVal(""); setAdding(null); };
+  return (
+    <div style={{ ...glass, marginTop: 14 }}>
+      <div onClick={() => setOpen((o) => !o)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+        <span style={{ display: "inline-block", transition: "transform .2s", transform: open ? "rotate(90deg)" : "none", color: "#d9b779" }}>▸</span>
+        <span style={kicker}>Pack &amp; Go</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".08em", color: "#8f9a90" }}>{items.length ? done + " / " + items.length + " packed" : "not started"}</span>
+      </div>
+      {items.length > 0 && (
+        <div style={{ height: 3, borderRadius: 999, background: "rgba(217,183,121,0.14)", marginTop: 10, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: pct + "%", background: "linear-gradient(90deg,#e8cf9a,#c9a35f)", transition: "width .3s" }} />
+        </div>
+      )}
+      {open && (
+        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <div style={{ fontFamily: SANS, fontSize: 12, color: "#8f9a90", marginBottom: 7 }}>Describe your trip and we&apos;ll suggest what to bring.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder="Camping with a baby in winter…" style={{ ...fieldBox, flex: 1 }} />
+              <button onClick={runDesc} className="ts-goldbtn" style={{ flex: "none", padding: "0 16px", borderRadius: 10, border: "none", background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", color: "#0a1712", fontFamily: SANS, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Ask</button>
+            </div>
+          </div>
+          <button onClick={generate} className="ts-goldbtn" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 13px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.4)", background: "linear-gradient(120deg, rgba(232,207,154,0.16), rgba(201,163,95,0.12))", color: "#e8cf9a", fontFamily: SANS, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            <span style={{ fontSize: 12 }}>✨</span>Generate from my trip
+          </button>
+          {PACK_CATS.map(([cat, emoji, title]) => {
+            const its = items.filter((i) => i.cat === cat);
+            return (
+              <div key={cat}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".12em", textTransform: "uppercase", color: "#c9a35f", marginBottom: 7 }}>{emoji} {title}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {its.length === 0 && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing yet.</div>}
+                  {its.map((i) => (
+                    <div key={i.id} className="ts-hoverline" style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "6px 8px", margin: "0 -8px", borderRadius: 9 }}>
+                      <button onClick={() => toggleChecklistItem(i.id)} aria-label="toggle packed" style={{ flex: "none", width: 18, height: 18, marginTop: 1, borderRadius: 5, cursor: "pointer", border: "1px solid " + (i.done ? "#8fd6a6" : "rgba(217,183,121,0.4)"), background: i.done ? "rgba(143,214,166,0.18)" : "transparent", color: "#8fd6a6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, lineHeight: 1 }}>{i.done ? "✓" : ""}</button>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: SANS, fontSize: 12.5, color: i.done ? "#7f8a82" : "#f4f1ea", textDecoration: i.done ? "line-through" : "none", lineHeight: 1.35 }}>{i.label}</div>
+                        {i.why && <span style={{ display: "inline-block", marginTop: 3, fontFamily: MONO, fontSize: 8, letterSpacing: ".04em", color: "#c9a35f", background: "rgba(212,162,63,0.1)", border: "1px solid rgba(212,162,63,0.25)", borderRadius: 999, padding: "1px 7px" }}>{i.why}</span>}
+                      </div>
+                      <button onClick={() => removeChecklistItem(i.id)} title="Remove" className="ts-iconbtn" style={{ flex: "none", background: "none", border: "none", color: "#b06a4a", cursor: "pointer", padding: 2, display: "inline-flex" }}><TSIcon name="trash" size={12} /></button>
+                    </div>
+                  ))}
+                  {adding === cat ? (
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                      <input autoFocus value={addVal} onChange={(e) => setAddVal(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") commitAdd(cat); if (e.key === "Escape") { setAdding(null); setAddVal(""); } }} placeholder="Add an item…" style={{ ...fieldBox, flex: 1 }} />
+                      <button onClick={() => commitAdd(cat)} style={{ flex: "none", padding: "0 14px", borderRadius: 9, border: "1px solid rgba(217,183,121,0.3)", background: "rgba(255,255,255,.04)", color: "#e8cf9a", fontFamily: SANS, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Add</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setAdding(cat); setAddVal(""); }} style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#8f9a90", fontFamily: SANS, fontSize: 11, cursor: "pointer", padding: "2px 0" }}>+ Add item</button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const ADD_FILTERS = [["all", "All"], ["park", "Parks"], ["statePark", "State"], ["forest", "Forest"], ["scenic", "Scenic"], ["lake", "Lake"]];
 const TYPE_DOT = { park: "#8fd6a6", statePark: "#9ecbe8", forest: "#c9a35f", scenic: "#e8cf9a", lake: "#7fd2d6" };
 function MobileAddPopup({ onClose, stops, dayRanges, parksDb, bywaysDb, addActivity, addrInput, setAddrInput, addAddress, addDestination, coordInput, setCoordInput, addCoords, addrMsg, fieldBox }) {

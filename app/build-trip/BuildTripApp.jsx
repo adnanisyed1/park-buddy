@@ -16,6 +16,8 @@ import { getStops as tripStops, getMeta as tripMeta, setStops as tripSetStops, s
 import { getSavedTrips, upsertActiveTrip, deleteSavedTrip as storeDeleteSavedTrip, subscribeSavedTrips } from "../lib/savedTrips";
 import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor } from "../lib/mapPrefs";
 import { computeRoute } from "../lib/googleRoutes";
+import { scheduleDay } from "../lib/dayScheduler";
+import { getSunTimes } from "../lib/sunmoon";
 import { reservationNote } from "../lib/parkReservations";
 import { encodeTrip } from "../lib/tripShare";
 import { buildIcs } from "../lib/tripIcs";
@@ -213,7 +215,9 @@ export default function BuildTripApp() {
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
   const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route (incl. the Home→first-base leg)
   const [originRoadMi, setOriginRoadMi] = useState(null); // real driving miles Home → first base
+  const [originRoadMin, setOriginRoadMin] = useState(null); // real driving MINUTES Home → first base
   const [interLegMi, setInterLegMi] = useState([]); // real driving miles into stops[k] from stops[k-1] (index-aligned to stops)
+  const [interLegMin, setInterLegMin] = useState([]); // real driving MINUTES into stops[k] (index-aligned to stops)
   const [flightInfo, setFlightInfo] = useState(null); // when flying: { fromName, toName, toCode, miles, hrs } for the arrival flight
   const routeGenRef = useRef(0); // ignores stale route callbacks
   const browseMarkersRef = useRef([]);
@@ -566,12 +570,18 @@ export default function BuildTripApp() {
         });
       }
       // Compose a paced day: morning hike, midday + afternoon sights (fall back to a 2nd hike).
-      const picks = [];
-      if (hikes[0]) picks.push({ ...hikes[0], time: "09:00" });
-      if (sights[0]) picks.push({ ...sights[0], time: "12:30" });
-      if (sights[1]) picks.push({ ...sights[1], time: "15:30" });
-      else if (hikes[1]) picks.push({ ...hikes[1], time: "15:30" });
-      picks.forEach((p) => addActivity(name, { ...p, day: dayIdx }));
+      const chosen = [];
+      if (hikes[0]) chosen.push(hikes[0]);
+      if (sights[0]) chosen.push(sights[0]);
+      if (sights[1]) chosen.push(sights[1]);
+      else if (hikes[1]) chosen.push(hikes[1]);
+      // Real clock times: schedule from ~30 min after sunrise (fall back 08:30), chaining
+      // each activity's estimated length + the drive between them — no more fixed 9/12:30/15:30.
+      let sun = null; try { sun = getSunTimes(new Date(), base.lat, base.lng); } catch {}
+      const startMin = sun && sun.rise ? sun.rise.getHours() * 60 + sun.rise.getMinutes() + 30 : 8 * 60 + 30;
+      const sched = scheduleDay(chosen, { startMin, origin: base });
+      const picks = sched.items;
+      picks.forEach((p) => addActivity(name, { type: p.type, name: p.name, lat: p.lat, lng: p.lng, time: p.time, day: dayIdx }));
       setPlanMsg((m) => ({ ...m, [key]: picks.length ? "Added " + picks.length + " nearby" : "No suggestions found nearby" }));
     } catch {
       setPlanMsg((m) => ({ ...m, [key]: "Couldn't load suggestions" }));
@@ -687,8 +697,8 @@ export default function BuildTripApp() {
   // Print/PDF and any other consumer show the same real miles — not a re-estimate.
   useEffect(() => {
     if (!userEditedRef.current || roadInfo == null) return;
-    try { tripSetMeta({ driveMiles: roadInfo.miles, driveMins: roadInfo.mins, legMiles: interLegMi, originMiles: originRoadMi }); } catch {}
-  }, [roadInfo, interLegMi, originRoadMi]); // eslint-disable-line react-hooks/exhaustive-deps
+    try { tripSetMeta({ driveMiles: roadInfo.miles, driveMins: roadInfo.mins, legMiles: interLegMi, legMins: interLegMin, originMiles: originRoadMi, originMins: originRoadMin }); } catch {}
+  }, [roadInfo, interLegMi, interLegMin, originRoadMi, originRoadMin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Trip origin ("starting from") — where the first drive leg begins.
   useEffect(() => {
@@ -971,7 +981,7 @@ export default function BuildTripApp() {
     // just the bases. Real driving distance from Directions.
     const driveStart = flying && airport ? { lat: airport.lat, lng: airport.lng, name: airport.name + " (" + airport.code + ")" } : (origin && origin.lat != null ? { lat: origin.lat, lng: origin.lng, name: origin.name } : null);
     const reqStops = driveStart ? [driveStart, ...stops] : stops.slice();
-    if (reqStops.length < 2) { setRoadInfo(null); setOriginRoadMi(null); return; }
+    if (reqStops.length < 2) { setRoadInfo(null); setOriginRoadMi(null); setOriginRoadMin(null); return; }
     const mapObj = mapObjRef.current;
     // Route each consecutive LEG on its own via the Routes API. A single multi-waypoint
     // request fails entirely if any one park's centroid isn't reachable by road (e.g.
@@ -988,7 +998,7 @@ export default function BuildTripApp() {
     };
     const hasOrigin = !!driveStart;
     (async () => {
-      let meters = 0, secs = 0, originMi = null; const perStopMi = []; const fullPath = []; // perStopMi[k] = real miles into stops[k]
+      let meters = 0, secs = 0, originMi = null, originMin = null; const perStopMi = [], perStopMin = []; const fullPath = []; // perStopMi[k]/perStopMin[k] = real miles/minutes into stops[k]
       for (let t = 0; t < reqStops.length - 1; t++) {
         const a = reqStops[t], b = reqStops[t + 1];
         const r = await routeLeg(a, b, 0);
@@ -999,20 +1009,22 @@ export default function BuildTripApp() {
           // glow: a wide, soft gold casing under a bright thin line (Trip-Studio look)
           routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#e8cf9a", strokeOpacity: 0.22, strokeWeight: 13, zIndex: 1 }));
           routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#f0dca8", strokeOpacity: 1, strokeWeight: 3.5, zIndex: 3 }));
-          const mi = Math.round(r.meters / 1609.34);
+          const mi = Math.round(r.meters / 1609.34), min = Math.round(r.secs / 60);
           meters += r.meters; secs += r.secs;
-          if (hasOrigin && t === 0) originMi = mi; else perStopMi[destStopIdx] = mi;
+          if (hasOrigin && t === 0) { originMi = mi; originMin = min; } else { perStopMi[destStopIdx] = mi; perStopMin[destStopIdx] = min; }
         } else {
           // Can't be routed (e.g. a park centroid off-road) — draw a dashed connector,
           // but leave the distance blank rather than inventing one.
           routeLinesRef.current.push(new g.maps.Polyline({ path: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }], map: mapObj, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#e4be78", scale: 3 }, offset: "0", repeat: "12px" }] }));
-          if (hasOrigin && t === 0) originMi = null; else perStopMi[destStopIdx] = null;
+          if (hasOrigin && t === 0) { originMi = null; originMin = null; } else { perStopMi[destStopIdx] = null; perStopMin[destStopIdx] = null; }
         }
       }
       if (gen === routeGenRef.current) {
         setRoadInfo(meters > 0 ? { miles: Math.round(meters / 1609.34), mins: Math.round(secs / 60) } : null);
         setOriginRoadMi(hasOrigin ? originMi : null);
+        setOriginRoadMin(hasOrigin ? originMin : null);
         setInterLegMi(perStopMi);
+        setInterLegMin(perStopMin);
         // Encode a (decimated) polyline of the whole route so the Print/PDF can render
         // a real static map snapshot that fits the entire route.
         try {
@@ -1493,7 +1505,7 @@ export default function BuildTripApp() {
           optimizeOrder={optimizeOrder} undoOptimize={undoOptimize} optimizeMsg={optimizeMsg} canUndoOptimize={!!prevOrder}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} editStop={editStop} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
-          origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} interLegMi={interLegMi} flightInfo={flightInfo}
+          origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi} originLegMin={originRoadMin} interLegMi={interLegMi} interLegMin={interLegMin} flightInfo={flightInfo}
           setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}
           setAddAt={(i) => { addAtRef.current = i; }}
           mapPrefs={mapPrefs} setMapPref={setMapPref}

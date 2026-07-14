@@ -167,6 +167,9 @@ export default function TripPrint() {
   // Prefer the REAL driving miles from Google Directions (saved on the trip by Trip
   // Studio); fall back to a straight-line estimate only if they're absent.
   const legMi = mapped.map((s, i) => (i === 0 ? 0 : (meta.legMiles && meta.legMiles[i] != null ? meta.legMiles[i] : Math.round(miBetween(mapped[i - 1], s) * ROAD_FACTOR))));
+  // Real per-leg driving MINUTES from Trip Studio's Routes API result; fall back to a
+  // ~55 mph highway estimate from the miles only when they're absent.
+  const legMin = mapped.map((s, i) => (i === 0 ? 0 : (meta.legMins && meta.legMins[i] != null ? meta.legMins[i] : Math.round((legMi[i] / 55) * 60))));
   const totalMiles = meta.driveMiles != null ? meta.driveMiles : legMi.reduce((a, b) => a + b, 0);
   const adults = meta.adults || meta.travelers || 2;
   const infants = meta.infants || 0;
@@ -190,9 +193,12 @@ export default function TripPrint() {
     let arrive = "";
     if (startDate) { const d = new Date(startDate); d.setDate(d.getDate() + (start - 1)); arrive = d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
     dayCursor = end + 1;
-    return { ...s, start, span, label: start === end ? "Day " + start : "Days " + start + "–" + end, arrive, legMi: mapped.includes(s) ? legMi[mapped.indexOf(s)] : null };
+    const mi = mapped.indexOf(s);
+    return { ...s, start, span, label: start === end ? "Day " + start : "Days " + start + "–" + end, arrive, legMi: mi >= 0 ? legMi[mi] : null, legMin: mi >= 0 ? legMin[mi] : null };
   });
   const totalDays = dayCursor - 1;
+  // "3h 20m" from minutes; used for drive legs on the day-by-day.
+  const fmtDur = (min) => (min == null ? null : min >= 60 ? Math.floor(min / 60) + "h" + (min % 60 ? " " + (min % 60) + "m" : "") : Math.max(1, min) + "m");
 
   const W = 640, H = 300;
   const pts = fitProject(mapped.map((s, i) => ({ name: s.name, lat: s.lat, lng: s.lng, i: stops.indexOf(s) })), W, H, 34);
@@ -322,8 +328,19 @@ export default function TripPrint() {
                       <div style={{ fontFamily: MONO, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: GOLD }}>{s.label}{s.arrive ? " · arrive " + s.arrive : ""}</div>
                       <div style={{ fontFamily: SERIF, fontSize: "1.4rem", fontWeight: 600, lineHeight: 1.12, color: TEAL, marginTop: 1 }}>{s.name}</div>
                       <div style={{ fontSize: ".82rem", color: MUTE, marginTop: 3 }}>
-                        {[s.state, (s.nights || 0) + " night" + ((s.nights || 0) === 1 ? "" : "s"), i > 0 && s.legMi != null ? s.legMi + " mi from " + dayRows[i - 1].name : null, s.custom ? "custom stop" : null].filter(Boolean).join(" · ")}
+                        {[s.state, (s.nights || 0) + " night" + ((s.nights || 0) === 1 ? "" : "s"), i > 0 && s.legMi != null ? s.legMi + " mi" + (s.legMin != null ? " · ~" + fmtDur(s.legMin) + " drive" : "") + " from " + dayRows[i - 1].name : null, s.custom ? "custom stop" : null].filter(Boolean).join(" · ")}
                       </div>
+                      {i === 0 && meta.origin && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, padding: "6px 10px", borderRadius: 9, background: "rgba(35,69,58,0.05)", border: "1px dashed " + HAIR }}>
+                          <span style={{ fontSize: 13, flex: "none" }}>{meta.arrivalMode === "fly" ? "✈" : "🚗"}</span>
+                          <span style={{ fontSize: ".8rem", color: INK }}>
+                            <b style={{ fontWeight: 600 }}>Getting here:</b> {meta.arrivalMode === "fly" ? "fly" : "drive"} from {meta.origin}
+                            {meta.originMiles != null ? " · " + meta.originMiles + " mi" : ""}
+                            {meta.originMins != null ? " · ~" + fmtDur(meta.originMins) : ""}
+                            <span style={{ color: MUTE2 }}> — plan this as your Day {s.start} travel.</span>
+                          </span>
+                        </div>
+                      )}
                       {(() => {
                         const blocks = (dayPlans[s.name] || []).slice().sort((a, b) => ((a.day || 0) - (b.day || 0)) || (a.time || "").localeCompare(b.time || ""));
                         if (!blocks.length) return <div style={{ borderTop: "1px dashed " + HAIR, marginTop: 8, paddingTop: 6, fontSize: ".78rem", color: MUTE2 }}>Notes / plans: ______________________________________________</div>;
@@ -365,7 +382,7 @@ export default function TripPrint() {
               </div>
               <div style={card}>
                 <div style={{ fontFamily: SERIF, fontSize: "1.05rem", fontWeight: 600, color: TEAL, marginBottom: 8 }}>Trip at a glance</div>
-                {[["Getting there", meta.arrivalMode === "fly" ? "Fly in + rental car" : "Driving the whole way"], ["Trip scope", meta.tripScope === "crosscountry" ? "Cross-country route" : "Loop around the destination"], ["Rental car", meta.car || "Midsize SUV"], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Total driving", "≈ " + totalMiles.toLocaleString() + " mi"], ["Nights", totalNights]].map(([k, v]) => (
+                {[["Getting there", meta.arrivalMode === "fly" ? "Fly in + rental car" : "Driving the whole way"], ["Trip scope", meta.tripScope === "crosscountry" ? "Cross-country route" : "Loop around the destination"], ["Rental car", meta.car || "Midsize SUV"], ["Travelers", adults + " adult" + (adults === 1 ? "" : "s") + (infants ? " + " + infants + " kid" + (infants === 1 ? "" : "s") : "")], ["Total driving", "≈ " + totalMiles.toLocaleString() + " mi" + (meta.driveMins != null ? " · " + fmtDur(meta.driveMins) : "")], ["Nights", totalNights]].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: ".9rem", borderBottom: "1px solid " + HAIR }}><span style={{ color: MUTE }}>{k}</span><b style={{ textAlign: "right" }}>{v}</b></div>
                 ))}
               </div>

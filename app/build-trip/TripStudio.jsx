@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { searchPlaces, resolvePlace } from "../lib/placeSearch";
 import { dayWeather, skyIcon } from "../lib/dayConditions";
 import { getSunTimes, fmtTime } from "../lib/sunmoon";
+import { scheduleDay, pacingNote } from "../lib/dayScheduler";
 import { CATS as PACK_CATS, generateFromTrip, parseDescription } from "../lib/packgo";
 import { getChecklist, subscribeChecklist, addChecklistItems, addChecklistItem, toggleChecklistItem, removeChecklistItem } from "../lib/checklist";
 
@@ -104,7 +105,7 @@ export default function TripStudio(props) {
     stat, statNum, tripName, setTripName,
     stops, dayRanges, verdicts, wx, baseInfo, planDay, planningDay, planMsg, optimizeOrder, undoOptimize, optimizeMsg, canUndoOptimize, STOP_STATUS,
     onDragStart, onDragOver, onDrop, removeStop, setStopNights, editStop, addMyTrip, hoverIdx, setHoverIdx,
-    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, interLegMi, flightInfo, lodging, setStopLodging, setAddAt,
+    expandedStop, setExpandedStop, toggleDayPlan, dayPlans, addActivity, removeActivity, updateActivity, origin, setOrigin, originLegMi, originLegMin, interLegMi, interLegMin, flightInfo, lodging, setStopLodging, setAddAt,
     addSource, setAddSource, addMenuOpen, setAddMenuOpen,
     parksDb, addSel, setAddSel, addPark, forestsDb,
     bywaysDb, addBywaySel, setAddBywaySel, addByway,
@@ -816,7 +817,10 @@ export default function TripStudio(props) {
                             const flyLeg = i === 0 && flightInfo ? flightInfo : null;
                             const legFrom = i > 0 ? (stops[i - 1] && stops[i - 1].name) : (flyLeg ? (flyLeg.toName + " (" + flyLeg.toCode + ")") : (origin && origin.name));
                             const legMi = i > 0 ? (interLegMi && interLegMi[i] != null ? interLegMi[i] : null) : originLegMi;
-                            const legHrs = legMi != null ? Math.max(1, Math.round(legMi / 55)) : null;
+                            // Prefer the REAL per-leg driving minutes from the Routes API; fall back to a
+                            // ~55 mph highway estimate only when they haven't been computed yet.
+                            const legMin = i > 0 ? (interLegMin && interLegMin[i] != null ? interLegMin[i] : null) : originLegMin;
+                            const legHrs = legMin != null ? Math.max(1, Math.round(legMin / 60)) : (legMi != null ? Math.max(1, Math.round(legMi / 55)) : null);
                             return (
                               <div style={{ marginTop: 10, borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>
                                 <button onClick={(e) => { e.stopPropagation(); toggleDayPlan(s.name); }} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: MONO, fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: open ? "#e8cf9a" : "#8f9a90" }}>
@@ -862,15 +866,23 @@ export default function TripStudio(props) {
                                             </div>
                                           )}
                                           {(() => {
-                                            // Pacing heads-up: a long transit day (arrival day only) or a packed day.
-                                            const travelHrs = d === 0 ? ((flyLeg ? flyLeg.hrs : 0) + (legMi != null ? legHrs : 0)) : 0;
-                                            const pacing = travelHrs >= 5 ? "Long travel day — ~" + Math.round(travelHrs) + " h in transit, keep plans light"
-                                              : acts.length >= 5 ? "Packed day — " + acts.length + " things planned, leave some slack"
-                                              : null;
+                                            // Real pacing: schedule the day on a timeline (durations + drive time between
+                                            // stops) and flag if it runs past sunset or gets packed. An arrival day also
+                                            // carries the transit time from the origin/airport before anything can start.
+                                            const transitMin = d === 0 ? ((flyLeg ? flyLeg.hrs * 60 : 0) + (legMin != null ? legMin : (legMi != null ? legHrs * 60 : 0))) : 0;
+                                            // Start after transit on the arrival day (min 30m past sunrise), else ~8:30.
+                                            const sunriseMin = sun && sun.rise ? sun.rise.getHours() * 60 + sun.rise.getMinutes() : null;
+                                            const baseStart = sunriseMin != null ? sunriseMin + 30 : 8 * 60 + 30;
+                                            const startMin = d === 0 ? Math.max(baseStart, 8 * 60 + transitMin) : baseStart;
+                                            const sched = acts.length ? scheduleDay(acts, { startMin, sunset: sun && sun.set ? sun.set : null }) : null;
+                                            let pacing = null;
+                                            if (d === 0 && transitMin >= 5 * 60) pacing = "Long travel day — ~" + Math.round(transitMin / 60) + " h in transit before you arrive, keep plans light";
+                                            else if (sched) pacing = pacingNote(sched.summary);
+                                            const alert = sched ? (sched.summary.endsAfterSunset || sched.summary.packed) : (d === 0 && transitMin >= 5 * 60);
                                             return pacing ? (
-                                              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "5px 9px", borderRadius: 9, background: "rgba(212,162,63,0.08)", border: "1px solid rgba(212,162,63,0.28)" }}>
-                                                <span style={{ fontSize: 11, flex: "none" }}>⏳</span>
-                                                <span style={{ fontFamily: SANS, fontSize: 11, color: "#e8cf9a" }}>{pacing}</span>
+                                              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "5px 9px", borderRadius: 9, background: alert ? "rgba(212,162,63,0.08)" : "rgba(143,214,166,0.06)", border: "1px solid " + (alert ? "rgba(212,162,63,0.28)" : "rgba(143,214,166,0.22)") }}>
+                                                <span style={{ fontSize: 11, flex: "none" }}>{alert ? "⏳" : "🕑"}</span>
+                                                <span style={{ fontFamily: SANS, fontSize: 11, color: alert ? "#e8cf9a" : "#a7d3b4" }}>{pacing}</span>
                                               </div>
                                             ) : null;
                                           })()}
@@ -887,7 +899,7 @@ export default function TripStudio(props) {
                                               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(224,185,120,0.06)", border: "1px dashed rgba(224,185,120,0.3)" }}>
                                                 <span style={{ fontFamily: MONO, fontSize: 10, color: "#8f9a90", minWidth: 38 }}>drive</span>
                                                 <span style={{ color: "#e0b978", display: "inline-flex", flex: "none" }}><TSIcon name="car" size={15} /></span>
-                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{legFrom} → {s.name}<span style={{ color: "#8f9a90", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7 }}>{legMi != null ? "~" + legHrs + " H · " + legMi + " MI" : "measuring…"}</span></span>
+                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{legFrom} → {s.name}<span style={{ color: "#8f9a90", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7 }}>{legMin != null ? (legMin >= 60 ? Math.floor(legMin / 60) + "H " + (legMin % 60) + "M" : legMin + "M") + " · " + legMi + " MI" : legMi != null ? "~" + legHrs + " H · " + legMi + " MI" : "measuring…"}</span></span>
                                                 <span style={{ fontFamily: MONO, fontSize: 7.5, letterSpacing: ".1em", color: "#8f9a90", textTransform: "uppercase" }}>auto</span>
                                               </div>
                                             )}

@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
+import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 
 const FUEL_PER_MI = 0.2333, LODGING_PER_NIGHT = 130, FOOD_PER_PERSON_DAY = 35, ROAD_FACTOR = 1.25;
 
@@ -49,6 +50,7 @@ export default function TripPrint() {
   const [stops, setStops] = useState([]);
   const [meta, setMeta] = useState({});
   const [mapImgErr, setMapImgErr] = useState(false);
+  const [routePoly, setRoutePoly] = useState("");
 
   useEffect(() => {
     let on = true;
@@ -72,6 +74,35 @@ export default function TripPrint() {
     })();
     return () => { on = false; };
   }, []);
+
+  // Route geometry for the static map: prefer what Trip Studio saved; otherwise
+  // compute it here via Directions so the PDF map works even if Studio never ran.
+  useEffect(() => {
+    if (!ready) return;
+    if (meta.routePolyline) { setRoutePoly(meta.routePolyline); return; }
+    const mp = stops.filter((s) => s.lat != null);
+    if (mp.length < 2) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const ok = await ensureMapsLoaded();
+        const g = window.google;
+        if (!ok || !g || !g.maps || !g.maps.DirectionsService) return;
+        const svc = new g.maps.DirectionsService();
+        const full = [];
+        for (let i = 0; i < mp.length - 1; i++) {
+          const r = await new Promise((res) => svc.route({ origin: { lat: mp[i].lat, lng: mp[i].lng }, destination: { lat: mp[i + 1].lat, lng: mp[i + 1].lng }, travelMode: g.maps.TravelMode.DRIVING }, (rr, st) => res(st === "OK" && rr && rr.routes && rr.routes[0] ? rr.routes[0] : null)));
+          if (cancelled) return;
+          if (r) (r.legs || []).forEach((l) => (l.steps || []).forEach((stp) => (stp.path || []).forEach((p) => full.push(p))));
+        }
+        if (!cancelled && full.length > 1 && g.maps.geometry && g.maps.geometry.encoding) {
+          const step = Math.max(1, Math.ceil(full.length / 300));
+          setRoutePoly(g.maps.geometry.encoding.encodePath(full.filter((_, idx) => idx % step === 0 || idx === full.length - 1)));
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [ready, stops, meta.routePolyline]);
 
   const mapped = stops.filter((s) => s.lat != null);
   const totalNights = stops.reduce((a, s) => a + (s.nights || 0), 0);
@@ -159,8 +190,8 @@ export default function TripPrint() {
               if (!gkey) gkey = process.env.NEXT_PUBLIC_GMAPS_KEY || (typeof window !== "undefined" && window.GMAPS_KEY) || "";
               let mt = "roadmap"; try { const mp = JSON.parse(localStorage.getItem("pb_map_prefs") || "{}"); mt = mp.type === "satellite" ? "hybrid" : mp.type === "terrain" ? "terrain" : "roadmap"; } catch {}
               const markers = mapped.map((s, i) => "&markers=" + encodeURIComponent("size:mid|color:0x1D3941|label:" + (i + 1) + "|" + s.lat + "," + s.lng)).join("");
-              const staticUrl = (gkey && meta.routePolyline)
-                ? "https://maps.googleapis.com/maps/api/staticmap?size=640x360&scale=2&maptype=" + mt + "&path=color:0xc79a4bff|weight:4|enc:" + encodeURIComponent(meta.routePolyline) + markers + "&key=" + gkey
+              const staticUrl = (gkey && routePoly)
+                ? "https://maps.googleapis.com/maps/api/staticmap?size=640x360&scale=2&maptype=" + mt + "&path=color:0xc79a4bff|weight:4|enc:" + encodeURIComponent(routePoly) + markers + "&key=" + gkey
                 : null;
               if (staticUrl && !mapImgErr) return (
                 <div className="tp-break" style={{ ...card, padding: 0, overflow: "hidden", marginBottom: 22 }}>

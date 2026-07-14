@@ -20,6 +20,17 @@ const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], varia
 // long-term production domain, used only when the env var is unset.
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://theparkbuddy.com";
 
+// Lock the mobile viewport so the app behaves like a native app: no pinch-zoom, no
+// double-tap zoom, and no iOS auto-zoom-into-inputs. (Emits
+// width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no.)
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {

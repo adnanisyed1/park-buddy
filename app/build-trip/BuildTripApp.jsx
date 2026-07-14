@@ -40,7 +40,7 @@ const CARS = ["Compact", "Midsize SUV", "Full-size SUV", "Minivan", "RV / Camper
 const FUEL_PER_MI = 0.2333; // ≈ design: 720 mi → $168
 const LODGING_PER_NIGHT = 130; // design: 8 nights → $1,040
 const FOOD_PER_PERSON_DAY = 35; // design: 2 travelers × 8 days → $560
-const ROAD_FACTOR = 1.6; // haversine → road-miles approximation
+const ROAD_FACTOR = 1.25; // haversine → road-miles fallback (only when Directions is unavailable); real driving miles from Google Directions override this
 
 // Dark Trip-Studio map style (matches /explore's dark map) so the planner map reads
 // like the design — deep greens, gold borders, roads hidden for a clean route canvas.
@@ -165,7 +165,8 @@ export default function BuildTripApp() {
   const [lodging, setLodging] = useState({}); // { [stopName]: {name, lat, lng} } — where you're actually staying at each base
   const [layersOpen, setLayersOpen] = useState(false); // Trip Studio map "Layers" control popover
   const [mapReady, setMapReady] = useState(false); // flips true in initMap → retriggers marker draws
-  const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route
+  const [roadInfo, setRoadInfo] = useState(null); // {miles, mins} from the real driving route (incl. the Home→first-base leg)
+  const [originRoadMi, setOriginRoadMi] = useState(null); // real driving miles Home → first base
   const dirServiceRef = useRef(null);
   const routeGenRef = useRef(0); // ignores stale Directions callbacks
   const browseMarkersRef = useRef([]);
@@ -197,8 +198,10 @@ export default function BuildTripApp() {
 
   const totalNights = stops.reduce((a, s) => a + s.nights, 0);
   const legSum = stops.reduce((a, s) => a + (s.legMi || 0), 0);
-  const totalMiles = totalMilesOverride != null ? totalMilesOverride : Math.round(legSum);
-  const driveHrs = Math.round(totalMiles / 60);
+  // Prefer the real driving total from Google Directions (incl. Home→first base);
+  // fall back to the straight-line estimate before it resolves / when unavailable.
+  const totalMiles = totalMilesOverride != null ? totalMilesOverride : (roadInfo ? roadInfo.miles : Math.round(legSum + (originRoadMi || 0)));
+  const driveHrs = roadInfo ? Math.round(roadInfo.mins / 60) : Math.round(totalMiles / 60);
   const endDate = endDateOverride || (() => {
     const d = new Date(startDate + "T12:00:00");
     d.setDate(d.getDate() + totalNights);
@@ -751,11 +754,18 @@ export default function BuildTripApp() {
         position: pos, map, title: s.name, icon: pinIcon(g, i + 1, false),
       }));
     });
+    // Trip origin (Home) — its own marker; it anchors the first drive leg.
+    if (origin && origin.lat != null) {
+      bounds.extend({ lat: origin.lat, lng: origin.lng });
+      routeMarkersRef.current.push(new g.maps.Marker({ position: { lat: origin.lat, lng: origin.lng }, map, title: "Start · " + origin.name, icon: { path: g.maps.SymbolPath.CIRCLE, scale: 7, fillColor: "#8fd6a6", fillOpacity: 1, strokeColor: "#0a1712", strokeWeight: 2.5 } }));
+    }
     map.fitBounds(bounds, 52);
 
-    if (stops.length < 2) { setRoadInfo(null); return; }
+    // Route legs: Home → first base (if origin set), then base → base. Real driving
+    // distance from Directions; the first leg's miles feed the Home→base display.
+    const reqStops = (origin && origin.lat != null) ? [{ lat: origin.lat, lng: origin.lng, name: origin.name }, ...stops] : stops.slice();
+    if (reqStops.length < 2) { setRoadInfo(null); setOriginRoadMi(null); return; }
     if (!dirServiceRef.current) dirServiceRef.current = new g.maps.DirectionsService();
-    const reqStops = stops.slice();
     const mapObj = mapObjRef.current;
     // Route each consecutive LEG on its own. A single multi-waypoint request fails
     // entirely if any one park's centroid isn't reachable by road (e.g. Zion's
@@ -771,8 +781,9 @@ export default function BuildTripApp() {
         } else resolve({ ok: false });
       });
     });
+    const hasOrigin = !!(origin && origin.lat != null);
     (async () => {
-      let meters = 0, secs = 0;
+      let meters = 0, secs = 0; const perLegMi = [];
       for (let i = 0; i < reqStops.length - 1; i++) {
         const a = reqStops[i], b = reqStops[i + 1];
         const r = await routeLeg(a, b, 0);
@@ -781,17 +792,20 @@ export default function BuildTripApp() {
           // glow: a wide, soft gold casing under a bright thin line (Trip-Studio look)
           routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#e8cf9a", strokeOpacity: 0.22, strokeWeight: 13, zIndex: 1 }));
           routeLinesRef.current.push(new g.maps.Polyline({ path: r.path, map: mapObj, strokeColor: "#f0dca8", strokeOpacity: 1, strokeWeight: 3.5, zIndex: 3 }));
-          meters += r.meters; secs += r.secs;
+          meters += r.meters; secs += r.secs; perLegMi.push(Math.round(r.meters / 1609.34));
         } else {
           routeLinesRef.current.push(new g.maps.Polyline({ path: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }], map: mapObj, strokeOpacity: 0, icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.9, strokeColor: "#e4be78", scale: 3 }, offset: "0", repeat: "12px" }] }));
-          const mi = milesBetween(a, b) * 1.25; // straight-line → road estimate
-          meters += mi * 1609.34; secs += (mi / 55) * 3600;
+          const mi = milesBetween(a, b) * ROAD_FACTOR; // straight-line → road estimate
+          meters += mi * 1609.34; secs += (mi / 55) * 3600; perLegMi.push(Math.round(mi));
         }
       }
-      if (gen === routeGenRef.current) setRoadInfo({ miles: Math.round(meters / 1609.34), mins: Math.round(secs / 60) });
+      if (gen === routeGenRef.current) {
+        setRoadInfo({ miles: Math.round(meters / 1609.34), mins: Math.round(secs / 60) });
+        setOriginRoadMi(hasOrigin ? (perLegMi[0] ?? null) : null);
+      }
     })();
   }
-  useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawRoute(); }, [stops, showOnMap, mapReady, origin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Explore mode: hide the itinerary route + its numbered pins so discoverable place
   // pins stand out; ensure at least one destination layer is on so there ARE pins.
@@ -1190,7 +1204,7 @@ export default function BuildTripApp() {
           stops={stops} dayRanges={dayRanges} verdicts={verdicts} STOP_STATUS={STOP_STATUS}
           onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} removeStop={removeStop} setStopNights={setStopNights} hoverIdx={hoverIdx} setHoverIdx={setHoverIdx}
           expandedStop={expandedStop} toggleDayPlan={toggleDayPlan} dayPlans={dayPlans} addActivity={addActivity} removeActivity={removeActivity} updateActivity={updateActivity}
-          origin={origin} setOrigin={setOrigin} originLegMi={origin && stops[0] ? Math.round(milesBetween(origin, stops[0]) * ROAD_FACTOR) : null}
+          origin={origin} setOrigin={setOrigin} originLegMi={originRoadMi != null ? originRoadMi : (origin && stops[0] ? Math.round(milesBetween(origin, stops[0]) * ROAD_FACTOR) : null)}
           setExpandedStop={setExpandedStop} lodging={lodging} setStopLodging={setStopLodging}
           setAddAt={(i) => { addAtRef.current = i; }}
           mapPrefs={mapPrefs} setMapPref={setMapPref}

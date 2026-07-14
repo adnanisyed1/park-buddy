@@ -12,6 +12,41 @@
 
   var history = []; // [{role, content}]
 
+  // --- Voice: live speech-in (transcribe as you talk) + speech-out (read replies back) ---
+  var ttsOn = true; try { ttsOn = localStorage.getItem('pb_ask_tts') !== '0'; } catch (e) {}
+  var voiceMode = false;   // the current turn came from the mic → speak the reply + re-listen (hands-free)
+  var panelOpen = false;
+  var startListen = function () {}; // real impl assigned in mount() once the DOM exists
+  var pickedVoice = null;
+  function loadVoice() {
+    try {
+      if (!window.speechSynthesis) return;
+      var vs = window.speechSynthesis.getVoices() || [];
+      pickedVoice = vs.filter(function (v) { return /^en(-|_)US/i.test(v.lang); })
+        .sort(function (a, b) { return (/natural|samantha|google|aria|jenny/i.test(b.name) ? 1 : 0) - (/natural|samantha|google|aria|jenny/i.test(a.name) ? 1 : 0); })[0]
+        || vs.filter(function (v) { return /^en/i.test(v.lang); })[0] || null;
+    } catch (e) {}
+  }
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    loadVoice();
+    try { window.speechSynthesis.onvoiceschanged = loadVoice; } catch (e) {}
+  }
+  // Strip the light markdown so it reads naturally aloud.
+  function forSpeech(t) { return String(t).replace(/\*\*/g, '').replace(/^\s*[-*]\s+/gm, '').replace(/[#_`>]/g, '').replace(/\s+/g, ' ').trim(); }
+  function speak(text, after) {
+    if (!ttsOn || !window.speechSynthesis) { if (after) after(); return; }
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(forSpeech(text).slice(0, 650));
+      u.lang = 'en-US'; u.rate = 1.03; u.pitch = 1;
+      if (pickedVoice) u.voice = pickedVoice;
+      u.onend = function () { if (after) after(); };
+      u.onerror = function () { if (after) after(); };
+      window.speechSynthesis.speak(u);
+    } catch (e) { if (after) after(); }
+  }
+  function stopSpeaking() { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {} }
+
   function css() {
     if (document.getElementById('pbask-css')) return;
     var s = document.createElement('style'); s.id = 'pbask-css';
@@ -24,11 +59,15 @@
       '.pbask-head .lg{width:34px;height:34px;flex:none;border-radius:10px;background:rgba(228,190,120,.18);display:flex;align-items:center;justify-content:center;font-size:1.1rem}' +
       '.pbask-head b{font-family:' + SERIF + ';font-weight:700;font-size:1.08rem;display:block}' +
       '.pbask-head small{color:rgba(251,246,234,.7);font-size:.72rem}' +
-      '.pbask-x{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:' + CREAM + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.95rem}' +
+      '.pbask-x{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:' + CREAM + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.95rem}' +
       '.pbask-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:11px;background:' + CREAM + '}' +
       '.pbask-msg{max-width:84%;padding:11px 14px;border-radius:15px;font-size:.9rem;line-height:1.5}' +
       '.pbask-msg.bot{align-self:flex-start;background:' + PAPER + ';border:1px solid ' + LINE + ';color:' + INK + ';border-bottom-left-radius:5px}' +
       '.pbask-msg.user{align-self:flex-end;background:linear-gradient(135deg,' + TEAL + ',' + TEALD + ');color:' + CREAM + ';border-bottom-right-radius:5px}' +
+      '.pbask-msg.user.live{opacity:.72;font-style:italic;box-shadow:0 0 0 2px rgba(228,190,120,.5)}' +
+      '.pbask-msg.user.live::after{content:"\\2026 listening";display:block;font-size:.62rem;font-style:normal;opacity:.7;margin-top:3px}' +
+      '.pbask-spk{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:' + CREAM + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.9rem}' +
+      '.pbask-spk.off{opacity:.5}' +
       '.pbask-msg b{color:' + HEAD + '}.pbask-msg.user b{color:#fff}.pbask-msg ul{margin:6px 0 0;padding-left:18px}.pbask-msg li{margin:3px 0}' +
       '.pbask-sugs{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}' +
       '.pbask-sug{background:' + PAPER + ';border:1px solid ' + LINE + ';color:' + TEAL + ';font-family:inherit;font-weight:700;font-size:.78rem;padding:8px 12px;border-radius:999px;cursor:pointer;text-align:left}' +
@@ -134,7 +173,7 @@
     else if (!on && ex) ex.remove();
   }
 
-  async function send(text) {
+  async function send(text, fromVoice) {
     text = (text || inputEl.value).trim(); if (!text) return;
     inputEl.value = '';
     var sg = bodyEl.querySelector('.pbask-sugs'); if (sg) sg.remove();
@@ -155,9 +194,14 @@
       add('bot', reply);
       if (data.reply) history.push({ role: 'assistant', content: data.reply });
       applyActions(data.actions);
+      // Voice turn → read the reply back, then re-open the mic for a hands-free
+      // back-and-forth (until the user taps stop or closes the panel).
+      if (fromVoice) speak(reply, function () { if (voiceMode && panelOpen) startListen(); });
     } catch (e) {
       typing(false);
-      add('bot', "I couldn't reach the planner just now. Once the site is deployed with the AI key set, this works live.");
+      var errMsg = "I couldn't reach the planner just now. Once the site is deployed with the AI key set, this works live.";
+      add('bot', errMsg);
+      if (fromVoice) { voiceMode = false; speak(errMsg); }
     }
   }
 
@@ -177,7 +221,7 @@
     fab.innerHTML = '<span class="spark">\u2728</span> Ask Park Buddy';
     var panel = document.createElement('div'); panel.className = 'pbask-panel';
     panel.innerHTML =
-      '<div class="pbask-head"><span class="lg">\uD83E\uDDED</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-x" title="Close">\u2715</button></div>' +
+      '<div class="pbask-head"><span class="lg">\uD83E\uDDED</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-spk' + (ttsOn ? '' : ' off') + '" title="Read replies aloud">' + (ttsOn ? '\uD83D\uDD0A' : '\uD83D\uDD07') + '</button><button class="pbask-x" title="Close">\u2715</button></div>' +
       '<div class="pbask-body"></div>' +
       '<div class="pbask-note">Grounded in National Park Service data \u00b7 not live weather</div>' +
       '<div class="pbask-foot"><button class="pbask-mic" title="Speak">\uD83C\uDFA4</button><input type="text" placeholder="Describe your trip\u2026" maxlength="240"><button class="pbask-send" title="Send">\u2191</button></div>';
@@ -185,28 +229,62 @@
     bodyEl = panel.querySelector('.pbask-body'); inputEl = panel.querySelector('input');
 
     var opened = false;
-    function open() { panel.classList.add('open'); fab.style.display = 'none'; if (!opened) { opened = true; greet(); } inputEl.focus(); }
-    function close() { panel.classList.remove('open'); fab.style.display = ''; }
+    function open() { panelOpen = true; panel.classList.add('open'); fab.style.display = 'none'; if (!opened) { opened = true; greet(); } inputEl.focus(); }
+    function close() { panelOpen = false; voiceMode = false; stopSpeaking(); try { stopListen(); } catch (e) {} panel.classList.remove('open'); fab.style.display = ''; }
     fab.onclick = open;
     panel.querySelector('.pbask-x').onclick = close;
-    panel.querySelector('.pbask-send').onclick = function () { send(); };
-    inputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+    panel.querySelector('.pbask-send').onclick = function () { stopSpeaking(); send(); };
+    inputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); stopSpeaking(); send(); } });
 
-    // Voice: browser Web Speech API \u2192 transcribe into the input, then auto-send.
+    // Speaker toggle \u2014 read replies aloud on/off (remembered).
+    var spk = panel.querySelector('.pbask-spk');
+    spk.onclick = function () {
+      ttsOn = !ttsOn; try { localStorage.setItem('pb_ask_tts', ttsOn ? '1' : '0'); } catch (e) {}
+      spk.classList.toggle('off', !ttsOn); spk.textContent = ttsOn ? '\ud83d\udd0a' : '\ud83d\udd07';
+      if (!ttsOn) stopSpeaking();
+    };
+
+    // Voice-in: browser Web Speech API. Shows a LIVE user bubble that fills in with the
+    // words as you speak (interim results), auto-stops after a beat of silence, then sends.
     var mic = panel.querySelector('.pbask-mic');
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec = null, reclive = false, liveBubble = null, silenceT = null, finalT = '';
+    var stopListen = function () { voiceMode = false; if (rec) { try { rec.stop(); } catch (e) {} } };
     if (!SR) { mic.style.display = 'none'; }
     else {
-      var rec = null, reclive = false;
-      mic.onclick = function () {
-        if (reclive) { try { rec.stop(); } catch (e) {} return; }
-        rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false;
-        var finalT = ''; reclive = true; mic.classList.add('rec'); var ph = inputEl.placeholder; inputEl.placeholder = 'Listening\u2026';
-        rec.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) finalT += e.results[i][0].transcript; } inputEl.value = t; };
-        rec.onerror = function () { reclive = false; mic.classList.remove('rec'); inputEl.placeholder = ph; };
-        rec.onend = function () { reclive = false; mic.classList.remove('rec'); inputEl.placeholder = ph; var v = (finalT || inputEl.value).trim(); if (v) { inputEl.value = v; send(); } };
-        try { rec.start(); } catch (e) { reclive = false; mic.classList.remove('rec'); inputEl.placeholder = ph; }
+      startListen = function () {
+        if (reclive) return;
+        stopSpeaking(); // barge-in: if the bot is talking, listening cuts it off
+        try { rec = new SR(); } catch (e) { return; }
+        rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+        finalT = ''; reclive = true; voiceMode = true; mic.classList.add('rec');
+        liveBubble = add('user', ''); liveBubble.classList.add('live'); liveBubble.textContent = '\u2026';
+        // Auto-stop after a beat of silence: a longer grace before the first words, a
+        // shorter gap once you've started, so it neither cuts you off nor hangs open.
+        var armSilence = function (ms) { clearTimeout(silenceT); silenceT = setTimeout(function () { try { rec.stop(); } catch (e) {} }, ms || 1700); };
+        rec.onresult = function (e) {
+          var interim = '';
+          for (var i = e.resultIndex; i < e.results.length; i++) { var res = e.results[i]; if (res.isFinal) finalT += res[0].transcript; else interim += res[0].transcript; }
+          var shown = (finalT + ' ' + interim).trim();
+          if (liveBubble) liveBubble.textContent = shown || '\u2026';
+          bodyEl.scrollTop = bodyEl.scrollHeight;
+          armSilence(1700);
+        };
+        rec.onerror = function (ev) {
+          reclive = false; mic.classList.remove('rec'); clearTimeout(silenceT);
+          if (liveBubble) { liveBubble.remove(); liveBubble = null; }
+          if (ev && ev.error === 'not-allowed') { voiceMode = false; note('\ud83c\udfa4 Allow microphone access in your browser to talk to Park Buddy.'); }
+          else if (ev && ev.error !== 'no-speech' && ev.error !== 'aborted') { voiceMode = false; }
+        };
+        rec.onend = function () {
+          reclive = false; mic.classList.remove('rec'); clearTimeout(silenceT);
+          if (liveBubble) { liveBubble.remove(); liveBubble = null; }
+          var v = finalT.trim();
+          if (v) send(v, true); else voiceMode = false;
+        };
+        try { rec.start(); armSilence(6000); } catch (e) { reclive = false; voiceMode = false; mic.classList.remove('rec'); if (liveBubble) { liveBubble.remove(); liveBubble = null; } }
       };
+      mic.onclick = function () { if (reclive) stopListen(); else startListen(); };
     }
   }
 

@@ -1735,9 +1735,16 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
     if (!SR || listening) return;
     try {
       const rec = new SR(); recRef.current = rec;
-      rec.lang = "en-US"; rec.interimResults = false; rec.maxAlternatives = 1;
-      rec.onresult = (e) => { const t = e.results[0][0].transcript; setDesc(t); runDesc(t); };
-      rec.onend = () => setListening(false);
+      // Live transcription: interim results stream into the box AS YOU SPEAK, so you see
+      // exactly what it's hearing; on the final result we run it and speak a reply back.
+      rec.lang = "en-US"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+      let finalT = "";
+      rec.onresult = (e) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) { const res = e.results[i]; if (res.isFinal) finalT += res[0].transcript; else interim += res[0].transcript; }
+        setDesc((finalT + " " + interim).trim());
+      };
+      rec.onend = () => { setListening(false); const v = finalT.trim(); if (v) runDesc(v, true); };
       rec.onerror = () => setListening(false);
       setListening(true); rec.start();
     } catch { setListening(false); }
@@ -1750,7 +1757,7 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
   const generate = () => { addChecklistItems(generateFromTrip(stops, monthIdx)); setOpen(true); };
   // "Describe your trip" → the Ask Park Buddy agent (its add_checklist_items tool),
   // grounded in the current trip; keyword rules are the offline fallback.
-  const runDesc = async (override) => {
+  const runDesc = async (override, fromVoice) => {
     const t = (typeof override === "string" ? override : desc).trim();
     if (!t || busy) return;
     setBusy(true); setOpen(true);
@@ -1763,8 +1770,16 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
       const aiItems = act && act.input && Array.isArray(act.input.items) ? act.input.items : null;
       if (aiItems && aiItems.length) applied = aiItems;
     } catch {}
-    addChecklistItems(applied || parseDescription(t));
+    const toAdd = applied || parseDescription(t);
+    addChecklistItems(toAdd);
+    // Speak a short confirmation back when the request came by voice, so it's a real
+    // two-way exchange ("Added 6 things to your list.").
+    if (fromVoice && toAdd && toAdd.length) speakBack("Added " + toAdd.length + " thing" + (toAdd.length === 1 ? "" : "s") + " to your list: " + toAdd.slice(0, 5).map((i) => i.label).join(", ") + ".");
     setDesc(""); setBusy(false);
+  };
+  // Read a short reply aloud (voice-out) — only used when the user spoke to us.
+  const speakBack = (text) => {
+    try { if (!window.speechSynthesis) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text).slice(0, 400)); u.lang = "en-US"; u.rate = 1.03; window.speechSynthesis.speak(u); } catch {}
   };
   const commitAdd = (cat) => { const v = addVal.trim(); if (v) addChecklistItem(cat, v); setAddVal(""); setAdding(null); };
   return (

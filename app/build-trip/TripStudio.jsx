@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
+import { searchPlaces, resolvePlace } from "../lib/placeSearch";
 
 // Trip Studio — the futuristic reskin of Build My Trip, ported from the Claude
 // Design prototype (Downloads/Trip Studio.dc.html). PRESENTATIONAL ONLY: every
@@ -1665,16 +1666,17 @@ function AddressPicker({ placeholder, onPick, fieldBox }) {
   useEffect(() => {
     if (tRef.current) clearTimeout(tRef.current);
     const term = q.trim();
-    if (term.length < 3) { setList([]); setLoading(false); return; }
+    if (term.length < 2) { setList([]); setLoading(false); return; }
     setLoading(true);
     const seq = ++seqRef.current;
     tRef.current = setTimeout(() => {
-      fetch("/api/geocode?suggest=1&q=" + encodeURIComponent(term))
-        .then((r) => r.json()).then((d) => { if (seq === seqRef.current) { setList((d && d.suggestions) || []); setLoading(false); } })
+      searchPlaces(term)
+        .then((res) => { if (seq === seqRef.current) { setList(res || []); setLoading(false); } })
         .catch(() => { if (seq === seqRef.current) { setList([]); setLoading(false); } });
-    }, 300);
+    }, 250);
     return () => tRef.current && clearTimeout(tRef.current);
   }, [q]);
+  const pickSug = async (s) => { setQ(""); setList([]); const r = await resolvePlace(s); if (r) onPick(r); };
   const useMyLocation = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) { setGeo("Location isn't available on this device."); return; }
     setGeo("Finding your location…");
@@ -1701,11 +1703,11 @@ function AddressPicker({ placeholder, onPick, fieldBox }) {
         <div className="ts-scroll" style={{ marginTop: 8, maxHeight: 220, overflowY: "auto", border: "1px solid rgba(217,183,121,0.14)", borderRadius: 12, padding: 6, background: "rgba(0,0,0,0.15)" }}>
           {loading && <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#7f8a82", padding: "10px 8px", display: "flex", alignItems: "center", gap: 8 }}><span className="ts-skel" style={{ width: 22, height: 14, borderRadius: 6 }} />Searching…</div>}
           {!loading && list.map((s, i) => (
-            <button key={i} onClick={() => onPick({ name: s.name, state: s.state, lat: s.lat, lng: s.lng })} className="ts-menuitem" style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left", padding: "9px 11px", borderRadius: 9, border: "none", background: "transparent", cursor: "pointer" }}>
+            <button key={i} onClick={() => pickSug(s)} className="ts-menuitem" style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left", padding: "9px 11px", borderRadius: 9, border: "none", background: "transparent", cursor: "pointer" }}>
               <span style={{ width: 28, height: 28, flex: "none", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#e0b978", background: "rgba(224,185,120,0.12)", border: "1px solid rgba(224,185,120,0.28)" }}><TSIcon name="pin" size={14} /></span>
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span style={{ display: "block", fontFamily: SANS, fontSize: 13, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</span>
-                {s.fullName && <span style={{ display: "block", fontFamily: MONO, fontSize: 8.5, color: "#7f8a82", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.fullName}</span>}
+                {(s.sub || s.state) && <span style={{ display: "block", fontFamily: MONO, fontSize: 8.5, color: "#7f8a82", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.sub || s.state}</span>}
               </span>
             </button>
           ))}
@@ -1725,17 +1727,21 @@ function GeoAutocomplete({ placeholder, onPick, onType, inputStyle, fieldBox }) 
   useEffect(() => {
     if (tRef.current) clearTimeout(tRef.current);
     const term = q.trim();
-    if (term.length < 3) { setList([]); setLoading(false); return; }
+    if (term.length < 2) { setList([]); setLoading(false); return; }
     setLoading(true);
     const seq = ++seqRef.current;
     tRef.current = setTimeout(() => {
-      fetch("/api/geocode?suggest=1&q=" + encodeURIComponent(term))
-        .then((r) => r.json()).then((d) => { if (seq === seqRef.current) { setList((d && d.suggestions) || []); setOpen(true); setLoading(false); } })
+      searchPlaces(term)
+        .then((res) => { if (seq === seqRef.current) { setList(res || []); setOpen(true); setLoading(false); } })
         .catch(() => { if (seq === seqRef.current) { setList([]); setLoading(false); } });
-    }, 300);
+    }, 250);
     return () => tRef.current && clearTimeout(tRef.current);
   }, [q]);
-  const pick = (s) => { onPick(s); setQ(""); setList([]); setOpen(false); if (onType) onType(""); };
+  const pick = async (s) => {
+    setQ(""); setList([]); setOpen(false); if (onType) onType("");
+    const r = await resolvePlace(s);
+    if (r) onPick(r);
+  };
   return (
     <div style={{ position: "relative" }}>
       <div style={{ display: "flex", gap: 9 }}>
@@ -1747,7 +1753,7 @@ function GeoAutocomplete({ placeholder, onPick, onType, inputStyle, fieldBox }) 
           {list.map((s, i) => (
             <div key={i} onClick={() => pick(s)} className="ts-menuitem" style={{ padding: "9px 11px", borderRadius: 9, cursor: "pointer" }}>
               <div style={{ fontFamily: SANS, fontSize: 13, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
-              <div style={{ fontFamily: MONO, fontSize: 9, color: "#7f8a82", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.fullName || s.state}</div>
+              {(s.sub || s.state) && <div style={{ fontFamily: MONO, fontSize: 9, color: "#7f8a82", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.sub || s.state}</div>}
             </div>
           ))}
         </div>

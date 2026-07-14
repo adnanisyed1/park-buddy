@@ -27,7 +27,7 @@ export function ensureMapsLoaded() {
     const s = document.createElement("script");
     s.id = "pb-shared-gm-js";
     s.async = true;
-    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly&loading=async&callback=__pbSharedMapsInit";
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&libraries=places&v=weekly&loading=async&callback=__pbSharedMapsInit";
     s.onerror = () => resolve(false);
     document.head.appendChild(s);
   });

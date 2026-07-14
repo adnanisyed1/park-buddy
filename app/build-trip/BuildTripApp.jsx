@@ -679,7 +679,7 @@ export default function BuildTripApp() {
     const s = document.createElement("script");
     s.id = "pb-gm-js";
     s.async = true;
-    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly&loading=async&callback=__pbBtInit";
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&libraries=places&v=weekly&loading=async&callback=__pbBtInit";
     s.onerror = () => { setKeyMsg("Could not load Google Maps. Check your connection or the key."); setKeyOverlay(true); };
     document.head.appendChild(s);
   }

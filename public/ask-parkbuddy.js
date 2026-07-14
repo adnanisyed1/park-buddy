@@ -61,11 +61,16 @@
       '.pbask-head small{color:rgba(251,246,234,.7);font-size:.72rem}' +
       '.pbask-x{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:' + CREAM + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.95rem}' +
       '.pbask-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:11px;background:' + CREAM + '}' +
-      '.pbask-msg{max-width:84%;padding:11px 14px;border-radius:15px;font-size:.9rem;line-height:1.5}' +
+      '.pbask-msg{max-width:86%;padding:11px 14px;border-radius:16px;font-size:.9rem;line-height:1.55;word-break:break-word;overflow-wrap:anywhere}' +
       '.pbask-msg.bot{align-self:flex-start;background:' + PAPER + ';border:1px solid ' + LINE + ';color:' + INK + ';border-bottom-left-radius:5px}' +
+      '.pbask-msg.bot>div+div{margin-top:8px}' +               // breathing room between paragraphs
+      '.pbask-msg.bot>div+ul,.pbask-msg.bot ul+div{margin-top:8px}' +
       '.pbask-msg.user{align-self:flex-end;background:linear-gradient(135deg,' + TEAL + ',' + TEALD + ');color:' + CREAM + ';border-bottom-right-radius:5px}' +
-      '.pbask-msg.user.live{opacity:.72;font-style:italic;box-shadow:0 0 0 2px rgba(228,190,120,.5)}' +
-      '.pbask-msg.user.live::after{content:"\\2026 listening";display:block;font-size:.62rem;font-style:normal;opacity:.7;margin-top:3px}' +
+      // Live "you are speaking" bubble: fully readable (no fade/italic), pulsing gold ring,
+      // grows to show the WHOLE message as you talk, with a clear listening label.
+      '.pbask-msg.user.live{max-width:92%;opacity:1;font-style:normal;animation:pbasklive 1.4s ease-in-out infinite}' +
+      '@keyframes pbasklive{0%,100%{box-shadow:0 0 0 2px rgba(228,190,120,.28)}50%{box-shadow:0 0 0 2px rgba(228,190,120,.75)}}' +
+      '.pbask-msg.user.live::after{content:"\\1F3A4 Listening\\2026";display:block;font-size:.62rem;font-weight:800;letter-spacing:.05em;opacity:.9;margin-top:6px}' +
       '.pbask-spk{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:' + CREAM + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.9rem}' +
       '.pbask-spk.off{opacity:.5}' +
       '.pbask-msg b{color:' + HEAD + '}.pbask-msg.user b{color:#fff}.pbask-msg ul{margin:6px 0 0;padding-left:18px}.pbask-msg li{margin:3px 0}' +

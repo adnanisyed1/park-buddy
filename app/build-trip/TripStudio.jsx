@@ -184,6 +184,7 @@ export default function TripStudio(props) {
         @keyframes ts-gridDrift { from { transform: translate(0,0); } to { transform: translate(-64px,-64px); } }
         @keyframes ts-softFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
         @keyframes ts-shimmer { 0% { background-position: -140% 0; } 100% { background-position: 240% 0; } }
+        @keyframes ts-pulse { 0% { box-shadow: 0 0 0 0 rgba(127,176,208,0.5); } 70% { box-shadow: 0 0 0 7px rgba(127,176,208,0); } 100% { box-shadow: 0 0 0 0 rgba(127,176,208,0); } }
         .ts-skel { background: linear-gradient(90deg, rgba(217,183,121,0.06) 25%, rgba(217,183,121,0.16) 50%, rgba(217,183,121,0.06) 75%); background-size: 220% 100%; animation: ts-shimmer 1.3s linear infinite; border-radius: 999px; }
         .ts-scroll::-webkit-scrollbar { width: 8px; }
         .ts-scroll::-webkit-scrollbar-thumb { background: rgba(217,183,121,.18); border-radius: 8px; }
@@ -1829,6 +1830,16 @@ function PackGoPanel({ stops, dayRanges, fieldBox }) {
         <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <div style={{ fontFamily: SANS, fontSize: 12, color: "#8f9a90", marginBottom: 7 }}>Describe your trip and we&apos;ll suggest what to bring.</div>
+            {listening && (
+              <div style={{ marginBottom: 8, padding: "10px 12px", borderRadius: 11, background: "rgba(127,176,208,0.08)", border: "1px solid rgba(127,176,208,0.4)", animation: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: desc ? 6 : 0 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7fb0d0", animation: "ts-pulse 1.3s infinite" }} />
+                  <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#7fb0d0" }}>🎤 Listening — say it all</span>
+                </div>
+                {/* the FULL spoken message, wrapping — never clipped to one line */}
+                {desc && <div style={{ fontFamily: SANS, fontSize: 13, color: "#f4f1ea", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{desc}</div>}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8 }}>
               <input value={desc} onChange={(e) => setDesc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") runDesc(); }} placeholder={listening ? "Listening…" : "Camping with a baby in winter…"} disabled={busy} style={{ ...fieldBox, flex: 1, opacity: busy ? 0.6 : 1 }} />
               {canVoice && (

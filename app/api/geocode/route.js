@@ -24,10 +24,22 @@ async function nominatim(q, usOnly) {
 }
 function shortLabel(hit, fallback) {
   const a = hit.address || {};
-  return (a.tourism || a.attraction || a.hotel || a.leisure || a.building ||
+  // Lead with the feature's own name (Nominatim jsonv2 returns a top-level `name` for
+  // any named POI — "Walmart Supercenter", "Zion Lodge") so a business reads as itself,
+  // not as its street address. Fall back to typed tags (shop/amenity cover retail, which
+  // isn't in tourism/leisure), then the street line, then the town.
+  return (hit.name ||
+    a.shop || a.amenity || a.tourism || a.attraction || a.hotel || a.leisure || a.office || a.craft || a.building ||
     [a.house_number, a.road].filter(Boolean).join(" ") ||
     a.hamlet || a.village || a.town || a.city ||
     (hit.display_name || fallback || "").split(",")[0] || fallback || "").slice(0, 60);
+}
+// The secondary line: the address, with the redundant leading name stripped so it reads
+// like Google's own secondary_text ("123 Main St, City, ST") rather than repeating "Walmart".
+function subLabel(hit, name) {
+  const full = hit.display_name || "";
+  if (name && full.toLowerCase().startsWith(name.toLowerCase())) return full.slice(name.length).replace(/^[,\s]+/, "");
+  return full;
 }
 
 // US state abbreviations for the short label.
@@ -61,7 +73,7 @@ export async function GET(request) {
       if (!rows.length) rows = await nominatimMany(q, false, 5);
       const suggestions = rows
         .filter((h) => h && h.lat != null && h.lon != null)
-        .map((h) => ({ name: shortLabel(h, q), fullName: h.display_name || "", lat: Number(h.lat), lng: Number(h.lon), state: ST[(h.address || {}).state] || "" }));
+        .map((h) => { const name = shortLabel(h, q); return { name, sub: subLabel(h, name), fullName: h.display_name || "", lat: Number(h.lat), lng: Number(h.lon), state: ST[(h.address || {}).state] || "" }; });
       return Response.json({ suggestions });
     } catch {
       return Response.json({ suggestions: [] });

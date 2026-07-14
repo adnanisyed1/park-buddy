@@ -71,6 +71,6 @@ export async function resolvePlace(sug) {
 async function nominatim(q) {
   try {
     const d = await fetch("/api/geocode?suggest=1&q=" + encodeURIComponent(q)).then((r) => r.json());
-    return ((d && d.suggestions) || []).map((s) => ({ id: null, name: s.name, sub: s.fullName || s.state || "", lat: s.lat, lng: s.lng, state: s.state }));
+    return ((d && d.suggestions) || []).map((s) => ({ id: null, name: s.name, sub: s.sub || s.fullName || s.state || "", lat: s.lat, lng: s.lng, state: s.state }));
   } catch { return []; }
 }

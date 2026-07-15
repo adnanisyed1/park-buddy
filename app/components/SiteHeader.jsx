@@ -191,7 +191,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-        padding: "15px clamp(16px,4vw,54px)",
+        padding: "8px clamp(16px,4vw,54px)",
         background: solid ? "var(--pb-bg)" : "rgba(7,10,16,.55)",
         WebkitBackdropFilter: solid ? "none" : "blur(18px) saturate(1.3)",
         backdropFilter: solid ? "none" : "blur(18px) saturate(1.3)",

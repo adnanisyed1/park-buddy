@@ -139,7 +139,6 @@ export default function TripStudio(props) {
   const [mobileAddOpen, setMobileAddOpen] = useState(false);
   const [pendingRoute, setPendingRoute] = useState(null); // ready-made route awaiting an insertion point
   const [scenicAdd, setScenicAdd] = useState(null); // scenic drive awaiting drag/click placement into the trip
-  const [scenicExpanded, setScenicExpanded] = useState(false); // add ALL waypoints (vs start & end) to Plan this day
   const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
   const [scenicDragging, setScenicDragging] = useState(false);
   const [addTargetIdx, setAddTargetIdx] = useState(null); // where the next "Add a base" inserts (null = end)
@@ -485,7 +484,7 @@ export default function TripStudio(props) {
                   {(() => {
                     const openScenicAdd = () => {
                       const b = previewRoute, d = bywayDetail && bywayDetail.id === previewRoute.id ? bywayDetail : null;
-                      setScenicExpanded(false); setScenicDropPos(null); setScenicDragging(false);
+                      setScenicDropPos(null); setScenicDragging(false);
                       setScenicAdd({ drive: { id: b.id, name: b.name, states: b.states, lat: b.lat, lng: b.lng, endpoints: b.endpoints, lengthMi: b.lengthMi, length: b.length }, detail: d });
                     };
                     return (
@@ -952,6 +951,7 @@ export default function TripStudio(props) {
                                               const meta = [];
                                               if (a.time) meta.push(prettyTime(a.time));
                                               if (a.type === "hike") { if (a.lengthMi != null) meta.push(a.lengthMi + " mi"); if (a.gainFt != null) meta.push("+" + a.gainFt + " ft"); }
+                                              if (a.type === "scenic" && a.stopsCount) meta.push(a.stopsCount + " stops along the way");
                                               meta.push("~" + fmtDurMin(dur));
                                               return (
                                               <Fragment key={a.id}>
@@ -1315,8 +1315,9 @@ export default function TripStudio(props) {
         // Expanded also drops every waypoint onto the day as Sight blocks.
         const doAddToDay = (stopName, dayIndex) => {
           const b = sd.drive;
-          addActivity && addActivity(stopName, { type: "scenic", name: b.name, day: dayIndex, slug: b.id, ...(b.lat != null ? { lat: b.lat, lng: b.lng } : {}) });
-          if (scenicExpanded) itin.forEach((w) => addActivity && addActivity(stopName, { type: "sight", name: w.place + (w.mileFromStart != null ? " · mi " + w.mileFromStart.toFixed(1) : ""), day: dayIndex, ...(w.lat != null ? { lat: w.lat, lng: w.lng } : {}) }));
+          // Add the drive as ONE scenic stop that carries its stop count for reference —
+          // never dump every waypoint as its own day activity (that crowded the plan).
+          addActivity && addActivity(stopName, { type: "scenic", name: b.name, day: dayIndex, slug: b.id, ...(itin.length ? { stopsCount: itin.length } : {}), ...(b.lat != null ? { lat: b.lat, lng: b.lng } : {}) });
           setScenicAdd(null); setScenicDropPos(null); setScenicDragging(false); setPreviewRoute && setPreviewRoute(null); setMode && setMode("new"); setExpandedStop && setExpandedStop(stopName);
         };
         const DayTarget = (stopName, d, globalStart, dateFor) => {
@@ -1381,27 +1382,21 @@ export default function TripStudio(props) {
                       <span style={{ fontSize: 12 }}>⠿</span>{isMobile ? "Tap a day to add it →" : "Drag me onto a day ←"}
                     </div>
                   </div>
-                  {/* expand — swap start&end for all waypoints */}
+                  {/* Reference preview of the drive's stops — added as ONE scenic stop, so
+                      these never flood your day. (Read-only; the drive keeps the count.) */}
                   {itin.length > 0 && (
                     <div style={{ marginTop: 12 }}>
-                      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 12, border: "1px solid " + (scenicExpanded ? "rgba(217,183,121,0.4)" : "rgba(217,183,121,0.16)"), background: scenicExpanded ? "rgba(232,207,154,0.08)" : "transparent" }}>
-                        <input type="checkbox" checked={scenicExpanded} onChange={(e) => setScenicExpanded(e.target.checked)} style={{ marginTop: 2, accentColor: "#c9a35f", width: 15, height: 15 }} />
-                        <div>
-                          <div style={{ fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "#f4f1ea" }}>Expand — add every stop</div>
-                          <div style={{ fontFamily: SANS, fontSize: 11, color: "#7f8a82", marginTop: 2, lineHeight: 1.45 }}>{scenicExpanded ? "All " + itin.length + " waypoints go under the drive in “Plan this day.”" : "Off: only the start & end go into “Plan this day.”"}</div>
-                        </div>
-                      </label>
-                      {scenicExpanded && (
-                        <div className="ts-scroll" style={{ marginTop: 8, maxHeight: 168, overflowY: "auto", border: "1px solid rgba(217,183,121,0.12)", borderRadius: 10, padding: "6px 4px" }}>
-                          {itin.map((s, idx) => (
-                            <div key={idx} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "4px 8px" }}>
-                              <span style={{ fontFamily: MONO, fontSize: 8.5, color: "#c9a35f", minWidth: 16 }}>{s.seq}</span>
-                              <span style={{ fontFamily: SANS, fontSize: 12, color: "#e6e2d8", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.place}</span>
-                              {s.mileFromStart != null && <span style={{ fontFamily: MONO, fontSize: 7.5, color: "#7f8a82" }}>MI {s.mileFromStart.toFixed(0)}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".1em", textTransform: "uppercase", color: "#7f8a82", marginBottom: 6 }}>{itin.length} stops along the way</div>
+                      <div className="ts-scroll" style={{ maxHeight: 150, overflowY: "auto", border: "1px solid rgba(217,183,121,0.12)", borderRadius: 10, padding: "6px 4px" }}>
+                        {itin.map((s, idx) => (
+                          <div key={idx} style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "4px 8px" }}>
+                            <span style={{ fontFamily: MONO, fontSize: 8.5, color: "#c9a35f", minWidth: 16 }}>{s.seq != null ? s.seq : idx + 1}</span>
+                            <span style={{ fontFamily: SANS, fontSize: 12, color: "#e6e2d8", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.place}</span>
+                            {s.mileFromStart != null && <span style={{ fontFamily: MONO, fontSize: 7.5, color: "#7f8a82" }}>MI {s.mileFromStart.toFixed(0)}</span>}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ fontFamily: SANS, fontSize: 10.5, color: "#7f8a82", marginTop: 6, lineHeight: 1.4 }}>The drive is added as one stop — these stay for reference, not dumped into your plan.</div>
                     </div>
                   )}
                 </div>

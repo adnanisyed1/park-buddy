@@ -191,18 +191,25 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       className="pb-nav-float"
       style={{
         position: "fixed", top: "clamp(8px,1.4vw,14px)", left: "clamp(8px,1.6vw,18px)", right: "clamp(8px,1.6vw,18px)", zIndex: 100,
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-        padding: "2px 8px 2px 6px",
-        background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
-        WebkitBackdropFilter: "blur(22px) saturate(1.4)",
-        backdropFilter: "blur(22px) saturate(1.4)",
-        border: "1px solid var(--pb-line-strong)",
-        borderRadius: 22,
-        boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
+        display: "flex", alignItems: "center", gap: "clamp(10px,1.4vw,18px)",
         fontFamily: "var(--pb-sans)",
       }}
     >
       <Logo />
+      <div
+        className="pb-nav-pill"
+        style={{
+          flex: 1, minWidth: 0, position: "relative",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+          padding: "8px 12px 8px 20px",
+          background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
+          WebkitBackdropFilter: "blur(22px) saturate(1.4)",
+          backdropFilter: "blur(22px) saturate(1.4)",
+          border: "1px solid var(--pb-line-strong)",
+          borderRadius: 22,
+          boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
+        }}
+      >
       <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 26, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
         {/* Explore ▾ — the ways to experience the parks */}
         <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={exActive} open={openKey === "explore"} onOpen={() => setOpenKey("explore")} onClose={() => setOpenKey(null)} />
@@ -270,12 +277,13 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         aria-label={menuOpen ? "Close menu" : "Open menu"}
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
-        style={{ display: "none", cursor: "pointer", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 11, width: 42, height: 40, alignItems: "center", justifyContent: "center", color: "var(--pb-ink)", flex: "none" }}
+        style={{ display: "none", marginLeft: "auto", cursor: "pointer", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 11, width: 42, height: 40, alignItems: "center", justifyContent: "center", color: "var(--pb-ink)", flex: "none" }}
       >
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           {menuOpen ? <><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></> : <><line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" /></>}
         </svg>
       </button>
+      </div>{/* /pb-nav-pill */}
 
       {/* Full mobile menu panel — one column, everything the desktop bar carries. */}
       {menuOpen && (

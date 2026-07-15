@@ -68,7 +68,7 @@
       '.pbask-panel{position:fixed;right:18px;bottom:18px;z-index:99001;width:min(390px,calc(100vw - 28px));height:min(580px,calc(100vh - 36px));background:' + SURFACE + ';border:1px solid ' + LINE + ';border-radius:22px;box-shadow:0 40px 100px -40px rgba(0,0,0,.9);display:none;flex-direction:column;overflow:hidden;font-family:' + SANS + '}' +
       '.pbask-panel.open{display:flex}' +
       '.pbask-head{background:linear-gradient(135deg,' + SURFACE2 + ',' + BG + ');color:' + INK + ';padding:15px 17px;display:flex;align-items:center;gap:11px;border-bottom:1px solid ' + LINE + '}' +
-      '.pbask-head .lg{width:38px;height:38px;flex:none;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4))}' +
+      '.pbask-head .lg{width:48px;height:48px;flex:none;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4))}' +
       '.pbask-head b{font-family:' + SERIF + ';font-weight:600;font-size:1.28rem;line-height:1.05;display:block;color:' + INK + ';letter-spacing:.01em}' +
       '.pbask-head small{color:' + MUTED + ';font-family:' + MONO + ';font-size:.6rem;letter-spacing:.14em;text-transform:uppercase}' +
       '.pbask-x{background:rgba(255,255,255,.06);border:1px solid ' + LINE + ';color:' + INK2 + ';width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.95rem}' +
@@ -251,7 +251,7 @@
     fab.innerHTML = '<span class="pbask-mark">' + pineSvg(26) + '</span> Ask Park Buddy';
     var panel = document.createElement('div'); panel.className = 'pbask-panel';
     panel.innerHTML =
-      '<div class="pbask-head"><span class="lg">' + pineSvg(38) +'</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-spk' + (ttsOn ? '' : ' off') + '" title="Read replies aloud">' + (ttsOn ? '\uD83D\uDD0A' : '\uD83D\uDD07') + '</button><button class="pbask-x" title="Close">\u2715</button></div>' +
+      '<div class="pbask-head"><span class="lg">' + pineSvg(48) + '</span><div><b>Ask Park Buddy</b><small>AI trip planner \u00b7 real NPS data</small></div><button class="pbask-spk' + (ttsOn ? '' : ' off') + '" title="Read replies aloud">' + (ttsOn ? '\uD83D\uDD0A' : '\uD83D\uDD07') + '</button><button class="pbask-x" title="Close">\u2715</button></div>' +
       '<div class="pbask-body"></div>' +
       '<div class="pbask-note">Grounded in National Park Service data \u00b7 not live weather</div>' +
       '<div class="pbask-foot"><button class="pbask-mic" title="Speak">\uD83C\uDFA4</button><input type="text" placeholder="Describe your trip\u2026" maxlength="240"><button class="pbask-send" title="Send">\u2191</button></div>';

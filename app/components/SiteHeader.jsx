@@ -75,15 +75,14 @@ const LINKS = [
 
 function Logo() {
   return (
-    <Link href="/" aria-label="The Park Buddy — home" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: "var(--pb-ink)" }}>
+    <Link href="/" aria-label="The Park Buddy — home" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--pb-ink)" }}>
       <img
         src="/brand/the-park-buddy-badge.png"
         alt="The Park Buddy"
-        width={46}
-        height={46}
-        style={{ height: 46, width: 46, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 10px rgba(0,0,0,.35))" }}
+        width={96}
+        height={96}
+        style={{ height: 96, width: 96, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 14px rgba(0,0,0,.4))" }}
       />
-      <span style={{ fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "1.4rem", letterSpacing: ".01em" }}>Park Buddy</span>
     </Link>
   );
 }

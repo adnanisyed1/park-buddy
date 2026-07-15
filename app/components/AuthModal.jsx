@@ -48,7 +48,7 @@ export default function AuthModal() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={38} height={38} style={{ width: 38, height: 38, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 8px rgba(0,0,0,.35))" }} />
+            <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={52} height={52} style={{ width: 52, height: 52, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 10px rgba(0,0,0,.35))" }} />
             <b style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>Park Buddy</b>
           </div>
           <button onClick={closeAuth} aria-label="Close" style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,22,15,.7)", color: "var(--pb-gold)", fontSize: ".95rem", lineHeight: 1 }}>✕</button>

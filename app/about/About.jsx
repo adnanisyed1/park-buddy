@@ -111,9 +111,8 @@ export default function About() {
   return (
     <div className={styles.page} ref={rootRef}>
       <nav className={styles.nav} ref={navRef}>
-        <Link href="/" className={styles.brand}>
-          <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={40} height={40} style={{ width: 40, height: 40, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 8px rgba(0,0,0,.35))" }} />
-          ParkBuddy
+        <Link href="/" className={styles.brand} aria-label="The Park Buddy — home">
+          <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={72} height={72} style={{ width: 72, height: 72, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 12px rgba(0,0,0,.4))" }} />
         </Link>
         <div className={styles.navlinks}>
           <Link href="/explore">Map</Link>

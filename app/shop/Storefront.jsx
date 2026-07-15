@@ -196,9 +196,8 @@ export default function Storefront() {
       {/* header / nav */}
       <header style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--surface)", borderBottom: "1px solid var(--line)" }}>
         <div className="pbs-wrap" style={{ display: "flex", alignItems: "center", gap: 20, padding: "14px 24px", flexWrap: "wrap" }}>
-          <a href="/" style={{ display: "flex", alignItems: "center", gap: 11, textDecoration: "none", color: "var(--ink)" }}>
-            <LogoGlyph />
-            <span style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "1.4rem", letterSpacing: ".01em" }}>Park Buddy</span>
+          <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--ink)" }}>
+            <LogoGlyph w={72} />
           </a>
           <nav style={{ display: "flex", gap: 22, flexWrap: "wrap", marginLeft: "auto" }}>
             {NAV.map(([label, href]) => (
@@ -459,7 +458,7 @@ export default function Storefront() {
       <footer style={{ background: "var(--pine-deep)", color: "var(--sage)", borderTop: "1px solid var(--line)" }}>
         <div className="pbs-wrap" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 30, padding: "48px 24px" }}>
           <div>
-            <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: "var(--parchment)", marginBottom: 12 }}><LogoGlyph w={30} g={16} /><span style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "1.2rem" }}>Park Buddy</span></a>
+            <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--parchment)", marginBottom: 12 }}><LogoGlyph w={64} /></a>
             <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--sage)", margin: "0 0 10px", maxWidth: 260 }}>Premium outdoor apparel for every backcountry crew. Original in-house art, tied to real trails.</p>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: 1, color: "var(--brass-l)" }}>◇ 44.4280°N 110.5885°W · EST. MMXXI</div>
           </div>

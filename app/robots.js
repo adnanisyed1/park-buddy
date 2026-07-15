@@ -1,6 +1,11 @@
-import { SITE_URL } from "./layout";
+import { SITE_URL, IS_PROD } from "./layout";
 
 export default function robots() {
+  // Dev/staging deployments must never be indexed (no duplicate content, no
+  // leaking a half-finished site into search) — block everything off-production.
+  if (!IS_PROD) {
+    return { rules: { userAgent: "*", disallow: "/" } };
+  }
   return {
     rules: {
       userAgent: "*",

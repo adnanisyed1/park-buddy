@@ -20,6 +20,16 @@ const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["400", "700"], varia
 // long-term production domain, used only when the env var is unset.
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://theparkbuddy.com";
 
+// Only the PRODUCTION deployment (the live theparkbuddy.com / park-buddy-gamma)
+// should be indexable and un-badged. Vercel sets VERCEL_ENV to "production" for
+// the production deployment and "preview" for branch/dev deployments; it's unset
+// locally. Everything that isn't production is treated as a dev/staging site:
+// noindex + a corner DEV badge, so the staging site never competes in search or
+// gets mistaken for the real thing.
+export const IS_PROD = process.env.VERCEL_ENV === "production";
+const DEPLOY_ENV = process.env.VERCEL_ENV || "local";
+const DEPLOY_REF = process.env.VERCEL_GIT_COMMIT_REF || "";
+
 // Lock the mobile viewport so the app behaves like a native app: no pinch-zoom, no
 // double-tap zoom, and no iOS auto-zoom-into-inputs. (Emits
 // width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no.)
@@ -59,7 +69,7 @@ export const metadata = {
     description:
       "Discover the best national parks and lakes near you, build real-road trips, and collect a digital Trip Passport.",
   },
-  robots: { index: true, follow: true },
+  robots: IS_PROD ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 // Site-wide structured data so search engines understand the brand + search action.
@@ -94,6 +104,21 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
         />
         {children}
+        {!IS_PROD && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "fixed", left: 10, bottom: 10, zIndex: 2147483647, pointerEvents: "none",
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 10, fontWeight: 700,
+              letterSpacing: ".12em", textTransform: "uppercase", color: "#0a1712",
+              background: "linear-gradient(120deg,#e8cf9a,#c9a35f)", borderRadius: 999,
+              padding: "4px 10px", boxShadow: "0 6px 18px -6px rgba(0,0,0,.6)",
+            }}
+          >
+            ● Dev{DEPLOY_ENV !== "local" ? " · " + DEPLOY_ENV : ""}{DEPLOY_REF ? " · " + DEPLOY_REF : ""}
+          </div>
+        )}
       </body>
     </html>
   );

@@ -7,11 +7,15 @@
 //       email text not null unique,
 //       source text, created_at timestamptz default now()
 //     );
+import { enforce } from "../../lib/ratelimit";
+
 export const runtime = "nodejs";
 
 function err(msg, status = 400) { return Response.json({ error: msg }, { status }); }
 
 export async function POST(request) {
+  const limited = await enforce(request, "waitlist", { limit: 5, windowMs: 60_000 });
+  if (limited) return limited;
   const sb = (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, "");
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!sb || !key) return err("Waitlist isn't set up yet — check back soon.", 503);

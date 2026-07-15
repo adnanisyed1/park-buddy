@@ -5,11 +5,15 @@
 // The row stores WHICH alerts they want; the actual email SENDER (a scheduled job
 // that checks conditions and mails via Resend/SendGrid) is the production
 // follow-up — this endpoint just persists the subscription.
+import { enforce } from "../../lib/ratelimit";
+
 export const runtime = "nodejs";
 
 function err(msg, status = 400) { return Response.json({ error: msg }, { status }); }
 
 export async function POST(request) {
+  const limited = await enforce(request, "park-alert", { limit: 8, windowMs: 60_000 });
+  if (limited) return limited;
   const sb = (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, "");
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!sb || !key) return err("Alerts aren't set up yet — check back soon.", 503);

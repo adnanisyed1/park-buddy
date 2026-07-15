@@ -6,6 +6,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { uploadPublicImage, storageConfigured } from "../../../lib/storage";
 import { moderateImage } from "../../../lib/moderation";
+import { rateLimit } from "../../../lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,8 @@ export async function POST(request) {
   if (!sb || !svc || !storageConfigured()) return Response.json({ error: "Photo posting isn't set up yet — check back soon." }, { status: 503 });
   const user = await userFromToken(request);
   if (!user) return Response.json({ error: "Sign in to post." }, { status: 401 });
+  const rl = await rateLimit("pines-photo:" + user.id, { limit: 12, windowMs: 300_000 });
+  if (!rl.ok) return Response.json({ error: rl.error }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
 
   let b; try { b = await request.json(); } catch { return Response.json({ error: "Bad request." }, { status: 400 }); }
 

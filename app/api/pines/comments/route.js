@@ -18,6 +18,7 @@
 //       for each row execute function pines_sync_comment_count();
 import { createClient } from "@supabase/supabase-js";
 import { moderateText } from "../../../lib/moderation";
+import { rateLimit } from "../../../lib/ratelimit";
 
 export const runtime = "nodejs";
 function sbBase() { return (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, ""); }
@@ -46,6 +47,8 @@ export async function POST(request) {
   if (!sb || !svc) return Response.json({ error: "Not configured." }, { status: 503 });
   const user = await userFromToken(request);
   if (!user) return Response.json({ error: "Sign in to comment." }, { status: 401 });
+  const rl = await rateLimit("pines-comment:" + user.id, { limit: 20, windowMs: 300_000 });
+  if (!rl.ok) return Response.json({ error: rl.error }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
   let b; try { b = await request.json(); } catch { return Response.json({ error: "Bad request." }, { status: 400 }); }
   const pineId = parseInt(b.pine_id, 10);
   const body = String(b.body || "").trim().slice(0, 600);

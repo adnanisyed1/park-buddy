@@ -14,6 +14,7 @@
 //     create trigger t_pine_like after insert or delete on pine_likes
 //       for each row execute function pines_sync_like_count();
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit } from "../../../lib/ratelimit";
 
 export const runtime = "nodejs";
 function sbBase() { return (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, ""); }
@@ -47,6 +48,8 @@ export async function POST(request) {
   if (!sb || !svc) return Response.json({ error: "Not configured." }, { status: 503 });
   const user = await userFromToken(request);
   if (!user) return Response.json({ error: "Sign in to like." }, { status: 401 });
+  const rl = await rateLimit("pines-like:" + user.id, { limit: 80, windowMs: 60_000 });
+  if (!rl.ok) return Response.json({ error: rl.error }, { status: 429, headers: { "Retry-After": String(rl.retryAfter) } });
   let b; try { b = await request.json(); } catch { return Response.json({ error: "Bad request." }, { status: 400 }); }
   const pineId = parseInt(b.pine_id, 10);
   if (!pineId) return Response.json({ error: "Missing pine_id." }, { status: 400 });

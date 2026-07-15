@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 140" width="520" height="140" role="img" aria-label="Park Buddy logo">
+  <defs>
+    <linearGradient id="pbGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecd696"/>
+      <stop offset="0.5" stop-color="#e8cf9a"/>
+      <stop offset="1" stop-color="#c9a24b"/>
+    </linearGradient>
+  </defs>
+  <!-- gold mark -->
+  <rect x="14" y="34" width="72" height="72" rx="18" fill="url(#pbGold)"/>
+  <g transform="translate(50,70) scale(2.15) translate(-12,-12)" fill="#0a1712">
+    <path d="M12 2l5 9h-3l5 9H5l5-9H7z"/>
+    <rect x="11" y="18" width="2" height="4"/>
+  </g>
+  <!-- wordmark (Cormorant Garamond / Georgia serif) -->
+  <text x="104" y="90" font-family="'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-weight="600" font-size="62" fill="#0a1712" letter-spacing="0.5">Park Buddy</text>
+</svg>

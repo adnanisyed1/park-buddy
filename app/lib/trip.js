@@ -31,7 +31,11 @@ const subs = new Set();
 function coerceWaypoints(arr) {
   return (Array.isArray(arr) ? arr : [])
     .slice(0, 60)
-    .map((w) => ({ place: String((w && (w.place || w.name)) || "").slice(0, 80), mile: w && w.mile != null ? Number(w.mile) : (w && w.mileFromStart != null ? Number(w.mileFromStart) : null) }))
+    .map((w) => {
+      const o = { place: String((w && (w.place || w.name)) || "").slice(0, 80), mile: w && w.mile != null ? Number(w.mile) : (w && w.mileFromStart != null ? Number(w.mileFromStart) : null) };
+      if (w && w.lat != null && w.lng != null) { o.lat = Number(w.lat); o.lng = Number(w.lng); }
+      return o;
+    })
     .filter((w) => w.place);
 }
 

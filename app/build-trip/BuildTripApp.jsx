@@ -397,7 +397,7 @@ export default function BuildTripApp() {
     // cross-check picker that promotes the data-backed ones into real itinerary stops).
     const itin = detail && Array.isArray(detail.itinerary) ? detail.itinerary.filter((s) => s && s.place) : [];
     const ep = drive.endpoints || (detail && detail.endpoints) || null;
-    let waypoints = itin.map((s) => ({ place: s.place, mile: s.mileFromStart != null ? s.mileFromStart : null }));
+    let waypoints = itin.map((s) => ({ place: s.place, mile: s.mileFromStart != null ? s.mileFromStart : null, lat: s.lat != null ? s.lat : null, lng: s.lng != null ? s.lng : null }));
     if (!waypoints.length && ep) waypoints = [ep.from && { place: ep.from, mile: 0 }, ep.to && { place: ep.to, mile: null }].filter(Boolean);
     const stop = { name: drive.name, state: drive.states || drive.state || "", lat: drive.lat, lng: drive.lng, nights: 1, legMi: null, kind: "byway", slug: drive.id, ...(waypoints.length ? { waypoints } : {}) };
     const next = stops.slice();
@@ -1075,6 +1075,20 @@ export default function BuildTripApp() {
           position: { lat: a.lat, lng: a.lng }, map, zIndex: 6,
           title: (a.name || "") + (a.time ? " · " + a.time : ""),
           icon: { path: g.maps.SymbolPath.CIRCLE, scale: 5, fillColor: ACT_COLOR[a.type] || "#e0b978", fillOpacity: 0.95, strokeColor: "#0a1712", strokeWeight: 1.5 },
+        }));
+      });
+    });
+    // Scenic-route reference waypoints — small, LIGHT dots along the drive so you can see
+    // the route's stops on the map without the clutter of full numbered pins.
+    stops.forEach((s) => {
+      if (s.kind !== "byway" || !Array.isArray(s.waypoints)) return;
+      s.waypoints.forEach((w) => {
+        if (w.lat == null || w.lng == null) return;
+        bounds.extend({ lat: w.lat, lng: w.lng });
+        routeMarkersRef.current.push(new g.maps.Marker({
+          position: { lat: w.lat, lng: w.lng }, map, zIndex: 2,
+          title: w.place + (w.mile != null ? " · mi " + Number(w.mile).toFixed(0) : ""),
+          icon: { path: g.maps.SymbolPath.CIRCLE, scale: 3.4, fillColor: "#e8cf9a", fillOpacity: 0.55, strokeColor: "#0a1712", strokeWeight: 1 },
         }));
       });
     });

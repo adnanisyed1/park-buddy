@@ -1,18 +1,12 @@
-import { Suspense } from "react";
-import ShopStore from "./ShopStore";
+import Storefront from "./Storefront";
 
 export const metadata = {
-  title: "The Park Buddy Shop",
+  title: "Park Buddy Outfitters — Premium Outdoor Apparel",
   description:
-    "The Park Buddy Store — posters, prints and merch — plus gear, camping equipment, navigation & safety, maps and guides, optics, and the America the Beautiful park pass. Opening in stages; Trip Book is live now.",
+    "Premium outdoor apparel for every backcountry crew — national park fans, jeepers, overlanders, hikers, mountain bikers, ATV/UTV riders and surfers. Heavyweight blanks, original in-house trail-crest art.",
   alternates: { canonical: "/shop" },
 };
 
 export default function ShopPage() {
-  // ShopStore reads ?cat= via useSearchParams → needs a Suspense boundary.
-  return (
-    <Suspense>
-      <ShopStore />
-    </Suspense>
-  );
+  return <Storefront />;
 }

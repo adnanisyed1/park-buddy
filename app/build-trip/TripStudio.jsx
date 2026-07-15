@@ -1713,7 +1713,7 @@ function CrosscheckModal({ data, onConfirm, onDismiss, navTile }) {
   const [checked, setChecked] = useState(() => new Set(matches.map((_, i) => i)));
   const toggle = (i) => setChecked((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
   const n = checked.size;
-  const DOT = { "National park": "#8fd6a6", "National forest": "#6f9e5a", "State park": "#7fb0d0" };
+  const DOT = { "National park": "#8fd6a6", "National forest": "#6f9e5a", "State park": "#7fb0d0", "Gateway town": "#e0b978" };
   return (
     <div onClick={onDismiss} style={{ position: "fixed", inset: 0, zIndex: 98, background: "rgba(4,9,7,0.8)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 400, background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 18, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", overflow: "hidden" }}>

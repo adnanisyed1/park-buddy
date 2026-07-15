@@ -409,13 +409,34 @@ export default function BuildTripApp() {
     setRailTab("new");
     // Cross-check the route's stops against Park Buddy's own data and, if we have pages for
     // any of them, offer to promote those into real itinerary stops (the rest stay nested).
-    const matches = crosscheckByway(waypoints, drive.name);
-    if (matches.length) setCrosscheck({ bywayName: drive.name, matches });
+    loadTowns().then(() => {
+      const matches = crosscheckByway(waypoints, drive.name);
+      if (matches.length) setCrosscheck({ bywayName: drive.name, matches });
+    });
+  }
+
+  // Gateway towns for the cross-check. Big dataset (~8.5k towns), so lazy-load it once —
+  // only when a scenic route is actually added — and cache a flat, deduped list.
+  const townsRef = useRef(null);
+  async function loadTowns() {
+    if (townsRef.current) return townsRef.current;
+    try {
+      const d = await fetch("/gateway-seed.json").then((r) => (r.ok ? r.json() : null));
+      const seen = new Set(), list = [];
+      ((d && d.places) || []).forEach((p) => (p.towns || []).forEach((t) => {
+        const key = (t.bareName || t.name || "").toLowerCase();
+        if (!key || seen.has(key) || t.lat == null) return; seen.add(key);
+        list.push({ name: t.name, bareName: t.bareName || t.name, lat: t.lat, lng: t.lng });
+      }));
+      townsRef.current = list;
+    } catch { townsRef.current = []; }
+    return townsRef.current;
   }
 
   // Match a byway's waypoints (place names) against the datasets Park Buddy has pages for —
-  // national parks, forests, state parks — so we can offer "we have these, add them?". Name
-  // match only (waypoints carry no coords); towns aren't loaded client-side yet (future).
+  // national parks, forests, state parks (substring name match) + gateway towns (EXACT name
+  // match; there are thousands, so exact-only avoids false positives) — so we can offer
+  // "Park Buddy has these along your route, add them?".
   function crosscheckByway(waypoints, bywayName) {
     const bare = (s) => (s || "").toLowerCase().replace(/national|state|park|parks|forest|scenic|byway|monument|wilderness|recreation|area/g, "").replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
     const sets = [
@@ -423,19 +444,22 @@ export default function BuildTripApp() {
       { db: forestsDb, type: "National forest", kind: "forest" },
       { db: stateParksDb, type: "State park", kind: null },
     ];
+    const towns = townsRef.current || [];
     const have = new Set(stops.map((s) => s.name));
     const claimed = new Set([bywayName]);
     const out = [];
     (waypoints || []).forEach((w) => {
       const wp = bare(w.place); if (wp.length < 4) return;
+      let hit = null;
       for (const { db, type, kind } of sets) {
         const m = (db || []).find((p) => { const pb = bare(p.name); return pb.length >= 4 && (pb === wp || wp.includes(pb) || pb.includes(wp)); });
-        if (m && m.lat != null && !have.has(m.name) && !claimed.has(m.name)) {
-          claimed.add(m.name);
-          out.push({ place: w.place, mile: w.mile, match: { name: m.name, lat: m.lat, lng: m.lng, state: m.states || m.state || "", type, kind } });
-          break;
-        }
+        if (m && m.lat != null) { hit = { name: m.name, lat: m.lat, lng: m.lng, state: m.states || m.state || "", type, kind }; break; }
       }
+      if (!hit) {
+        const t = towns.find((x) => bare(x.bareName) === wp); // exact
+        if (t && t.lat != null) hit = { name: t.name, lat: t.lat, lng: t.lng, state: "", type: "Gateway town", kind: null };
+      }
+      if (hit && !have.has(hit.name) && !claimed.has(hit.name)) { claimed.add(hit.name); out.push({ place: w.place, mile: w.mile, match: hit }); }
     });
     return out;
   }

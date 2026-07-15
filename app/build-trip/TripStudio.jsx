@@ -142,6 +142,7 @@ export default function TripStudio(props) {
   const [scenicDropPos, setScenicDropPos] = useState(null); // gap index currently under the dragged drive tile
   const [scenicDragging, setScenicDragging] = useState(false);
   const [addTargetIdx, setAddTargetIdx] = useState(null); // where the next "Add a base" inserts (null = end)
+  const [openRouteList, setOpenRouteList] = useState(""); // byway stop name whose "stops along the route" list is expanded
   const [mapMenuOpen, setMapMenuOpen] = useState(false); // map style (theme + type) menu
   const [stayFor, setStayFor] = useState(null); // base name whose "stay" popup is open
   const stayFileRef = useRef(null);
@@ -810,6 +811,28 @@ export default function TripStudio(props) {
                               </div>
                             );
                           })()}
+                          {/* Scenic route: its stops-along-the-way live here, nested behind an
+                              expander, instead of flooding the day flow. */}
+                          {s.kind === "byway" && s.waypoints && s.waypoints.length > 0 && (
+                            <div style={{ marginTop: 10, borderTop: "1px solid rgba(217,183,121,0.12)", paddingTop: 9 }}>
+                              <button onClick={(e) => { e.stopPropagation(); setOpenRouteList(openRouteList === s.name ? "" : s.name); }} style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: MONO, fontSize: 9.5, letterSpacing: ".1em", textTransform: "uppercase", color: openRouteList === s.name ? "#e8cf9a" : "#8f9a90" }}>
+                                <span style={{ display: "inline-block", transition: "transform .2s", transform: openRouteList === s.name ? "rotate(90deg)" : "none" }}>▸</span>
+                                {s.waypoints.length} stops along this route
+                              </button>
+                              {openRouteList === s.name && (
+                                <div className="ts-scroll" style={{ marginTop: 8, maxHeight: 230, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2, paddingRight: 4 }}>
+                                  {s.waypoints.map((w, wi) => (
+                                    <div key={wi} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 8px", borderRadius: 8, background: "rgba(255,255,255,.02)" }}>
+                                      <span style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.35)", color: "#c9a35f", fontFamily: MONO, fontSize: 8.5, display: "flex", alignItems: "center", justifyContent: "center" }}>{wi + 1}</span>
+                                      <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12, color: "#cbd2c9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{w.place}</span>
+                                      {w.mile != null && <span style={{ flex: "none", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", color: "#7f8a82" }}>MI {Number(w.mile).toFixed(0)}</span>}
+                                    </div>
+                                  ))}
+                                  <div style={{ fontFamily: SANS, fontSize: 10.5, color: "#7f8a82", marginTop: 6, lineHeight: 1.4 }}>Reference stops along the drive — kept here so they don&apos;t crowd your plan. Park Buddy will offer to add the notable ones next.</div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {/* Plan your days — the stop is a BASE; each night it anchors
                               becomes its own day bucket of typed blocks. */}
                           {toggleDayPlan && (() => {

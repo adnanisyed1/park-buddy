@@ -26,6 +26,15 @@ const DEFAULT_NIGHTS = 2;
 
 const subs = new Set();
 
+// A byway stop carries its route's "stops along the way" (reference list, shown nested on
+// the tile — not dumped into the day flow). Kept lean + capped so it survives localStorage.
+function coerceWaypoints(arr) {
+  return (Array.isArray(arr) ? arr : [])
+    .slice(0, 60)
+    .map((w) => ({ place: String((w && (w.place || w.name)) || "").slice(0, 80), mile: w && w.mile != null ? Number(w.mile) : (w && w.mileFromStart != null ? Number(w.mileFromStart) : null) }))
+    .filter((w) => w.place);
+}
+
 function read() {
   if (typeof window === "undefined") return [];
   let raw;
@@ -43,6 +52,7 @@ function read() {
       if (s.custom) o.custom = true;
       if (s.kind) o.kind = String(s.kind);       // e.g. "byway" — a scenic drive, not a park
       if (s.slug) o.slug = String(s.slug);       // links a byway stop back to /scenic-drives/<slug>
+      if (Array.isArray(s.waypoints) && s.waypoints.length) o.waypoints = coerceWaypoints(s.waypoints); // byway: stops-along-the-route, shown nested (not dumped into the day flow)
       return o;
     })
     .filter(Boolean);
@@ -145,6 +155,7 @@ export function setStops(list) {
       if (s.custom) o.custom = true;
       if (s.kind) o.kind = String(s.kind);
       if (s.slug) o.slug = String(s.slug);
+      if (Array.isArray(s.waypoints) && s.waypoints.length) o.waypoints = coerceWaypoints(s.waypoints);
       return o;
     })
     .filter(Boolean);

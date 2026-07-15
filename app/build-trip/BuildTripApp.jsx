@@ -390,29 +390,21 @@ export default function BuildTripApp() {
   function insertScenicDrive(drive, index, { expanded = false, detail = null } = {}) {
     if (!drive || drive.lat == null) return;
     if (stops.some((s) => s.name === drive.name)) return; // already in the trip
-    const stop = { name: drive.name, state: drive.states || drive.state || "", lat: drive.lat, lng: drive.lng, nights: 1, legMi: null, kind: "byway", slug: drive.id };
+    // Carry the route's "stops along the way" ON the stop (reference list, shown nested on
+    // the tile) instead of dumping every junction into the day flow, which crowded it. The
+    // start/end still frame it; the rest are viewable behind an expander (and, next, the
+    // cross-check picker that promotes the data-backed ones into real itinerary stops).
+    const itin = detail && Array.isArray(detail.itinerary) ? detail.itinerary.filter((s) => s && s.place) : [];
+    const ep = drive.endpoints || (detail && detail.endpoints) || null;
+    let waypoints = itin.map((s) => ({ place: s.place, mile: s.mileFromStart != null ? s.mileFromStart : null }));
+    if (!waypoints.length && ep) waypoints = [ep.from && { place: ep.from, mile: 0 }, ep.to && { place: ep.to, mile: null }].filter(Boolean);
+    const stop = { name: drive.name, state: drive.states || drive.state || "", lat: drive.lat, lng: drive.lng, nights: 1, legMi: null, kind: "byway", slug: drive.id, ...(waypoints.length ? { waypoints } : {}) };
     const next = stops.slice();
     next.splice(Math.max(0, Math.min(index, next.length)), 0, stop);
     const wasEmpty = stops.length === 0;
     commitStops(next);
     if (wasEmpty) { setTripName(drive.name); if (!activeTripId) wantsSaveRef.current = true; }
-
-    // Seed "Plan this day" (things to do) for the drive's day.
-    const itin = detail && Array.isArray(detail.itinerary) ? detail.itinerary.filter((s) => s && s.place) : [];
-    const ep = drive.endpoints || (detail && detail.endpoints) || null;
-    let acts = [];
-    if (expanded && itin.length) {
-      acts = itin.map((s) => ({ icon: "⟿", type: "scenic", name: s.place + (s.mileFromStart != null ? " · mi " + s.mileFromStart.toFixed(1) : ""), time: "" }));
-    } else {
-      const first = (itin[0] && itin[0].place) || (ep && ep.from) || null;
-      const last = (itin.length && itin[itin.length - 1].place) || (ep && ep.to) || null;
-      acts = [first && { icon: "⟿", type: "scenic", name: "Start · " + first, time: "" }, last && { icon: "⟿", type: "scenic", name: "End · " + last, time: "" }].filter(Boolean);
-    }
-    if (acts.length) {
-      const withIds = acts.map((a) => ({ id: "act_" + (activityCounterRef.current += 1), ...a }));
-      setDayPlans((prev) => ({ ...prev, [drive.name]: (prev[drive.name] || []).concat(withIds) }));
-      setExpandedStop(drive.name); // open its day timeline so the added stops are visible
-    }
+    setExpandedStop(drive.name); // open the tile so the route's nested stops are visible
     setRailTab("new");
   }
 
@@ -426,7 +418,7 @@ export default function BuildTripApp() {
   // Flush the live page state to the store first so the snapshot matches what's
   // on screen (savedTrips.saveCurrentTrip reads the active trip from trip.js).
   function saveCurrentTrip() {
-    tripSetStops(stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })));
+    tripSetStops(stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug, waypoints: s.waypoints })));
     tripSetMeta({ tripName, startDate, endDate, adults, infants, travelers, arrivalMode, tripScope, car, transport, origin });
     // Document model: keep the checked-out entry (activeTripId) in sync; otherwise
     // create a new My-trips entry and check it out.
@@ -443,7 +435,7 @@ export default function BuildTripApp() {
     userEditedRef.current = true;
     setActiveTripId(t.id); // check this trip out for editing (Edit Mode)
     try { localStorage.setItem("pb_active_trip_id", t.id); } catch {}
-    const list = (t.stops || []).map((s) => ({ name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom, ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}) }));
+    const list = (t.stops || []).map((s) => ({ name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom, ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}), ...(s.waypoints ? { waypoints: s.waypoints } : {}) }));
     setStops(recomputeLegs(list));
     const m = t.meta || {};
     setTripName(t.name || m.tripName || "My trip");
@@ -814,7 +806,7 @@ export default function BuildTripApp() {
       const matched = saved
         .map((s) => {
           // Custom (geocoded) stops carry their own coords; parks match trip-data.
-          if (s.lat != null && s.lng != null) return { name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom, ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}) };
+          if (s.lat != null && s.lng != null) return { name: s.name, state: s.state || "", lat: s.lat, lng: s.lng, nights: s.nights >= 0 ? s.nights : 2, legMi: null, custom: !!s.custom, ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}), ...(s.waypoints ? { waypoints: s.waypoints } : {}) };
           const p = db.find((x) => x.name === s.name);
           return p ? { name: p.name, state: p.state, lat: p.lat, lng: p.lng, nights: s.nights > 0 ? s.nights : 2, legMi: null } : null;
         })
@@ -863,7 +855,7 @@ export default function BuildTripApp() {
     // but don't duplicate our own stops (parks + geocoded customs carry coords).
     const managed = new Set(stops.map((s) => s.name));
     const preserved = tripStops().filter((s) => !managed.has(s.name));
-    tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })), ...preserved]);
+    tripSetStops([...stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug, waypoints: s.waypoints })), ...preserved]);
     tripSetMeta({ tripName, startDate, adults, infants, travelers, arrivalMode, tripScope, endDate, transport, origin });
     // Document model: once a trip is "checked out" (activeTripId) or the questionnaire
     // was just submitted (wantsSaveRef), autosave every edit into that My-trips entry.

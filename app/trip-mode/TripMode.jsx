@@ -99,7 +99,7 @@ export default function TripMode() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <SiteHeader acctSlot />
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "clamp(112px,14vh,140px) clamp(16px,4vw,28px) 60px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "clamp(118px,14vh,140px) clamp(16px,4vw,28px) 60px" }}>
 
         {/* hero / control */}
         <div style={{ ...card, padding: "clamp(20px,4vw,30px)", background: "linear-gradient(160deg,rgba(16,34,24,.9),rgba(9,20,14,.9))" }}>

@@ -60,7 +60,7 @@ export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pill
       {photoUrl && photoBadge && (
         <span style={{ position: "absolute", top: 14, right: 16, zIndex: 3, background: "rgba(12,26,18,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.22)", color: "rgba(244,241,234,.9)", fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>{photoBadge}</span>
       )}
-      <div style={{ position: "relative", zIndex: 2, maxWidth: tall ? 1180 : 900, margin: "0 auto", width: "100%", padding: "clamp(112px,13vh,138px) clamp(16px,4vw,40px) 36px", boxSizing: "border-box" }}>
+      <div style={{ position: "relative", zIndex: 2, maxWidth: tall ? 1180 : 900, margin: "0 auto", width: "100%", padding: "clamp(118px,13vh,138px) clamp(16px,4vw,40px) 36px", boxSizing: "border-box" }}>
         {breadcrumb && <div style={{ ...microLabel, color: COLORS.gold, textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>{breadcrumb}</div>}
         <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#f4f1ea", fontSize: tall ? "clamp(2.4rem,6vw,4.2rem)" : "clamp(2rem,5.4vw,3.4rem)", lineHeight: 1, letterSpacing: "-.02em", margin: "10px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.55)" }}>
           {title}{titleSub && <span style={{ fontStyle: "italic", color: "rgba(251,246,234,.72)", fontWeight: 500, fontSize: ".42em", letterSpacing: 0, display: "block", marginTop: 6 }}>{titleSub}</span>}

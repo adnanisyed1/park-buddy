@@ -883,7 +883,9 @@ export default function TripStudio(props) {
                                             const sunriseMin = sun && sun.rise ? sun.rise.getHours() * 60 + sun.rise.getMinutes() : null;
                                             const baseStart = sunriseMin != null ? sunriseMin + 30 : 8 * 60 + 30;
                                             const startMin = d === 0 ? Math.max(baseStart, 8 * 60 + transitMin) : baseStart;
-                                            const sched = acts.length ? scheduleDay(acts, { startMin, sunset: sun && sun.set ? sun.set : null }) : null;
+                                            // Reuse the REAL per-leg drive minutes stamped by "Plan this day"; null for
+                                            // hand-added stops falls back to the straight-line estimate inside scheduleDay.
+                                            const sched = acts.length ? scheduleDay(acts, { startMin, sunset: sun && sun.set ? sun.set : null, legMins: acts.map((a) => (a.driveMinBefore != null ? a.driveMinBefore : null)) }) : null;
                                             let pacing = null;
                                             if (d === 0 && transitMin >= 5 * 60) pacing = "Long travel day — ~" + Math.round(transitMin / 60) + " h in transit before you arrive, keep plans light";
                                             else if (sched) pacing = pacingNote(sched.summary);

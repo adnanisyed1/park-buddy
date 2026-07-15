@@ -236,6 +236,19 @@ export default function BuildTripApp() {
 
   const mapDivRef = useRef(null);
   const activityCounterRef = useRef(0); // stable ids for day-plan activities
+  const driveCacheRef = useRef({}); // cache real Routes API drive minutes between activity pairs
+
+  // Real driving minutes a → b via the Routes API (cached by rounded coords). Returns null
+  // if it can't be routed (off-road point, no key) so callers fall back to the estimate.
+  async function realDriveMin(a, b) {
+    if (!a || !b || a.lat == null || b.lat == null) return null;
+    const k = a.lat.toFixed(4) + "," + a.lng.toFixed(4) + ">" + b.lat.toFixed(4) + "," + b.lng.toFixed(4);
+    if (driveCacheRef.current[k] !== undefined) return driveCacheRef.current[k];
+    let min = null;
+    try { const r = await computeRoute({ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }); if (r && r.ok && r.secs) min = Math.round(r.secs / 60); } catch {}
+    driveCacheRef.current[k] = min;
+    return min;
+  }
   const keyInputRef = useRef(null);
   const mapObjRef = useRef(null);
   const lastFitRef = useRef(null); // last { bounds, pad } we framed — replayed when the mobile map sheet opens
@@ -588,13 +601,22 @@ export default function BuildTripApp() {
         }
         delete c._path; delete c._id; // don't persist the heavy path onto the day plan
       }
+      // Real driving minutes between consecutive stops (base → first, then stop → stop)
+      // from the Routes API, cached — so the day's transit is real roads, not a guess.
+      // Any leg that can't be routed falls back to the straight-line estimate.
+      const legMins = []; let prevPt = base;
+      for (let i = 0; i < chosen.length; i++) {
+        const c = chosen[i];
+        legMins[i] = (c.lat != null) ? await realDriveMin(prevPt, c) : null;
+        if (c.lat != null) prevPt = c;
+      }
       // Real clock times: schedule from ~30 min after sunrise (fall back 08:30), chaining
-      // each activity's data-driven length + the drive between them — no fixed 9/12:30/15:30.
+      // each activity's data-driven length + the REAL drive between them.
       let sun = null; try { sun = getSunTimes(new Date(), base.lat, base.lng); } catch {}
       const startMin = sun && sun.rise ? sun.rise.getHours() * 60 + sun.rise.getMinutes() + 30 : 8 * 60 + 30;
-      const sched = scheduleDay(chosen, { startMin, origin: base });
+      const sched = scheduleDay(chosen, { startMin, origin: base, legMins });
       const picks = sched.items;
-      picks.forEach((p) => addActivity(name, { type: p.type, name: p.name, lat: p.lat, lng: p.lng, time: p.time, day: dayIdx, lengthMi: p.lengthMi != null ? p.lengthMi : undefined, gainFt: p.gainFt != null ? p.gainFt : undefined }));
+      picks.forEach((p) => addActivity(name, { type: p.type, name: p.name, lat: p.lat, lng: p.lng, time: p.time, day: dayIdx, lengthMi: p.lengthMi != null ? p.lengthMi : undefined, gainFt: p.gainFt != null ? p.gainFt : undefined, driveMinBefore: p.driveMinBefore != null ? p.driveMinBefore : undefined }));
       setPlanMsg((m) => ({ ...m, [key]: picks.length ? "Added " + picks.length + " nearby" : "No suggestions found nearby" }));
     } catch {
       setPlanMsg((m) => ({ ...m, [key]: "Couldn't load suggestions" }));

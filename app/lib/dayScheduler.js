@@ -81,10 +81,15 @@ export function scheduleDay(activities, opts = {}) {
   const sunsetMin = opts.sunsetMin != null ? opts.sunsetMin
     : (opts.sunset instanceof Date ? opts.sunset.getHours() * 60 + opts.sunset.getMinutes() : null);
 
+  // Optional REAL per-leg drive minutes (from the Routes API), parallel to `activities`;
+  // legMins[i] is the minutes to reach item i. Where a leg is provided we use it; otherwise
+  // we fall back to the straight-line estimate. So the day flow is real roads when we have
+  // them, and still works offline / for manually-added stops.
+  const legMins = Array.isArray(opts.legMins) ? opts.legMins : null;
   let cursor = startMin, driveMin = 0, activeMin = 0;
   let prev = opts.origin && opts.origin.lat != null ? opts.origin : null;
-  const items = list.map((a) => {
-    const d = prev ? driveMinutes(prev, a) : 0;
+  const items = list.map((a, i) => {
+    const d = legMins && legMins[i] != null ? legMins[i] : (prev ? driveMinutes(prev, a) : 0);
     cursor += d; driveMin += d;
     const dur = activityMinutes(a);
     const startM = cursor, endM = cursor + dur;

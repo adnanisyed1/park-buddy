@@ -7,18 +7,20 @@
 
   <div style="position:relative;z-index:4">
 
-    <header id="topbar" style="position:sticky;top:14px;z-index:30;transition:transform .38s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:4px 12px 4px 8px;margin:14px clamp(12px,3vw,28px) 0;border-radius:22px;background:rgba(16,32,23,.32);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border:1px solid rgba(255,255,255,.16);box-shadow:0 14px 36px -18px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.14)">
-      <div style="display:flex;align-items:center;gap:11px;color:#fbf6ea">
-        <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width="66" height="66" style="width:66px;height:66px;object-fit:contain;display:block;filter:drop-shadow(0 2px 10px rgba(0,0,0,.35))">
-        <div><b style="font-family:'Spectral',serif;font-size:1.2rem;font-weight:700;display:block;line-height:1.05">ParkBuddy</b><span style="color:rgba(243,237,224,.6);font-size:.68rem;letter-spacing:.04em">live status · every U.S. national park</span></div>
-      </div>
+    <div id="topbar" style="position:sticky;top:14px;z-index:30;transition:transform .38s cubic-bezier(.4,0,.2,1);margin:14px clamp(12px,3vw,28px) 0;display:flex;align-items:flex-start;gap:clamp(10px,1.4vw,18px)">
+      <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width="66" height="66" style="width:66px;height:66px;object-fit:contain;display:block;flex:none;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4))">
+      <header style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:8px 12px 8px 18px;border-radius:22px;background:rgba(16,32,23,.32);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border:1px solid rgba(255,255,255,.16);box-shadow:0 14px 36px -18px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.14)">
+        <div style="display:flex;align-items:center;color:#fbf6ea">
+          <div><b style="font-family:'Spectral',serif;font-size:1.2rem;font-weight:700;display:block;line-height:1.05">ParkBuddy</b><span style="color:rgba(243,237,224,.6);font-size:.68rem;letter-spacing:.04em">live status · every U.S. national park</span></div>
+        </div>
       <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
         <a href="/explore" style="color:rgba(243,237,224,.92);text-decoration:none;font-size:.82rem;font-weight:600;border:1px solid rgba(255,255,255,.22);padding:7px 13px;border-radius:999px">← Map</a>
         <a href="/build-trip" style="color:#163a2b;text-decoration:none;font-size:.82rem;font-weight:700;background:linear-gradient(120deg,#e4be78,#c79a4b);padding:8px 15px;border-radius:999px">Build a Trip</a>
         <select id="pick" style="font-family:inherit;padding:9px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.5);font-size:.85rem;font-weight:600;background:rgba(251,246,234,.9);color:#1d4a37;cursor:pointer;max-width:230px;outline:none"></select>
         <button id="topbarClose" aria-label="Hide header" title="Hide bar" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(16,32,23,.4);color:rgba(243,237,224,.85);font-size:1rem;line-height:1;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center">×</button>
       </div>
-    </header>
+      </header>
+    </div>
 
     <section style="min-height:calc(100vh - 96px);display:flex;flex-direction:column;justify-content:center;padding:clamp(20px,4vh,44px) clamp(16px,5vw,40px) clamp(64px,9vh,104px);position:relative">
       <div style="width:100%">

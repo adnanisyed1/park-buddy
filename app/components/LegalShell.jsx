@@ -10,7 +10,7 @@ export default function LegalShell({ title, updated, children }) {
   return (
     <>
       <SiteHeader solid />
-      <main style={{ background: "var(--pb-bg)", minHeight: "100vh", paddingTop: 92 }}>
+      <main style={{ background: "var(--pb-bg)", minHeight: "100vh", paddingTop: 112 }}>
         <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 clamp(18px,4vw,28px) 40px", fontFamily: "var(--pb-sans)" }}>
           <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".6rem", letterSpacing: ".24em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>Park Buddy</div>
           <h1 style={{ fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "clamp(2rem,5vw,2.8rem)", lineHeight: 1.05, color: "var(--pb-ink)", margin: "6px 0 6px" }}>{title}</h1>

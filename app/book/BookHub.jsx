@@ -204,7 +204,7 @@ export default function BookHub() {
       <SiteHeader active="book" acctSlot />
 
       {/* HERO + park anchor */}
-      <section style={{ position: "relative", overflow: "hidden", padding: "clamp(150px,20vh,196px) clamp(16px,4vw,40px) clamp(44px,7vh,76px)" }}>
+      <section style={{ position: "relative", overflow: "hidden", padding: "clamp(122px,17vh,158px) clamp(16px,4vw,40px) clamp(44px,7vh,76px)" }}>
         {hero && hero.url && <img alt="" className="bk-hero-img" src={hero.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", animation: "bk-ken 22s ease-out both", filter: "brightness(.46)" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,19,13,.5),rgba(8,19,13,.25) 38%,rgba(8,19,13,.95))" }} />
         <div style={{ position: "relative", zIndex: 2, maxWidth: 1000, margin: "0 auto", textAlign: "center" }}>
@@ -235,8 +235,8 @@ export default function BookHub() {
         </div>
       </section>
 
-      {/* CATEGORY SUB-NAV — sticks below the fixed header (≈112px w/ the badge logo). */}
-      <div style={{ position: "sticky", top: 112, zIndex: 40, background: "rgba(8,19,13,.86)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", borderBottom: "1px solid var(--pb-line)" }}>
+      {/* CATEGORY SUB-NAV — sticks below the floating header island (≈98px to its base). */}
+      <div style={{ position: "sticky", top: 106, zIndex: 40, background: "rgba(8,19,13,.86)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", borderRadius: 14, border: "1px solid var(--pb-line)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 8, overflowX: "auto", padding: "11px clamp(16px,4vw,40px)", scrollbarWidth: "none" }}>
           {CAT_TABS.map((t) => {
             const on = cat === t.slug;

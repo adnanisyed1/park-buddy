@@ -79,9 +79,9 @@ function Logo() {
       <img
         src="/brand/the-park-buddy-badge.png"
         alt="The Park Buddy"
-        width={96}
-        height={96}
-        style={{ height: 96, width: 96, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 14px rgba(0,0,0,.4))" }}
+        width={72}
+        height={72}
+        style={{ height: 72, width: 72, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 14px rgba(0,0,0,.45))" }}
       />
     </Link>
   );
@@ -188,14 +188,17 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
 
   return (
     <nav
+      className="pb-nav-float"
       style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        position: "fixed", top: "clamp(8px,1.4vw,14px)", left: "clamp(8px,1.6vw,18px)", right: "clamp(8px,1.6vw,18px)", zIndex: 100,
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-        padding: "8px clamp(16px,4vw,54px)",
-        background: solid ? "var(--pb-bg)" : "rgba(7,10,16,.55)",
-        WebkitBackdropFilter: solid ? "none" : "blur(18px) saturate(1.3)",
-        backdropFilter: solid ? "none" : "blur(18px) saturate(1.3)",
-        borderBottom: "1px solid var(--pb-line)",
+        padding: "6px 10px 6px 16px",
+        background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
+        WebkitBackdropFilter: "blur(22px) saturate(1.4)",
+        backdropFilter: "blur(22px) saturate(1.4)",
+        border: "1px solid var(--pb-line-strong)",
+        borderRadius: 22,
+        boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
         fontFamily: "var(--pb-sans)",
       }}
     >

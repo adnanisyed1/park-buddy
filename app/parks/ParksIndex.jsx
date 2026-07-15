@@ -57,7 +57,7 @@ export default function ParksIndex({ parks }) {
     <div style={{ minHeight: "100vh", paddingTop: 64, background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <SiteHeader active="explore" />
 
-      <section style={{ position: "relative", overflow: "hidden", padding: "clamp(40px,8vh,84px) clamp(16px,4vw,40px) clamp(28px,5vh,52px)", background: "radial-gradient(1100px 420px at 72% -12%,rgba(228,190,120,.14),transparent 62%)" }}>
+      <section style={{ position: "relative", overflow: "hidden", padding: "clamp(112px,14vh,140px) clamp(16px,4vw,40px) clamp(28px,5vh,52px)", background: "radial-gradient(1100px 420px at 72% -12%,rgba(228,190,120,.14),transparent 62%)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontFamily: mono, fontSize: ".66rem", letterSpacing: ".24em", textTransform: "uppercase", color: "var(--pb-ink-2)" }}>The U.S. National Parks · live status</div>
           <h1 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(2.7rem,7vw,4.9rem)", lineHeight: 1.02, letterSpacing: "-.02em", marginTop: 14, maxWidth: 900 }}>The <em style={{ fontStyle: "italic", color: "var(--pb-gold)" }}>national parks</em> index.</h1>

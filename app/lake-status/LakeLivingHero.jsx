@@ -65,7 +65,7 @@ export default function LakeLivingHero({ name, typeLabel, palette, weather, area
   }, [lat, lng]);
 
   return (
-    <section style={{ position: "relative", overflow: "hidden", minHeight: 520, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "clamp(70px,10vh,110px) clamp(16px,4vw,40px) 56px", background: "#11281d" }}>
+    <section style={{ position: "relative", overflow: "hidden", minHeight: 520, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "clamp(112px,13vh,140px) clamp(16px,4vw,40px) 56px", background: "#11281d" }}>
       <style>{KEYFRAMES}</style>
       {/* Real photo of the lake front and center in the header; the animated
           water scene is only the no-photo fallback. */}

@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { searchPlaces, resolvePlace } from "../lib/placeSearch";
 import { dayWeather, skyIcon } from "../lib/dayConditions";
 import { getSunTimes, fmtTime } from "../lib/sunmoon";
-import { scheduleDay, pacingNote } from "../lib/dayScheduler";
+import { scheduleDay, pacingNote, activityMinutes } from "../lib/dayScheduler";
 import { CATS as PACK_CATS, generateFromTrip, parseDescription } from "../lib/packgo";
 import { getChecklist, subscribeChecklist, addChecklistItems, addChecklistItem, toggleChecklistItem, removeChecklistItem } from "../lib/checklist";
 
@@ -915,21 +915,41 @@ export default function TripStudio(props) {
                                               </div>
                                             )}
                                             {acts.length === 0 && !(d === 0 && legFrom) && <div style={{ fontFamily: SANS, fontSize: 11.5, color: "#7f8a82", padding: "1px 0 3px" }}>Nothing planned yet.</div>}
-                                            {acts.map((a) => (
-                                              editBlock && editBlock.stop === s.name && editBlock.id === a.id ? (
+                                            {acts.map((a, ai) => {
+                                              if (editBlock && editBlock.stop === s.name && editBlock.id === a.id) return (
                                                 <DayBlockEdit key={a.id} block={a} fieldBox={fieldBox}
                                                   onSave={(patch) => { updateActivity && updateActivity(s.name, a.id, patch); setEditBlock(null); }}
                                                   onCancel={() => setEditBlock(null)} />
-                                              ) : (
-                                              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,0.12)" }}>
-                                                <span style={{ fontFamily: MONO, fontSize: 10, color: "#c9a35f", minWidth: 38 }}>{a.time || "—"}</span>
-                                                <span style={{ color: "#e0b978", display: "inline-flex", flex: "none" }}>{a.type ? <TSIcon name={blockIcon(a.type)} size={15} /> : <span style={{ fontSize: 14 }}>{a.icon}</span>}</span>
-                                                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}<span style={{ color: "#7f8a82", fontFamily: MONO, fontSize: 8, letterSpacing: ".06em", marginLeft: 7, textTransform: "uppercase" }}>{TYPE_LABEL[a.type] || ""}</span>{a.lat != null && <span title="Pinned on the map" style={{ color: "#8fd6a6", marginLeft: 6, display: "inline-flex", verticalAlign: "middle" }}><TSIcon name="pin" size={11} /></span>}</span>
-                                                <button onClick={() => setEditBlock({ stop: s.name, id: a.id })} title="Edit" style={{ background: "none", border: "none", cursor: "pointer", color: "#8f9a90", padding: 2, display: "inline-flex", flex: "none" }} className="ts-iconbtn"><TSIcon name="edit" size={13} /></button>
-                                                <button onClick={() => setConfirmDelBlock({ stop: s.name, id: a.id, name: a.name, dayNum: globalStart + d })} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "#b06a4a", padding: 2, display: "inline-flex", flex: "none" }} className="ts-iconbtn"><TSIcon name="trash" size={13} /></button>
-                                              </div>
-                                              )
-                                            ))}
+                                              );
+                                              // The day as a FLOW: a drive/transit gap between stops (real Routes minutes when
+                                              // planned), then a numbered stop with its time + data-driven length/gain/duration.
+                                              const dur = activityMinutes(a);
+                                              const gap = a.driveMinBefore;
+                                              const meta = [];
+                                              if (a.time) meta.push(prettyTime(a.time));
+                                              if (a.type === "hike") { if (a.lengthMi != null) meta.push(a.lengthMi + " mi"); if (a.gainFt != null) meta.push("+" + a.gainFt + " ft"); }
+                                              meta.push("~" + fmtDurMin(dur));
+                                              return (
+                                              <Fragment key={a.id}>
+                                                {gap != null && gap > 0 && (
+                                                  <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "1px 0 1px 13px", color: "#8f9a90" }}>
+                                                    <span style={{ display: "inline-flex", color: "#e0b978", flex: "none" }}><TSIcon name="car" size={12} /></span>
+                                                    <span style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".08em", textTransform: "uppercase" }}>{fmtDurMin(gap)} drive</span>
+                                                  </div>
+                                                )}
+                                                <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 10px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,0.12)" }}>
+                                                  <span style={{ flex: "none", width: 21, height: 21, borderRadius: "50%", border: "1px solid rgba(217,183,121,0.5)", background: "rgba(232,207,154,0.08)", color: "#e8cf9a", fontFamily: MONO, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>{ai + 1}</span>
+                                                  <span style={{ color: "#e0b978", display: "inline-flex", flex: "none", marginTop: 2 }}>{a.type ? <TSIcon name={blockIcon(a.type)} size={15} /> : <span style={{ fontSize: 14 }}>{a.icon}</span>}</span>
+                                                  <span style={{ flex: 1, minWidth: 0 }}>
+                                                    <span style={{ display: "block", fontFamily: SANS, fontSize: 12.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}{a.lat != null && <span title="Pinned on the map" style={{ color: "#8fd6a6", marginLeft: 6, display: "inline-flex", verticalAlign: "middle" }}><TSIcon name="pin" size={11} /></span>}</span>
+                                                    <span style={{ display: "block", fontFamily: MONO, fontSize: 8.5, letterSpacing: ".04em", color: "#8f9a90", marginTop: 2 }}>{meta.join(" · ")}</span>
+                                                  </span>
+                                                  <button onClick={() => setEditBlock({ stop: s.name, id: a.id })} title="Edit" style={{ background: "none", border: "none", cursor: "pointer", color: "#8f9a90", padding: 2, display: "inline-flex", flex: "none" }} className="ts-iconbtn"><TSIcon name="edit" size={13} /></button>
+                                                  <button onClick={() => setConfirmDelBlock({ stop: s.name, id: a.id, name: a.name, dayNum: globalStart + d })} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "#b06a4a", padding: 2, display: "inline-flex", flex: "none" }} className="ts-iconbtn"><TSIcon name="trash" size={13} /></button>
+                                                </div>
+                                              </Fragment>
+                                              );
+                                            })}
                                             {planDay && s.lat != null && (() => {
                                               const pk = s.name + "#" + d;
                                               const loading = planningDay === pk;
@@ -1653,6 +1673,9 @@ const TYPE_ICON = { drive: "car", stay: "bed", meal: "utensils", scenic: "route"
   park: "pin", statePark: "pin", lake: "pin", viewpoint: "camera", coord: "pin", place: "pin" };
 const TYPE_LABEL = { drive: "Drive", stay: "Stay", meal: "Meal", scenic: "Scenic drive", hike: "Hike", sight: "Sight" };
 const blockIcon = (t) => TYPE_ICON[t] || "pin";
+// Day-flow formatters: "8:30 AM" from "08:30", and "1h 55m" / "40m" from minutes.
+const prettyTime = (hhmm) => { const p = String(hhmm || "").split(":"); if (p.length < 2) return hhmm || ""; let h = +p[0] || 0; const m = p[1]; const ap = h < 12 ? "AM" : "PM"; h = h % 12 || 12; return h + ":" + m + " " + ap; };
+const fmtDurMin = (min) => { const x = Math.max(0, Math.round(min || 0)); return x >= 60 ? Math.floor(x / 60) + "h" + (x % 60 ? " " + (x % 60) + "m" : "") : x + "m"; };
 
 // "+ Add to this day" — pick a block type, name it, time it. The location can be a
 // free-typed name, an address/place from autocomplete (attaches real lat/lng so the

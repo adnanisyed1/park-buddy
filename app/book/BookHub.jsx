@@ -235,8 +235,8 @@ export default function BookHub() {
         </div>
       </section>
 
-      {/* CATEGORY SUB-NAV — sticks below the floating header island (≈108px to its base). */}
-      <div style={{ position: "sticky", top: 116, zIndex: 40, background: "rgba(8,19,13,.86)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", borderRadius: 14, border: "1px solid var(--pb-line)" }}>
+      {/* CATEGORY SUB-NAV — sticks below the floating header island (≈94px to its base). */}
+      <div style={{ position: "sticky", top: 100, zIndex: 40, background: "rgba(8,19,13,.86)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", borderRadius: 14, border: "1px solid var(--pb-line)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 8, overflowX: "auto", padding: "11px clamp(16px,4vw,40px)", scrollbarWidth: "none" }}>
           {CAT_TABS.map((t) => {
             const on = cat === t.slug;

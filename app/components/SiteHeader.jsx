@@ -79,9 +79,9 @@ function Logo() {
       <img
         src="/brand/the-park-buddy-badge.png"
         alt="The Park Buddy"
-        width={92}
-        height={92}
-        style={{ height: 92, width: 92, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 14px rgba(0,0,0,.45))" }}
+        width={76}
+        height={76}
+        style={{ height: 76, width: 76, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 14px rgba(0,0,0,.45))" }}
       />
     </Link>
   );

@@ -14,7 +14,7 @@ import SiteHeader from "../components/SiteHeader";
 import PinesCompose from "./PinesCompose";
 import { useAuth, openAuth, getAccessToken } from "../lib/auth";
 
-const HEADER = 116; // clears the floating SiteHeader island (fixed, inset ~14px + ~94px tall)
+const HEADER = 102; // clears the floating SiteHeader island (fixed, inset ~14px + ~80px tall)
 
 const C = { gold: "linear-gradient(120deg,#e8cf9a,#c9a35f)", go: "#4fd98a", prep: "#e8cf9a", hold: "#e08a6a", like: "#e0546a" };
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";

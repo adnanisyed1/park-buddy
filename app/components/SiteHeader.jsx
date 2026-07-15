@@ -192,7 +192,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       style={{
         position: "fixed", top: "clamp(8px,1.4vw,14px)", left: "clamp(8px,1.6vw,18px)", right: "clamp(8px,1.6vw,18px)", zIndex: 100,
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-        padding: "2px 10px 2px 12px",
+        padding: "2px 8px 2px 6px",
         background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
         WebkitBackdropFilter: "blur(22px) saturate(1.4)",
         backdropFilter: "blur(22px) saturate(1.4)",

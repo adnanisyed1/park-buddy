@@ -199,6 +199,7 @@ export default function BuildTripApp() {
   const [mapView, setMapView] = useState("route"); // map mode: "route" (itinerary) | "explore" (discover + add)
   const [previewRoute, setPreviewRoute] = useState(null); // ready-made route shown in read-only preview (map + details)
   const [bywayDetail, setBywayDetail] = useState(null); // Wikipedia/OSM-enriched record (full itinerary + route geometry) for a scenic-drive preview
+  const [crosscheck, setCrosscheck] = useState(null); // { bywayName, matches:[{place,mile,match}] } — "Park Buddy has these along your route, add them?"
   const [savedTrips, setSavedTrips] = useState([]); // the user's explicitly-saved trips ("My trips")
   const [saveMsg, setSaveMsg] = useState(""); // brief "Saved ✓" confirmation on the summary tile
   useEffect(() => {
@@ -406,7 +407,52 @@ export default function BuildTripApp() {
     if (wasEmpty) { setTripName(drive.name); if (!activeTripId) wantsSaveRef.current = true; }
     setExpandedStop(drive.name); // open the tile so the route's nested stops are visible
     setRailTab("new");
+    // Cross-check the route's stops against Park Buddy's own data and, if we have pages for
+    // any of them, offer to promote those into real itinerary stops (the rest stay nested).
+    const matches = crosscheckByway(waypoints, drive.name);
+    if (matches.length) setCrosscheck({ bywayName: drive.name, matches });
   }
+
+  // Match a byway's waypoints (place names) against the datasets Park Buddy has pages for —
+  // national parks, forests, state parks — so we can offer "we have these, add them?". Name
+  // match only (waypoints carry no coords); towns aren't loaded client-side yet (future).
+  function crosscheckByway(waypoints, bywayName) {
+    const bare = (s) => (s || "").toLowerCase().replace(/national|state|park|parks|forest|scenic|byway|monument|wilderness|recreation|area/g, "").replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
+    const sets = [
+      { db: parksDb, type: "National park", kind: null },
+      { db: forestsDb, type: "National forest", kind: "forest" },
+      { db: stateParksDb, type: "State park", kind: null },
+    ];
+    const have = new Set(stops.map((s) => s.name));
+    const claimed = new Set([bywayName]);
+    const out = [];
+    (waypoints || []).forEach((w) => {
+      const wp = bare(w.place); if (wp.length < 4) return;
+      for (const { db, type, kind } of sets) {
+        const m = (db || []).find((p) => { const pb = bare(p.name); return pb.length >= 4 && (pb === wp || wp.includes(pb) || pb.includes(wp)); });
+        if (m && m.lat != null && !have.has(m.name) && !claimed.has(m.name)) {
+          claimed.add(m.name);
+          out.push({ place: w.place, mile: w.mile, match: { name: m.name, lat: m.lat, lng: m.lng, state: m.states || m.state || "", type, kind } });
+          break;
+        }
+      }
+    });
+    return out;
+  }
+  // Promote the picked cross-check matches into real stops, inserted (by mile) right after
+  // their byway. Parks get 2 nights, forests/state parks 1 — the user can tune after.
+  function confirmCrosscheck(picked) {
+    if (!crosscheck) { setCrosscheck(null); return; }
+    const cur = stops.slice();
+    let idx = cur.findIndex((s) => s.name === crosscheck.bywayName);
+    if (idx < 0) idx = cur.length - 1;
+    const have = new Set(cur.map((s) => s.name));
+    const toAdd = (picked || []).filter((m) => m && m.match && !have.has(m.match.name)).sort((a, b) => (a.mile == null ? 1e9 : a.mile) - (b.mile == null ? 1e9 : b.mile));
+    toAdd.forEach((m, k) => cur.splice(idx + 1 + k, 0, { name: m.match.name, state: m.match.state || "", lat: m.match.lat, lng: m.match.lng, nights: m.match.type === "National park" ? 2 : 1, legMi: null, ...(m.match.kind ? { kind: m.match.kind } : {}) }));
+    if (toAdd.length) commitStops(cur);
+    setCrosscheck(null);
+  }
+  function dismissCrosscheck() { setCrosscheck(null); }
 
   // ---- saved trips ("My trips") ----
   useEffect(() => {
@@ -1632,6 +1678,7 @@ export default function BuildTripApp() {
           ]}
           BudgetAmount={BudgetAmount} totalCost={totalCost} perPerson={totalCost / Math.max(1, travelers)} fmtUsd={fmtUsd}
           routes={ROUTES} loadedRoute={loadedRoute} loadRoute={loadRoute} insertRouteAt={insertRouteAt} cloneRoute={cloneRoute} previewRoute={previewRoute} setPreviewRoute={setPreviewRoute} bywayDetail={bywayDetail} insertScenicDrive={insertScenicDrive}
+          crosscheck={crosscheck} confirmCrosscheck={confirmCrosscheck} dismissCrosscheck={dismissCrosscheck}
           savedTrips={savedTrips} loadSavedTrip={loadSavedTrip} deleteSavedTrip={deleteSavedTrip}
           gmapsUrl={gmapsUrl} appleUrl={appleUrl} waUrl={waUrl} copyLink={copyLink} shareCopied={shareCopied} downloadIcs={downloadIcs}
           mapDivRef={mapDivRef} keyOverlay={keyOverlay} keyInputRef={keyInputRef} saveKey={saveKey} keyMsg={keyMsg} roadInfo={roadInfo} driveHrs={driveHrs} totalMiles={totalMiles}

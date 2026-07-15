@@ -114,6 +114,7 @@ export default function TripStudio(props) {
     setupCollapsed, setSetupCollapsed, setupRows, onEditSetup, onSaveTrip, saveMsg, showOnMap, setShowOnMap,
     budgetOpen, setBudgetOpen, budgetLines, BudgetAmount, totalCost, perPerson, fmtUsd,
     routes, loadedRoute, loadRoute, insertRouteAt, cloneRoute, previewRoute, setPreviewRoute, bywayDetail, insertScenicDrive,
+    crosscheck, confirmCrosscheck, dismissCrosscheck,
     savedTrips, loadSavedTrip, deleteSavedTrip,
     gmapsUrl, appleUrl, waUrl, copyLink, shareCopied, downloadIcs,
     mapDivRef, keyOverlay, keyInputRef, saveKey, keyMsg, roadInfo, driveHrs, totalMiles,
@@ -1517,6 +1518,11 @@ export default function TripStudio(props) {
         </div>
       )}
 
+      {/* Cross-check picker: "Park Buddy has data on N of the stops along this route — add?" */}
+      {crosscheck && crosscheck.matches && crosscheck.matches.length > 0 && (
+        <CrosscheckModal data={crosscheck} onConfirm={confirmCrosscheck} onDismiss={dismissCrosscheck} navTile={navTile} />
+      )}
+
       {/* desktop: add-a-stop popup (7 sources) — a real popup so it isn't clipped */}
       {addMenuOpen && (
         <div onClick={() => { setAddMenuOpen(false); setAddSource(null); }} style={{ position: "fixed", inset: 0, zIndex: 95, background: "rgba(4,9,7,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -1699,6 +1705,48 @@ const blockIcon = (t) => TYPE_ICON[t] || "pin";
 // Day-flow formatters: "8:30 AM" from "08:30", and "1h 55m" / "40m" from minutes.
 const prettyTime = (hhmm) => { const p = String(hhmm || "").split(":"); if (p.length < 2) return hhmm || ""; let h = +p[0] || 0; const m = p[1]; const ap = h < 12 ? "AM" : "PM"; h = h % 12 || 12; return h + ":" + m + " " + ap; };
 const fmtDurMin = (min) => { const x = Math.max(0, Math.round(min || 0)); return x >= 60 ? Math.floor(x / 60) + "h" + (x % 60 ? " " + (x % 60) + "m" : "") : x + "m"; };
+
+// Cross-check picker — after a scenic route is added, offers the stops along it that Park
+// Buddy has pages for, pre-checked, to promote into real itinerary stops.
+function CrosscheckModal({ data, onConfirm, onDismiss, navTile }) {
+  const matches = data.matches || [];
+  const [checked, setChecked] = useState(() => new Set(matches.map((_, i) => i)));
+  const toggle = (i) => setChecked((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+  const n = checked.size;
+  const DOT = { "National park": "#8fd6a6", "National forest": "#6f9e5a", "State park": "#7fb0d0" };
+  return (
+    <div onClick={onDismiss} style={{ position: "fixed", inset: 0, zIndex: 98, background: "rgba(4,9,7,0.8)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 400, background: "#0a1712", border: "1px solid rgba(217,183,121,0.3)", borderRadius: 18, boxShadow: "0 40px 90px -24px rgba(0,0,0,0.9)", overflow: "hidden" }}>
+        <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid rgba(217,183,121,0.14)" }}>
+          <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: ".18em", textTransform: "uppercase", color: "#8fd6a6", marginBottom: 6 }}>✦ Park Buddy has the details</div>
+          <div style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: "#f4f1ea", lineHeight: 1.15 }}>{matches.length} stop{matches.length === 1 ? "" : "s"} on {data.bywayName} are in our data</div>
+          <div style={{ fontFamily: SANS, fontSize: 12.5, color: "#aab0ba", marginTop: 7, lineHeight: 1.5 }}>Add the ones you want as their own stops — with live conditions, trails and alerts. The rest stay listed under the route.</div>
+        </div>
+        <div className="ts-scroll" style={{ maxHeight: 300, overflowY: "auto", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+          {matches.map((m, i) => {
+            const on = checked.has(i);
+            return (
+              <label key={i} onClick={() => toggle(i)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 11px", borderRadius: 11, cursor: "pointer", background: on ? "rgba(143,214,166,0.08)" : "rgba(255,255,255,.02)", border: "1px solid " + (on ? "rgba(143,214,166,0.32)" : "rgba(217,183,121,0.12)") }}>
+                <span style={{ flex: "none", width: 18, height: 18, borderRadius: 5, border: "1px solid " + (on ? "#8fd6a6" : "rgba(217,183,121,0.4)"), background: on ? "rgba(143,214,166,0.18)" : "transparent", color: "#8fd6a6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>{on ? "✓" : ""}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontFamily: SANS, fontSize: 13.5, color: "#f4f1ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.match.name}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: DOT[m.match.type] || "#c9a35f" }} />
+                    <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: ".08em", textTransform: "uppercase", color: "#8f9a90" }}>{m.match.type}{m.mile != null ? " · MI " + Number(m.mile).toFixed(0) : ""}</span>
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", gap: 10, padding: "14px 18px 18px", borderTop: "1px solid rgba(217,183,121,0.14)" }}>
+          <button onClick={onDismiss} className="ts-navtile" style={{ ...navTile, flex: 1, justifyContent: "center" }}>Not now</button>
+          <button onClick={() => onConfirm(matches.filter((_, i) => checked.has(i)))} disabled={!n} style={{ flex: 1.4, padding: 12, borderRadius: 11, border: "none", cursor: n ? "pointer" : "default", background: n ? "linear-gradient(120deg,#e8cf9a,#c9a35f)" : "rgba(255,255,255,.06)", color: n ? "#0a1712" : "#7f8a82", fontFamily: SANS, fontWeight: 700, fontSize: 13 }}>{n ? "Add " + n + " stop" + (n === 1 ? "" : "s") : "Select stops"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // "+ Add to this day" — pick a block type, name it, time it. The location can be a
 // free-typed name, an address/place from autocomplete (attaches real lat/lng so the

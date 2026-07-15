@@ -26,19 +26,17 @@ async function fetchImg(url) {
     return { mime: ct.includes("png") ? "image/png" : "image/jpeg", bytes: new Uint8Array(await r.arrayBuffer()) };
   } catch { return null; }
 }
-// Resolve an entry's image: the user's own capture first, else the park photo.
-export async function resolveEntryImage(entry, origin) {
+// Resolve an entry's image — the TRAVELER'S OWN photo ONLY.
+// We deliberately do NOT fall back to a stock/Wikimedia park photo here: this builder
+// produces the PRINTED, SOLD book, and third-party (CC BY-SA etc.) imagery can't be
+// embedded in a commercial, resold product without per-image license compliance +
+// visible attribution. Stops without a personal photo get a designed typographic page
+// instead (see buildInteriorPdf). The on-screen studio PREVIEW may still show stock
+// park photos — that's ephemeral on-screen context, not the artifact we sell/ship.
+export async function resolveEntryImage(entry) {
   if (entry.userImg && entry.userImg.startsWith("data:")) { const d = dataUrlToImg(entry.userImg); if (d) return d; }
   if (entry.userImg && /^https?:/.test(entry.userImg)) { const b = await fetchImg(entry.userImg); if (b) return b; }
-  const q = Array.isArray(entry.q) ? entry.q.join("|") : (entry.place || "");
-  if (!q) return null;
-  try {
-    const r = await fetch(origin + "/api/photo?q=" + encodeURIComponent(q) + "&w=1600&v=6");
-    if (!r.ok) return null;
-    const d = await r.json();
-    const src = d && (d.image || d.thumb);
-    return src ? await fetchImg(src) : null;
-  } catch { return null; }
+  return null;
 }
 export async function embedImg(pdf, img) {
   if (!img) return null;
@@ -83,10 +81,11 @@ export async function buildInteriorPdf({ title, dates, dedication, entries, orig
     }
   }
 
-  // per stop: full-bleed photo + optional story page
+  // per stop: full-bleed photo (traveler's own) + optional story page. A stop with no
+  // personal photo gets a designed typographic page — never a third-party stock photo.
   for (const e of entries) {
     const photo = blank();
-    const emb = await embedImg(pdf, await resolveEntryImage(e, origin));
+    const emb = await embedImg(pdf, await resolveEntryImage(e));
     if (emb) {
       const s = Math.max(PAGE / emb.width, PAGE / emb.height);
       const w = emb.width * s, h = emb.height * s;
@@ -94,7 +93,13 @@ export async function buildInteriorPdf({ title, dates, dedication, entries, orig
       photo.drawRectangle({ x: 0, y: 0, width: PAGE, height: 54, color: rgb(0.04, 0.05, 0.05), opacity: 0.62 });
       photo.drawText(String(e.place || "").toUpperCase(), { x: SAFE, y: 22, size: 10, font: sans, color: rgb(1, 1, 1) });
     } else {
-      center(photo, serif, String(e.place || ""), 22, PAGE / 2, INK);
+      // Designed "no photo" chapter page: type eyebrow · place · gold rule · time.
+      if (e.type) center(photo, sans, String(e.type).toUpperCase(), 9, PAGE / 2 + 58, GOLD);
+      const nm = wrap(serif, String(e.place || "A stop along the way"), 26, PAGE - SAFE * 2);
+      let y = PAGE / 2 + (nm.length - 1) * 16 + 6;
+      nm.forEach((ln) => { center(photo, serif, ln, 26, y, INK); y -= 32; });
+      photo.drawRectangle({ x: PAGE / 2 - 24, y: y + 4, width: 48, height: 1.4, color: GOLD });
+      if (e.time) center(photo, sans, String(e.time).toUpperCase(), 8.5, y - 14, MUTED);
     }
     if (e.cap && String(e.cap).trim()) {
       const p = blank();

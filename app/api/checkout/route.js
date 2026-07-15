@@ -50,8 +50,15 @@ export async function POST(request) {
       const stamp = Date.now().toString(36) + "-" + Math.round(price);
       const interior_url = await uploadPublicPdf("orders/" + stamp + "-interior.pdf", interiorBytes);
       const dims = await coverDimensions(pageCount, LULU_PRODUCT.sku);
-      const coverEntry = entries.find((e) => e.type === "Remember this") || entries[0];
-      const coverImage = await resolveEntryImage(coverEntry, origin);
+      // Prefer a stop the traveler actually photographed for the cover (no third-party
+      // stock on a sold cover); fall back to a designed text/emblem cover otherwise.
+      const hasUserPhoto = (e) => e && e.userImg && (e.userImg.startsWith("data:") || /^https?:/.test(e.userImg));
+      const coverEntry =
+        entries.find((e) => e.type === "Remember this" && hasUserPhoto(e)) ||
+        entries.find(hasUserPhoto) ||
+        entries.find((e) => e.type === "Remember this") ||
+        entries[0];
+      const coverImage = await resolveEntryImage(coverEntry);
       const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims, origin });
       const cover_url = await uploadPublicPdf("orders/" + stamp + "-cover.pdf", coverBytes);
       fulfillMeta = { interior_url, cover_url, page_count: String(pageCount) };

@@ -1668,7 +1668,7 @@ export default function BuildTripApp() {
       <div style={{ position: "relative", zIndex: 4, display: "flex", flexDirection: "column", minHeight: "100vh", paddingTop: 64 }}>
 
         {/* Hero — the intro banner kept from the classic Build My Trip */}
-        <section style={{ maxWidth: 1360, margin: "0 auto", width: "100%", boxSizing: "border-box", padding: "clamp(108px,7vw,124px) clamp(16px,2.4vw,40px) clamp(8px,1.6vw,22px)" }}>
+        <section style={{ maxWidth: 1360, margin: "0 auto", width: "100%", boxSizing: "border-box", padding: "clamp(116px,7vw,128px) clamp(16px,2.4vw,40px) clamp(8px,1.6vw,22px)" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "7px 14px", borderRadius: 999, border: "1px solid rgba(217,183,121,0.28)", background: "rgba(143,214,166,0.06)", fontFamily: "var(--pb-mono)", fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: "#cdd6cf" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#8fd6a6", boxShadow: "0 0 10px #8fd6a6" }} />Trip builder · live conditions baked in
           </div>

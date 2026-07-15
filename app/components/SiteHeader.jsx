@@ -79,9 +79,9 @@ function Logo() {
       <img
         src="/brand/the-park-buddy-badge.png"
         alt="The Park Buddy"
-        width={72}
-        height={72}
-        style={{ height: 72, width: 72, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 14px rgba(0,0,0,.45))" }}
+        width={84}
+        height={84}
+        style={{ height: 84, width: 84, objectFit: "contain", display: "block", filter: "drop-shadow(0 3px 14px rgba(0,0,0,.45))" }}
       />
     </Link>
   );
@@ -192,7 +192,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       style={{
         position: "fixed", top: "clamp(8px,1.4vw,14px)", left: "clamp(8px,1.6vw,18px)", right: "clamp(8px,1.6vw,18px)", zIndex: 100,
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-        padding: "6px 10px 6px 16px",
+        padding: "5px 10px 5px 14px",
         background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
         WebkitBackdropFilter: "blur(22px) saturate(1.4)",
         backdropFilter: "blur(22px) saturate(1.4)",

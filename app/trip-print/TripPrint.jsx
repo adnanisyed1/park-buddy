@@ -10,11 +10,11 @@
 
 import { useEffect, useState } from "react";
 import loadScript from "../components/load-script";
-import { getStops, getMeta } from "../lib/trip";
+import { getStops, getMeta, setStops as tripSetStops, setMeta as tripSetMeta } from "../lib/trip";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { computeRoute } from "../lib/googleRoutes";
 import { decodeTrip } from "../lib/tripShare";
-import { getChecklist } from "../lib/checklist";
+import { getChecklist, clearChecklist, addChecklistItems } from "../lib/checklist";
 import { CATS as PACK_CATS } from "../lib/packgo";
 
 const FUEL_PER_MI = 0.2333, LODGING_PER_NIGHT = 130, FOOD_PER_PERSON_DAY = 35, ROAD_FACTOR = 1.25;
@@ -99,6 +99,19 @@ export default function TripPrint() {
   const [routePoly, setRoutePoly] = useState("");
   const [dayPlans, setDayPlans] = useState({});
   const [packItems, setPackItems] = useState([]);
+  const [isShared, setIsShared] = useState(false); // opened from a ?t= share link → offer "Edit this trip"
+
+  // Load this shared trip into the live trip store (stops + dates + day plans + checklist)
+  // and open it in Trip Studio, so a shared link isn't just read-only.
+  function editThisTrip() {
+    try {
+      tripSetStops(stops.map((s) => ({ name: s.name, nights: s.nights, lat: s.lat, lng: s.lng, state: s.state, custom: s.custom, kind: s.kind, slug: s.slug })));
+      tripSetMeta({ tripName: meta.tripName, startDate: meta.startDate, endDate: meta.endDate, adults: meta.adults || meta.travelers || 2, infants: meta.infants || 0, travelers: meta.adults || meta.travelers || 2, arrivalMode: meta.arrivalMode || "drive" });
+      try { localStorage.setItem("pb_trip_dayplans", JSON.stringify(dayPlans || {})); } catch {}
+      try { clearChecklist(); if (packItems && packItems.length) addChecklistItems(packItems.map((i) => ({ cat: i.cat, label: i.label, why: i.why }))); } catch {}
+    } catch {}
+    window.location.href = "/build-trip";
+  }
 
   useEffect(() => {
     let on = true;
@@ -123,13 +136,14 @@ export default function TripPrint() {
       } catch {}
       const resolved = raw.map((s) => {
         const c = s.lat != null && s.lng != null ? s : coord[s.name];
-        return c ? { name: s.name, nights: s.nights || 0, lat: c.lat, lng: c.lng, state: s.state || c.state || "", custom: !!s.custom } : { name: s.name, nights: s.nights || 0, state: s.state || "" };
+        const extra = { ...(s.kind ? { kind: s.kind } : {}), ...(s.slug ? { slug: s.slug } : {}) };
+        return c ? { name: s.name, nights: s.nights || 0, lat: c.lat, lng: c.lng, state: s.state || c.state || "", custom: !!s.custom, ...extra } : { name: s.name, nights: s.nights || 0, state: s.state || "", ...extra };
       });
       // Day-plan blocks: from the shared payload, else the local store.
       let dp = shared ? (shared.dayPlans || {}) : {};
       if (!shared) { try { dp = JSON.parse(localStorage.getItem("pb_trip_dayplans") || "{}") || {}; } catch { dp = {}; } }
       const pack = shared ? (shared.checklist || []) : getChecklist();
-      if (on) { setStops(resolved); setMeta(m); setDayPlans(dp); setPackItems(pack); setReady(true); }
+      if (on) { setStops(resolved); setMeta(m); setDayPlans(dp); setPackItems(pack); setIsShared(!!shared); setReady(true); }
     })();
     return () => { on = false; };
   }, []);
@@ -230,7 +244,12 @@ export default function TripPrint() {
       {/* toolbar (screen only) */}
       <div className="tp-noprint" style={{ position: "sticky", top: 0, zIndex: 5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px clamp(14px,4vw,40px)", background: DEEP, color: PAPER }}>
         <a href="/build-trip" style={{ color: GOLD, textDecoration: "none", fontWeight: 700, fontSize: ".9rem" }}>← Back to Build My Trip</a>
-        <button onClick={doPrint} style={{ cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: ".88rem", color: DEEP, background: "linear-gradient(120deg," + GOLD_LT + "," + GOLD + ")", border: "none", borderRadius: 999, padding: "10px 20px" }}>🖨 Print / Save as PDF</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {isShared && (
+            <button onClick={editThisTrip} title="Load this trip into Trip Studio to edit" style={{ cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: ".88rem", color: GOLD, background: "transparent", border: "1px solid " + GOLD, borderRadius: 999, padding: "9px 18px" }}>✎ Edit this trip</button>
+          )}
+          <button onClick={doPrint} style={{ cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: ".88rem", color: DEEP, background: "linear-gradient(120deg," + GOLD_LT + "," + GOLD + ")", border: "none", borderRadius: 999, padding: "10px 20px" }}>🖨 Print / Save as PDF</button>
+        </div>
       </div>
 
       <div className="tp-sheet" style={{ maxWidth: 880, margin: "24px auto", background: CARD, boxShadow: "0 24px 70px -34px rgba(26,38,32,.5)", borderRadius: 16, overflow: "hidden", border: "1px solid " + HAIR }}>

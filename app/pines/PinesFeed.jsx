@@ -147,6 +147,7 @@ function Discover({ onPost, user, isWeb }) {
   const [verdict, setVerdict] = useState(null);
   const [like, setLike] = useState({ liked: false, count: 0 });
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   useEffect(() => { let on = true; fetch("/api/pines?limit=20").then((r) => r.json()).then((d) => on && setSt({ loading: false, pines: d.pines || [] })).catch(() => on && setSt({ loading: false, pines: [] })); return () => { on = false; }; }, []);
   // Clamp the index if the list shrinks, and never dereference an out-of-range pine.
   useEffect(() => { setIdx((i) => (st.pines.length && i >= st.pines.length ? 0 : i)); }, [st.pines.length]);
@@ -222,8 +223,10 @@ function Discover({ onPost, user, isWeb }) {
         <RailBtn aria={like.liked ? "Unlike" : "Like"} label={like.count} onClick={toggleLike} active={like.liked}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></RailBtn>
         <RailBtn aria="Comments" label={p.comment_count || 0} onClick={() => setCommentsOpen(true)}><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z" /></RailBtn>
         <RailBtn aria="Share" onClick={() => { try { const u = location.origin + "/pines?pine=" + p.id; navigator.share ? navigator.share({ title: "Park Buddy Pines", url: u }).catch(() => {}) : (navigator.clipboard && navigator.clipboard.writeText(u).catch(() => {})); } catch {} }}><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></RailBtn>
+        <RailBtn aria="Report" onClick={() => setReportOpen(true)}><path d="M4 21V4M4 4h12l-2 4 2 4H4" /></RailBtn>
       </div>
       {commentsOpen && <CommentsSheet pine={p} user={user} onClose={() => setCommentsOpen(false)} />}
+      {reportOpen && <ReportSheet pine={p} onClose={() => setReportOpen(false)} />}
       <div style={{ position: "absolute", left: 16, right: 70, bottom: 96, zIndex: 6 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "#fff", textShadow: "0 2px 12px rgba(0,0,0,.6)" }}>📍 {p.place_name || "Adventure"}</span>
@@ -241,6 +244,43 @@ function Discover({ onPost, user, isWeb }) {
 }
 function RailBtn({ children, label, onClick, active, aria }) {
   return <button onClick={onClick} aria-label={aria} style={{ cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", fontSize: ".6rem", fontWeight: 600 }}><svg viewBox="0 0 24 24" fill={active ? C.like : "none"} stroke={active ? C.like : "#fff"} strokeWidth="2" style={{ width: 26, height: 26, filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}>{children}</svg>{label != null && label !== 0 ? <span>{label}</span> : null}</button>;
+}
+
+// UGC safety: a viewer flags a Pine. Reports go to /api/pines/report; repeatedly
+// flagged Pines auto-hide pending admin review (DMCA notice-and-takedown path).
+function ReportSheet({ pine, onClose }) {
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const REASONS = ["Inappropriate or explicit", "Spam or scam", "Not this place / misleading", "Harassment or hate", "Copyright / it's not theirs", "Other"];
+  const submit = async (reason) => {
+    setBusy(true);
+    try {
+      const t = await getAccessToken();
+      await fetch("/api/pines/report", { method: "POST", headers: { "Content-Type": "application/json", ...(t ? { Authorization: "Bearer " + t } : {}) }, body: JSON.stringify({ pine_id: pine.id, reason }) });
+    } catch {}
+    setBusy(false); setSent(true);
+    setTimeout(onClose, 1500);
+  };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, background: "var(--pb-bg,#0a1712)", borderTop: "1px solid rgba(217,183,121,.24)", borderRadius: "18px 18px 0 0", padding: "18px 18px 26px", boxShadow: "0 -20px 60px rgba(0,0,0,.6)" }}>
+        {sent ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "#cfe8d6", fontWeight: 600 }}>✓ Thanks — our team will review this Pine.</div>
+        ) : (
+          <>
+            <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "#f4f1ea", marginBottom: 4 }}>Report this Pine</div>
+            <div style={{ fontSize: ".8rem", color: "#9fb0a6", marginBottom: 14 }}>Tell us what&apos;s wrong. Reports are reviewed, and repeatedly-flagged Pines are hidden automatically.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {REASONS.map((r) => (
+                <button key={r} disabled={busy} onClick={() => submit(r)} style={{ cursor: busy ? "default" : "pointer", textAlign: "left", fontFamily: "inherit", fontSize: ".9rem", fontWeight: 600, color: "#f4f1ea", background: "rgba(255,255,255,.05)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 12, padding: "12px 14px" }}>{r}</button>
+              ))}
+            </div>
+            <button onClick={onClose} style={{ cursor: "pointer", width: "100%", marginTop: 12, fontFamily: "inherit", fontSize: ".82rem", color: "#9fb0a6", background: "transparent", border: "none", padding: 8 }}>Cancel</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function CommentsSheet({ pine, user, onClose }) {

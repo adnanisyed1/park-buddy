@@ -147,10 +147,8 @@ function Crest({ t }) {
   );
 }
 
-const LogoGlyph = ({ w = 34, g = 19 }) => (
-  <span style={{ width: w, height: w, borderRadius: 9, background: "linear-gradient(135deg,#ecd696,#c9a24b)", boxShadow: "0 0 18px rgba(217,183,121,.35)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
-    <svg viewBox="0 0 24 24" fill="#12211a" width={g} height={g} aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
-  </span>
+const LogoGlyph = ({ w = 40 }) => (
+  <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={w} height={w} style={{ width: w, height: w, objectFit: "contain", display: "block", flex: "none", filter: "drop-shadow(0 2px 10px rgba(0,0,0,.4))" }} />
 );
 
 export default function Storefront() {

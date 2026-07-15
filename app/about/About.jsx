@@ -112,12 +112,7 @@ export default function About() {
     <div className={styles.page} ref={rootRef}>
       <nav className={styles.nav} ref={navRef}>
         <Link href="/" className={styles.brand}>
-          <span className={styles.mk}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="#15241c">
-              <path d="M12 2l5 9h-3l5 9H5l5-9H7z"></path>
-              <rect x="11" y="18" width="2" height="4"></rect>
-            </svg>
-          </span>
+          <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={40} height={40} style={{ width: 40, height: 40, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 8px rgba(0,0,0,.35))" }} />
           ParkBuddy
         </Link>
         <div className={styles.navlinks}>

@@ -16,9 +16,6 @@ const micro = { fontFamily: mono, fontSize: ".54rem", letterSpacing: ".16em", te
 const goldBtn = { cursor: "pointer", width: "100%", fontFamily: "var(--pb-sans)", fontWeight: 700, fontSize: ".92rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 12, padding: "13px 18px" };
 const oauthBtn = { cursor: "pointer", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontFamily: "var(--pb-sans)", fontWeight: 600, fontSize: ".88rem", color: "var(--pb-ink)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px" };
 
-const LOGO = (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="var(--pb-bg)"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
-);
 const GOOGLE = (
   <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.5l-6.5-5.5c-2 1.5-4.7 2.5-7.6 2.5-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.5 5.5C41.4 36 44 30.5 44 24c0-1.3-.1-2.3-.4-3.5z" /></svg>
 );
@@ -51,7 +48,7 @@ export default function AuthModal() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 30, height: 30, borderRadius: 8, background: "var(--pb-grad-gold)", display: "flex", alignItems: "center", justifyContent: "center" }}>{LOGO}</span>
+            <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={38} height={38} style={{ width: 38, height: 38, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 8px rgba(0,0,0,.35))" }} />
             <b style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>Park Buddy</b>
           </div>
           <button onClick={closeAuth} aria-label="Close" style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "rgba(9,22,15,.7)", color: "var(--pb-gold)", fontSize: ".95rem", lineHeight: 1 }}>✕</button>

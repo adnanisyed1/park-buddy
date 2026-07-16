@@ -145,18 +145,36 @@ class Component extends DCLogic {
         burger.style.cssText='cursor:pointer;align-items:center;justify-content:center;width:42px;height:40px;background:rgba(9,17,12,.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(217,183,121,.35);border-radius:12px;color:#e7e3d8;flex:none';
         burger.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>';
         actions.appendChild(burger);
+        // Full-screen menu panel: every section (Explore / Book / Shop) with its
+        // categories, plus Pines, Sign in and Ask Park Buddy. Built from the same
+        // EXPLORE/BOOK/SHOP menu data the desktop dropdowns use.
         var menu=document.createElement('div');
         menu.id='navMenu';
-        menu.style.cssText='position:absolute;top:100%;right:0;margin-top:10px;min-width:214px;background:rgba(11,23,16,.98);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(217,183,121,.2);border-radius:14px;padding:8px;box-shadow:0 30px 70px -30px rgba(0,0,0,.85);display:none;flex-direction:column;gap:2px;z-index:120';
-        var dest=[['Explore','/explore'],['Pines','/pines'],['Book','/book'],['Shop','/shop']].map(function(d){ return '<a href="'+d[1]+'" style="display:block;padding:11px 13px;border-radius:9px;text-decoration:none;color:#f4f1ea;font-size:.95rem;font-weight:600">'+d[0]+'</a>'; }).join('');
-        menu.innerHTML=dest+'<div style="height:1px;background:rgba(217,183,121,.18);margin:8px 6px"></div><button id="menuSignIn" style="cursor:pointer;font-family:inherit;text-align:left;display:block;width:100%;padding:11px 13px;border-radius:9px;background:transparent;border:none;color:#f4f1ea;font-size:.95rem;font-weight:600">Sign in</button><button id="menuAsk" style="cursor:pointer;font-family:inherit;display:block;width:100%;margin-top:6px;padding:12px 13px;border-radius:10px;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;color:#0a1712;font-size:.92rem;font-weight:700;text-align:center">✦ Ask Park Buddy</button>';
-        pill.appendChild(menu);
+        menu.style.cssText='position:fixed;inset:0;z-index:200;background:rgba(8,15,11,.975);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3);overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;flex-direction:column;padding:14px clamp(16px,5vw,26px) 44px';
+        var mSection=function(title,items){
+          var rows=items.map(function(m){
+            var soon=m[4]?' <span style="font-family:\'Space Mono\',monospace;font-size:.5rem;letter-spacing:.1em;color:#c9a35f;border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:1px 6px;vertical-align:middle">SOON</span>':'';
+            return '<a href="'+m[3]+'" style="display:flex;gap:13px;align-items:flex-start;padding:12px;border-radius:12px;text-decoration:none" onmouseover="this.style.background=\'rgba(217,183,121,.07)\'" onmouseout="this.style.background=\'transparent\'"><span style="font-size:1.2rem;width:26px;text-align:center;flex:none;line-height:1.1">'+m[0]+'</span><span style="min-width:0"><span style="display:block;font-size:1rem;font-weight:600;color:#f4f1ea">'+m[1]+soon+'</span><span style="display:block;font-size:.8rem;color:#8a938c;margin-top:2px">'+m[2]+'</span></span></a>';
+          }).join('');
+          return '<div style="font-family:\'Space Mono\',monospace;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:#7f8a82;padding:18px 12px 6px">'+title+'</div>'+rows;
+        };
+        menu.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px 12px"><span style="font-family:\'Cormorant Garamond\',Georgia,serif;font-style:italic;font-size:1.1rem;color:#e8cf9a">Adventure\'s better with a Buddy</span><button id="menuClose" aria-label="Close menu" style="cursor:pointer;flex:none;width:42px;height:42px;background:transparent;border:1px solid rgba(217,183,121,.3);border-radius:12px;color:#e7e3d8;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button></div>'
+          + mSection('Explore',EXPLORE_MENU) + mSection('Book',BOOK_MENU) + mSection('Shop',SHOP_MENU)
+          + '<div style="height:1px;background:rgba(217,183,121,.16);margin:14px 8px"></div>'
+          + '<a href="/pines" style="display:block;padding:12px;border-radius:12px;text-decoration:none;color:#f4f1ea;font-size:1.02rem;font-weight:700">Pines</a>'
+          + '<div style="display:flex;flex-direction:column;gap:10px;padding:14px 8px 0">'
+          + '<button id="menuSignIn" style="cursor:pointer;font-family:inherit;text-align:center;padding:13px;border-radius:12px;background:transparent;border:1px solid rgba(217,183,121,.32);color:#e7e3d8;font-size:.95rem;font-weight:600">Sign in</button>'
+          + '<button id="menuAsk" style="cursor:pointer;font-family:inherit;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;color:#0a1712;font-size:.96rem;font-weight:700">✦ Ask Park Buddy</button>'
+          + '</div>';
+        document.body.appendChild(menu);
         var openM=false;
-        burger.addEventListener('click',function(e){ e.stopPropagation(); openM=!openM; menu.style.display=openM?'flex':'none'; });
-        document.addEventListener('click',function(){ if(openM){ openM=false; menu.style.display='none'; } });
-        menu.addEventListener('click',function(e){ e.stopPropagation(); });
-        var mSignIn=menu.querySelector('#menuSignIn'); if(mSignIn) mSignIn.addEventListener('click',function(){ openM=false; menu.style.display='none'; var s=document.getElementById('signInBtn'); if(s) s.click(); });
-        var mAsk=menu.querySelector('#menuAsk'); if(mAsk) mAsk.addEventListener('click',function(){ openM=false; menu.style.display='none'; var a=document.getElementById('askPill'); if(a) a.click(); });
+        var closeMenu=function(){ openM=false; menu.style.display='none'; document.body.style.overflow=''; };
+        var openMenu=function(){ openM=true; menu.style.display='flex'; document.body.style.overflow='hidden'; };
+        burger.addEventListener('click',function(e){ e.stopPropagation(); openM?closeMenu():openMenu(); });
+        menu.querySelector('#menuClose').addEventListener('click',closeMenu);
+        menu.addEventListener('click',function(e){ if(e.target.closest('a')) closeMenu(); });
+        var mSignIn=menu.querySelector('#menuSignIn'); if(mSignIn) mSignIn.addEventListener('click',function(){ closeMenu(); var s=document.getElementById('signInBtn'); if(s) s.click(); });
+        var mAsk=menu.querySelector('#menuAsk'); if(mAsk) mAsk.addEventListener('click',function(){ closeMenu(); var a=document.getElementById('askPill'); if(a) a.click(); });
       }
     }
     // Real capture: POST the email to /api/pines-waitlist (writes to Supabase).

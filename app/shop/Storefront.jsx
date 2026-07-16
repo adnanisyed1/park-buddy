@@ -156,6 +156,7 @@ export default function Storefront() {
   const [tribeIndex, setTribeIndex] = useState(0);
   const [cart, setCart] = useState(0);
   const [toast, setToast] = useState({ msg: "", on: false });
+  const [pbMenu, setPbMenu] = useState(false); // native Park Buddy menu (escape hatch back to the platform)
   const toastRef = useRef(null);
 
   useEffect(() => {
@@ -181,6 +182,9 @@ export default function Storefront() {
   const gType = tribeIndex % 2 === 0 ? "tee" : "hoodie";
   const gLabel = gType === "tee" ? "Tee" : "Hoodie";
   const NAV = [["Trail Badges", "#trails"], ["Tribes", "#tribes"], ["Family", "#family"], ["The Duck Pond", "#duckpond"], ["About", "#promise"]];
+  // The storefront is a sub-brand with its own nav; this is the native platform
+  // menu so shop visitors aren't stranded — a way back to the rest of Park Buddy.
+  const PLATFORM = [["The Live Map", "/explore"], ["Trip Studio", "/build-trip"], ["Scenic Drives", "/scenic-drives"], ["Pines", "/pines"], ["Book", "/book"], ["Home", "/"]];
 
   return (
     <div className="pbstore" data-theme={theme}>
@@ -205,6 +209,28 @@ export default function Storefront() {
             ))}
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* native Park Buddy menu — back to the rest of the platform */}
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setPbMenu((o) => !o)} aria-label="Park Buddy menu" aria-expanded={pbMenu} style={{ width: 40, height: 40, borderRadius: 9, border: "1.5px solid var(--line)", background: "transparent", color: "var(--ink)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  {pbMenu ? <><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></> : <><line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" /></>}
+                </svg>
+              </button>
+              {pbMenu && (
+                <>
+                  <div onClick={() => setPbMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 45 }} />
+                  <div style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, zIndex: 46, minWidth: 216, background: "var(--surface-2)", border: "1px solid var(--line)", borderRadius: 12, padding: 8, boxShadow: "0 24px 60px rgba(0,0,0,.4)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px 8px" }}>
+                      <LogoGlyph w={26} />
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--ink-dim)" }}>The Park Buddy</span>
+                    </div>
+                    {PLATFORM.map(([label, href]) => (
+                      <a key={href} href={href} onClick={() => setPbMenu(false)} style={{ display: "block", padding: "10px 10px", borderRadius: 8, textDecoration: "none", color: "var(--ink)", fontSize: 14, fontWeight: 600 }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>{label}</a>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <button onClick={toggleTheme} aria-label="Toggle theme" style={{ width: 40, height: 40, borderRadius: 9, border: "1.5px solid var(--line)", background: "transparent", color: "var(--ink)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {isDark
                 ? <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" /></svg>

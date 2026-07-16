@@ -28,7 +28,6 @@ import PbTabBar, { PATHS, DEFAULT_ICON, Ico } from "./PbTabBar";
 
 // Explore / Book / Shop menus now live in a shared data module so the /shop
 // storefront can reuse the exact same destinations (see app/lib/nav-menus.js).
-const EXPLORE_KEYS = ["explore", "drives", "cruises", "diving", "climbing"];
 
 // Friendly name for the current page, shown in the phone top-bar bubble ("where you
 // are"). Keyed off the first path segment; dynamic detail pages fall back to a
@@ -46,6 +45,23 @@ function sectionName(pathname) {
   if (p === "/") return "Home";
   const seg = p.split("/").filter(Boolean)[0] || "";
   return SECTION_NAMES[seg] || (seg ? seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " ") : "Park Buddy");
+}
+
+// Which top-nav tab (explore | pines | book | shop) the current route belongs to, so
+// we can highlight the whole tab you're on. Explore is the umbrella for the map and
+// all its experiences + park/place detail pages; null = no section (home, legal…).
+const TAB_OF = {
+  book: "book",
+  shop: "shop", "trip-book": "shop", "trip-book-styles": "shop", "trip-print": "shop",
+  pines: "pines",
+  explore: "explore", "build-trip": "explore", "scenic-drives": "explore", "trip-mode": "explore",
+  cruises: "explore", diving: "explore", climbing: "explore", parks: "explore", forests: "explore",
+  "state-parks": "explore", lakes: "explore", "trail-status": "explore", "lake-status": "explore",
+  "campground-status": "explore", "todo-status": "explore", ski: "explore", offroad: "explore", trips: "explore",
+};
+function activeTab(pathname) {
+  const seg = (pathname || "/").split("/").filter(Boolean)[0] || "";
+  return TAB_OF[seg] || null;
 }
 
 // Plain top-nav links (dropdowns for Explore/Book/Shop are rendered separately).
@@ -84,7 +100,11 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
     // pill (which IS position:relative) so every section's dropdown opens in the SAME
     // place and spans the full pill width, for one consistent mega-menu.
     <div onMouseEnter={onOpen} onMouseLeave={onClose}>
-      <Link href={href} style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", color: isActive ? "var(--pb-gold)" : "inherit", transition: "color .3s", cursor: "pointer" }}>
+      <Link
+        href={href}
+        aria-current={isActive ? "page" : undefined}
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", padding: "7px 14px", borderRadius: 999, fontWeight: isActive ? 600 : 500, color: isActive ? "var(--pb-gold)" : "inherit", background: isActive ? "rgba(217,183,121,.14)" : "transparent", border: isActive ? "1px solid rgba(217,183,121,.35)" : "1px solid transparent", transition: "color .3s, background .2s, border-color .2s", cursor: "pointer" }}
+      >
         {label} <span style={{ fontSize: ".6rem", opacity: 0.8, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
       </Link>
       {open && (
@@ -131,7 +151,6 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
 export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false }) {
   const [openKey, setOpenKey] = useState(null); // which top-nav dropdown is open ("explore" | "book" | "shop")
   const [menuOpen, setMenuOpen] = useState(false);
-  const exActive = EXPLORE_KEYS.includes(active);
 
   // The header owns the trip badge for every page: it reads the shared trip store
   // and re-renders on any change. A page can still pass an explicit `tripCount`
@@ -179,6 +198,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   // Explore tab opens — PbTabBar listens for this event).
   const pathname = usePathname();
   const here = sectionName(pathname);
+  const tab = activeTab(pathname); // which section tab to highlight ("explore" | "book" | "shop" | "pines" | null)
   const openGo = () => { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("pb:open-sheet", { detail: "go" })); };
   const displayName = user ? ((user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0]) : "";
   const avatar = user && user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture);
@@ -243,17 +263,18 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
         }}
       >
-      <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 26, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
+      <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
         {/* Explore ▾ — the ways to experience the parks */}
-        <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={exActive} open={openKey === "explore"} onOpen={() => setOpenKey("explore")} onClose={() => setOpenKey(null)} />
+        <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={tab === "explore"} open={openKey === "explore"} onOpen={() => setOpenKey("explore")} onClose={() => setOpenKey(null)} />
         {LINKS.map((l) => (
           l.menu ? (
-            <NavDropdown key={l.key} label={l.label} href={l.href} menu={l.menu} isActive={active === l.key} open={openKey === l.key} onOpen={() => setOpenKey(l.key)} onClose={() => setOpenKey(null)} />
+            <NavDropdown key={l.key} label={l.label} href={l.href} menu={l.menu} isActive={tab === l.key} open={openKey === l.key} onOpen={() => setOpenKey(l.key)} onClose={() => setOpenKey(null)} />
           ) : l.key === "pines" ? (
             <Link
               key={l.key}
               href={l.href}
-              style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "7px 15px 7px 12px", fontWeight: 700, boxShadow: active === l.key ? "0 0 0 2px rgba(217,183,121,.35), 0 6px 18px -8px rgba(217,183,121,.7)" : "0 4px 14px -6px rgba(217,183,121,.55)", transition: "box-shadow .3s, transform .2s" }}
+              aria-current={tab === "pines" ? "page" : undefined}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "7px 15px 7px 12px", fontWeight: 700, boxShadow: tab === "pines" ? "0 0 0 2px rgba(217,183,121,.55), 0 6px 18px -8px rgba(217,183,121,.7)" : "0 4px 14px -6px rgba(217,183,121,.55)", transition: "box-shadow .3s, transform .2s" }}
               onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
               onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
             >
@@ -393,7 +414,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       <AccountPanel />
 
       {/* Phone-only bottom tab bar (Explore·Book·Ask·Pines·Shop) + section sheets. */}
-      <PbTabBar active={active === "pines" ? "pines" : active === "book" ? "book" : active === "shop" ? "shop" : (exActive ? "explore" : null)} />
+      <PbTabBar active={tab} />
     </nav>
   );
 }

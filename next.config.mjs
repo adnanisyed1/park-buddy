@@ -25,10 +25,39 @@ const nextConfig = {
       { protocol: "https", hostname: "**.amazonaws.com" },
     ],
   },
-  // Baseline security headers (defense-in-depth). A full Content-Security-Policy is
-  // intentionally deferred: the legacy /embed pipeline + Google Maps + inline styles
-  // need the allowlist enumerated first, or it breaks the site.
+  // Baseline security headers (defense-in-depth) + a REPORT-ONLY Content-Security-
+  // Policy. Report-only blocks nothing — it just makes the browser report what a
+  // real (enforcing) policy WOULD block, so we can enumerate the true allowlist from
+  // live traffic before ever flipping to enforce. Notes on the sources below:
+  //   script-src 'unsafe-inline'  — REQUIRED: the /embed pipeline uses inline
+  //     onmouseover/onclick handlers, and Next injects inline bootstrap scripts.
+  //   'unsafe-eval'               — Google Maps JS historically needs it.
+  //   img-src https:              — photo-heavy app (Wikimedia/NPS/AWS/Maps tiles);
+  //     allow any HTTPS image rather than enumerate every host (low risk for images).
+  //   connect-src supabase + wss  — auth/storage + realtime WebSocket.
+  //   videodelivery / cloudflarestream — Pines video (Cloudflare Stream).
+  //   stripe                      — Checkout redirect + Stripe.js.
+  // Most external APIs (weather.gov, overpass, openai, lulu, recreation.gov…) are
+  // fetched SERVER-side in /api routes, so the browser never contacts them → no CSP
+  // entry needed. To enforce later: verify zero violations across all pages, then
+  // rename the header key to "Content-Security-Policy".
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://js.stripe.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob: https://videodelivery.net https://*.cloudflarestream.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://maps.googleapis.com https://*.googleapis.com https://*.gstatic.com https://videodelivery.net https://*.cloudflarestream.com",
+      "frame-src 'self' https://checkout.stripe.com https://js.stripe.com https://*.videodelivery.net",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
+      "form-action 'self' https://checkout.stripe.com",
+    ].join("; ");
     return [
       {
         source: "/:path*",
@@ -38,6 +67,7 @@ const nextConfig = {
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(self), browsing-topics=()" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          { key: "Content-Security-Policy-Report-Only", value: csp },
         ],
       },
       {

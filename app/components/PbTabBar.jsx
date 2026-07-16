@@ -7,10 +7,10 @@
 // s0.js) so the whole platform shares one mobile nav. Desktop is untouched (hidden
 // ≥861px — matches the SiteHeader hamburger breakpoint so nav never disappears in
 // the tablet range). Design spec: memory/project-mobile-nav-redesign.md.
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import loadScript from "./load-script";
-import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU } from "../lib/nav-menus";
+import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU, PLATFORM_MENU } from "../lib/nav-menus";
 
 const gold = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
 
@@ -40,6 +40,8 @@ const PATHS = {
   "/shop?cat=nav": <><circle cx="12" cy="12" r="9" /><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z" /></>,
   "/shop?cat=maps": <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path d="M9 4v14M15 6v14" /></>,
   "/shop?cat=optics": <><circle cx="7" cy="14" r="3.5" /><circle cx="17" cy="14" r="3.5" /><path d="M10.5 13h3M7 10.5 9 5h2M17 10.5 15 5h-2" /></>,
+  "/trips": <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M5 7h14l-1 13H6zM9 11v5M15 11v5" />,
+  "/pines": <path d="M12 3l5 8h-3l4 7H6l4-7H7z" />,
 };
 const Ico = ({ d, size = 24, sw = 1.6 }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">{d}</svg>
@@ -54,10 +56,10 @@ const TAB_D = {
 const PINE = <svg viewBox="0 0 24 24" width="23" height="23" fill="currentColor"><path d="M12 3l5 8h-3l4 7H6l4-7H7z" /></svg>;
 const SPARK = <svg viewBox="0 0 24 24" width="26" height="26" fill="#0a1712"><path d="M12 2.5l2.3 6.1 6.2.4-4.8 3.9 1.6 6-5.3-3.3L6.5 18.9l1.6-6L3.3 9l6.2-.4z" /></svg>;
 
-const SECTIONS = { explore: ["Explore", EXPLORE_MENU], book: ["Book", BOOK_MENU], shop: ["Shop", SHOP_MENU] };
+const SECTIONS = { explore: ["Explore", EXPLORE_MENU], book: ["Book", BOOK_MENU], shop: ["Shop", SHOP_MENU], go: ["Go anywhere", PLATFORM_MENU] };
 
 export default function PbTabBar({ active }) {
-  const [sheet, setSheet] = useState(null); // "explore" | "book" | "shop" | null
+  const [sheet, setSheet] = useState(null); // "explore" | "book" | "shop" | "go" | null
   const [seg, setSeg] = useState("live");
 
   const openAsk = () => {
@@ -67,6 +69,14 @@ export default function PbTabBar({ active }) {
   };
   const openSheet = (key) => { setSeg("live"); setSheet(key); };
   const close = () => setSheet(null);
+
+  // The top-bar bubble (SiteHeader) opens the "Go anywhere" sheet via this event, so
+  // it reuses the exact same tile sheet the bottom tabs open — one implementation.
+  useEffect(() => {
+    const onOpen = (e) => { const k = e && e.detail; if (SECTIONS[k]) openSheet(k); };
+    window.addEventListener("pb:open-sheet", onOpen);
+    return () => window.removeEventListener("pb:open-sheet", onOpen);
+  }, []);
 
   const secData = sheet ? SECTIONS[sheet] : null;
   const items = secData ? secData[1] : [];

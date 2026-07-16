@@ -29,6 +29,23 @@ export const BOOK_MENU = [
   { icon: "🚌", label: "Shuttles & transport", desc: "Park shuttles & gateway transfers", href: "/book?cat=shuttles" },
 ];
 
+// Platform "go anywhere" directory — the destinations the top-bar bubble opens as a
+// tile sheet (same display as Explore). One flat list of the main places across the
+// whole platform, so from any page you can jump anywhere.
+export const PLATFORM_MENU = [
+  { icon: "🗺", label: "The Live Map", desc: "Parks, forests & state parks — live", href: "/explore" },
+  { icon: "🧭", label: "Trip Studio", desc: "Plan a national-parks road trip", href: "/build-trip" },
+  { icon: "🛣", label: "Scenic Drives", desc: "Byways & road trips", href: "/scenic-drives" },
+  { icon: "◉", label: "Trip Mode", desc: "Live on-trip: photos, checklist, alerts", href: "/trip-mode" },
+  { icon: "🎒", label: "My Trips", desc: "Your saved trips & itineraries", href: "/trips" },
+  { icon: "📅", label: "Book", desc: "Stays, campsites, cars, permits", href: "/book" },
+  { icon: "🛍", label: "Shop", desc: "Trip Book, gear & apparel", href: "/shop" },
+  { icon: "🌲", label: "Pines", desc: "Reels, but for the wild", href: "/pines" },
+  { icon: "🚢", label: "Cruises", desc: "Reach the parks by sea", href: "/cruises" },
+  { icon: "🤿", label: "Diving the Parks", desc: "Dry Tortugas · Channel Islands", href: "/diving", soon: true },
+  { icon: "🧗", label: "Climbing the Parks", desc: "Yosemite · Zion · Joshua Tree", href: "/climbing", soon: true },
+];
+
 // Shop — the store by category. Trip Book is the one live product; the rest open in
 // stages (Soon).
 export const SHOP_MENU = [

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import TripModal from "./TripModal";
 import AuthModal from "./AuthModal";
 import AccountPanel from "./AccountPanel";
@@ -28,6 +29,24 @@ import PbTabBar from "./PbTabBar";
 // Explore / Book / Shop menus now live in a shared data module so the /shop
 // storefront can reuse the exact same destinations (see app/lib/nav-menus.js).
 const EXPLORE_KEYS = ["explore", "drives", "cruises", "diving", "climbing"];
+
+// Friendly name for the current page, shown in the phone top-bar bubble ("where you
+// are"). Keyed off the first path segment; dynamic detail pages fall back to a
+// section label rather than an id.
+const SECTION_NAMES = {
+  explore: "The Live Map", "build-trip": "Trip Studio", "trip-mode": "Trip Mode",
+  "scenic-drives": "Scenic Drives", cruises: "Cruises", book: "Book", shop: "Shop",
+  trips: "My Trips", "trip-book": "Trip Book", "trip-book-styles": "Trip Book", "trip-print": "Trip Book",
+  parks: "Park", forests: "Forest", "state-parks": "State Park", lakes: "Lakes",
+  "trail-status": "Trail", "lake-status": "Lake", "campground-status": "Campground", "todo-status": "To-Do",
+  ski: "Ski", offroad: "Off-Road", about: "About", diving: "Diving", climbing: "Climbing", pines: "Pines",
+};
+function sectionName(pathname) {
+  const p = pathname || "/";
+  if (p === "/") return "Home";
+  const seg = p.split("/").filter(Boolean)[0] || "";
+  return SECTION_NAMES[seg] || (seg ? seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " ") : "Park Buddy");
+}
 
 // Plain top-nav links (dropdowns for Explore/Book/Shop are rendered separately).
 const LINKS = [
@@ -160,6 +179,12 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   // signed out, the account panel when signed in).
   const { user, openAuth } = useAuth();
   const openAccount = () => { setMenuOpen(false); openAuth(); };
+  // Phone top-bar bubble: shows the current section ("where you are") and, when
+  // tapped, opens the platform "Go anywhere" tile sheet (the same sheet the bottom
+  // Explore tab opens — PbTabBar listens for this event).
+  const pathname = usePathname();
+  const here = sectionName(pathname);
+  const openGo = () => { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("pb:open-sheet", { detail: "go" })); };
   const displayName = user ? ((user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0]) : "";
   const avatar = user && user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture);
 
@@ -186,6 +211,29 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       }}
     >
       <Logo className={mobileChromeless ? "pb-chromeless" : undefined} />
+
+      {/* Phone-only "you are here" bubble — the current section name; tap to open the
+          platform "Go anywhere" tile sheet. Hidden on Pines (mobileChromeless) and on
+          desktop (the pill takes over). */}
+      <button
+        type="button"
+        className={mobileChromeless ? "pb-mobile-bubble pb-chromeless" : "pb-mobile-bubble"}
+        onClick={openGo}
+        aria-label={"You're in " + here + " — open the menu"}
+        style={{
+          display: "none", flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center", gap: 9, cursor: "pointer",
+          fontFamily: "var(--pb-sans)", color: "#e7e3d8",
+          background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
+          WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)",
+          border: "1px solid var(--pb-line-strong)", borderRadius: 22, padding: "13px 16px",
+          boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--pb-gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: ".92rem", fontWeight: 600 }}>{here}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--pb-muted)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+
       <div
         className={mobileChromeless ? "pb-nav-pill pb-chromeless" : "pb-nav-pill"}
         style={{
@@ -260,20 +308,22 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         </button>
       </div>
 
-      {/* Hamburger — only shows ≤860px (CSS), where the links + actions above hide. */}
+      </div>{/* /pb-nav-pill */}
+
+      {/* Phone-only account hamburger — sits OUTSIDE the bubble (per design: the bubble
+          is where-you-are + nav, the hamburger is your account). Shown ≤860px. */}
       <button
         type="button"
-        className="pb-hamburger"
+        className={mobileChromeless ? "pb-mobile-burger pb-chromeless" : "pb-mobile-burger"}
         aria-label={menuOpen ? "Close menu" : "Open menu"}
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
-        style={{ display: "none", marginLeft: "auto", cursor: "pointer", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 11, width: 42, height: 40, alignItems: "center", justifyContent: "center", color: "var(--pb-ink)", flex: "none" }}
+        style={{ display: "none", flex: "none", cursor: "pointer", background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 14, width: 50, height: 48, alignItems: "center", justifyContent: "center", color: "var(--pb-ink)" }}
       >
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           {menuOpen ? <><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></> : <><line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" /></>}
         </svg>
       </button>
-      </div>{/* /pb-nav-pill */}
 
       {/* Account menu ("me"). Navigation now lives in the bottom tab bar (PbTabBar),
           so the hamburger is just the account/utility drawer: who you are, My Trip,
@@ -320,9 +370,11 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
 
       <style>{`
         @media (max-width: 860px) {
-          .pb-nav-links { display: none !important; }
-          .pb-nav-actions { display: none !important; }
-          .pb-hamburger { display: inline-flex !important; }
+          /* Phone: the desktop pill gives way to the where-you-are bubble + an
+             account hamburger sitting outside it. */
+          .pb-nav-pill { display: none !important; }
+          .pb-mobile-bubble { display: flex !important; }
+          .pb-mobile-burger { display: inline-flex !important; }
           /* Chromeless pages (Pines) draw their own top toggle — hide the island. */
           .pb-chromeless { display: none !important; }
         }

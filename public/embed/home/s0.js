@@ -155,13 +155,15 @@ class Component extends DCLogic {
         tag.textContent="Adventure's better with a Buddy";
         tag.style.cssText="display:none;flex:1;min-width:0;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:.9rem;line-height:1.18;color:#e8cf9a;text-align:center;padding:0 8px";
         pill.insertBefore(tag, actions);
-        // floating hamburger
+        // Account hamburger — a SEPARATE button OUTSIDE the pill (sibling of the
+        // logo + pill in the flex bar), matching the React platform header so the
+        // landing's mobile top bar reads identically: logo · bubble · hamburger.
         var burger=document.createElement('button');
         burger.id='navBurger';
         burger.setAttribute('aria-label','Menu');
-        burger.style.cssText='cursor:pointer;align-items:center;justify-content:center;width:42px;height:40px;background:rgba(9,17,12,.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(217,183,121,.35);border-radius:12px;color:#e7e3d8;flex:none';
-        burger.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>';
-        actions.appendChild(burger);
+        burger.style.cssText='cursor:pointer;align-items:center;justify-content:center;width:50px;height:48px;background:rgba(9,17,12,.6);-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4);border:1px solid rgba(217,183,121,.3);border-radius:14px;color:#e7e3d8;flex:none';
+        burger.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>';
+        (pill.parentElement||pill).appendChild(burger);
         // Full-screen menu panel: every section (Explore / Book / Shop) with its
         // categories, plus Pines, Sign in and Ask Park Buddy. Built from the same
         // EXPLORE/BOOK/SHOP menu data the desktop dropdowns use.

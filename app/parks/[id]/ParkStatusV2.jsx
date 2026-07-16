@@ -256,8 +256,8 @@ export default function ParkStatusV2({ id, kind = "park" }) {
               <span style={{ width: 12, height: 12, borderRadius: "50%", background: vColor, boxShadow: "0 0 10px " + vColor, animation: "ps-pulse 2.4s infinite" }} />
               <span style={{ ...microLabel, letterSpacing: ".16em" }}>Today&apos;s call{verdict ? "" : " · loading"}</span>
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 10 }}>
-              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(2.4rem,5vw,3.4rem)", lineHeight: 1, color: vColor }}>{verdict ? (verdict.word || bucket.toUpperCase()) : "…"}</span>
+            <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 2, marginTop: 10 }}>
+              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(2.4rem,5vw,3.4rem)", lineHeight: 1.05, color: vColor }}>{verdict ? (verdict.word || bucket.toUpperCase()) : "…"}</span>
               <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.4rem", color: "#e7e3d8" }}>{VHEAD[bucket]}</span>
             </div>
             <p style={{ fontSize: ".96rem", color: "#d3d8d1", lineHeight: 1.5, marginTop: 6 }}>{verdict ? verdict.sub : "Let me read today's conditions from the National Weather Service…"}</p>

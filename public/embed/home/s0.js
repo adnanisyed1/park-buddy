@@ -124,26 +124,39 @@ class Component extends DCLogic {
       // legacy embed needs no separate stylesheet.
       if(!document.getElementById('navBurger')){
         var pill=nav.parentElement, actions=pill.lastElementChild;
+        // On phones the landing top bar becomes a floating hamburger + the tagline.
+        // The nav links, Sign in and Ask Park Buddy all move into the menu so the bar
+        // stays clean. Desktop is untouched. Self-contained in the embed.
         var st=document.createElement('style');
-        st.textContent='#navBurger{display:none}@media(max-width:720px){#navLinks{display:none!important}#navBurger{display:inline-flex!important}}';
+        st.textContent='#navBurger{display:none}#navTag{display:none}@media(max-width:720px){#navLinks{display:none!important}#signInBtn,#askPill{display:none!important}#navBurger{display:inline-flex!important}#navTag{display:block!important}}';
         document.head.appendChild(st);
         pill.style.position='relative';
         actions.style.marginLeft='auto';
+        // tagline — sits in the "in between" space on phones
+        var tag=document.createElement('div');
+        tag.id='navTag';
+        tag.textContent="Adventure's better with a Buddy";
+        tag.style.cssText="display:none;flex:1;min-width:0;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:.9rem;line-height:1.18;color:#e8cf9a;text-align:center;padding:0 8px";
+        pill.insertBefore(tag, actions);
+        // floating hamburger
         var burger=document.createElement('button');
         burger.id='navBurger';
         burger.setAttribute('aria-label','Menu');
-        burger.style.cssText='cursor:pointer;align-items:center;justify-content:center;width:40px;height:38px;background:transparent;border:1px solid rgba(217,183,121,.3);border-radius:11px;color:#e7e3d8;flex:none';
+        burger.style.cssText='cursor:pointer;align-items:center;justify-content:center;width:42px;height:40px;background:rgba(9,17,12,.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(217,183,121,.35);border-radius:12px;color:#e7e3d8;flex:none';
         burger.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>';
         actions.appendChild(burger);
         var menu=document.createElement('div');
         menu.id='navMenu';
-        menu.style.cssText='position:absolute;top:100%;right:0;margin-top:10px;min-width:190px;background:rgba(11,23,16,.98);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(217,183,121,.2);border-radius:14px;padding:8px;box-shadow:0 30px 70px -30px rgba(0,0,0,.85);display:none;flex-direction:column;gap:2px;z-index:120';
-        menu.innerHTML=[['Explore','/explore'],['Pines','/pines'],['Book','/book'],['Shop','/shop']].map(function(d){ return '<a href="'+d[1]+'" style="display:block;padding:11px 13px;border-radius:9px;text-decoration:none;color:#f4f1ea;font-size:.95rem;font-weight:600">'+d[0]+'</a>'; }).join('');
+        menu.style.cssText='position:absolute;top:100%;right:0;margin-top:10px;min-width:214px;background:rgba(11,23,16,.98);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(217,183,121,.2);border-radius:14px;padding:8px;box-shadow:0 30px 70px -30px rgba(0,0,0,.85);display:none;flex-direction:column;gap:2px;z-index:120';
+        var dest=[['Explore','/explore'],['Pines','/pines'],['Book','/book'],['Shop','/shop']].map(function(d){ return '<a href="'+d[1]+'" style="display:block;padding:11px 13px;border-radius:9px;text-decoration:none;color:#f4f1ea;font-size:.95rem;font-weight:600">'+d[0]+'</a>'; }).join('');
+        menu.innerHTML=dest+'<div style="height:1px;background:rgba(217,183,121,.18);margin:8px 6px"></div><button id="menuSignIn" style="cursor:pointer;font-family:inherit;text-align:left;display:block;width:100%;padding:11px 13px;border-radius:9px;background:transparent;border:none;color:#f4f1ea;font-size:.95rem;font-weight:600">Sign in</button><button id="menuAsk" style="cursor:pointer;font-family:inherit;display:block;width:100%;margin-top:6px;padding:12px 13px;border-radius:10px;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;color:#0a1712;font-size:.92rem;font-weight:700;text-align:center">✦ Ask Park Buddy</button>';
         pill.appendChild(menu);
         var openM=false;
         burger.addEventListener('click',function(e){ e.stopPropagation(); openM=!openM; menu.style.display=openM?'flex':'none'; });
         document.addEventListener('click',function(){ if(openM){ openM=false; menu.style.display='none'; } });
         menu.addEventListener('click',function(e){ e.stopPropagation(); });
+        var mSignIn=menu.querySelector('#menuSignIn'); if(mSignIn) mSignIn.addEventListener('click',function(){ openM=false; menu.style.display='none'; var s=document.getElementById('signInBtn'); if(s) s.click(); });
+        var mAsk=menu.querySelector('#menuAsk'); if(mAsk) mAsk.addEventListener('click',function(){ openM=false; menu.style.display='none'; var a=document.getElementById('askPill'); if(a) a.click(); });
       }
     }
     // Real capture: POST the email to /api/pines-waitlist (writes to Supabase).

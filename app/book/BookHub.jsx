@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import AffiliateDisclosure from "../components/AffiliateDisclosure";
 import { usePhoto } from "../components/PhotoThumb";
 
@@ -152,6 +153,7 @@ function CatCard({ c, parkLabel, i }) {
 }
 
 export default function BookHub() {
+  useDarkBody();
   const rootRef = useRef(null);
   const [park, setPark] = useState(PARKS[0]);
   const hero = usePhoto(park.q, null, null);

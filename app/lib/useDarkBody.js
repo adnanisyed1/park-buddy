@@ -18,3 +18,10 @@ export default function useDarkBody() {
     return () => { document.body.style.background = prevBg; };
   }, []);
 }
+
+// Renderable form for SERVER components (e.g. StatusShell), which can't call hooks
+// but can render this client child. Drop <DarkBody /> anywhere in a dark server page.
+export function DarkBody() {
+  useDarkBody();
+  return null;
+}

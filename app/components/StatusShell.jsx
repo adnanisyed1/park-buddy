@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PhotoThumb from "./PhotoThumb";
 import SiteHeader from "./SiteHeader";
+import { DarkBody } from "../lib/useDarkBody";
 
 // Shared look for the new /trail-status, /lake-status, /campground-status
 // pages — standalone deep-linkable content pages (SEO + shareable), separate
@@ -27,6 +28,7 @@ const microLabel = { fontFamily: mono, fontSize: ".6rem", letterSpacing: ".16em"
 export function StatusShell({ children, hero, backHref, backLabel, headerRight, wide, bare }) {
   return (
     <div style={{ minHeight: "100vh", paddingTop: 62, background: COLORS.cream, fontFamily: sans, color: COLORS.ink }}>
+      <DarkBody />
       <SiteHeader active="explore" />
       {headerRight && <div style={{ position: "fixed", top: 11, right: "clamp(16px,4vw,54px)", zIndex: 101 }}>{headerRight}</div>}
       {hero}

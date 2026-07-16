@@ -46,12 +46,11 @@ export const PLATFORM_MENU = [
   { icon: "🧗", label: "Climbing the Parks", desc: "Yosemite · Zion · Joshua Tree", href: "/climbing", soon: true },
 ];
 
-// Shop — the store by category. Trip Book is the one live product; the rest open in
-// stages (Soon).
+// Shop — the store by category. The Park Buddy Store (the exclusive apparel &
+// art storefront at /shop) and Trip Book are live; the rest open in stages (Soon).
 export const SHOP_MENU = [
-  { icon: "🛍", label: "All of the shop", desc: "Everything in the store", href: "/shop" },
+  { icon: "🏔", label: "The Park Buddy Store", desc: "Exclusive Park Buddy apparel & art", href: "/shop" },
   { icon: "📖", label: "Trip Book", desc: "Your trip, printed & bound — live", href: "/trip-book" },
-  { icon: "🏔", label: "The Park Buddy Store", desc: "Posters, prints & merch", href: "/shop?cat=store", soon: true },
   { icon: "🎟", label: "Passes", desc: "America the Beautiful + park passes", href: "/shop?cat=passes", soon: true },
   { icon: "🎒", label: "Gear & Apparel", desc: "Packs, layers, footwear", href: "/shop?cat=gear", soon: true },
   { icon: "⛺", label: "Camp & Cook", desc: "Tents, bags, stoves", href: "/shop?cat=camp", soon: true },

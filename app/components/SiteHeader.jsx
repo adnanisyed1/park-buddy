@@ -254,7 +254,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         style={{
           flex: "none", marginLeft: "auto", position: "relative",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 28,
-          padding: "10px 24px",
+          padding: "10px 34px",
           background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
           WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           backdropFilter: "blur(22px) saturate(1.4)",
@@ -263,7 +263,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
         }}
       >
-      <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
+      <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
         {/* Explore ▾ — the ways to experience the parks */}
         <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={tab === "explore"} open={openKey === "explore"} onOpen={() => setOpenKey("explore")} onClose={() => setOpenKey(null)} />
         {LINKS.map((l) => (

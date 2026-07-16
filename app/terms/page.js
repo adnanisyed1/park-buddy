@@ -20,6 +20,7 @@ export default function TermsPage() {
       <h2>Your content (Pines, posts, reviews)</h2>
       <ul>
         <li>You keep ownership of what you post. By posting, you grant Park Buddy a non-exclusive, worldwide license to host, display, and promote it within the product (e.g. in the feed, on a place's page, and in shared links).</li>
+        <li><b>Trip Books &amp; prints:</b> when you create or order a printed Trip Book, you grant us (and the print vendors we use to fulfill it) the additional license needed to reproduce, format, print, and ship the photos and text <b>you</b> put in that book, for the purpose of making and delivering your order. You confirm you own or have the rights to everything you include, and that it doesn't infringe anyone else's copyright, trademark, or privacy/publicity rights.</li>
         <li>Post only <b>real, on-site</b> content you have the right to share. No stock, no fakes, nothing illegal, hateful, dangerous, or infringing; no photos of identifiable minors without consent; respect wildlife and Leave No Trace.</li>
         <li>Everything is subject to moderation. We can remove content or accounts that break these rules.</li>
       </ul>

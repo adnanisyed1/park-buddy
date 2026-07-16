@@ -331,6 +331,7 @@ function ReserveModal({ data, onClose }) {
   const [ship, setShip] = useState("");
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
+  const [agree, setAgree] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | sending | done
   const [error, setError] = useState("");
 
@@ -347,6 +348,10 @@ function ReserveModal({ data, onClose }) {
     setError("");
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
       setError("Enter a valid email address.");
+      return;
+    }
+    if (!agree) {
+      setError("Please confirm you have the rights to the photos in your book.");
       return;
     }
     setStatus("sending");
@@ -427,9 +432,15 @@ function ReserveModal({ data, onClose }) {
             </div>
 
             <p className="tbres-note">This reserves your edition — you won&rsquo;t be charged. Printed books are made on demand; we&rsquo;ll email you to complete the order when fulfillment is live.</p>
+            <p className="tbres-note">Your printed book is made from the photos <b>you</b> added — any stop you didn&rsquo;t photograph becomes a clean, designed page (we don&rsquo;t print stock photos in your book).</p>
+            <p className="tbres-note">Made to order: misprinted or damaged books are replaced or refunded. Because each book is custom-printed just for you, change-of-mind returns aren&rsquo;t possible once printing starts. See our <a href="/terms" target="_blank" rel="noopener" style={{ color: "var(--pb-gold,#c9a35f)", textDecoration: "underline" }}>full terms</a>.</p>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "6px 0 2px", cursor: "pointer", fontSize: ".82rem", lineHeight: 1.45 }}>
+              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2, flex: "none", accentColor: "#c9a35f", width: 16, height: 16 }} />
+              <span>I own or have the rights to use the photos in this book, and they don&rsquo;t include content I&rsquo;m not allowed to reproduce.</span>
+            </label>
             {error && <div className="tbres-err">{error}</div>}
             <div className="tbres-actions">
-              <button className="tbres-btn" disabled={status === "sending"} onClick={submit}>
+              <button className="tbres-btn" disabled={status === "sending" || !agree} onClick={submit}>
                 {status === "sending" ? "Reserving…" : "Reserve my copy"}
               </button>
               <button className="tbres-cancel" onClick={onClose}>Cancel</button>

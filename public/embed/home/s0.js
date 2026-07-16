@@ -117,6 +117,34 @@ class Component extends DCLogic {
         dd.addEventListener('mouseenter',function(){ p.style.opacity='1'; p.style.visibility='visible'; p.style.pointerEvents='auto'; });
         dd.addEventListener('mouseleave',function(){ p.style.opacity='0'; p.style.visibility='hidden'; p.style.pointerEvents='none'; });
       });
+      // Mobile: the landing is the only page on the legacy embed nav, which — unlike
+      // the React SiteHeader — has no hamburger, so the links clip on phones and Shop
+      // becomes unreachable. Mirror the React collapse: hide #navLinks and reveal a
+      // burger + dropdown of the destinations under 720px. Self-contained here so the
+      // legacy embed needs no separate stylesheet.
+      if(!document.getElementById('navBurger')){
+        var pill=nav.parentElement, actions=pill.lastElementChild;
+        var st=document.createElement('style');
+        st.textContent='#navBurger{display:none}@media(max-width:720px){#navLinks{display:none!important}#navBurger{display:inline-flex!important}}';
+        document.head.appendChild(st);
+        pill.style.position='relative';
+        actions.style.marginLeft='auto';
+        var burger=document.createElement('button');
+        burger.id='navBurger';
+        burger.setAttribute('aria-label','Menu');
+        burger.style.cssText='cursor:pointer;align-items:center;justify-content:center;width:40px;height:38px;background:transparent;border:1px solid rgba(217,183,121,.3);border-radius:11px;color:#e7e3d8;flex:none';
+        burger.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>';
+        actions.appendChild(burger);
+        var menu=document.createElement('div');
+        menu.id='navMenu';
+        menu.style.cssText='position:absolute;top:100%;right:0;margin-top:10px;min-width:190px;background:rgba(11,23,16,.98);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(217,183,121,.2);border-radius:14px;padding:8px;box-shadow:0 30px 70px -30px rgba(0,0,0,.85);display:none;flex-direction:column;gap:2px;z-index:120';
+        menu.innerHTML=[['Explore','/explore'],['Pines','/pines'],['Book','/book'],['Shop','/shop']].map(function(d){ return '<a href="'+d[1]+'" style="display:block;padding:11px 13px;border-radius:9px;text-decoration:none;color:#f4f1ea;font-size:.95rem;font-weight:600">'+d[0]+'</a>'; }).join('');
+        pill.appendChild(menu);
+        var openM=false;
+        burger.addEventListener('click',function(e){ e.stopPropagation(); openM=!openM; menu.style.display=openM?'flex':'none'; });
+        document.addEventListener('click',function(){ if(openM){ openM=false; menu.style.display='none'; } });
+        menu.addEventListener('click',function(e){ e.stopPropagation(); });
+      }
     }
     // Real capture: POST the email to /api/pines-waitlist (writes to Supabase).
     // No more fake "✓" that silently discards the address — the button only turns

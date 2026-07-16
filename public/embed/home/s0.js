@@ -151,15 +151,20 @@ class Component extends DCLogic {
         var menu=document.createElement('div');
         menu.id='navMenu';
         menu.style.cssText='position:fixed;inset:0;z-index:200;background:rgba(8,15,11,.975);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3);overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;flex-direction:column;padding:14px clamp(16px,5vw,26px) 44px';
-        var mSection=function(title,items){
+        var mSection=function(title,items,open){
           var rows=items.map(function(m){
             var soon=m[4]?' <span style="font-family:\'Space Mono\',monospace;font-size:.5rem;letter-spacing:.1em;color:#c9a35f;border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:1px 6px;vertical-align:middle">SOON</span>':'';
             return '<a href="'+m[3]+'" style="display:flex;gap:13px;align-items:flex-start;padding:12px;border-radius:12px;text-decoration:none" onmouseover="this.style.background=\'rgba(217,183,121,.07)\'" onmouseout="this.style.background=\'transparent\'"><span style="font-size:1.2rem;width:26px;text-align:center;flex:none;line-height:1.1">'+m[0]+'</span><span style="min-width:0"><span style="display:block;font-size:1rem;font-weight:600;color:#f4f1ea">'+m[1]+soon+'</span><span style="display:block;font-size:.8rem;color:#8a938c;margin-top:2px">'+m[2]+'</span></span></a>';
           }).join('');
-          return '<div style="font-family:\'Space Mono\',monospace;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:#7f8a82;padding:18px 12px 6px">'+title+'</div>'+rows;
+          return '<div class="pb-msec">'
+            + '<button class="pb-msec-h" type="button" aria-expanded="'+(open?'true':'false')+'" style="cursor:pointer;width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border:none;padding:16px 12px 10px;font-family:\'Space Mono\',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:#a9b1a6">'
+            + '<span>'+title+'</span><span class="pb-msec-caret" style="font-size:.75rem;color:#c9a35f;transition:transform .22s;transform:'+(open?'rotate(180deg)':'none')+'">▾</span>'
+            + '</button>'
+            + '<div class="pb-msec-b" style="display:'+(open?'block':'none')+'">'+rows+'</div>'
+            + '</div>';
         };
         menu.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px 12px"><span style="font-family:\'Cormorant Garamond\',Georgia,serif;font-style:italic;font-size:1.1rem;color:#e8cf9a">Adventure\'s better with a Buddy</span><button id="menuClose" aria-label="Close menu" style="cursor:pointer;flex:none;width:42px;height:42px;background:transparent;border:1px solid rgba(217,183,121,.3);border-radius:12px;color:#e7e3d8;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button></div>'
-          + mSection('Explore',EXPLORE_MENU) + mSection('Book',BOOK_MENU) + mSection('Shop',SHOP_MENU)
+          + mSection('Explore',EXPLORE_MENU,true) + mSection('Book',BOOK_MENU,false) + mSection('Shop',SHOP_MENU,false)
           + '<div style="height:1px;background:rgba(217,183,121,.16);margin:14px 8px"></div>'
           + '<a href="/pines" style="display:block;padding:12px;border-radius:12px;text-decoration:none;color:#f4f1ea;font-size:1.02rem;font-weight:700">Pines</a>'
           + '<div style="display:flex;flex-direction:column;gap:10px;padding:14px 8px 0">'
@@ -167,6 +172,16 @@ class Component extends DCLogic {
           + '<button id="menuAsk" style="cursor:pointer;font-family:inherit;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;color:#0a1712;font-size:.96rem;font-weight:700">✦ Ask Park Buddy</button>'
           + '</div>';
         document.body.appendChild(menu);
+        // collapsible sections — tap a header to expand/collapse its categories
+        [].forEach.call(menu.querySelectorAll('.pb-msec-h'),function(h){
+          h.addEventListener('click',function(){
+            var body=h.nextElementSibling, caret=h.querySelector('.pb-msec-caret');
+            var isOpen=body.style.display!=='none';
+            body.style.display=isOpen?'none':'block';
+            h.setAttribute('aria-expanded',isOpen?'false':'true');
+            if(caret) caret.style.transform=isOpen?'none':'rotate(180deg)';
+          });
+        });
         var openM=false;
         var closeMenu=function(){ openM=false; menu.style.display='none'; document.body.style.overflow=''; };
         var openMenu=function(){ openM=true; menu.style.display='flex'; document.body.style.overflow='hidden'; };

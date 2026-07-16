@@ -104,6 +104,10 @@ export default function PinesFeed() {
 
   return (
     <>
+      {/* Full-viewport dark backdrop, present in the SERVER HTML (this client
+          component is SSR'd), so the top strip behind the fixed header paints dark
+          from first paint — no cream flash before useDarkBody's effect runs. */}
+      <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: 0 }} />
       <SiteHeader active="pines" solid />
       <div style={{ position: "fixed", top: HEADER, left: 0, right: 0, bottom: 0, overflowY: fullBleed ? "hidden" : "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
         <div style={wrap}>{screen}</div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "./PhotoThumb";
 import SiteHeader from "./SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import { Button, Tag } from "./ui";
 
 // Reusable category landing for filter choices that don't have a global dataset
@@ -19,6 +20,7 @@ const serif = "var(--pb-serif)";
 const mono = "var(--pb-mono)";
 
 export default function CategoryPage({ eyebrow, title, emphasis, blurb, photoQ, mode = "soon", mapHref = "/explore", features = [], navActive = "explore" }) {
+  useDarkBody();
   const hero = usePhoto(photoQ, null, null);
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");

@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import { getClient, initAuth, openAuth } from "../lib/auth";
 import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
 import { fetchElevationProfile } from "../lib/elevationClient";
@@ -452,6 +453,7 @@ function PinesPeek({ name }) {
 /* ================================ component ================================ */
 
 export default function ExploreApp() {
+  useDarkBody();
   const [parks, setParks] = useState([]); // 63 national parks + live-loaded destinations
   const [verdicts, setVerdicts] = useState({}); // name -> 'go'|'prepare'|'hold' (absent = loading)
   const [verdictFull, setVerdictFull] = useState({}); // name -> full PBVerdict result (word/sub/temp/sky/wind/chips)

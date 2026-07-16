@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "../components/PhotoThumb";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 
 // /scenic-drives index — scroll-animated grid of America's Byways tiles with
 // designation + region filter chips. Ported 1:1 from the Claude-design spec;
@@ -63,6 +64,7 @@ function DriveTile({ d }) {
 }
 
 export default function ScenicIndex({ drives }) {
+  useDarkBody();
   const [fTier, setFTier] = useState("all");
   const [fRegion, setFRegion] = useState("all");
   const regions = useMemo(() => {

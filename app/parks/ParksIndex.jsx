@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "../components/PhotoThumb";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import { Chip } from "../components/ui";
 
 // /parks index — grid of all 63 national parks on the design system (tokens + UI
@@ -42,6 +43,7 @@ function ParkTile({ p }) {
 }
 
 export default function ParksIndex({ parks }) {
+  useDarkBody();
   const [region, setRegion] = useState("all");
 
   const regions = useMemo(() => {

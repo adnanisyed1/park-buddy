@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import PinesCompose from "./PinesCompose";
 import { useAuth, openAuth, getAccessToken } from "../lib/auth";
 
@@ -79,15 +80,8 @@ export default function PinesFeed() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  // Pines is a dark page on a site whose default <body> is cream (--bg, for the
-  // light home/book/shop pages). The dark content container starts below the fixed
-  // header, so that cream body shows through the top strip as a stray "beige banner".
-  // Paint the body dark while Pines is mounted; restore the site default on unmount.
-  useEffect(() => {
-    const prev = document.body.style.background;
-    document.body.style.background = "var(--pb-bg)";
-    return () => { document.body.style.background = prev; };
-  }, []);
+  // Dark page on a cream-default body → paint the body dark while mounted.
+  useDarkBody();
 
   const post = () => { if (!user) { openAuth(); return; } setCompose(true); };
   const go = (t) => { if (t === "compose") return post(); setTab(t); };

@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import loadScript from "../components/load-script";
 import { getStops, getMeta } from "../lib/trip";
 import { subscribeTripMode, getPhotosFor, addPhoto, removePhoto, fileToDataUrl, getBreadcrumb, addCrumb, photoCount, distMiles } from "../lib/tripmode";
@@ -24,6 +25,7 @@ const VC = { go: "#4fd98a", prepare: "#e8cf9a", hold: "#e0906a" };
 const ARRIVE_MI = 2; // within this many miles of a stop = "you've arrived"
 
 export default function TripMode() {
+  useDarkBody();
   const [stops, setStops] = useState([]);
   const [meta, setMeta] = useState({});
   const [ready, setReady] = useState(false);

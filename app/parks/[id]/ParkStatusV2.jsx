@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
+import useDarkBody from "../../lib/useDarkBody";
 import { usePhoto } from "../../components/PhotoThumb";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
@@ -66,6 +67,7 @@ const ALERT_DEFS = [
 ];
 
 export default function ParkStatusV2({ id, kind = "park" }) {
+  useDarkBody();
   const isForest = kind === "forest";
   const isStatePark = kind === "state_park";
   const isNP = !isForest && !isStatePark; // national park (NPS) mode

@@ -1,9 +1,11 @@
 "use client";
 
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import TripLibrary from "../components/TripLibrary";
 
 export default function TripsPage() {
+  useDarkBody();
   return (
     <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <SiteHeader acctSlot />

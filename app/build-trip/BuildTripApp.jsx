@@ -25,6 +25,7 @@ import { buildIcs } from "../lib/tripIcs";
 import { getChecklist, addChecklistItems } from "../lib/checklist";
 import { generateFromTrip } from "../lib/packgo";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import TripStudio from "./TripStudio";
 import TripSetupWizard from "./TripSetupWizard";
 
@@ -145,6 +146,7 @@ const btStep = { width: 30, height: 30, flex: "none", borderRadius: 8, border: "
 /* ================================ component ================================ */
 
 export default function BuildTripApp() {
+  useDarkBody();
   const [parksDb, setParksDb] = useState([]); // real 63 parks from trip-data.js
   const [tripName, setTripName] = useState("Utah's Mighty 5");
   const [startDate, setStartDate] = useState("2026-09-12");

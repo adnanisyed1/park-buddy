@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "../components/PhotoThumb";
 import SiteHeader from "../components/SiteHeader";
+import useDarkBody from "../lib/useDarkBody";
 import { Chip } from "../components/ui";
 
 // /forests index — grid of U.S. national forests on the design system, grouped by
@@ -49,6 +50,7 @@ function ForestTile({ f }) {
 }
 
 export default function ForestsIndex({ forests }) {
+  useDarkBody();
   const [region, setRegion] = useState("all");
 
   const regions = useMemo(() => {

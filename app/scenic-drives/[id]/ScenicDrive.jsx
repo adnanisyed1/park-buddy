@@ -7,6 +7,7 @@ import { getMapPrefs, mapOptionsFor } from "../../lib/mapPrefs";
 import { computeRoute } from "../../lib/googleRoutes";
 import { usePhoto } from "../../components/PhotoThumb";
 import SiteHeader from "../../components/SiteHeader";
+import useDarkBody from "../../lib/useDarkBody";
 import RouteItinerary from "./RouteItinerary";
 import RouteAttractions from "./RouteAttractions";
 import RoutePhotos from "./RoutePhotos";
@@ -109,6 +110,7 @@ function CrossTile({ c }) {
 }
 
 export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
+  useDarkBody();
   // Wikipedia-derived record (traveler itinerary, history, references, CC BY-SA
   // attribution) when this drive has been enriched; null otherwise (page renders
   // its baseline). Route line + highlights prefer curated data, then the record.

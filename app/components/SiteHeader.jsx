@@ -69,8 +69,6 @@ const LINKS = [
   { key: "pines", label: "Pines", href: "/pines" },
   { key: "book", label: "Book", href: "/book", menu: BOOK_MENU },
   { key: "shop", label: "Shop", href: "/shop", menu: SHOP_MENU },
-  { key: "pro", label: "Pro", href: "/#pro" },
-  { key: "learn", label: "Learn", href: "/#learn" },
 ];
 
 function Logo() {

@@ -80,13 +80,16 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
   useEffect(() => { if (!open) setSeg("live"); }, [open]); // reset each time it reopens
   const shown = hasSoon ? menu.filter((m) => (seg === "soon" ? m.soon : !m.soon)) : menu;
   return (
-    <div onMouseEnter={onOpen} onMouseLeave={onClose} style={{ position: "relative" }}>
+    // No position:relative here on purpose — the panel below anchors to the sections
+    // pill (which IS position:relative) so every section's dropdown opens in the SAME
+    // place and spans the full pill width, for one consistent mega-menu.
+    <div onMouseEnter={onOpen} onMouseLeave={onClose}>
       <Link href={href} style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", color: isActive ? "var(--pb-gold)" : "inherit", transition: "color .3s", cursor: "pointer" }}>
         {label} <span style={{ fontSize: ".6rem", opacity: 0.8, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
       </Link>
       {open && (
-        <div style={{ position: "absolute", top: "100%", left: -14, paddingTop: 12 }}>
-          <div style={{ width: 460, background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: 12, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, paddingTop: 14, zIndex: 90 }}>
+          <div style={{ width: "100%", background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: 14, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
             {hasSoon && (
               <div style={{ display: "inline-flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3, margin: "2px 2px 10px" }}>
                 {[["live", "Live"], ["soon", "Coming soon"]].map(([k, lbl]) => (

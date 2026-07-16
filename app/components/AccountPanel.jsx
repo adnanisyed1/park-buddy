@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useAuth, getAccessToken } from "../lib/auth";
+import { useAuth, getAccessToken, deleteAccount } from "../lib/auth";
 import TripLibrary from "./TripLibrary";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
@@ -30,8 +30,15 @@ export default function AccountPanel() {
   const { user, open, closeAuth } = auth;
   const [mounted, setMounted] = useState(false);
   const [view, setView] = useState("home");
+  const [delStep, setDelStep] = useState(0); // 0 hidden · 1 confirming · 2 deleting
+  const [delErr, setDelErr] = useState("");
   useEffect(() => setMounted(true), []);
-  useEffect(() => { if (open) setView("home"); }, [open]);
+  useEffect(() => { if (open) { setView("home"); setDelStep(0); setDelErr(""); } }, [open]);
+  const doDelete = async () => {
+    setDelStep(2); setDelErr("");
+    try { await deleteAccount(); closeAuth(); }
+    catch (e) { setDelErr((e && e.message) || "Couldn't delete your account."); setDelStep(1); }
+  };
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === "Escape") { if (view !== "home") setView("home"); else closeAuth(); } };
@@ -101,6 +108,19 @@ export default function AccountPanel() {
 
         <div style={{ padding: "14px 20px", borderTop: "1px solid var(--pb-line)", flex: "none" }}>
           <button style={{ ...ghostBtn, width: "100%" }} onClick={() => auth.signOut()}>Sign out</button>
+          {delStep === 0 ? (
+            <button onClick={() => { setDelStep(1); setDelErr(""); }} style={{ cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "inherit", fontSize: ".76rem", fontWeight: 600, color: "var(--pb-muted)", background: "transparent", border: "none", padding: 6 }}>Delete my account &amp; data</button>
+          ) : (
+            <div style={{ marginTop: 12, padding: 14, borderRadius: 12, border: "1px solid rgba(224,138,106,.4)", background: "rgba(224,138,106,.07)" }}>
+              <div style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", marginBottom: 4 }}>Delete your account permanently?</div>
+              <div style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.5, marginBottom: 12 }}>This erases your account, saved trips, packing lists, Pines, book reservations and park alerts. It can&apos;t be undone.</div>
+              {delErr && <div style={{ fontSize: ".74rem", color: "#e08a6a", marginBottom: 10 }}>{delErr}</div>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button disabled={delStep === 2} onClick={doDelete} style={{ cursor: delStep === 2 ? "default" : "pointer", flex: 1, fontFamily: "inherit", fontSize: ".8rem", fontWeight: 700, color: "#fff", background: "#c0523c", border: "none", borderRadius: 10, padding: "10px 12px" }}>{delStep === 2 ? "Deleting…" : "Delete forever"}</button>
+                <button disabled={delStep === 2} onClick={() => { setDelStep(0); setDelErr(""); }} style={{ cursor: "pointer", flex: "none", fontFamily: "inherit", fontSize: ".8rem", fontWeight: 600, color: "var(--pb-ink-2)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "10px 16px" }}>Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>,

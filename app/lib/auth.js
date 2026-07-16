@@ -77,6 +77,20 @@ export function closeAuth() { modalOpen = false; notify(); }
 
 // ---------- sign-in methods ----------
 export async function signOut() { const s = client(); if (s) await s.auth.signOut(); }
+
+// Permanently erase the signed-in user's account + all their data (server cascades
+// every user-keyed table + storage + the auth user), then wipe local mirrors and
+// sign out. Throws with a message on failure.
+export async function deleteAccount() {
+  const token = await getAccessToken();
+  if (!token) throw new Error("You're not signed in.");
+  const r = await fetch("/api/delete-account", { method: "POST", headers: { Authorization: "Bearer " + token } });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "Couldn't delete your account — please try again.");
+  try { TRACK.forEach((k) => localStorage.removeItem(k)); } catch {}
+  try { await signOut(); } catch {}
+  return d;
+}
 export function signInGoogle() { return client().auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirectTo() } }); }
 export function signInApple() { return client().auth.signInWithOAuth({ provider: "apple", options: { redirectTo: redirectTo() } }); }
 export function signInMagicLink(email) { return client().auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo(), shouldCreateUser: true } }); }

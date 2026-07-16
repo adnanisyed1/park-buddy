@@ -20,8 +20,8 @@ const TILES = [
   { key: "trips", label: "My Itineraries", icon: "🧭", desc: "Your saved trips" },
   { key: "orders", label: "Books & Orders", icon: "📖", desc: "Trip Books you've made & ordered" },
   { key: "alerts", label: "Alerts", icon: "🔔", desc: "Follow parks · route alerts" },
-  { key: "passport", label: "Passport", icon: "🎫", desc: "Places you've visited" },
-  { key: "plan", label: "Your Plan", icon: "✦", desc: "Park Buddy plan & Pro" },
+  { key: "passport", label: "Passport", icon: "🎫", desc: "Places you've visited", soon: true },
+  { key: "plan", label: "Your Plan", icon: "✦", desc: "Park Buddy plan & Pro", soon: true },
 ];
 const INTERESTS = ["Hiking", "Wildlife", "Photography", "Camping", "Scenic drives", "Family"];
 
@@ -89,7 +89,10 @@ export default function AccountPanel() {
                   style={{ cursor: "pointer", textAlign: "left", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: "16px 15px", display: "flex", flexDirection: "column", gap: 8, minHeight: 118, transition: "border-color .2s, transform .2s", fontFamily: "inherit" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--pb-line-strong)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--pb-line)"; e.currentTarget.style.transform = "none"; }}>
-                  <span style={{ fontSize: "1.5rem" }}>{t.icon}</span>
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "1.5rem" }}>{t.icon}</span>
+                    {t.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "2px 7px" }}>Soon</span>}
+                  </span>
                   <span style={{ marginTop: "auto" }}>
                     <span style={{ display: "block", fontSize: ".98rem", fontWeight: 600, color: "var(--pb-ink)" }}>{t.label}</span>
                     <span style={{ display: "block", fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 2, lineHeight: 1.35 }}>{t.desc}</span>

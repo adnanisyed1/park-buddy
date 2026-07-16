@@ -157,7 +157,7 @@ class Component extends DCLogic {
   buildChecklist(){
     var box=document.getElementById('checklist'); if(!box) return;
     var self=this;
-    var items=['Altitude layers — tops out near 12,000 ft','Rain shell — afternoon storms likely','2L+ water per person','Microspikes — snow lingers up high','Bear canister — backcountry nights','Offline map downloaded'];
+    var items=['Altitude layers — tops out near 12,000 ft','Rain shell — afternoon storms likely','2L+ water per person','Microspikes — snow lingers up high','Bear canister — backcountry nights','Trail route pre-loaded for offline GPS'];
     box.innerHTML=items.map(function(t,i){
       return '<div class="pb-check" data-i="'+i+'" style="display:flex;align-items:center;gap:11px;opacity:.5;transition:opacity .5s"><span class="pb-box" style="width:20px;height:20px;flex:none;border-radius:6px;border:1.5px solid rgba(217,183,121,.4);display:flex;align-items:center;justify-content:center;transition:all .4s"><span class="pb-tick" style="color:#0b1710;font-size:.7rem;opacity:0;transition:opacity .3s">✓</span></span><span style="font-size:.88rem;color:#d3d8d1">'+t+'</span></div>';
     }).join('');

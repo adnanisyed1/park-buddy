@@ -140,6 +140,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   const [filmIdx, setFilmIdx] = useState(0);
   const [hoverIdx, setHoverIdx] = useState(null);
   const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [mapsTried, setMapsTried] = useState(false);
   const mapDivRef = useRef(null);
   const mapObjRef = useRef(null);
   const markersRef = useRef([]);
@@ -206,7 +207,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
     return () => clearInterval(filmTimer.current);
   }, [film.length]);
 
-  useEffect(() => { let on = true; ensureMapsLoaded().then((ok) => { if (on) setMapsLoaded(ok); }); return () => { on = false; }; }, []);
+  useEffect(() => { let on = true; ensureMapsLoaded().then((ok) => { if (on) { setMapsLoaded(ok); setMapsTried(true); } }); return () => { on = false; }; }, []);
 
   // Real Google map + numbered markers at overlook coords.
   useEffect(() => {
@@ -526,6 +527,13 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
             </div>
             <figure style={{ position: "relative", margin: "14px 0 0", height: "clamp(320px,48vh,500px)", overflow: "hidden", borderRadius: 24, border: "1px solid rgba(217,183,121,.16)", background: "var(--pb-surface)" }}>
               <div ref={mapDivRef} style={{ position: "absolute", inset: 0 }} />
+              {mapsTried && !mapsLoaded && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, textAlign: "center", padding: 24, color: "var(--pb-ink-2)" }}>
+                  <div style={{ fontSize: "1.6rem" }}>🗺️</div>
+                  <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "var(--pb-ink)" }}>Map unavailable right now</div>
+                  <div style={{ fontSize: ".82rem", maxWidth: 320, lineHeight: 1.5 }}>The interactive map couldn&apos;t load. The full route, stops and overlooks are all listed just below.</div>
+                </div>
+              )}
               {detail && detail.pois && detail.pois.length >= 3 && (
                 <div style={{ position: "absolute", top: 12, right: 12, zIndex: 3, background: "rgba(15,32,24,.86)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(217,183,121,.2)", borderRadius: 12, padding: "9px 11px", display: "grid", gap: 5, maxWidth: 150 }}>
                   <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", marginBottom: 1 }}>Along the route</div>

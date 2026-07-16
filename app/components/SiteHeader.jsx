@@ -10,7 +10,7 @@ import loadScript from "./load-script";
 import { useAuth } from "../lib/auth";
 import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU } from "../lib/nav-menus";
-import PbTabBar from "./PbTabBar";
+import PbTabBar, { PATHS, DEFAULT_ICON, Ico } from "./PbTabBar";
 
 // The one header for the whole platform (Phase A of the design-system rollout).
 // Extracted from the approved landing page's glass nav so it matches exactly, and
@@ -86,42 +86,34 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
       </Link>
       {open && (
         <div style={{ position: "absolute", top: "100%", left: -14, paddingTop: 12 }}>
-          <div style={{ width: 300, background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: 8, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
+          <div style={{ width: 460, background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: 12, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
             {hasSoon && (
-              <div style={{ display: "flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3, margin: "2px 2px 8px" }}>
+              <div style={{ display: "inline-flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3, margin: "2px 2px 10px" }}>
                 {[["live", "Live"], ["soon", "Coming soon"]].map(([k, lbl]) => (
                   <button
                     key={k}
                     type="button"
                     onClick={() => setSeg(k)}
-                    style={{ cursor: "pointer", flex: 1, fontFamily: "inherit", padding: "6px 10px", border: "none", borderRadius: 999, fontSize: ".72rem", fontWeight: seg === k ? 700 : 600, background: seg === k ? "var(--pb-grad-gold)" : "transparent", color: seg === k ? "var(--pb-bg)" : "#aeb4bd", transition: "background .2s, color .2s" }}
+                    style={{ cursor: "pointer", fontFamily: "inherit", padding: "6px 14px", border: "none", borderRadius: 999, fontSize: ".72rem", fontWeight: seg === k ? 700 : 600, background: seg === k ? "var(--pb-grad-gold)" : "transparent", color: seg === k ? "var(--pb-bg)" : "#aeb4bd", transition: "background .2s, color .2s" }}
                   >
                     {lbl}
                   </button>
                 ))}
               </div>
             )}
-            {shown.map((m) => (
-              <Link
-                key={m.href}
-                href={m.href}
-                onClick={onClose}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(217,183,121,.08)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 11px", borderRadius: 11, textDecoration: "none", transition: "background .2s" }}
-              >
-                <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".86rem", fontWeight: 600, color: "var(--pb-ink)" }}>
-                    {m.label}
-                    {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
-                  </span>
-                  <span style={{ display: "block", fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
-                </span>
-              </Link>
-            ))}
-            {!shown.length && (
-              <div style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".78rem", padding: "22px 12px" }}>More {label.toLowerCase()} is on the way.</div>
+            {shown.length ? (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {shown.map((m) => (
+                  <Link key={m.href} href={m.href} onClick={onClose} className="pb-megabox" style={{ position: "relative", display: "flex", flexDirection: "column", gap: 8, padding: "14px 14px", borderRadius: 14, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)", textDecoration: "none" }}>
+                    {m.soon && <span style={{ position: "absolute", top: 11, right: 11, fontFamily: "var(--pb-mono)", fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "2px 6px" }}>Soon</span>}
+                    <span style={{ width: 28, height: 28, color: "var(--pb-gold)" }}><Ico d={PATHS[m.href] || DEFAULT_ICON} size={28} /></span>
+                    <span style={{ fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "1.14rem", lineHeight: 1.05, color: "var(--pb-ink)" }}>{m.label}</span>
+                    <span style={{ fontSize: ".72rem", lineHeight: 1.35, color: "var(--pb-muted)" }}>{m.desc}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".82rem", padding: "30px 12px" }}>More {label.toLowerCase()} is on the way.</div>
             )}
           </div>
         </div>
@@ -237,9 +229,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       <div
         className={mobileChromeless ? "pb-nav-pill pb-chromeless" : "pb-nav-pill"}
         style={{
-          flex: 1, minWidth: 0, position: "relative",
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-          padding: "8px 12px 8px 20px",
+          flex: "none", marginLeft: "auto", position: "relative",
+          display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 28,
+          padding: "8px 14px 8px 22px",
           background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
           WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           backdropFilter: "blur(22px) saturate(1.4)",
@@ -377,6 +369,11 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           .pb-mobile-burger { display: inline-flex !important; }
           /* Chromeless pages (Pines) draw their own top toggle — hide the island. */
           .pb-chromeless { display: none !important; }
+        }
+        /* Desktop mega-menu boxes (mirror the phone section-sheet tiles). */
+        .pb-megabox { transition: transform .16s ease, border-color .22s, background .22s; }
+        @media (hover: hover) {
+          .pb-megabox:hover { transform: translateY(-3px); border-color: rgba(217,183,121,.5) !important; background: rgba(217,183,121,.06) !important; }
         }
         /* The assistant loads globally so it is reachable everywhere; we hide its own
            teal FAB (off-brand vs the --pb-* system) and open it from the gold header

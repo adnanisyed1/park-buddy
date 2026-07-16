@@ -15,7 +15,8 @@ import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU, PLATFORM_MENU } from "../lib/nav-me
 const gold = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
 
 // Per-destination line icons (match the landing sheet). Fallback = compass-clock.
-const PATHS = {
+// Exported so the desktop SiteHeader dropdowns can render the same boxes.
+export const PATHS = {
   "/explore": <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path d="M9 4v14M15 6v14" /></>,
   "/build-trip": <><circle cx="12" cy="12" r="9" /><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z" /></>,
   "/scenic-drives": <path d="M6 3 4 21M18 3l2 18M12 5v3M12 11v2M12 16v3" />,
@@ -43,10 +44,10 @@ const PATHS = {
   "/trips": <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M5 7h14l-1 13H6zM9 11v5M15 11v5" />,
   "/pines": <path d="M12 3l5 8h-3l4 7H6l4-7H7z" />,
 };
-const Ico = ({ d, size = 24, sw = 1.6 }) => (
+export const Ico = ({ d, size = 24, sw = 1.6 }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 );
-const DEFAULT_ICON = <><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" /></>;
+export const DEFAULT_ICON = <><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" /></>;
 
 const TAB_D = {
   explore: <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path d="M9 4v14M15 6v14" /></>,

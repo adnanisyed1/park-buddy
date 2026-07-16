@@ -89,7 +89,7 @@ export default function PinesFeed() {
     campfire: <Campfire openHub={openHub} />,
     hub: <Hub place={hub} onBack={() => setTab("campfire")} />,
     gallery: <Gallery onOpen={setLightbox} />,
-    mine: <You user={user} onPost={post} />,
+    you: <You user={user} onPost={post} />,
   }[tab];
 
   // Pines (discover) is a full-bleed media stage; the rest are centered content columns.
@@ -105,7 +105,7 @@ export default function PinesFeed() {
         <div style={wrap}>{screen}</div>
       </div>
       <FloatingTabs tab={tab} go={go} isWeb={isWeb} />
-      {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("mine")} />}
+      {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("you")} />}
       {lightbox && <PineLightbox list={lightbox.pines} start={lightbox.i} user={user} onClose={() => setLightbox(null)} />}
     </>
   );

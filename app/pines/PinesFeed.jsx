@@ -79,6 +79,16 @@ export default function PinesFeed() {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  // Pines is a dark page on a site whose default <body> is cream (--bg, for the
+  // light home/book/shop pages). The dark content container starts below the fixed
+  // header, so that cream body shows through the top strip as a stray "beige banner".
+  // Paint the body dark while Pines is mounted; restore the site default on unmount.
+  useEffect(() => {
+    const prev = document.body.style.background;
+    document.body.style.background = "var(--pb-bg)";
+    return () => { document.body.style.background = prev; };
+  }, []);
+
   const post = () => { if (!user) { openAuth(); return; } setCompose(true); };
   const go = (t) => { if (t === "compose") return post(); setTab(t); };
   const openHub = (place) => { setHub(place); setTab("hub"); };

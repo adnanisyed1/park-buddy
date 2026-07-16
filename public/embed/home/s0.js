@@ -128,7 +128,7 @@ class Component extends DCLogic {
         // The nav links, Sign in and Ask Park Buddy all move into the menu so the bar
         // stays clean. Desktop is untouched. Self-contained in the embed.
         var st=document.createElement('style');
-        st.textContent='#navBurger{display:none}#navTag{display:none}@media(max-width:720px){#navLinks{display:none!important}#signInBtn,#askPill{display:none!important}#navBurger{display:inline-flex!important}#navTag{display:block!important}}';
+        st.textContent='#navBurger{display:none}#navTag{display:none}#pbTabbar{display:none}@media(max-width:720px){#navLinks{display:none!important}#signInBtn,#askPill{display:none!important}#navBurger{display:inline-flex!important}#navTag{display:block!important}#pbTabbar{display:grid!important}.pbask-fab{display:none!important}body{padding-bottom:76px}}';
         document.head.appendChild(st);
         pill.style.position='relative';
         actions.style.marginLeft='auto';
@@ -163,33 +163,42 @@ class Component extends DCLogic {
             + '<div class="pb-msec-b" style="display:'+(open?'block':'none')+'">'+rows+'</div>'
             + '</div>';
         };
-        menu.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px 12px"><span style="font-family:\'Cormorant Garamond\',Georgia,serif;font-style:italic;font-size:1.1rem;color:#e8cf9a">Adventure\'s better with a Buddy</span><button id="menuClose" aria-label="Close menu" style="cursor:pointer;flex:none;width:42px;height:42px;background:transparent;border:1px solid rgba(217,183,121,.3);border-radius:12px;color:#e7e3d8;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button></div>'
-          + mSection('Explore',EXPLORE_MENU,true) + mSection('Book',BOOK_MENU,false) + mSection('Shop',SHOP_MENU,false)
-          + '<div style="height:1px;background:rgba(217,183,121,.16);margin:14px 8px"></div>'
-          + '<a href="/pines" style="display:block;padding:12px;border-radius:12px;text-decoration:none;color:#f4f1ea;font-size:1.02rem;font-weight:700">Pines</a>'
-          + '<div style="display:flex;flex-direction:column;gap:10px;padding:14px 8px 0">'
-          + '<button id="menuSignIn" style="cursor:pointer;font-family:inherit;text-align:center;padding:13px;border-radius:12px;background:transparent;border:1px solid rgba(217,183,121,.32);color:#e7e3d8;font-size:.95rem;font-weight:600">Sign in</button>'
+        menu.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px 14px"><span style="font-family:\'Cormorant Garamond\',Georgia,serif;font-style:italic;font-size:1.1rem;color:#e8cf9a">Adventure\'s better with a Buddy</span><button id="menuClose" aria-label="Close" style="cursor:pointer;flex:none;width:42px;height:42px;background:transparent;border:1px solid rgba(217,183,121,.3);border-radius:12px;color:#e7e3d8;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button></div>'
+          + '<div style="display:flex;align-items:center;gap:12px;padding:10px 10px 16px;border-bottom:1px solid rgba(217,183,121,.16)"><span style="width:44px;height:44px;border-radius:50%;background:linear-gradient(140deg,#2b4a37,#1c2f22);border:1px solid rgba(217,183,121,.3);display:flex;align-items:center;justify-content:center;color:#d9b779;flex:none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c0-3.6 3.1-5 7-5s7 1.4 7 5"></path></svg></span><span><b style="display:block;color:#f4f1ea;font-size:.98rem">Welcome, explorer</b><span style="font-size:.78rem;color:#8a938c">Sign in to sync trips &amp; Pines</span></span></div>'
+          + '<button id="menuSignIn" style="cursor:pointer;font-family:inherit;text-align:left;width:100%;display:flex;align-items:center;gap:12px;padding:14px 10px;border:none;background:transparent;border-radius:11px;color:#f4f1ea;font-size:.98rem;font-weight:600;margin-top:8px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#d9b779" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"></path></svg>Sign in</button>'
+          + '<button id="menuCreate" style="cursor:pointer;font-family:inherit;text-align:left;width:100%;display:flex;align-items:center;gap:12px;padding:14px 10px;border:none;background:transparent;border-radius:11px;color:#f4f1ea;font-size:.98rem;font-weight:600"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#d9b779" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"></path></svg>Create account</button>'
+          + '<div style="height:1px;background:rgba(217,183,121,.14);margin:12px 8px"></div>'
           + '<button id="menuAsk" style="cursor:pointer;font-family:inherit;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;color:#0a1712;font-size:.96rem;font-weight:700">✦ Ask Park Buddy</button>'
-          + '</div>';
+          + '<div style="display:flex;gap:18px;justify-content:center;padding:22px 0 0"><a href="/terms" style="color:#8a938c;text-decoration:none;font-size:.78rem">Terms</a><a href="/privacy" style="color:#8a938c;text-decoration:none;font-size:.78rem">Privacy</a><a href="/attributions" style="color:#8a938c;text-decoration:none;font-size:.78rem">Credits</a></div>';
         document.body.appendChild(menu);
-        // collapsible sections — tap a header to expand/collapse its categories
-        [].forEach.call(menu.querySelectorAll('.pb-msec-h'),function(h){
-          h.addEventListener('click',function(){
-            var body=h.nextElementSibling, caret=h.querySelector('.pb-msec-caret');
-            var isOpen=body.style.display!=='none';
-            body.style.display=isOpen?'none':'block';
-            h.setAttribute('aria-expanded',isOpen?'false':'true');
-            if(caret) caret.style.transform=isOpen?'none':'rotate(180deg)';
-          });
-        });
         var openM=false;
         var closeMenu=function(){ openM=false; menu.style.display='none'; document.body.style.overflow=''; };
         var openMenu=function(){ openM=true; menu.style.display='flex'; document.body.style.overflow='hidden'; };
         burger.addEventListener('click',function(e){ e.stopPropagation(); openM?closeMenu():openMenu(); });
         menu.querySelector('#menuClose').addEventListener('click',closeMenu);
         menu.addEventListener('click',function(e){ if(e.target.closest('a')) closeMenu(); });
-        var mSignIn=menu.querySelector('#menuSignIn'); if(mSignIn) mSignIn.addEventListener('click',function(){ closeMenu(); var s=document.getElementById('signInBtn'); if(s) s.click(); });
-        var mAsk=menu.querySelector('#menuAsk'); if(mAsk) mAsk.addEventListener('click',function(){ closeMenu(); var a=document.getElementById('askPill'); if(a) a.click(); });
+        var clickOrig=function(id){ closeMenu(); var el=document.getElementById(id); if(el) el.click(); };
+        menu.querySelector('#menuSignIn').addEventListener('click',function(){ clickOrig('signInBtn'); });
+        menu.querySelector('#menuCreate').addEventListener('click',function(){ clickOrig('signInBtn'); });
+        menu.querySelector('#menuAsk').addEventListener('click',function(){ clickOrig('askPill'); });
+        // Bottom tab bar — primary navigation (Explore/Book/Ask/Pines/Shop). Ask is the
+        // centre toggle and opens the assistant in place rather than routing anywhere.
+        var ICON={
+          explore:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"></path><path d="M9 4v14M15 6v14"></path></svg>',
+          book:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 9h16M8 3v4M16 3v4"></path></svg>',
+          pines:'<svg width="23" height="23" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l5 8h-3l4 7H6l4-7H7z"></path></svg>',
+          shop:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8Z"></path><path d="M9 8a3 3 0 0 1 6 0"></path></svg>'
+        };
+        var tabLink=function(href,label,icon){ return '<a href="'+href+'" style="display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#7f8a82;padding:4px 0">'+icon+'<span style="font-size:.6rem">'+label+'</span></a>'; };
+        var bar=document.createElement('nav');
+        bar.id='pbTabbar';
+        bar.setAttribute('aria-label','Primary');
+        bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:150;grid-template-columns:repeat(5,1fr);align-items:end;background:rgba(7,13,9,.96);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-top:1px solid rgba(217,183,121,.16);padding:9px 4px calc(10px + env(safe-area-inset-bottom))';
+        bar.innerHTML=tabLink('/explore','Explore',ICON.explore)+tabLink('/book','Book',ICON.book)
+          +'<button id="pbAsk" aria-label="Ask Park Buddy" style="cursor:pointer;background:transparent;border:none;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;color:#d9b779"><span style="width:50px;height:50px;border-radius:50%;background:linear-gradient(140deg,#f0dcac,#c9a35f);display:flex;align-items:center;justify-content:center;margin-top:-24px;border:4px solid #0a1712;box-shadow:0 8px 20px -6px rgba(217,183,121,.7)"><svg width="26" height="26" viewBox="0 0 24 24" fill="#0a1712"><path d="M12 2.5l2.3 6.1 6.2.4-4.8 3.9 1.6 6-5.3-3.3L6.5 18.9l1.6-6L3.3 9l6.2-.4z"></path></svg></span><span style="font-size:.6rem">Ask</span></button>'
+          +tabLink('/pines','Pines',ICON.pines)+tabLink('/shop','Shop',ICON.shop);
+        document.body.appendChild(bar);
+        bar.querySelector('#pbAsk').addEventListener('click',function(){ var f=document.querySelector('.pbask-fab'); if(f){ f.click(); } else { var a=document.getElementById('askPill'); if(a) a.click(); } });
       }
     }
     // Real capture: POST the email to /api/pines-waitlist (writes to Supabase).

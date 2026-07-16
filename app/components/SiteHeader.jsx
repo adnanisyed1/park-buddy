@@ -230,8 +230,8 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         className={mobileChromeless ? "pb-nav-pill pb-chromeless" : "pb-nav-pill"}
         style={{
           flex: "none", marginLeft: "auto", position: "relative",
-          display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 28,
-          padding: "8px 14px 8px 22px",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 28,
+          padding: "10px 24px",
           background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
           WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           backdropFilter: "blur(22px) saturate(1.4)",
@@ -268,7 +268,11 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           )
         ))}
       </div>
-      <div className="pb-nav-actions" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      </div>{/* /pb-nav-pill — sections only, sits between the logo and the account */}
+
+      {/* Account cluster — kept visually separate from the section nav (Sign in /
+          account / Ask / My Trip), pushed to the right. */}
+      <div className="pb-nav-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
         {showTrip && (
           <button
             type="button"
@@ -299,8 +303,6 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           Ask Park Buddy
         </button>
       </div>
-
-      </div>{/* /pb-nav-pill */}
 
       {/* Phone-only account hamburger — sits OUTSIDE the bubble (per design: the bubble
           is where-you-are + nav, the hamburger is your account). Shown ≤860px. */}

@@ -232,6 +232,14 @@ function Discover({ onPost, user, isWeb }) {
           <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "#fff", textShadow: "0 2px 12px rgba(0,0,0,.6)" }}>📍 {p.place_name || "Adventure"}</span>
           {p.verified && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, ...micro, fontSize: ".5rem", color: C.go, border: "1px solid " + C.go + "88", borderRadius: 999, padding: "3px 8px", background: "rgba(6,14,10,.4)" }}>✓ On-site</span>}
         </div>
+        {p.author_name && (
+          <div style={{ display: "flex", alignItems: "center", gap: 7, margin: "9px 0 0" }}>
+            {p.author_avatar
+              ? <img src={p.author_avatar} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,.3)", flex: "none" }} />
+              : <span style={{ width: 22, height: 22, borderRadius: "50%", background: C.gold, color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: ".7rem", flex: "none" }}>{p.author_name.charAt(0).toUpperCase()}</span>}
+            <span style={{ fontSize: ".8rem", fontWeight: 600, color: "rgba(255,255,255,.94)", textShadow: "0 1px 6px rgba(0,0,0,.6)" }}>{p.author_name}</span>
+          </div>
+        )}
         {p.caption && <div style={{ color: "rgba(255,255,255,.94)", fontSize: ".86rem", lineHeight: 1.5, margin: "9px 0 11px", textShadow: "0 1px 8px rgba(0,0,0,.5)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.caption}</div>}
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/build-trip" style={{ fontSize: ".76rem", fontWeight: 700, background: C.gold, color: "var(--pb-bg)", borderRadius: 999, padding: "8px 14px", textDecoration: "none" }}>＋ Add to trip</Link>

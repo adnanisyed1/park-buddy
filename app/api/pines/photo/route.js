@@ -87,6 +87,9 @@ export async function POST(request) {
     captured_at,
     verified: false,
     status, // AI first-pass: approved | rejected | pending (manual queue)
+    // Stamp authorship at post time so the feed shows who posted (no profiles table).
+    author_name: (((user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0]) || "A traveler").slice(0, 60),
+    author_avatar: (user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture)) || null,
   };
 
   try {

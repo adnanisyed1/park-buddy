@@ -16,6 +16,31 @@ function safeEq(a, b) { const A = Buffer.from(String(a || "")); const B = Buffer
 function sbBase() { return (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, ""); }
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://park-buddy-gamma.vercel.app";
 
+// GET → the moderation queue: Pines awaiting review (pending/processing) or
+// auto-hidden after reports (under_review), newest first. Admin-secret gated.
+export async function GET(request) {
+  const sb = sbBase(), svc = process.env.SUPABASE_SERVICE_KEY, secret = process.env.PINES_ADMIN_SECRET;
+  if (!sb || !svc || !secret) return Response.json({ error: "Moderation isn't configured." }, { status: 503 });
+  if (!safeEq(request.headers.get("x-admin-secret"), secret)) return Response.json({ error: "Not authorized." }, { status: 401 });
+  const auth = { apikey: svc, Authorization: "Bearer " + svc };
+  try {
+    const sel = "id,media_type,image_url,poster_url,place_name,place_type,place_id,caption,author_name,status,created_at";
+    const r = await fetch(sb + "/rest/v1/pines?status=in.(pending,processing,under_review)&select=" + sel + "&order=created_at.desc&limit=100", { headers: auth });
+    if (!r.ok) return Response.json({ error: "Couldn't load the queue." }, { status: 502 });
+    const pines = await r.json().catch(() => []);
+    // Attach report counts (best-effort) so under_review items show why.
+    let reportsByPine = {};
+    try {
+      const ids = (pines || []).map((p) => p.id);
+      if (ids.length) {
+        const rr = await fetch(sb + "/rest/v1/pine_reports?pine_id=in.(" + ids.join(",") + ")&select=pine_id", { headers: auth });
+        if (rr.ok) { const rows = await rr.json().catch(() => []); rows.forEach((x) => { reportsByPine[x.pine_id] = (reportsByPine[x.pine_id] || 0) + 1; }); }
+      }
+    } catch {}
+    return Response.json({ pines: (pines || []).map((p) => ({ ...p, report_count: reportsByPine[p.id] || 0 })) });
+  } catch { return Response.json({ error: "Couldn't reach the backend." }, { status: 502 }); }
+}
+
 export async function POST(request) {
   const sb = sbBase(), svc = process.env.SUPABASE_SERVICE_KEY, secret = process.env.PINES_ADMIN_SECRET;
   if (!sb || !svc || !secret) return Response.json({ error: "Moderation isn't configured." }, { status: 503 });

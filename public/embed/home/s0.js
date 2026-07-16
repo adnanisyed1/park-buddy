@@ -101,12 +101,23 @@ class Component extends DCLogic {
       var BOOK_MENU=[['🗂','All bookings','Everything you can reserve','/book'],['🏡','Stays','Lodges, cabins & vacation rentals','/book?cat=stays'],['🏕','Campgrounds & RV','Recreation.gov sites + RV parks','/book?cat=camp'],['🚗','Rental cars','For the drive & scenic byways','/book?cat=cars'],['⚓','Cruises','Reach the parks by sea','/book?cat=cruises'],['🧭','Tours & experiences','Guided hikes, rafting, climbs','/book?cat=tours'],['🎫','Permits & reservations','Timed-entry & wilderness permits','/book?cat=permits'],['🚌','Shuttles & transport','Park shuttles & gateway transfers','/book?cat=shuttles']];
       var SHOP_MENU=[['🛍','All of the shop','Everything in the store','/shop'],['📖','Trip Book','Your trip, printed & bound — live','/trip-book'],['🏔','The Park Buddy Store','Posters, prints & merch','/shop?cat=store',1],['🎟','Passes','America the Beautiful + park passes','/shop?cat=passes',1],['🎒','Gear & Apparel','Packs, layers, footwear','/shop?cat=gear',1],['⛺','Camp & Cook','Tents, bags, stoves','/shop?cat=camp',1],['🧭','Navigation & Safety','GPS, satellite, first-aid','/shop?cat=nav',1],['🗺','Maps & Guides','Topo maps & guidebooks','/shop?cat=maps',1],['🔭','Optics & Cameras','Binoculars & scopes','/shop?cat=optics',1]];
       var esc=function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+      var mkRow=function(m){
+        var soon=m[4]?' <span style="font-family:Space Mono,monospace;font-size:.5rem;letter-spacing:.08em;color:#c9a35f;border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:1px 6px;vertical-align:middle">SOON</span>':'';
+        return '<a href="'+m[3]+'" style="display:flex;gap:12px;align-items:flex-start;padding:10px 11px;border-radius:11px;text-decoration:none;transition:background .15s" onmouseover="this.style.background=\'rgba(217,183,121,.08)\'" onmouseout="this.style.background=\'transparent\'"><span style="font-size:1.05rem;line-height:1.1">'+m[0]+'</span><span style="min-width:0"><span style="display:block;font-size:.85rem;font-weight:600;color:#f4f1ea">'+esc(m[1])+soon+'</span><span style="display:block;font-size:.72rem;color:#8a938c;margin-top:2px">'+esc(m[2])+'</span></span></a>';
+      };
+      // Same Live / Coming-soon split as the mobile section sheets. Only shown when the
+      // menu actually has upcoming items (Book is all-live → plain list, no toggle).
       var mkPanel=function(menu){
-        var rows=menu.map(function(m){
-          var soon=m[4]?' <span style="font-family:Space Mono,monospace;font-size:.5rem;letter-spacing:.08em;color:#c9a35f;border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:1px 6px;vertical-align:middle">SOON</span>':'';
-          return '<a href="'+m[3]+'" style="display:flex;gap:12px;align-items:flex-start;padding:10px 11px;border-radius:11px;text-decoration:none;transition:background .15s" onmouseover="this.style.background=\'rgba(217,183,121,.08)\'" onmouseout="this.style.background=\'transparent\'"><span style="font-size:1.05rem;line-height:1.1">'+m[0]+'</span><span style="min-width:0"><span style="display:block;font-size:.85rem;font-weight:600;color:#f4f1ea">'+esc(m[1])+soon+'</span><span style="display:block;font-size:.72rem;color:#8a938c;margin-top:2px">'+esc(m[2])+'</span></span></a>';
-        }).join('');
-        return '<div class="pb-navpanel" style="position:absolute;top:100%;left:50%;transform:translateX(-50%);padding-top:14px;opacity:0;visibility:hidden;transition:opacity .18s;pointer-events:none;z-index:70"><div style="width:300px;background:rgba(11,23,16,.97);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(217,183,121,.18);border-radius:16px;padding:8px;box-shadow:0 30px 70px -30px rgba(0,0,0,.85)">'+rows+'</div></div>';
+        var hasSoon=menu.some(function(m){return m[4];});
+        var inner;
+        if(hasSoon){
+          var seg=function(k,lbl,on){ return '<button type="button" class="pb-ddseg'+(on?' on':'')+'" data-seg="'+k+'" style="cursor:pointer;font-family:inherit;flex:1;padding:6px 10px;border:none;border-radius:999px;font-size:.72rem;font-weight:'+(on?'700':'600')+';background:'+(on?'linear-gradient(120deg,#e8cf9a,#c9a35f)':'transparent')+';color:'+(on?'#0a1712':'#aeb4bd')+'">'+lbl+'</button>'; };
+          var toggle='<div style="display:flex;gap:2px;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.16);border-radius:999px;padding:3px;margin:2px 2px 8px">'+seg('live','Live',1)+seg('soon','Coming soon',0)+'</div>';
+          var liveRows=menu.filter(function(m){return !m[4];}).map(mkRow).join('');
+          var soonRows=menu.filter(function(m){return m[4];}).map(mkRow).join('');
+          inner=toggle+'<div class="pb-ddlist" data-seg-list="live">'+liveRows+'</div><div class="pb-ddlist" data-seg-list="soon" style="display:none">'+soonRows+'</div>';
+        } else { inner=menu.map(mkRow).join(''); }
+        return '<div class="pb-navpanel" style="position:absolute;top:100%;left:50%;transform:translateX(-50%);padding-top:14px;opacity:0;visibility:hidden;transition:opacity .18s;pointer-events:none;z-index:70"><div style="width:300px;background:rgba(11,23,16,.97);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);border:1px solid rgba(217,183,121,.18);border-radius:16px;padding:8px;box-shadow:0 30px 70px -30px rgba(0,0,0,.85)">'+inner+'</div></div>';
       };
       var mkLink=function(label,href){ return '<a href="'+href+'" style="text-decoration:none;color:inherit;position:relative;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+label+'</a>'; };
       var mkDrop=function(label,href,menu){ return '<div class="pb-navdd" style="position:relative"><a href="'+href+'" style="text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:5px;transition:color .4s" onmouseover="this.style.color=\'#e8cf9a\'" onmouseout="this.style.color=\'\'">'+label+' <span style="font-size:.6rem;opacity:.75">▾</span></a>'+mkPanel(menu)+'</div>'; };
@@ -114,8 +125,14 @@ class Component extends DCLogic {
       nav.innerHTML=mkDrop('Explore','/explore',EXPLORE_MENU)+pines+mkDrop('Book','/book',BOOK_MENU)+mkDrop('Shop','/shop',SHOP_MENU);
       [].forEach.call(nav.querySelectorAll('.pb-navdd'),function(dd){
         var p=dd.querySelector('.pb-navpanel');
+        // Flip the panel to a given segment ("live" | "soon") and restyle the pills.
+        var setSeg=function(seg){
+          [].forEach.call(p.querySelectorAll('.pb-ddseg'),function(b){ var on=b.getAttribute('data-seg')===seg; b.classList.toggle('on',on); b.style.background=on?'linear-gradient(120deg,#e8cf9a,#c9a35f)':'transparent'; b.style.color=on?'#0a1712':'#aeb4bd'; b.style.fontWeight=on?'700':'600'; });
+          [].forEach.call(p.querySelectorAll('.pb-ddlist'),function(l){ l.style.display=l.getAttribute('data-seg-list')===seg?'block':'none'; });
+        };
         dd.addEventListener('mouseenter',function(){ p.style.opacity='1'; p.style.visibility='visible'; p.style.pointerEvents='auto'; });
-        dd.addEventListener('mouseleave',function(){ p.style.opacity='0'; p.style.visibility='hidden'; p.style.pointerEvents='none'; });
+        dd.addEventListener('mouseleave',function(){ p.style.opacity='0'; p.style.visibility='hidden'; p.style.pointerEvents='none'; setSeg('live'); });
+        [].forEach.call(p.querySelectorAll('.pb-ddseg'),function(btn){ btn.addEventListener('click',function(e){ e.preventDefault(); setSeg(btn.getAttribute('data-seg')); }); });
       });
       // Mobile: the landing is the only page on the legacy embed nav, which — unlike
       // the React SiteHeader — has no hamburger, so the links clip on phones and Shop

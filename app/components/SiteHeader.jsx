@@ -53,6 +53,13 @@ function Logo({ className }) {
 // A hover dropdown for the top nav — the parent link is still clickable (goes to
 // the hub), and hovering reveals the category menu. Used by Explore/Book/Shop.
 function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
+  // Same Live / Coming-soon split as the mobile section sheets: a segmented toggle
+  // filters the list so you can see what's live now vs what's on the way. Only shown
+  // when the menu actually has upcoming items (e.g. Book is all-live → no toggle).
+  const [seg, setSeg] = useState("live");
+  const hasSoon = menu.some((m) => m.soon);
+  useEffect(() => { if (!open) setSeg("live"); }, [open]); // reset each time it reopens
+  const shown = hasSoon ? menu.filter((m) => (seg === "soon" ? m.soon : !m.soon)) : menu;
   return (
     <div onMouseEnter={onOpen} onMouseLeave={onClose} style={{ position: "relative" }}>
       <Link href={href} style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", color: isActive ? "var(--pb-gold)" : "inherit", transition: "color .3s", cursor: "pointer" }}>
@@ -61,7 +68,21 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
       {open && (
         <div style={{ position: "absolute", top: "100%", left: -14, paddingTop: 12 }}>
           <div style={{ width: 300, background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line)", borderRadius: 16, padding: 8, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
-            {menu.map((m) => (
+            {hasSoon && (
+              <div style={{ display: "flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3, margin: "2px 2px 8px" }}>
+                {[["live", "Live"], ["soon", "Coming soon"]].map(([k, lbl]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setSeg(k)}
+                    style={{ cursor: "pointer", flex: 1, fontFamily: "inherit", padding: "6px 10px", border: "none", borderRadius: 999, fontSize: ".72rem", fontWeight: seg === k ? 700 : 600, background: seg === k ? "var(--pb-grad-gold)" : "transparent", color: seg === k ? "var(--pb-bg)" : "#aeb4bd", transition: "background .2s, color .2s" }}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            )}
+            {shown.map((m) => (
               <Link
                 key={m.href}
                 href={m.href}
@@ -80,6 +101,9 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
                 </span>
               </Link>
             ))}
+            {!shown.length && (
+              <div style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".78rem", padding: "22px 12px" }}>More {label.toLowerCase()} is on the way.</div>
+            )}
           </div>
         </div>
       )}

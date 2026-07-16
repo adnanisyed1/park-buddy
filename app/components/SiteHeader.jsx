@@ -36,9 +36,9 @@ const LINKS = [
   { key: "shop", label: "Shop", href: "/shop", menu: SHOP_MENU },
 ];
 
-function Logo() {
+function Logo({ className }) {
   return (
-    <Link href="/" aria-label="The Park Buddy — home" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--pb-ink)" }}>
+    <Link href="/" aria-label="The Park Buddy — home" className={className} style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--pb-ink)" }}>
       <img
         src="/brand/the-park-buddy-badge.png"
         alt="The Park Buddy"
@@ -87,7 +87,10 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
   );
 }
 
-export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false }) {
+// mobileChromeless: on phones (≤860px), hide the floating top island (logo + nav
+// pill + hamburger) but keep the platform bottom bar + modals. Pines uses this so
+// its own top toggle can own the top edge (memory/project-mobile-nav-redesign.md).
+export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false }) {
   const [openKey, setOpenKey] = useState(null); // which top-nav dropdown is open ("explore" | "book" | "shop")
   const [menuOpen, setMenuOpen] = useState(false);
   const exActive = EXPLORE_KEYS.includes(active);
@@ -158,9 +161,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         fontFamily: "var(--pb-sans)",
       }}
     >
-      <Logo />
+      <Logo className={mobileChromeless ? "pb-chromeless" : undefined} />
       <div
-        className="pb-nav-pill"
+        className={mobileChromeless ? "pb-nav-pill pb-chromeless" : "pb-nav-pill"}
         style={{
           flex: 1, minWidth: 0, position: "relative",
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
@@ -296,6 +299,8 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           .pb-nav-links { display: none !important; }
           .pb-nav-actions { display: none !important; }
           .pb-hamburger { display: inline-flex !important; }
+          /* Chromeless pages (Pines) draw their own top toggle — hide the island. */
+          .pb-chromeless { display: none !important; }
         }
         /* The assistant loads globally so it is reachable everywhere; we hide its own
            teal FAB (off-brand vs the --pb-* system) and open it from the gold header

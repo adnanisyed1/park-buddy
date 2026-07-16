@@ -16,6 +16,8 @@ import PinesCompose from "./PinesCompose";
 import { useAuth, openAuth, getAccessToken } from "../lib/auth";
 
 const HEADER = 102; // clears the floating SiteHeader island (fixed, inset ~14px + ~80px tall)
+const TOGGLE_TOP = 64; // phone: height the Pines top toggle occupies at the top edge
+const PLATFORM_BAR = 76; // phone: height reserved for the platform bottom bar (PbTabBar)
 
 const C = { gold: "linear-gradient(120deg,#e8cf9a,#c9a35f)", go: "#4fd98a", prep: "#e8cf9a", hold: "#e08a6a", like: "#e0546a" };
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
@@ -69,15 +71,17 @@ export default function PinesFeed() {
   // Campfire (place communities) · Gallery (browse every photo/reel) · Mine.
   const [tab, setTab] = useState("pines"); // open on discover so first paint always has content
   const [isWeb, setIsWeb] = useState(false);
+  const [isPhone, setIsPhone] = useState(false); // ≤860px → platform bottom bar + Pines top toggle
   const [compose, setCompose] = useState(false);
   const [hub, setHub] = useState(null); // {type,id,name,q}
   const [lightbox, setLightbox] = useState(null); // a pine opened full-screen from Gallery
 
   useEffect(() => {
-    const mq = window.matchMedia("(min-width:1000px)");
-    const sync = () => setIsWeb(mq.matches);
-    sync(); mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    const mqWeb = window.matchMedia("(min-width:1000px)");
+    const mqPhone = window.matchMedia("(max-width:860px)");
+    const sync = () => { setIsWeb(mqWeb.matches); setIsPhone(mqPhone.matches); };
+    sync(); mqWeb.addEventListener("change", sync); mqPhone.addEventListener("change", sync);
+    return () => { mqWeb.removeEventListener("change", sync); mqPhone.removeEventListener("change", sync); };
   }, []);
 
   // Dark page on a cream-default body → paint the body dark while mounted.
@@ -89,7 +93,7 @@ export default function PinesFeed() {
 
   const screen = {
     feed: <FeedPersonal user={user} onPost={post} openHub={openHub} goDiscover={() => setTab("pines")} goCampfire={() => setTab("campfire")} />,
-    pines: <Discover onPost={post} user={user} isWeb={isWeb} />,
+    pines: <Discover onPost={post} user={user} isWeb={isWeb} isPhone={isPhone} />,
     campfire: <Campfire openHub={openHub} />,
     hub: <Hub place={hub} onBack={() => setTab("campfire")} />,
     gallery: <Gallery onOpen={setLightbox} />,
@@ -98,9 +102,14 @@ export default function PinesFeed() {
 
   // Pines (discover) is a full-bleed media stage; the rest are centered content columns.
   const fullBleed = tab === "pines";
+  // Phone: the Pines top toggle owns the top edge (TOGGLE_TOP tall) and the platform
+  // bottom bar owns the bottom; the fixed content sits between them. Web/tablet keeps
+  // the SiteHeader island up top and the FloatingTabs pill at the bottom.
+  const cTop = isPhone ? TOGGLE_TOP : HEADER;
+  const cBottom = isPhone && !fullBleed ? PLATFORM_BAR : 0;
   const wrap = fullBleed
-    ? { maxWidth: isWeb ? 500 : "100%", margin: "0 auto", height: "calc(100dvh - " + HEADER + "px)" }
-    : { maxWidth: 940, margin: "0 auto", padding: "0 0 104px" };
+    ? { maxWidth: isWeb ? 500 : "100%", margin: "0 auto", height: "calc(100dvh - " + cTop + "px - " + cBottom + "px)" }
+    : { maxWidth: 940, margin: "0 auto", padding: isPhone ? "0 0 24px" : "0 0 104px" };
 
   return (
     <>
@@ -108,11 +117,12 @@ export default function PinesFeed() {
           component is SSR'd), so the top strip behind the fixed header paints dark
           from first paint — no cream flash before useDarkBody's effect runs. */}
       <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: 0 }} />
-      <SiteHeader active="pines" solid />
-      <div style={{ position: "fixed", top: HEADER, left: 0, right: 0, bottom: 0, overflowY: fullBleed ? "hidden" : "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
+      <SiteHeader active="pines" solid mobileChromeless />
+      {isPhone && <PinesToggle tab={tab} go={go} />}
+      <div style={{ position: "fixed", top: cTop, left: 0, right: 0, bottom: cBottom, overflowY: fullBleed ? "hidden" : "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
         <div style={wrap}>{screen}</div>
       </div>
-      <FloatingTabs tab={tab} go={go} isWeb={isWeb} />
+      {!isPhone && <FloatingTabs tab={tab} go={go} isWeb={isWeb} />}
       {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("you")} />}
       {lightbox && <PineLightbox list={lightbox.pines} start={lightbox.i} user={user} onClose={() => setLightbox(null)} />}
     </>
@@ -145,13 +155,52 @@ function FloatingTabs({ tab, go, isWeb }) {
     : { position: "fixed", left: 0, right: 0, bottom: 0, height: 62, display: "flex", alignItems: "center", background: "rgba(8,19,13,.94)", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", borderTop: "1px solid var(--pb-line)", zIndex: 90 };
   return <nav style={shell}>{T("feed", "Feed")}{T("pines", "Pines")}{plus}{T("campfire", "Campfire")}{T("gallery", "Gallery")}{T("you", "Mine", "you")}</nav>;
 }
+
+/* ---------------- Pines contextual top toggle (phone) ----------------
+   In Pines the top bar clears (no logo) and becomes the toggle:
+   Feed · Discover · ＋ · Campfire(soon) · Mine — the gold ＋ dead-center to post,
+   mirroring the platform bar's Ask. Gallery folds into Discover's grid view, and
+   your account lives in Mine. The platform bottom bar (Pines lit) sits below.  */
+const TOG_ICON = {
+  feed: <path d="M4 11 12 4l8 7M6 10v10h12V10" />,
+  pines: <><circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5z" /></>,
+  campfire: <path d="M12 22a6 6 0 0 0 6-6c0-4-3-6-4-9-2 2-2 4-3 4-1 0-1-2-1-3-2 2-4 4-4 8a6 6 0 0 0 6 6z" />,
+  you: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.6 3.1-5 7-5s7 1.4 7 5" /></>,
+};
+function PinesToggle({ tab, go }) {
+  const cur = tab === "hub" ? "campfire" : tab === "gallery" || tab === "top" ? "pines" : tab;
+  const Seg = ({ id, label, target, soon }) => {
+    const on = cur === id;
+    return (
+      <button onClick={() => go(target || id)} aria-current={on ? "page" : undefined} style={{ position: "relative", flex: 1, minWidth: 0, cursor: "pointer", fontFamily: "var(--pb-sans)", fontSize: ".5rem", fontWeight: on ? 700 : 600, padding: "6px 1px", border: "none", borderRadius: 12, background: on ? C.gold : "transparent", color: on ? "#0a1712" : "#aeb4bd", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>{TOG_ICON[id]}</svg>
+        {label}
+        {soon && <span aria-hidden style={{ position: "absolute", top: 2, right: 6, width: 5, height: 5, borderRadius: "50%", background: "#c9a35f", boxShadow: "0 0 0 1.5px rgba(9,17,12,.6)" }} />}
+      </button>
+    );
+  };
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 120, display: "flex", alignItems: "center", padding: "calc(10px + env(safe-area-inset-top)) 12px 10px", background: "linear-gradient(180deg,rgba(6,12,9,.97) 62%,rgba(6,12,9,.55))", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 1, background: "rgba(9,17,12,.5)", border: "1px solid var(--pb-line)", borderRadius: 15, padding: 3 }}>
+        <Seg id="feed" label="Feed" />
+        <Seg id="pines" label="Discover" />
+        <button onClick={() => go("compose")} aria-label="Post an Adventure" style={{ flex: "none", width: 44, height: 44, margin: "-10px 5px 0", borderRadius: "50%", background: "radial-gradient(125% 120% at 32% 24%,#f8e8c2 0%,#e0be7c 50%,#c39a52 100%)", color: "#0a1712", alignSelf: "center", border: "2px solid #0f1c15", boxShadow: "0 7px 16px -4px rgba(217,183,121,.8),inset 0 1px 0 rgba(255,255,255,.45)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" style={{ width: 21, height: 21 }}><path d="M12 6.6v10.8M6.6 12h10.8" /></svg>
+        </button>
+        <Seg id="campfire" label="Campfire" soon />
+        <Seg id="you" label="Mine" />
+      </div>
+    </div>
+  );
+}
 function placeOf(p) { return { type: p.place_type || "park", id: p.place_id, name: p.place_name, q: p.place_name }; }
 function heart(sz) { return <svg viewBox="0 0 24 24" fill={C.like} style={{ width: sz, height: sz }}><path d="M12 21s-7-4.6-9.2-9C1.3 8.6 3 5 6.4 5 8.4 5 12 7 12 7s3.6-2 5.6-2C21 5 22.7 8.6 21.2 12 19 16.4 12 21 12 21z" /></svg>; }
 
 /* ---------------- Pines (global discover — full-bleed swipeable stage) ---------------- */
-function Discover({ onPost, user, isWeb }) {
+function Discover({ onPost, user, isWeb, isPhone }) {
   const [st, setSt] = useState({ loading: true, pines: [] });
   const [idx, setIdx] = useState(0);
+  const [view, setView] = useState("reel"); // "reel" (immersive) | "grid" (folded-in Gallery)
   const [verdict, setVerdict] = useState(null);
   const [like, setLike] = useState({ liked: false, count: 0 });
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -208,6 +257,10 @@ function Discover({ onPost, user, isWeb }) {
   if (st.loading) return <Center><span style={{ color: "var(--pb-muted)", ...micro }}>Loading Pines…</span></Center>;
   if (!st.pines.length) return <Center><Empty user={user} onPost={onPost} /></Center>;
 
+  // Gallery, folded into Discover: a grid view of every Pine. Tapping a tile drops
+  // you back into the immersive reel at that Pine.
+  if (view === "grid") return <DiscoverGrid pines={st.pines} onOpen={(i) => { setIdx(i); setView("reel"); }} onReel={() => setView("reel")} />;
+
   const src = p.image_url || p.poster_url;
   const vc = verdict ? vColor(verdict.v) : "#aab0ba";
   return (
@@ -232,6 +285,7 @@ function Discover({ onPost, user, isWeb }) {
         <RailBtn aria="Comments" label={p.comment_count || 0} onClick={() => setCommentsOpen(true)}><path d="M21 12a8 8 0 0 1-11.3 7.3L4 21l1.7-5.7A8 8 0 1 1 21 12z" /></RailBtn>
         <RailBtn aria="Share" onClick={() => { try { const u = location.origin + "/pines?pine=" + p.id; navigator.share ? navigator.share({ title: "Park Buddy Pines", url: u }).catch(() => {}) : (navigator.clipboard && navigator.clipboard.writeText(u).catch(() => {})); } catch {} }}><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></RailBtn>
         <RailBtn aria="Report" onClick={() => setReportOpen(true)}><path d="M4 21V4M4 4h12l-2 4 2 4H4" /></RailBtn>
+        {isPhone && <RailBtn aria="Browse all as a grid" onClick={() => setView("grid")}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></RailBtn>}
       </div>
       {commentsOpen && <CommentsSheet pine={p} user={user} onClose={() => setCommentsOpen(false)} />}
       {reportOpen && <ReportSheet pine={p} onClose={() => setReportOpen(false)} />}
@@ -260,6 +314,31 @@ function Discover({ onPost, user, isWeb }) {
 }
 function RailBtn({ children, label, onClick, active, aria }) {
   return <button onClick={onClick} aria-label={aria} style={{ cursor: "pointer", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", fontSize: ".6rem", fontWeight: 600 }}><svg viewBox="0 0 24 24" fill={active ? C.like : "none"} stroke={active ? C.like : "#fff"} strokeWidth="2" style={{ width: 26, height: 26, filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" }}>{children}</svg>{label != null && label !== 0 ? <span>{label}</span> : null}</button>;
+}
+
+// The folded-in Gallery: browse every Pine as a grid, tap one to jump the reel there.
+function DiscoverGrid({ pines, onOpen, onReel }) {
+  return (
+    <div style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 15px 10px" }}>
+        <div>
+          <div style={{ ...micro, color: "var(--pb-gold-soft)" }}>Every photo &amp; reel</div>
+          <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "var(--pb-ink)" }}>Browse Pines</span>
+        </div>
+        <button onClick={onReel} aria-label="Back to the reel" style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "var(--pb-sans)", fontSize: ".72rem", fontWeight: 700, color: "var(--pb-ink)", background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 13px" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" style={{ width: 15, height: 15 }}><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M10 9l5 3-5 3z" /></svg>Reel
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 3, padding: "0 3px calc(88px + env(safe-area-inset-bottom))" }}>
+        {pines.map((p, i) => (
+          <button key={p.id + ":" + i} aria-label={"Open Pine from " + (p.place_name || "a place")} onClick={() => onOpen(i)} style={{ cursor: "pointer", position: "relative", aspectRatio: "1", overflow: "hidden", background: "#000", border: "none", padding: 0 }}>
+            {p.image_url || p.poster_url ? <img src={p.image_url || p.poster_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Photo q={p.place_name} />}
+            {p.poster_url && <span style={{ position: "absolute", top: 5, right: 5, color: "#fff", fontSize: ".6rem", textShadow: "0 1px 3px rgba(0,0,0,.8)" }}>▶</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // UGC safety: a viewer flags a Pine. Reports go to /api/pines/report; repeatedly

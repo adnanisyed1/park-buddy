@@ -248,50 +248,45 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       </button>
       </div>{/* /pb-nav-pill */}
 
-      {/* Full mobile menu panel — one column, everything the desktop bar carries. */}
+      {/* Account menu ("me"). Navigation now lives in the bottom tab bar (PbTabBar),
+          so the hamburger is just the account/utility drawer: who you are, My Trip,
+          Ask, and the legal footer. */}
       {menuOpen && (
         <div
           className="pb-mobile-menu"
-          style={{ position: "absolute", top: "100%", left: 0, right: 0, maxHeight: "calc(100vh - 70px)", overflowY: "auto", background: "rgba(7,10,16,.98)", WebkitBackdropFilter: "blur(20px) saturate(1.3)", backdropFilter: "blur(20px) saturate(1.3)", borderBottom: "1px solid var(--pb-line)", padding: "10px clamp(16px,4vw,54px) 22px", display: "flex", flexDirection: "column", gap: 4 }}
+          style={{ position: "absolute", top: "100%", right: 0, width: "min(320px, calc(100vw - 24px))", maxHeight: "calc(100vh - 70px)", overflowY: "auto", background: "rgba(7,10,16,.98)", WebkitBackdropFilter: "blur(20px) saturate(1.3)", backdropFilter: "blur(20px) saturate(1.3)", border: "1px solid var(--pb-line)", borderRadius: 18, marginTop: 8, padding: "16px", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}
         >
-          {[{ label: "Explore", menu: EXPLORE_MENU }, { label: "Book", menu: BOOK_MENU }, { label: "Shop", menu: SHOP_MENU }].map((sec, si) => (
-            <div key={sec.label}>
-              {si > 0 && <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />}
-              <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", padding: "12px 4px 6px" }}>{sec.label}</div>
-              {sec.menu.map((m) => (
-                <Link key={m.href} href={m.href} onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 6px", borderRadius: 11, textDecoration: "none" }}>
-                  <span style={{ fontSize: "1.15rem", width: 22, textAlign: "center", flex: "none" }}>{m.icon}</span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: ".95rem", fontWeight: 600, color: "var(--pb-ink)" }}>
-                      {m.label}
-                      {m.soon && <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-gold-soft)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "1px 6px" }}>Soon</span>}
-                    </span>
-                    <span style={{ display: "block", fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 1 }}>{m.desc}</span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ))}
-          <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />
-          {LINKS.filter((l) => !l.menu).map((l) => (
-            <Link key={l.key} href={l.href} onClick={() => setMenuOpen(false)} style={{ padding: "12px 6px", textDecoration: "none", fontSize: "1rem", fontWeight: 600, color: active === l.key ? "var(--pb-gold)" : "var(--pb-ink)" }}>
-              {l.label}
-            </Link>
-          ))}
-          <div style={{ height: 1, background: "var(--pb-line)", margin: "10px 4px" }} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
-            {showTrip && (
-              <button type="button" onClick={() => { setMenuOpen(false); openTrip(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px" }}>
-                🎒 My Trip
-                <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
-              </button>
-            )}
-            <button type="button" onClick={openAccount} style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".9rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 16px" }}>
-              {user ? "Account" : "Sign in"}
+          {/* Identity header */}
+          <button type="button" onClick={openAccount} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)", borderRadius: 14, padding: "12px 14px", fontFamily: "inherit" }}>
+            {user
+              ? (avatar
+                  ? <img src={avatar} alt="" style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover", flex: "none" }} />
+                  : <span style={{ width: 42, height: 42, borderRadius: "50%", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1.1rem", flex: "none" }}>{(displayName || "?").charAt(0).toUpperCase()}</span>)
+              : <span style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(217,183,121,.12)", border: "1px solid var(--pb-line-strong)", color: "var(--pb-gold)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" /></svg>
+                </span>}
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: user ? ".98rem" : ".95rem", fontWeight: 700, color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user ? displayName : "Sign in"}</span>
+              <span style={{ display: "block", fontSize: ".74rem", color: "var(--pb-muted)", marginTop: 1 }}>{user ? "View account & settings" : "Save trips, get park alerts"}</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--pb-muted)" strokeWidth="2" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+
+          {showTrip && (
+            <button type="button" onClick={() => { setMenuOpen(false); openTrip(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".92rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>🎒 My Trip</span>
+              <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
             </button>
-            <button type="button" onClick={() => { setMenuOpen(false); askBuddy(); }} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".9rem", fontWeight: 600, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", padding: "13px 17px", borderRadius: 12 }}>
-              ✦ Ask Park Buddy
-            </button>
+          )}
+
+          <button type="button" onClick={() => { setMenuOpen(false); askBuddy(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", fontSize: ".92rem", fontWeight: 600, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", padding: "13px 17px", borderRadius: 12 }}>
+            ✦ Ask Park Buddy
+          </button>
+
+          <div style={{ height: 1, background: "var(--pb-line)", margin: "2px 2px" }} />
+          <div style={{ display: "flex", gap: 18, padding: "2px 4px" }}>
+            <Link href="/terms" onClick={() => setMenuOpen(false)} style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)", textDecoration: "none" }}>Terms</Link>
+            <Link href="/privacy" onClick={() => setMenuOpen(false)} style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)", textDecoration: "none" }}>Privacy</Link>
           </div>
         </div>
       )}

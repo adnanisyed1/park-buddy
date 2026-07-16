@@ -5,7 +5,8 @@
 // 2-up grid of options and a Live / Coming-soon toggle. Ask opens the assistant in
 // place; Pines is a direct link. This mirrors the landing embed (public/embed/home/
 // s0.js) so the whole platform shares one mobile nav. Desktop is untouched (hidden
-// ≥721px). Design spec: memory/project-mobile-nav-redesign.md.
+// ≥861px — matches the SiteHeader hamburger breakpoint so nav never disappears in
+// the tablet range). Design spec: memory/project-mobile-nav-redesign.md.
 import { useState } from "react";
 import Link from "next/link";
 import loadScript from "./load-script";
@@ -81,7 +82,7 @@ export default function PbTabBar({ active }) {
     <>
       <style>{`
         .pbtabbar,.pbtab-sheet,.pbtab-scrim{display:none}
-        @media(max-width:720px){
+        @media(max-width:860px){
           .pbtabbar{display:grid!important}
           body{padding-bottom:76px}
           .pbask-fab{display:none!important}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import TripModal from "./TripModal";
@@ -108,7 +108,7 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
         {label} <span style={{ fontSize: ".6rem", opacity: 0.8, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
       </Link>
       {open && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, paddingTop: 14, zIndex: 90 }}>
+        <div onMouseEnter={onOpen} onMouseLeave={onClose} style={{ position: "absolute", top: "100%", left: 0, right: 0, paddingTop: 14, zIndex: 90 }}>
           <div style={{ width: "100%", background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: 14, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
             {hasSoon && (
               <div style={{ display: "inline-flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3, margin: "2px 2px 10px" }}>
@@ -151,6 +151,13 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
 export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false }) {
   const [openKey, setOpenKey] = useState(null); // which top-nav dropdown is open ("explore" | "book" | "shop")
   const [menuOpen, setMenuOpen] = useState(false);
+  // Hover-intent: the dropdown anchors below the pill, so moving the mouse from a tab
+  // into the panel briefly crosses a gap. Delay the close so it survives that gap; any
+  // re-entry (the panel, or another tab) cancels the pending close.
+  const closeTimer = useRef(null);
+  const openDrop = (key) => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } setOpenKey(key); };
+  const closeDrop = () => { if (closeTimer.current) clearTimeout(closeTimer.current); closeTimer.current = setTimeout(() => setOpenKey(null), 200); };
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
   // The header owns the trip badge for every page: it reads the shared trip store
   // and re-renders on any change. A page can still pass an explicit `tripCount`
@@ -265,10 +272,10 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       >
       <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
         {/* Explore ▾ — the ways to experience the parks */}
-        <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={tab === "explore"} open={openKey === "explore"} onOpen={() => setOpenKey("explore")} onClose={() => setOpenKey(null)} />
+        <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={tab === "explore"} open={openKey === "explore"} onOpen={() => openDrop("explore")} onClose={closeDrop} />
         {LINKS.map((l) => (
           l.menu ? (
-            <NavDropdown key={l.key} label={l.label} href={l.href} menu={l.menu} isActive={tab === l.key} open={openKey === l.key} onOpen={() => setOpenKey(l.key)} onClose={() => setOpenKey(null)} />
+            <NavDropdown key={l.key} label={l.label} href={l.href} menu={l.menu} isActive={tab === l.key} open={openKey === l.key} onOpen={() => openDrop(l.key)} onClose={closeDrop} />
           ) : l.key === "pines" ? (
             <Link
               key={l.key}

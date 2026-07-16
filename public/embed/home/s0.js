@@ -150,7 +150,7 @@ class Component extends DCLogic {
         // EXPLORE/BOOK/SHOP menu data the desktop dropdowns use.
         var menu=document.createElement('div');
         menu.id='navMenu';
-        menu.style.cssText='position:fixed;inset:0;z-index:200;background:rgba(8,15,11,.975);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3);overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;flex-direction:column;padding:14px clamp(16px,5vw,26px) 44px';
+        menu.style.cssText='position:fixed;inset:0;z-index:300;background:rgba(8,15,11,.975);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3);overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;flex-direction:column;padding:14px clamp(16px,5vw,26px) 44px';
         var mSection=function(title,items,open){
           var rows=items.map(function(m){
             var soon=m[4]?' <span style="font-family:\'Space Mono\',monospace;font-size:.5rem;letter-spacing:.1em;color:#c9a35f;border:1px solid rgba(217,183,121,.3);border-radius:999px;padding:1px 6px;vertical-align:middle">SOON</span>':'';
@@ -193,33 +193,63 @@ class Component extends DCLogic {
         var bar=document.createElement('nav');
         bar.id='pbTabbar';
         bar.setAttribute('aria-label','Primary');
-        bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:150;grid-template-columns:repeat(5,1fr);align-items:end;background:rgba(7,13,9,.96);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-top:1px solid rgba(217,183,121,.16);padding:9px 4px calc(10px + env(safe-area-inset-bottom))';
+        bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:230;grid-template-columns:repeat(5,1fr);align-items:end;background:rgba(7,13,9,.96);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-top:1px solid rgba(217,183,121,.16);padding:9px 4px calc(10px + env(safe-area-inset-bottom))';
         var tabBtn=function(key,label,icon){ return '<button class="pbTab" data-sheet="'+key+'" style="cursor:pointer;background:transparent;border:none;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;color:#7f8a82;padding:4px 0">'+icon+'<span style="font-size:.6rem">'+label+'</span></button>'; };
         bar.innerHTML=tabBtn('explore','Explore',ICON.explore)+tabBtn('book','Book',ICON.book)
           +'<button id="pbAsk" aria-label="Ask Park Buddy" style="cursor:pointer;background:transparent;border:none;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;color:#d9b779"><span style="width:50px;height:50px;border-radius:50%;background:linear-gradient(140deg,#f0dcac,#c9a35f);display:flex;align-items:center;justify-content:center;margin-top:-24px;border:4px solid #0a1712;box-shadow:0 8px 20px -6px rgba(217,183,121,.7)"><svg width="26" height="26" viewBox="0 0 24 24" fill="#0a1712"><path d="M12 2.5l2.3 6.1 6.2.4-4.8 3.9 1.6 6-5.3-3.3L6.5 18.9l1.6-6L3.3 9l6.2-.4z"></path></svg></span><span style="font-size:.6rem">Ask</span></button>'
           +tabLink('/pines','Pines',ICON.pines)+tabBtn('shop','Shop',ICON.shop);
         document.body.appendChild(bar);
         bar.querySelector('#pbAsk').addEventListener('click',function(){ var f=document.querySelector('.pbask-fab'); if(f){ f.click(); } else { var a=document.getElementById('askPill'); if(a) a.click(); } });
-        // Section sheet — slides up from the bar with that section's options and a
+        // Section sheet — slides up ABOVE the bar (the bar stays visible) with the
+        // section's options as a 2-up grid of animated, tappable boxes + a sleek
         // Live / Coming soon toggle. Reused by every section tab (Explore/Book/Shop).
-        var scrim=document.createElement('div'); scrim.id='pbSheetScrim'; scrim.style.cssText='position:fixed;inset:0;z-index:210;background:rgba(4,8,6,.55);opacity:0;transition:opacity .26s;pointer-events:none'; document.body.appendChild(scrim);
-        var sheet=document.createElement('div'); sheet.id='pbSheet'; sheet.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:220;max-height:86vh;background:rgba(9,17,12,.99);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3);border-top:1px solid rgba(217,183,121,.3);border-radius:22px 22px 0 0;box-shadow:0 -30px 60px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;transform:translateY(106%);transition:transform .32s cubic-bezier(.22,1,.36,1)'; document.body.appendChild(sheet);
-        var closeSheet=function(){ sheet.style.transform='translateY(106%)'; scrim.style.opacity='0'; scrim.style.pointerEvents='none'; document.body.style.overflow=''; };
+        var barH=bar.offsetHeight||66;
+        var ss=document.createElement('style');
+        ss.textContent='.pbBox{position:relative;display:flex;flex-direction:column;gap:9px;padding:16px 15px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(217,183,121,.16);text-decoration:none;opacity:0;transform:translateY(12px);animation:pbBoxIn .44s cubic-bezier(.22,1,.36,1) forwards;transition:transform .18s ease,border-color .22s,background .22s}.pbBox:active{transform:scale(.97)}@media(hover:hover){.pbBox:hover{transform:translateY(-3px);border-color:rgba(217,183,121,.5);background:rgba(217,183,121,.06)}}.pbBox-ic{width:32px;height:32px;color:#e8cf9a}.pbBox-ic svg{width:100%;height:100%}.pbBox-t{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:1.24rem;line-height:1.04;color:#f4f1ea}.pbBox-d{font-size:.75rem;line-height:1.35;color:#8a938c}.pbBox-soon{position:absolute;top:12px;right:12px;font-family:"Space Mono",monospace;font-size:.46rem;letter-spacing:.12em;color:#c9a35f;border:1px solid rgba(217,183,121,.32);border-radius:99px;padding:2px 7px}.pbSeg2{display:inline-flex;gap:2px;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.16);border-radius:99px;padding:3px}.pbSeg{cursor:pointer;font-family:inherit;padding:7px 16px;border:none;border-radius:99px;font-size:.78rem;font-weight:600;background:transparent;color:#aeb4bd;transition:background .2s,color .2s}.pbSeg.on{background:linear-gradient(120deg,#e8cf9a,#c9a35f);color:#0a1712;font-weight:700}@keyframes pbBoxIn{to{opacity:1;transform:none}}';
+        document.head.appendChild(ss);
+        var pbSvg=function(inner){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+inner+'</svg>'; };
+        var PBICON={
+          '/explore':pbSvg('<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>'),
+          '/build-trip':pbSvg('<circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/>'),
+          '/scenic-drives':pbSvg('<path d="M6 3 4 21M18 3l2 18M12 5v3M12 11v2M12 16v3"/>'),
+          '/trip-mode':pbSvg('<path d="M12 2 4.5 20l7.5-4 7.5 4z"/>'),
+          '/cruises':pbSvg('<path d="M4 15h16l-2.2 5H6.2zM12 4v8M8 8h8"/>'),
+          '/diving':pbSvg('<path d="M3 15c2 0 2 2 4.5 2S9 15 12 15s2 2 4.5 2S18 15 21 15M3 10c2 0 2 2 4.5 2S9 10 12 10s2 2 4.5 2S18 10 21 10"/>'),
+          '/climbing':pbSvg('<path d="M3 20 10 8l4 6 2.5-4 4.5 10z"/>'),
+          '/book':pbSvg('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/>'),
+          '/book?cat=stays':pbSvg('<path d="M4 11 12 4l8 7M6 10v10h12V10"/>'),
+          '/book?cat=camp':pbSvg('<path d="M12 4 3 20h18zM12 4v16"/>'),
+          '/book?cat=cars':pbSvg('<path d="M4 13l2-6h12l2 6M4 13h16v4H4zM7 17v2M17 17v2"/>'),
+          '/book?cat=cruises':pbSvg('<path d="M4 15h16l-2.2 5H6.2zM12 4v8M8 8h8"/>'),
+          '/book?cat=tours':pbSvg('<path d="M6 3v18M6 4h11l-2 3 2 3H6"/>'),
+          '/book?cat=permits':pbSvg('<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1 0 4H5a2 2 0 0 1 0-4 2 2 0 0 0 0-4z"/>'),
+          '/book?cat=shuttles':pbSvg('<rect x="4" y="5" width="16" height="12" rx="2"/><path d="M4 11h16M8 17v2M16 17v2"/>'),
+          '/shop':pbSvg('<path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8a3 3 0 0 1 6 0"/>'),
+          '/trip-book':pbSvg('<path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M18 6v14"/>'),
+          '/shop?cat=store':pbSvg('<path d="M4 7l3-3 5 3 5-3 3 3-3 2v11H7V9z"/>'),
+          '/shop?cat=passes':pbSvg('<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1 0 4H5a2 2 0 0 1 0-4 2 2 0 0 0 0-4z"/>'),
+          '/shop?cat=gear':pbSvg('<path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 7h12l-1 14H7z"/>'),
+          '/shop?cat=camp':pbSvg('<path d="M12 4 3 20h18zM12 4v16"/>'),
+          '/shop?cat=nav':pbSvg('<circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/>'),
+          '/shop?cat=maps':pbSvg('<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>'),
+          '/shop?cat=optics':pbSvg('<circle cx="7" cy="14" r="3.5"/><circle cx="17" cy="14" r="3.5"/><path d="M10.5 13h3M7 10.5 9 5h2M17 10.5 15 5h-2"/>'),
+          _default:pbSvg('<circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/>')
+        };
+        var scrim=document.createElement('div'); scrim.id='pbSheetScrim'; scrim.style.cssText='position:fixed;inset:0;z-index:210;background:rgba(4,8,6,.58);opacity:0;transition:opacity .26s;pointer-events:none'; document.body.appendChild(scrim);
+        var sheet=document.createElement('div'); sheet.id='pbSheet'; sheet.style.cssText='position:fixed;left:0;right:0;bottom:'+barH+'px;z-index:220;max-height:calc(88vh - '+barH+'px);background:rgba(9,17,12,.99);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3);border:1px solid rgba(217,183,121,.3);border-bottom:none;border-radius:22px 22px 0 0;box-shadow:0 -30px 60px -28px rgba(0,0,0,.9);display:flex;flex-direction:column;transform:translateY(120%);transition:transform .34s cubic-bezier(.22,1,.36,1)'; document.body.appendChild(sheet);
+        var closeSheet=function(){ sheet.style.transform='translateY(120%)'; scrim.style.opacity='0'; scrim.style.pointerEvents='none'; document.body.style.overflow=''; };
         scrim.addEventListener('click',closeSheet);
-        var sheetRow=function(m){ return '<a href="'+m[3]+'" style="display:flex;gap:14px;align-items:center;padding:14px 8px;border-radius:12px;text-decoration:none;border-bottom:1px solid rgba(217,183,121,.08)" onmouseover="this.style.background=\'rgba(217,183,121,.06)\'" onmouseout="this.style.background=\'transparent\'"><span style="font-size:1.3rem;width:28px;text-align:center;flex:none">'+m[0]+'</span><span style="min-width:0;flex:1"><span style="display:block;font-size:1.02rem;font-weight:600;color:#f4f1ea">'+m[1]+'</span><span style="display:block;font-size:.82rem;color:#8a938c;margin-top:2px">'+m[2]+'</span></span><span style="color:#c9a35f;font-size:1.1rem;flex:none">›</span></a>'; };
+        var sheetBox=function(m,i){ var soon=m[4]?'<span class="pbBox-soon">Soon</span>':''; return '<a class="pbBox" href="'+m[3]+'" style="animation-delay:'+(i*40)+'ms">'+soon+'<span class="pbBox-ic">'+(PBICON[m[3]]||PBICON._default)+'</span><span class="pbBox-t">'+m[1]+'</span><span class="pbBox-d">'+m[2]+'</span></a>'; };
         var openSheet=function(title,items){
           var live=[],soon=[]; items.forEach(function(m){ (m[4]?soon:live).push(m); });
-          var listHtml=function(which){ var arr=which==='soon'?soon:live; return arr.length?arr.map(sheetRow).join(''):'<div style="text-align:center;color:#7f8a82;padding:44px 12px;font-size:.92rem">More '+title.toLowerCase()+' options are on the way.</div>'; };
+          var listHtml=function(which){ var arr=which==='soon'?soon:live; return arr.length?arr.map(sheetBox).join(''):'<div style="grid-column:1/-1;text-align:center;color:#7f8a82;padding:46px 12px;font-size:.92rem">More '+title.toLowerCase()+' is on the way.</div>'; };
           sheet.innerHTML='<div style="padding:10px 0 2px"><div style="width:42px;height:4px;border-radius:99px;background:rgba(255,255,255,.18);margin:0 auto"></div></div>'
-            +'<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 18px 10px"><span style="font-family:\'Cormorant Garamond\',Georgia,serif;font-weight:600;font-size:1.55rem;color:#f4f1ea">'+title+'</span><button id="pbSheetX" aria-label="Close" style="cursor:pointer;width:38px;height:38px;border-radius:11px;background:transparent;border:1px solid rgba(217,183,121,.3);color:#e7e3d8;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button></div>'
-            +'<div style="display:flex;margin:0 18px 6px;background:rgba(255,255,255,.05);border:1px solid rgba(217,183,121,.18);border-radius:12px;padding:4px">'
-              +'<button class="pbSeg" data-seg="live" style="flex:1;cursor:pointer;font-family:inherit;padding:10px;border:none;border-radius:9px;font-size:.85rem;font-weight:700;background:linear-gradient(120deg,#e8cf9a,#c9a35f);color:#0a1712">Live</button>'
-              +'<button class="pbSeg" data-seg="soon" style="flex:1;cursor:pointer;font-family:inherit;padding:10px;border:none;border-radius:9px;font-size:.85rem;font-weight:600;background:transparent;color:#aeb4bd">Coming soon</button>'
-            +'</div>'
-            +'<div id="pbSheetList" style="overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 14px calc(22px + env(safe-area-inset-bottom))">'+listHtml('live')+'</div>';
+            +'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 12px"><span style="font-family:\'Cormorant Garamond\',Georgia,serif;font-weight:600;font-size:1.7rem;color:#f4f1ea">'+title+'</span><button id="pbSheetX" aria-label="Close" style="cursor:pointer;width:38px;height:38px;border-radius:11px;background:transparent;border:1px solid rgba(217,183,121,.3);color:#e7e3d8;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button></div>'
+            +'<div style="padding:0 20px 12px"><div class="pbSeg2"><button class="pbSeg on" data-seg="live">Live</button><button class="pbSeg" data-seg="soon">Coming soon</button></div></div>'
+            +'<div id="pbSheetList" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 16px calc(22px + env(safe-area-inset-bottom))">'+listHtml('live')+'</div>';
           sheet.querySelector('#pbSheetX').addEventListener('click',closeSheet);
           var listEl=sheet.querySelector('#pbSheetList');
-          [].forEach.call(sheet.querySelectorAll('.pbSeg'),function(seg){ seg.addEventListener('click',function(){ [].forEach.call(sheet.querySelectorAll('.pbSeg'),function(s){ s.style.background='transparent'; s.style.color='#aeb4bd'; s.style.fontWeight='600'; }); seg.style.background='linear-gradient(120deg,#e8cf9a,#c9a35f)'; seg.style.color='#0a1712'; seg.style.fontWeight='700'; listEl.innerHTML=listHtml(seg.getAttribute('data-seg')); }); });
+          [].forEach.call(sheet.querySelectorAll('.pbSeg'),function(seg){ seg.addEventListener('click',function(){ [].forEach.call(sheet.querySelectorAll('.pbSeg'),function(s){ s.classList.remove('on'); }); seg.classList.add('on'); listEl.innerHTML=listHtml(seg.getAttribute('data-seg')); }); });
           listEl.addEventListener('click',function(e){ if(e.target.closest('a')) closeSheet(); });
           document.body.style.overflow='hidden'; scrim.style.pointerEvents='auto';
           requestAnimationFrame(function(){ scrim.style.opacity='1'; sheet.style.transform='translateY(0)'; });

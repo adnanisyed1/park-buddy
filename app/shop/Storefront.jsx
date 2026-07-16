@@ -167,6 +167,8 @@ export default function Storefront() {
   const [cart, setCart] = useState(0);
   const [toast, setToast] = useState({ msg: "", on: false });
   const [pbMenu, setPbMenu] = useState(false); // native Park Buddy menu (escape hatch back to the platform)
+  const [isPhone, setIsPhone] = useState(false); // phone → 2-up product grid + pagination
+  const [prodPage, setProdPage] = useState(0);
   const toastRef = useRef(null);
 
   useEffect(() => {
@@ -183,6 +185,12 @@ export default function Storefront() {
     const id = setInterval(() => setTribeIndex((i) => (i + 1) % HERO_TRIBES.length), 2200);
     return () => clearInterval(id);
   }, []);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width:640px)");
+    const sync = () => setIsPhone(mq.matches);
+    sync(); mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
   const toggleTheme = () => setTheme((t) => { const n = t === "dark" ? "light" : "dark"; try { localStorage.setItem("pb_store_theme", n); } catch {} return n; });
   const fireToast = (msg) => { if (toastRef.current) clearTimeout(toastRef.current); setToast({ msg, on: true }); toastRef.current = setTimeout(() => setToast((s) => ({ ...s, on: false })), 2600); };
   const addToCart = (name) => { setCart((c) => c + 1); fireToast("Added to pack · " + name); };
@@ -196,6 +204,11 @@ export default function Storefront() {
   // SAME platform menu as the rest of the site (shared EXPLORE/BOOK/SHOP data), so
   // shop visitors aren't stranded. Sections rendered below in the storefront theme.
   const PB_SECTIONS = [["Explore", EXPLORE_MENU], ["Book", BOOK_MENU], ["Shop", SHOP_MENU]];
+  // Phone: show the products 2-up, 4 per page, with pagination. Desktop shows them all.
+  const PROD_PER = 4;
+  const prodPages = Math.ceil(PRODUCTS.length / PROD_PER);
+  const pPage = Math.min(prodPage, Math.max(0, prodPages - 1));
+  const shownProducts = isPhone ? PRODUCTS.slice(pPage * PROD_PER, pPage * PROD_PER + PROD_PER) : PRODUCTS;
 
   return (
     <div className="pbstore" data-theme={theme}>
@@ -456,8 +469,8 @@ export default function Storefront() {
           <div><div className="pbs-ey">New Drops</div><h2 className="pbs-h2">Fresh off the press</h2></div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: 1.5, color: "var(--ink-dim)" }}>SMALL-BATCH · IN-HOUSE ART</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 18 }}>
-          {PRODUCTS.map((p) => (
+        <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr 1fr" : "repeat(auto-fit,minmax(250px,1fr))", gap: isPhone ? 12 : 18 }}>
+          {shownProducts.map((p) => (
             <div key={p.name} className="pbs-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <div style={{ position: "relative", aspectRatio: "1", background: "var(--bg)", borderBottom: "1px dashed var(--line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ position: "absolute", top: 12, left: 12, fontFamily: "var(--font-mono)", fontSize: 9.5, letterSpacing: 1, color: "var(--ink-dim)", border: "1px solid var(--line)", borderRadius: 6, padding: "3px 8px" }}>{p.tag}</span>
@@ -474,6 +487,24 @@ export default function Storefront() {
             </div>
           ))}
         </div>
+        {isPhone && prodPages > 1 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 26 }}>
+            <button onClick={() => setProdPage((p) => Math.max(0, p - 1))} disabled={pPage === 0} aria-label="Previous products"
+              style={{ width: 40, height: 40, borderRadius: 9, border: "1.5px solid var(--line)", background: "transparent", color: "var(--ink)", cursor: pPage === 0 ? "default" : "pointer", opacity: pPage === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+            </button>
+            <div style={{ display: "flex", gap: 9 }}>
+              {Array.from({ length: prodPages }).map((_, i) => (
+                <button key={i} onClick={() => setProdPage(i)} aria-label={"Page " + (i + 1)}
+                  style={{ width: i === pPage ? 22 : 9, height: 9, borderRadius: 999, border: "none", padding: 0, cursor: "pointer", background: i === pPage ? "var(--accent)" : "var(--line)", transition: "width .25s, background .25s" }} />
+              ))}
+            </div>
+            <button onClick={() => setProdPage((p) => Math.min(prodPages - 1, p + 1))} disabled={pPage === prodPages - 1} aria-label="Next products"
+              style={{ width: 40, height: 40, borderRadius: 9, border: "1.5px solid var(--line)", background: "transparent", color: "var(--ink)", cursor: pPage === prodPages - 1 ? "default" : "pointer", opacity: pPage === prodPages - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
+          </div>
+        )}
       </div></section>
 
       {/* brand promise */}

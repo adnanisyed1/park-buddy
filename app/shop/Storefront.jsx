@@ -7,6 +7,7 @@
 // visual cart (toast) — no real checkout. All art is inline SVG (no external requests).
 
 import { useEffect, useRef, useState } from "react";
+import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU } from "../lib/nav-menus";
 
 // ---- content (from the handoff's Component class) --------------------------------------
 const HERO_TRIBES = [
@@ -182,9 +183,10 @@ export default function Storefront() {
   const gType = tribeIndex % 2 === 0 ? "tee" : "hoodie";
   const gLabel = gType === "tee" ? "Tee" : "Hoodie";
   const NAV = [["Trail Badges", "#trails"], ["Tribes", "#tribes"], ["Family", "#family"], ["The Duck Pond", "#duckpond"], ["About", "#promise"]];
-  // The storefront is a sub-brand with its own nav; this is the native platform
-  // menu so shop visitors aren't stranded — a way back to the rest of Park Buddy.
-  const PLATFORM = [["The Live Map", "/explore"], ["Trip Studio", "/build-trip"], ["Scenic Drives", "/scenic-drives"], ["Pines", "/pines"], ["Book", "/book"], ["Home", "/"]];
+  // The storefront is a sub-brand with its own nav; the native hamburger opens the
+  // SAME platform menu as the rest of the site (shared EXPLORE/BOOK/SHOP data), so
+  // shop visitors aren't stranded. Sections rendered below in the storefront theme.
+  const PB_SECTIONS = [["Explore", EXPLORE_MENU], ["Book", BOOK_MENU], ["Shop", SHOP_MENU]];
 
   return (
     <div className="pbstore" data-theme={theme}>
@@ -209,8 +211,10 @@ export default function Storefront() {
             ))}
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* native Park Buddy menu — back to the rest of the platform */}
-            <div style={{ position: "relative" }}>
+            {/* native Park Buddy menu — back to the rest of the platform. The panel
+                anchors to the <header> (sticky, full-width) rather than this button,
+                so it stays on-screen wherever the button lands when the header wraps. */}
+            <div style={{ display: "flex", alignItems: "center" }}>
               <button onClick={() => setPbMenu((o) => !o)} aria-label="Park Buddy menu" aria-expanded={pbMenu} style={{ width: 40, height: 40, borderRadius: 9, border: "1.5px solid var(--line)", background: "transparent", color: "var(--ink)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   {pbMenu ? <><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></> : <><line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" /></>}
@@ -219,14 +223,32 @@ export default function Storefront() {
               {pbMenu && (
                 <>
                   <div onClick={() => setPbMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 45 }} />
-                  <div style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, zIndex: 46, minWidth: 216, background: "var(--surface-2)", border: "1px solid var(--line)", borderRadius: 12, padding: 8, boxShadow: "0 24px 60px rgba(0,0,0,.4)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px 8px" }}>
-                      <LogoGlyph w={26} />
+                  <div style={{ position: "absolute", top: "100%", right: "clamp(16px,4vw,24px)", zIndex: 46, width: 300, maxWidth: "calc(100vw - 32px)", maxHeight: "calc(100vh - 130px)", overflowY: "auto", background: "var(--surface-2)", border: "1px solid var(--line)", borderRadius: 14, padding: 8, boxShadow: "0 26px 64px rgba(0,0,0,.45)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px 4px" }}>
+                      <LogoGlyph w={24} />
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--ink-dim)" }}>The Park Buddy</span>
                     </div>
-                    {PLATFORM.map(([label, href]) => (
-                      <a key={href} href={href} onClick={() => setPbMenu(false)} style={{ display: "block", padding: "10px 10px", borderRadius: 8, textDecoration: "none", color: "var(--ink)", fontSize: 14, fontWeight: 600 }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>{label}</a>
+                    {PB_SECTIONS.map(([title, items], si) => (
+                      <div key={title}>
+                        {si > 0 && <div style={{ height: 1, background: "var(--line)", margin: "8px 6px" }} />}
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase", color: "var(--ink-dim)", padding: "10px 10px 4px" }}>{title}</div>
+                        {items.map((m) => (
+                          <a key={m.href} href={m.href} onClick={() => setPbMenu(false)} style={{ display: "flex", gap: 11, alignItems: "flex-start", padding: "9px 10px", borderRadius: 9, textDecoration: "none" }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                            <span style={{ fontSize: 16, width: 20, textAlign: "center", flex: "none" }}>{m.icon}</span>
+                            <span style={{ minWidth: 0 }}>
+                              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 700, color: "var(--ink)" }}>
+                                {m.label}
+                                {m.soon && <span style={{ fontFamily: "var(--font-mono)", fontSize: 8.5, letterSpacing: 1, textTransform: "uppercase", color: "var(--ink-dim)", border: "1px solid var(--line)", borderRadius: 999, padding: "1px 5px" }}>Soon</span>}
+                              </span>
+                              <span style={{ display: "block", fontSize: 11.5, color: "var(--ink-dim)", marginTop: 1, lineHeight: 1.35 }}>{m.desc}</span>
+                            </span>
+                          </a>
+                        ))}
+                      </div>
                     ))}
+                    <div style={{ height: 1, background: "var(--line)", margin: "8px 6px" }} />
+                    <a href="/pines" onClick={() => setPbMenu(false)} style={{ display: "block", padding: "10px 10px", borderRadius: 9, textDecoration: "none", color: "var(--ink)", fontSize: 14, fontWeight: 700 }} onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>Pines</a>
+                    <a href="/#ask" onClick={() => setPbMenu(false)} style={{ display: "block", marginTop: 6, padding: "11px 12px", borderRadius: 10, textDecoration: "none", textAlign: "center", color: "var(--accent-ink)", background: "var(--accent)", fontSize: 13.5, fontWeight: 800 }}>✦ Ask Park Buddy</a>
                   </div>
                 </>
               )}

@@ -115,6 +115,15 @@ background:var(--bg);color:var(--ink);font-family:var(--font-body);min-height:10
 .pbs-a{color:var(--accent);text-decoration:none;}
 .pbs-a:hover{color:var(--brass-l);}
 .pbstore a:focus-visible,.pbstore button:focus-visible,.pbstore input:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+/* Mobile header: put the logo + actions (incl. the platform hamburger) on the first
+   row with the hamburger cluster pinned top-right, and drop the category nav to its
+   own full-width row below. Keeps the menu button unmissable instead of wrapping to
+   the bottom. */
+@media (max-width:640px){
+  .pbs-nav{row-gap:14px;}
+  .pbs-navactions{order:2;margin-left:auto;}
+  .pbs-navlinks{order:3;flex-basis:100%;margin-left:0 !important;gap:18px;}
+}
 @keyframes pbUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes pbWordIn{from{opacity:0;transform:translateY(20px) rotateX(-55deg)}to{opacity:1;transform:none}}
 @keyframes pbGlow{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.8;transform:scale(1.09)}}
@@ -201,16 +210,16 @@ export default function Storefront() {
 
       {/* header / nav */}
       <header style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--surface)", borderBottom: "1px solid var(--line)" }}>
-        <div className="pbs-wrap" style={{ display: "flex", alignItems: "center", gap: 20, padding: "14px 24px", flexWrap: "wrap" }}>
-          <a href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--ink)" }}>
+        <div className="pbs-wrap pbs-nav" style={{ display: "flex", alignItems: "center", gap: 20, padding: "14px 24px", flexWrap: "wrap" }}>
+          <a href="/" className="pbs-navlogo" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--ink)" }}>
             <LogoGlyph w={72} />
           </a>
-          <nav style={{ display: "flex", gap: 22, flexWrap: "wrap", marginLeft: "auto" }}>
+          <nav className="pbs-navlinks" style={{ display: "flex", gap: 22, flexWrap: "wrap", marginLeft: "auto" }}>
             {NAV.map(([label, href]) => (
               <a key={href} href={href} className="pbs-mono" style={{ fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: 1.5, color: "var(--ink-dim)", textDecoration: "none" }}>{label}</a>
             ))}
           </nav>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="pbs-navactions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {/* native Park Buddy menu — back to the rest of the platform. The panel
                 anchors to the <header> (sticky, full-width) rather than this button,
                 so it stays on-screen wherever the button lands when the header wraps. */}

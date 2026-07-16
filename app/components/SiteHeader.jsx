@@ -9,6 +9,7 @@ import loadScript from "./load-script";
 import { useAuth } from "../lib/auth";
 import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU } from "../lib/nav-menus";
+import PbTabBar from "./PbTabBar";
 
 // The one header for the whole platform (Phase A of the design-system rollout).
 // Extracted from the approved landing page's glass nav so it matches exactly, and
@@ -312,6 +313,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       {/* Platform-wide sign-in modal (signed out) + account panel (signed in). */}
       <AuthModal />
       <AccountPanel />
+
+      {/* Phone-only bottom tab bar (Explore·Book·Ask·Pines·Shop) + section sheets. */}
+      <PbTabBar active={active === "pines" ? "pines" : active === "book" ? "book" : active === "shop" ? "shop" : (exActive ? "explore" : null)} />
     </nav>
   );
 }

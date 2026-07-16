@@ -172,20 +172,23 @@ function PinesToggle({ tab, go }) {
   const Seg = ({ id, label, target, soon }) => {
     const on = cur === id;
     return (
-      <button onClick={() => go(target || id)} aria-current={on ? "page" : undefined} style={{ position: "relative", flex: 1, minWidth: 0, cursor: "pointer", fontFamily: "var(--pb-sans)", fontSize: ".5rem", fontWeight: on ? 700 : 600, padding: "6px 1px", border: "none", borderRadius: 12, background: on ? C.gold : "transparent", color: on ? "#0a1712" : "#aeb4bd", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+      <button onClick={() => go(target || id)} aria-current={on ? "page" : undefined} style={{ position: "relative", flex: 1, minWidth: 0, cursor: "pointer", fontFamily: "var(--pb-sans)", fontSize: ".5rem", fontWeight: on ? 700 : 600, padding: "7px 1px", border: "none", borderRadius: 12, background: on ? C.gold : "transparent", color: on ? "#0a1712" : "#aeb4bd", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>{TOG_ICON[id]}</svg>
         {label}
-        {soon && <span aria-hidden style={{ position: "absolute", top: 2, right: 6, width: 5, height: 5, borderRadius: "50%", background: "#c9a35f", boxShadow: "0 0 0 1.5px rgba(9,17,12,.6)" }} />}
+        {soon && <span aria-hidden style={{ position: "absolute", top: 3, right: 7, width: 5, height: 5, borderRadius: "50%", background: "#c9a35f", boxShadow: "0 0 0 1.5px rgba(9,17,12,.6)" }} />}
       </button>
     );
   };
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 120, display: "flex", alignItems: "center", padding: "calc(10px + env(safe-area-inset-top)) 12px 10px", background: "linear-gradient(180deg,rgba(6,12,9,.97) 62%,rgba(6,12,9,.55))", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 1, background: "rgba(9,17,12,.5)", border: "1px solid var(--pb-line)", borderRadius: 15, padding: 3 }}>
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 120, display: "flex", alignItems: "center", padding: "calc(12px + env(safe-area-inset-top)) 12px 10px", background: "linear-gradient(180deg,rgba(6,12,9,.97) 62%,rgba(6,12,9,.55))", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
+      {/* Five even tabs; the ＋ is the middle one — a flat, gold-highlighted button
+          the same shape/height as the others (Post), not a raised circle. */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "stretch", gap: 1, background: "rgba(9,17,12,.5)", border: "1px solid var(--pb-line)", borderRadius: 15, padding: 3 }}>
         <Seg id="feed" label="Feed" />
         <Seg id="pines" label="Discover" />
-        <button onClick={() => go("compose")} aria-label="Post an Adventure" style={{ flex: "none", width: 44, height: 44, margin: "-10px 5px 0", borderRadius: "50%", background: "radial-gradient(125% 120% at 32% 24%,#f8e8c2 0%,#e0be7c 50%,#c39a52 100%)", color: "#0a1712", alignSelf: "center", border: "2px solid #0f1c15", boxShadow: "0 7px 16px -4px rgba(217,183,121,.8),inset 0 1px 0 rgba(255,255,255,.45)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" style={{ width: 21, height: 21 }}><path d="M12 6.6v10.8M6.6 12h10.8" /></svg>
+        <button onClick={() => go("compose")} aria-label="Post an Adventure" style={{ flex: 1, minWidth: 0, cursor: "pointer", fontFamily: "var(--pb-sans)", fontSize: ".5rem", fontWeight: 700, padding: "7px 1px", border: "none", borderRadius: 12, background: C.gold, color: "#0a1712", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" style={{ width: 16, height: 16 }}><path d="M12 6.5v11M6.5 12h11" /></svg>
+          Post
         </button>
         <Seg id="campfire" label="Campfire" soon />
         <Seg id="you" label="Mine" />

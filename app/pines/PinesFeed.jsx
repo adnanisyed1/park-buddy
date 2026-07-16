@@ -181,14 +181,13 @@ function PinesToggle({ tab, go }) {
   };
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 120, display: "flex", alignItems: "center", padding: "calc(12px + env(safe-area-inset-top)) 12px 10px", background: "linear-gradient(180deg,rgba(6,12,9,.97) 62%,rgba(6,12,9,.55))", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
-      {/* Five even tabs; the ＋ is the middle one — a flat, gold-highlighted button
-          the same shape/height as the others (Post), not a raised circle. */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "stretch", gap: 1, background: "rgba(9,17,12,.5)", border: "1px solid var(--pb-line)", borderRadius: 15, padding: 3 }}>
+      {/* Four even tabs + a gold ＋ circle dead-center — highlighted like a button,
+          but flat (vertically centered in the pill, not raised above it). */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 1, background: "rgba(9,17,12,.5)", border: "1px solid var(--pb-line)", borderRadius: 15, padding: 3 }}>
         <Seg id="feed" label="Feed" />
         <Seg id="pines" label="Discover" />
-        <button onClick={() => go("compose")} aria-label="Post an Adventure" style={{ flex: 1, minWidth: 0, cursor: "pointer", fontFamily: "var(--pb-sans)", fontSize: ".5rem", fontWeight: 700, padding: "7px 1px", border: "none", borderRadius: 12, background: C.gold, color: "#0a1712", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" style={{ width: 16, height: 16 }}><path d="M12 6.5v11M6.5 12h11" /></svg>
-          Post
+        <button onClick={() => go("compose")} aria-label="Post an Adventure" style={{ flex: "none", alignSelf: "center", margin: "0 5px", width: 40, height: 40, borderRadius: "50%", background: "radial-gradient(125% 120% at 32% 24%,#f8e8c2 0%,#e0be7c 50%,#c39a52 100%)", color: "#0a1712", border: "1px solid rgba(255,255,255,.25)", boxShadow: "0 3px 10px -2px rgba(217,183,121,.6), inset 0 1px 0 rgba(255,255,255,.45)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" style={{ width: 20, height: 20 }}><path d="M12 6.5v11M6.5 12h11" /></svg>
         </button>
         <Seg id="campfire" label="Campfire" soon />
         <Seg id="you" label="Mine" />

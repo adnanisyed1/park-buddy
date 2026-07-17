@@ -222,11 +222,29 @@ function setSectionStory(name, pane, idx, text) {
 function gmapsKey() {
   try { return localStorage.getItem("pb_gmaps_key") || (typeof window !== "undefined" && window.GMAPS_KEY) || ""; } catch { return ""; }
 }
-function staticMapUrl(lat, lng) {
+// A dark, futuristic map styling for Google Static Maps (navy geometry, cyan-grey
+// labels, dimmed roads, POI hidden) — the default stamp look.
+const DARK_MAP_STYLE =
+  "&style=element:geometry%7Ccolor:0x1b2735" +
+  "&style=element:labels.text.fill%7Ccolor:0x8ea3bd" +
+  "&style=element:labels.text.stroke%7Ccolor:0x0f1826" +
+  "&style=feature:water%7Ccolor:0x0c1a2b" +
+  "&style=feature:road%7Celement:geometry%7Ccolor:0x2a3b4d" +
+  "&style=feature:poi%7Cvisibility:off";
+// Selectable map "themes" for a location stamp.
+const MAP_STYLES = [
+  { key: "midnight", name: "Midnight", params: "&maptype=roadmap" + DARK_MAP_STYLE, pin: "0x6cd0ff" },
+  { key: "terrain", name: "Terrain", params: "&maptype=terrain", pin: "0xC9A24A" },
+  { key: "satellite", name: "Satellite", params: "&maptype=hybrid", pin: "0xC9A24A" },
+  { key: "classic", name: "Classic", params: "&maptype=roadmap", pin: "0xC9A24A" },
+];
+const mapStyleOf = (k) => MAP_STYLES.find((s) => s.key === k) || MAP_STYLES[0];
+function staticMapUrl(lat, lng, styleKey) {
   const key = gmapsKey();
   if (lat == null || lng == null || !key) return null;
   const c = `${(+lat).toFixed(5)},${(+lng).toFixed(5)}`;
-  return `https://maps.googleapis.com/maps/api/staticmap?center=${c}&zoom=12&size=400x300&scale=2&maptype=terrain&markers=color:0xC9A24A%7C${c}&key=${key}`;
+  const st = mapStyleOf(styleKey);
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${c}&zoom=12&size=400x300&scale=2${st.params}&markers=color:${st.pin}%7C${c}&key=${key}`;
 }
 /* Walk a spread's sections in reading order (left pane, then right) and number the
    photos and story blocks globally — the numbers the preview shows and Stop Tools
@@ -554,19 +572,20 @@ function InlineStory({ spread, planned, font }) {
    optional place name) as a caption beneath it, like a postcard mark. It fills a photo
    slot like any other photo; a photo record carries `stamp:{lat,lng,label}`. */
 function StampPhoto({ rec, num, dense }) {
-  const { lat, lng, label } = rec.stamp || {};
-  const url = rec.url || staticMapUrl(lat, lng);
+  const { lat, lng, label, style } = rec.stamp || {};
+  const url = rec.url || staticMapUrl(lat, lng, style);
   const coord = fmtCoord(lat, lng);
+  // Full-bleed, no margins — the map fills the slot and the readout floats over it in
+  // a dark HUD scrim (a location "stamp", not a framed card). Futuristic on purpose.
   return (
-    <div style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", borderRadius: 4, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
-      <div style={{ flex: 1, minHeight: 0, position: "relative", background: "var(--pb-tint)" }}>
-        {url
-          ? <img src={url} alt={coord || "location"} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-          : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--pb-muted)", fontSize: dense ? "1.4rem" : "2rem" }}>⌖</div>}
-      </div>
-      <div style={{ flex: "0 0 auto", padding: dense ? "5px 7px" : "8px 10px", textAlign: "center", background: "var(--pb-surface)", borderTop: "1px solid var(--pb-line)" }}>
-        {label && <div style={{ fontFamily: serif, fontSize: dense ? ".72rem" : ".92rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{label}</div>}
-        {coord && <div style={{ fontFamily: mono, fontSize: dense ? ".48rem" : ".56rem", letterSpacing: ".08em", color: "var(--pb-muted)", marginTop: 2 }}>{coord}</div>}
+    <div style={{ position: "relative", height: "100%", overflow: "hidden", borderRadius: 4, background: "#0c1522" }}>
+      {url
+        ? <img src={url} alt={coord || "location"} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#7f93ab", fontSize: dense ? "1.6rem" : "2.4rem" }}>⌖</div>}
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,16,26,0) 52%,rgba(8,16,26,.85))" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: dense ? "7px 9px" : "10px 12px" }}>
+        {label && <div style={{ fontFamily: serif, fontSize: dense ? ".8rem" : "1.05rem", color: "#f4f7fb", lineHeight: 1.1, textShadow: "0 1px 6px rgba(0,0,0,.6)" }}>{label}</div>}
+        {coord && <div style={{ fontFamily: mono, fontSize: dense ? ".5rem" : ".58rem", letterSpacing: ".14em", color: "#7fdcff", marginTop: 3 }}>◇ {coord}</div>}
       </div>
       <SlotNum n={num} />
     </div>
@@ -990,9 +1009,10 @@ function addPhotosTo(spread, recs) {
 /* Attach a LOCATION STAMP — a map screenshot of a spot with a pin — as a photo. It
    fills a photo slot like any other photo, and renders the coordinates (and place
    name) as a caption beneath the map. */
-function addStampTo(spread, { lat, lng, label }) {
+function addStampTo(spread, { lat, lng, label, style }) {
   if (lat == null || lng == null) return;
-  addPhotosTo(spread, [{ url: staticMapUrl(lat, lng), path: null, w: null, h: null, stamp: { lat, lng, label: label || "" } }]);
+  const s = style || "midnight";
+  addPhotosTo(spread, [{ url: staticMapUrl(lat, lng, s), path: null, w: null, h: null, stamp: { lat, lng, label: label || "", style: s } }]);
 }
 
 /* One place that knows how to take photos into a chapter, so the stop tile and Stop
@@ -1422,34 +1442,69 @@ function movePhotoIn(spread, from, to) {
 // (Story is written directly on the book now — see InlineStory. Stop Tools Step 3
 // points there instead of carrying its own editors.)
 
-// Attach a location stamp as a photo, letting the user choose the spot: this stop's
-// own coordinates, their current location, or coordinates they type in.
+// A tiny example of a finished stamp, for the ⓘ explainer.
+function StampExample() {
+  return (
+    <div style={{ position: "relative", height: 78, borderRadius: 6, overflow: "hidden", background: "linear-gradient(135deg,#16273b,#0c1522)" }}>
+      <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(120,150,190,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(120,150,190,.14) 1px,transparent 1px)", backgroundSize: "16px 16px" }} />
+      <div aria-hidden style={{ position: "absolute", top: "38%", left: "52%", transform: "translate(-50%,-50%)", color: "#7fdcff", fontSize: "1.1rem" }}>⌖</div>
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 50%,rgba(8,16,26,.85))" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 8px" }}>
+        <div style={{ fontFamily: serif, fontSize: ".72rem", color: "#f4f7fb", lineHeight: 1.1 }}>Bear Lake</div>
+        <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".14em", color: "#7fdcff", marginTop: 2 }}>◇ 40.3113° N, 105.6462° W</div>
+      </div>
+    </div>
+  );
+}
+
+// Attach a location stamp as a photo. The user chooses the spot (this stop, their
+// current location, or typed coordinates) and the map "theme". An ⓘ explains it.
 function StampAdder({ spread }) {
   const [open, setOpen] = useState(false);
+  const [info, setInfo] = useState(false);
   const [locating, setLocating] = useState(false);
   const [manual, setManual] = useState(false);
   const [latS, setLatS] = useState("");
   const [lngS, setLngS] = useState("");
+  const [style, setStyle] = useState("midnight");
   const hasStop = spread.lat != null && spread.lng != null;
   const stopCoord = fmtCoord(spread.lat, spread.lng);
-  const addStop = () => { addStampTo(spread, { lat: spread.lat, lng: spread.lng, label: spread.name }); setOpen(false); };
+  const addStop = () => { addStampTo(spread, { lat: spread.lat, lng: spread.lng, label: spread.name, style }); setOpen(false); };
   const addHere = () => {
     if (!navigator.geolocation) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (p) => { setLocating(false); setOpen(false); addStampTo(spread, { lat: p.coords.latitude, lng: p.coords.longitude, label: spread.name }); },
+      (p) => { setLocating(false); setOpen(false); addStampTo(spread, { lat: p.coords.latitude, lng: p.coords.longitude, label: spread.name, style }); },
       () => setLocating(false), { enableHighAccuracy: true, timeout: 15000 });
   };
   const lat = parseFloat(latS), lng = parseFloat(lngS);
   const manualOk = isFinite(lat) && lat >= -90 && lat <= 90 && isFinite(lng) && lng >= -180 && lng <= 180;
-  const addManual = () => { if (!manualOk) return; addStampTo(spread, { lat, lng, label: spread.name }); setManual(false); setLatS(""); setLngS(""); setOpen(false); };
+  const addManual = () => { if (!manualOk) return; addStampTo(spread, { lat, lng, label: spread.name, style }); setManual(false); setLatS(""); setLngS(""); setOpen(false); };
   const opt = { cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "inherit", fontSize: ".76rem", color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "8px 11px" };
   const inp = { flex: 1, minWidth: 0, background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "7px 9px", color: "var(--pb-ink)", fontFamily: mono, fontSize: ".8rem", outline: "none" };
   return (
     <div style={{ marginTop: 8 }}>
-      <button className="bs-btn" onClick={() => setOpen((o) => !o)} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px" }}>⌖ Add a location stamp</button>
+      <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+        <button className="bs-btn" onClick={() => setOpen((o) => !o)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px" }}>⌖ Add a location stamp</button>
+        <button onClick={() => setInfo((v) => !v)} aria-label="What is a location stamp?" title="What is a location stamp?"
+          style={{ cursor: "pointer", flex: "0 0 auto", width: 40, fontFamily: serif, fontStyle: "italic", fontSize: "1rem", fontWeight: 700, color: info ? "#14210f" : "var(--pb-gold)", background: info ? "var(--pb-gold)" : "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 10 }}>i</button>
+      </div>
+      {info && (
+        <div style={{ marginTop: 6, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "11px 12px" }}>
+          <div style={{ fontSize: ".74rem", color: "var(--pb-ink-2)", lineHeight: 1.5, marginBottom: 8 }}>A <b>location stamp</b> is a little map of where you were, marked with a pin, added as a photo — the coordinates print across the bottom. Pick the spot and a map look, and it drops into a photo slot.</div>
+          <StampExample />
+        </div>
+      )}
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+          {/* Map theme */}
+          <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Map theme</div>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {MAP_STYLES.map((s) => (
+              <button key={s.key} onClick={() => setStyle(s.key)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".68rem", fontWeight: style === s.key ? 700 : 500, color: "var(--pb-ink)", background: style === s.key ? "var(--pb-surface-2)" : "transparent", border: "1px solid " + (style === s.key ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 999, padding: "4px 11px" }}>{s.name}</button>
+            ))}
+          </div>
+          <div style={{ height: 2 }} />
           {hasStop && <button onClick={addStop} style={opt}>This stop&rsquo;s spot<span style={{ display: "block", fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)", marginTop: 2 }}>{stopCoord}</span></button>}
           <button onClick={addHere} style={opt}>{locating ? "locating…" : "My current location"}</button>
           {!manual
@@ -1467,7 +1522,6 @@ function StampAdder({ spread }) {
                 </div>
               </div>
             )}
-          <div style={{ fontSize: ".64rem", color: "var(--pb-muted)", lineHeight: 1.45 }}>A map of the spot with a pin, added as a photo — the coordinates print beneath it.</div>
         </div>
       )}
     </div>

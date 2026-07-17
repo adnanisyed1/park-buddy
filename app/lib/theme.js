@@ -29,6 +29,20 @@ export function toggleTheme() { setTheme(getTheme() === "light" ? "dark" : "ligh
 
 export function subscribeTheme(cb) { listeners.add(cb); return () => listeners.delete(cb); }
 
+// Paint <body> to match a themed page's own background, so overscroll / the header
+// strip never flash the other theme — and it follows the toggle live. Pass a ref to
+// the page's `.pb-theme` root; we copy its resolved background onto <body> while
+// mounted and clear it on unmount. (Replaces useDarkBody for pages that honor the
+// light/dark toggle; dark-only pages like Explore keep useDarkBody.)
+export function useThemedBody(ref) {
+  useEffect(() => {
+    const apply = () => { const el = ref && ref.current; if (el) document.body.style.background = getComputedStyle(el).backgroundColor; };
+    apply();
+    const un = subscribeTheme(apply);
+    return () => { un(); document.body.style.background = ""; };
+  }, [ref]);
+}
+
 // SSR-safe: starts "dark" (matches the server render), then syncs to the real
 // data-theme after mount so there's no hydration mismatch.
 export function useTheme() {

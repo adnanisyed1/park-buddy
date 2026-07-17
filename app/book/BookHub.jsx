@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
-import useDarkBody from "../lib/useDarkBody";
+import { useThemedBody } from "../lib/theme";
 import AffiliateDisclosure from "../components/AffiliateDisclosure";
 import { usePhoto } from "../components/PhotoThumb";
 
@@ -153,8 +153,8 @@ function CatCard({ c, parkLabel, i }) {
 }
 
 export default function BookHub() {
-  useDarkBody();
   const rootRef = useRef(null);
+  useThemedBody(rootRef); // follows the light/dark toggle
   const [park, setPark] = useState(PARKS[0]);
   const hero = usePhoto(park.q, null, null);
   useReveal(rootRef);
@@ -174,14 +174,14 @@ export default function BookHub() {
   const liveCount = CATS.filter((c) => c.live).length;
 
   return (
-    <div ref={rootRef} style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+    <div ref={rootRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <style>{`
         @keyframes bk-ken { 0% { transform: scale(1.05); } 100% { transform: scale(1.13); } }
         @keyframes bk-pulse { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(79,217,138,.5);} 50% { opacity:.5; box-shadow:0 0 0 5px rgba(79,217,138,0);} }
         .bk-pulse { animation: bk-pulse 2s ease-in-out infinite; }
         .pb-rise { opacity: 0; transform: translateY(22px); transition: opacity .7s cubic-bezier(.16,.8,.24,1), transform .7s cubic-bezier(.16,.8,.24,1); }
         .pb-rise.pb-rise-in { opacity: 1; transform: none; }
-        .bk-card { background: linear-gradient(168deg,rgba(255,255,255,.045),rgba(255,255,255,.008)); border: 1px solid var(--pb-line); transition: transform .35s cubic-bezier(.16,.8,.24,1), border-color .35s, box-shadow .35s; }
+        .bk-card { background: var(--pb-surface); border: 1px solid var(--pb-line); transition: transform .35s cubic-bezier(.16,.8,.24,1), border-color .35s, box-shadow .35s; }
         .bk-card .bk-card-glow { position:absolute; top:-40%; right:-30%; width:70%; height:80%; background: radial-gradient(circle,rgba(217,183,121,.14),transparent 70%); opacity:0; transition:opacity .4s; pointer-events:none; }
         .bk-card:hover { transform: translateY(-5px); border-color: var(--pb-gold-2); box-shadow: 0 26px 54px -26px rgba(0,0,0,.75); }
         .bk-card:hover .bk-card-glow { opacity:1; }
@@ -238,7 +238,7 @@ export default function BookHub() {
       </section>
 
       {/* CATEGORY SUB-NAV — sticks below the floating header island (≈94px to its base). */}
-      <div style={{ position: "sticky", top: 100, zIndex: 40, background: "rgba(8,19,13,.86)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", borderRadius: 14, border: "1px solid var(--pb-line)" }}>
+      <div style={{ position: "sticky", top: 100, zIndex: 40, background: "var(--pb-glass-strong, var(--pb-glass))", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", borderRadius: 14, border: "1px solid var(--pb-line)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 8, overflowX: "auto", padding: "11px clamp(16px,4vw,40px)", scrollbarWidth: "none" }}>
           {CAT_TABS.map((t) => {
             const on = cat === t.slug;
@@ -270,7 +270,7 @@ export default function BookHub() {
 
           {/* Trip Book lives in the Shop — cross-linked here for hikers planning a trip. */}
           {cat === "all" && (
-            <Link href="/trip-book" className="pb-rise bk-promo" style={{ textDecoration: "none", marginTop: 16, background: "linear-gradient(120deg,rgba(217,183,121,.16),rgba(9,22,15,.7))", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "clamp(20px,3vw,30px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+            <Link href="/trip-book" className="pb-rise bk-promo" style={{ textDecoration: "none", marginTop: 16, background: "linear-gradient(120deg,rgba(217,183,121,.16),var(--pb-surface))", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "clamp(20px,3vw,30px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
                 <span style={{ width: 52, height: 52, borderRadius: 15, flex: "none", color: "var(--pb-gold)", background: "radial-gradient(120% 120% at 30% 20%,rgba(232,207,154,.26),rgba(201,163,95,.05))", border: "1px solid var(--pb-line-strong)", display: "flex", alignItems: "center", justifyContent: "center" }}><Ico name="book" size={26} /></span>
                 <div>
@@ -282,7 +282,7 @@ export default function BookHub() {
             </Link>
           )}
 
-          <div className="pb-rise bk-promo" style={{ marginTop: 16, background: "linear-gradient(120deg,rgba(31,94,70,.16),rgba(9,22,15,.7))", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "clamp(20px,3vw,30px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
+          <div className="pb-rise bk-promo" style={{ marginTop: 16, background: "linear-gradient(120deg,rgba(79,217,138,.14),var(--pb-surface))", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: "clamp(20px,3vw,30px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
               <span style={{ width: 52, height: 52, borderRadius: 15, flex: "none", color: "#7fe3a6", background: "radial-gradient(120% 120% at 30% 20%,rgba(79,217,138,.22),rgba(31,94,70,.05))", border: "1px solid var(--pb-line-strong)", display: "flex", alignItems: "center", justifyContent: "center" }}><Ico name="shield" size={26} /></span>
               <div>

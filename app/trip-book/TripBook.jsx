@@ -109,11 +109,13 @@ const FINISHES = [
    (1-4 of them) or story text — so "photos on both sides" means choosing a count
    for each side, a story fills both pages, and swapping a photo page for a text
    page is just changing that page's type. */
+/* Preset names say what you GET, in the same words as the pages themselves:
+   a photo page is "photo", a page of writing is "story". */
 const PRESETS = [
-  { key: "photo-diary", name: "Photo + diary", left: { type: "photos", count: 1 }, right: { type: "story", count: 1 } },
-  { key: "photo-photo", name: "Photos both sides", left: { type: "photos", count: 1 }, right: { type: "photos", count: 1 } },
-  { key: "grid", name: "Photo grid + diary", left: { type: "photos", count: 4 }, right: { type: "story", count: 1 } },
-  { key: "story", name: "Story spread", left: { type: "story", count: 1 }, right: { type: "story", count: 1 } },
+  { key: "photo-diary", name: "Photo + story", hint: "A photo facing what you wrote.", left: { type: "photos", count: 1 }, right: { type: "story", count: 1 } },
+  { key: "photo-photo", name: "Photos on both pages", hint: "One photo per page — no writing.", left: { type: "photos", count: 1 }, right: { type: "photos", count: 1 } },
+  { key: "grid", name: "Photo grid + story", hint: "Four photos facing what you wrote.", left: { type: "photos", count: 4 }, right: { type: "story", count: 1 } },
+  { key: "story", name: "Story on both pages", hint: "Writing only — it runs across the whole spread.", left: { type: "story", count: 1 }, right: { type: "story", count: 1 } },
 ];
 const LKEY = "pb_book_layouts";
 const DEFAULT_LAYOUT = { left: { type: "photos", count: 1 }, right: { type: "story", count: 1 } };
@@ -393,28 +395,36 @@ const PageNums = ({ start, single }) => {
   );
 };
 
-// One page of a spread: either photos (1-4) or the story.
+// One page of a spread: either photos (1-4) or the story. Every page fills its
+// half of the spread, so the book is the same size whatever it's made of.
 function Page({ cfg, spread, offset }) {
-  if (cfg.type === "story") return <SpreadStory spread={spread} />;
+  if (cfg.type === "story") return <div style={{ height: "100%", overflow: "hidden" }}><SpreadStory spread={spread} /></div>;
   const slice = (spread.photos || []).slice(offset, offset + cfg.count);
   if (cfg.count === 1) {
-    return <div style={{ aspectRatio: "3/4" }}>{slice[0] ? <PhotoSlot url={slice[0]} /> : <SpreadPhoto spread={spread} />}</div>;
+    return <div style={{ height: "100%" }}>{slice[0] ? <PhotoSlot url={slice[0]} /> : <SpreadPhoto spread={spread} />}</div>;
   }
-  return <div style={{ aspectRatio: "3/4" }}><PhotoGrid photos={slice} count={cfg.count} /></div>;
+  return <div style={{ height: "100%" }}><PhotoGrid photos={slice} count={cfg.count} /></div>;
 }
+
+/* Two 3:4 pages side by side, with the gutter between them — the aspect of the
+   open book. It lives on the pages row so EVERY composition is the same size:
+   without it a text-only chapter collapsed to the height of its own prose and
+   rendered as a stunted half-book. */
+const SPREAD_ASPECT = "1.53 / 1";
 
 function Spread({ spread, startPage = 3 }) {
   const ready = useLayoutTick();
   const lay = layoutOf(spread, ready);
-  const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", maxWidth: 720, width: "100%" };
+  const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
+  const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", aspectRatio: SPREAD_ASPECT };
   const bothStory = lay.left.type === "story" && lay.right.type === "story";
 
-  // A story chapter is a full SPREAD — the prose runs across both pages, not a
-  // lonely quarter-page card.
+  // Text-only chapter: the prose runs across both pages as balanced columns, so
+  // both pages carry writing — not one page of text beside a blank one.
   if (bothStory) {
     return (
       <div style={card}>
-        <div style={{ gridColumn: "1 / -1", padding: "18px 8px", columnCount: 2, columnGap: 34 }}>
+        <div style={{ ...pages, display: "block", padding: "18px 8px", columnCount: 2, columnGap: 34, overflow: "hidden" }}>
           <SpreadStory spread={spread} />
         </div>
         <PageNums start={startPage} />
@@ -424,8 +434,10 @@ function Spread({ spread, startPage = 3 }) {
   const rightOffset = lay.left.type === "photos" ? lay.left.count : 0;
   return (
     <div style={card}>
-      <Page cfg={lay.left} spread={spread} offset={0} />
-      <Page cfg={lay.right} spread={spread} offset={rightOffset} />
+      <div style={pages}>
+        <Page cfg={lay.left} spread={spread} offset={0} />
+        <Page cfg={lay.right} spread={spread} offset={rightOffset} />
+      </div>
       <PageNums start={startPage} />
     </div>
   );
@@ -762,7 +774,7 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
   return (
     <div style={{ display: "grid", gridTemplateColumns: author ? "300px 1fr 320px" : "1fr", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {author && (
-        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+        <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Eyebrow>Your Stops ({n})</Eyebrow>
             <button onClick={openManage} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 11px" }}>Manage</button>
@@ -772,7 +784,7 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
           </div>
         </aside>
       )}
-      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 30px", overflow: "hidden" }}>
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "24px 30px", overflowY: "auto" }}>
         <Spread spread={cur} startPage={(starts || [])[sel] || 3} />
         <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
       </main>
@@ -813,10 +825,13 @@ function LayoutPicker({ value, onChange, onReset, isOverride }) {
 
   return (
     <>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+      <div style={{ display: "grid", gap: 5, marginBottom: 10 }}>
         {PRESETS.map((p) => (
-          <button key={p.key} onClick={() => onChange({ left: p.left, right: p.right })}
-            style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".68rem", fontWeight: presetOn(p) ? 700 : 500, border: "1px solid " + (presetOn(p) ? "var(--pb-gold-2)" : "var(--pb-line)"), background: presetOn(p) ? "var(--pb-surface-2)" : "transparent", color: "var(--pb-ink)", borderRadius: 999, padding: "5px 10px" }}>{p.name}</button>
+          <button key={p.key} onClick={() => onChange({ left: p.left, right: p.right })} title={p.hint}
+            style={{ cursor: "pointer", textAlign: "left", width: "100%", fontFamily: "inherit", border: "1px solid " + (presetOn(p) ? "var(--pb-gold-2)" : "var(--pb-line)"), background: presetOn(p) ? "var(--pb-surface-2)" : "transparent", color: "var(--pb-ink)", borderRadius: 8, padding: "7px 10px" }}>
+            <span style={{ display: "block", fontSize: ".72rem", fontWeight: presetOn(p) ? 700 : 500 }}>{p.name}</span>
+            <span style={{ display: "block", fontSize: ".62rem", color: "var(--pb-muted)", marginTop: 2 }}>{p.hint}</span>
+          </button>
         ))}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -865,7 +880,7 @@ function StopTools({ spread, onNext }) {
   const coord = fmtCoord(spread.lat, spread.lng);
   const btn = { cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" };
   return (
-    <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+    <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
       <Eyebrow>Stop Tools</Eyebrow>
       <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Edit Story &amp; Photo</h3>
 
@@ -931,7 +946,7 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!reader && (
-        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+        <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Cover Layouts</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "var(--pb-ink)", margin: "6px 0 16px" }}>Select Silhouette</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -961,7 +976,7 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
         <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
       </main>
       {!reader && (
-        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+        <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Summary</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Your Edition</h3>
           <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Finish", cover.key === "linen" ? "Matte linen" : finish.name], ["Theme", palette.name], ["Cover art", layout.name]]} />
@@ -1124,7 +1139,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!reader && (
-        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+        <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Book Contents</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", marginTop: 14 }}>
             {toc.map(([label, pg], i) => {
@@ -1139,12 +1154,12 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
           </div>
         </aside>
       )}
-      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "40px 30px", overflowY: "auto" }}>
         <BookPage pv={pv} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} cover={cover} finish={finish} size={size} starts={starts} />
         <Pager i={pv} n={total} onPrev={() => setPv((p) => (p - 1 + total) % total)} onNext={() => setPv((p) => (p + 1) % total)} dots />
       </main>
       {!reader && (
-        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+        <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Order Details</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Review &amp; Imprint</h3>
           <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Pages", pages + " Pages"], ["Theme", palette.name], ["Stops Included", n + " Stops"]]} />

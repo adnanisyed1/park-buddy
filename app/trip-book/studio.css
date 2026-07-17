@@ -77,3 +77,16 @@
   .tbstudio header{ height:auto !important; flex-wrap:wrap; gap:8px 10px !important; padding-top:9px !important; padding-bottom:9px !important; }
   .tbstudio header #steps{ order:3; width:100%; justify-content:center; }
 }
+
+/* Studio rails — the workspace is fixed to the viewport and only the rails
+   scroll, so their scrollbars stay visible rather than fading out on macOS.
+   Without this the rails look like dead ends and the stops below the fold are
+   never found. */
+.bs-rail{ scrollbar-width: thin; scrollbar-color: var(--pb-line-strong) transparent; }
+.bs-rail::-webkit-scrollbar{ width: 10px; }
+.bs-rail::-webkit-scrollbar-thumb{
+  background: var(--pb-line-strong); border-radius: 999px;
+  border: 3px solid transparent; background-clip: content-box;
+}
+.bs-rail::-webkit-scrollbar-thumb:hover{ background: var(--pb-muted); background-clip: content-box; }
+.bs-rail::-webkit-scrollbar-track{ background: transparent; }

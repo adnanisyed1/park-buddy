@@ -149,7 +149,7 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
 // mobileChromeless: on phones (≤860px), hide the floating top island (logo + nav
 // pill + hamburger) but keep the platform bottom bar + modals. Pines uses this so
 // its own top toggle can own the top edge (memory/project-mobile-nav-redesign.md).
-export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false }) {
+export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false, hideTabBar = false }) {
   const [openKey, setOpenKey] = useState(null); // which top-nav dropdown is open ("explore" | "book" | "shop")
   const [menuOpen, setMenuOpen] = useState(false);
   // Hover-intent: the dropdown anchors below the pill, so moving the mouse from a tab
@@ -450,8 +450,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       <AuthModal />
       <AccountPanel />
 
-      {/* Phone-only bottom tab bar (Explore·Book·Ask·Pines·Shop) + section sheets. */}
-      <PbTabBar active={tab} />
+      {/* Phone-only bottom tab bar (Explore·Book·Ask·Pines·Shop) + section sheets.
+          hideTabBar: an immersive page (e.g. Book Studio) supplies its own bottom bar. */}
+      {!hideTabBar && <PbTabBar active={tab} />}
     </nav>
   );
 }

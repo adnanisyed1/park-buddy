@@ -1,330 +1,715 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import "./studio.css";
-import { MARKUP, mountStudio } from "./studioSource";
+// Book Studio — the workspace that turns a finished trip into a printed hardcover
+// keepsake. Rebuilt on the Park Buddy design system from the delivered Figma
+// (file 1IuuEX2vq8RVRnyGaEUlMl): a 3-step workspace (Diary → Theme → Preview) with
+// an Author/Reader toggle, an open-book spread + pager, per-stop Stop Tools
+// (GPS + live distance, edit story, swap photo), cover layouts + palettes, and an
+// Order step wired to the existing reservation + Stripe/Lulu checkout. It composes
+// from the user's REAL trip (trip.js stops + Trip Mode photos/stories), falling back
+// to a Yosemite sample when there's no trip yet. Follows the platform light/dark theme.
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
+import "./studio.css"; // .tbres-* styles for the reservation modal
 import SiteHeader from "../components/SiteHeader";
-import loadScript from "../components/load-script";
-import { getStops, getMeta } from "../lib/trip";
-import { getPhotos, getStory, distMiles, addCrumb } from "../lib/tripmode";
+import { useTheme } from "../lib/theme";
+import { getStops, getMeta, subscribeTrip } from "../lib/trip";
+import {
+  getPhotosFor, getStory, setStory, addPhoto, fileToDataUrl,
+  distMiles, addCrumb, subscribeTripMode,
+} from "../lib/tripmode";
 
-// Trip Book Studio — a living travel-diary keepsake. Ported 1:1 from the Claude
-// Design preview (see studioSource.js): a 3-step hub (living diary → theme &
-// settings with a live openable preview → a real openable 3D hardcover). The
-// engine is imperative, so we inject its markup and run it on mount; the swaps
-// (server-cached /api/photo, real photo capture, localStorage persistence) live
-// in studioSource.js. This wrapper also feeds it the user's REAL trip — stops,
-// Trip Mode photos + stories, and trip meta — falling back to the curated demo.
+const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
+const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
 
-function fmtTime(ts) {
-  try {
-    const d = new Date(ts);
-    if (isNaN(d)) return "";
-    const day = d.toLocaleDateString([], { weekday: "short" });
-    const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    return day + " · " + t;
-  } catch { return ""; }
+/* ---------------- real park photos via our pipeline ---------------- */
+const photoCache = {};
+function usePhoto(candidates) {
+  const key = Array.isArray(candidates) ? candidates.join("|") : (candidates || "");
+  const first = Array.isArray(candidates) ? candidates[0] : candidates;
+  const [url, setUrl] = useState(photoCache[key] || null);
+  useEffect(() => {
+    if (!first) return;
+    if (photoCache[key] !== undefined) { if (photoCache[key]) setUrl(photoCache[key]); return; }
+    let on = true;
+    (async () => {
+      for (const q of (Array.isArray(candidates) ? candidates : [candidates])) {
+        try {
+          const r = await fetch("/api/photo?q=" + encodeURIComponent(q) + "&w=1200");
+          if (!r.ok) continue;
+          const d = await r.json();
+          const u = d && (d.image || d.thumb);
+          if (u) { photoCache[key] = u; if (on) setUrl(u); return; }
+        } catch {}
+      }
+      photoCache[key] = "";
+    })();
+    return () => { on = false; };
+  }, [key]); // eslint-disable-line
+  return url;
 }
-function fmtDates(start, end) {
-  try {
-    if (!start) return "";
-    const s = new Date(start + "T00:00:00");
-    const e = end ? new Date(end + "T00:00:00") : null;
-    if (isNaN(s)) return "";
-    const mo = (d) => d.toLocaleDateString([], { month: "long" });
-    const yr = (e || s).getFullYear();
-    if (e && !isNaN(e)) {
-      if (mo(s) === mo(e)) return `${mo(s)} ${s.getDate()}–${e.getDate()}, ${yr}`;
-      return `${mo(s)} ${s.getDate()} – ${mo(e)} ${e.getDate()}, ${yr}`;
-    }
-    return `${mo(s)} ${s.getDate()}, ${yr}`;
-  } catch { return ""; }
-}
 
-// Compose the Studio's data model from the real trip. Returns null when the user
-// has no trip at all → the engine keeps its curated Colorado Plateau demo.
-function buildRealData() {
-  let stops = [], meta = {}, photos = {}, stories = {};
+/* ---------------- static config ---------------- */
+const LAYOUTS = [
+  { key: "centered", name: "Centered", desc: "Gold title centered with fine text layout" },
+  { key: "split", name: "Split Photo", desc: "Top-half photo, title beneath" },
+  { key: "minimal", name: "Minimal", desc: "Small debossed gold type, corner aligned" },
+  { key: "editorial", name: "Editorial", desc: "Big headline spanning the cover" },
+  { key: "manuscript", name: "Manuscript", desc: "Botanical bookplate imprint" },
+];
+const PALETTES = {
+  dark: [
+    { key: "forest", name: "Forest Dark", base: "#0A1712", ink: "#f4f1ea" },
+    { key: "charcoal", name: "Charcoal", base: "#17181a", ink: "#f2f2f0" },
+    { key: "navy", name: "Midnight Navy", base: "#0f1a2e", ink: "#eef2f8" },
+    { key: "oxblood", name: "Oxblood", base: "#2a1416", ink: "#f4e9e6" },
+  ],
+  light: [
+    { key: "parchment", name: "Parchment", base: "#FAF8F4", ink: "#1a3a2a" },
+    { key: "sage", name: "Sage", base: "#eef1ea", ink: "#1f3326" },
+    { key: "blush", name: "Blush", base: "#f6efe9", ink: "#3a2a24" },
+    { key: "mist", name: "Mist", base: "#eef1f6", ink: "#20303f" },
+  ],
+};
+const SIZE = '8.5" × 11" Hardcover';
+
+// Yosemite sample shown when the visitor has no trip yet (matches the Figma demo).
+const DEMO = {
+  title: "The Great Valley Journey",
+  author: "A Park Buddy Traveler",
+  region: "California",
+  stops: [
+    { name: "Tunnel View Entrance", park: "Yosemite National Park", q: ["Tunnel View Yosemite", "Yosemite National Park"], story: "The first look — the whole valley opening at once, El Capitan on the left, Bridalveil Fall thin and bright on the right.", lat: 37.7156, lng: -119.6774 },
+    { name: "Glacier Point Overlook", park: "Yosemite National Park", q: ["Glacier Point Yosemite", "Yosemite National Park"], story: "Three thousand feet straight down to the valley floor, Half Dome eye to eye across the gap.", lat: 37.7286, lng: -119.5734 },
+    { name: "Half Dome Crest Peak", park: "Yosemite National Park", q: ["Half Dome Yosemite", "Yosemite National Park"], story: "The granite walls of the valley rose vertically into the evening sky. Standing near the base, the scale makes you feel small but incredibly grounded.", lat: 37.7459, lng: -119.5332 },
+    { name: "Tuolumne Meadows", park: "Yosemite National Park", q: ["Tuolumne Meadows Yosemite", "Yosemite National Park"], story: "High country — the air thinner and cooler, the river braiding slow through the grass.", lat: 37.8731, lng: -119.3559 },
+    { name: "Mariposa Grove Giants", park: "Yosemite National Park", q: ["Mariposa Grove sequoia Yosemite", "Yosemite National Park"], story: "Standing under the Grizzly Giant — two thousand years old, wider than the trail.", lat: 37.5145, lng: -119.6017 },
+  ],
+};
+
+function fmtDate(ts) {
+  try { return new Date(ts).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" }); }
+  catch { return ""; }
+}
+const fmtCoord = (lat, lng) =>
+  (lat == null || lng == null) ? "" :
+  `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? "E" : "W"}`;
+
+// Compose the book's spreads from the real trip (or the demo).
+function useBook() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const a = subscribeTrip(() => setTick((t) => t + 1));
+    const b = subscribeTripMode(() => setTick((t) => t + 1));
+    return () => { a && a(); b && b(); };
+  }, []);
+
+  let stops = [], meta = {};
   try { stops = getStops() || []; } catch {}
   try { meta = getMeta() || {}; } catch {}
-  try { photos = getPhotos() || {}; } catch {}
-  try { stories = getStory() || {}; } catch {}
+  const stories = (() => { try { return getStory() || {}; } catch { return {}; } })();
 
-  // getMeta() always returns a default tripName, so it can't signal "has a trip"
-  // — only real stops or captured photos do. No trip → null → the demo shows.
-  if (!stops.length && !Object.keys(photos).length) return null;
+  const hasTrip = stops.length > 0;
+  if (!hasTrip) {
+    const spreads = DEMO.stops.map((s, i) => ({
+      name: s.name, park: s.park, q: s.q, userImg: null, story: s.story,
+      date: "", lat: s.lat, lng: s.lng, chapter: i + 1,
+    }));
+    return { isDemo: true, tick, title: DEMO.title, author: DEMO.author, region: DEMO.region, spreads };
+  }
 
-  const q = (name) => [name + " National Park", name];
-  const entries = [];
-
-  stops.forEach((s, si) => {
-    const name = s.name;
-    const list = photos[name] || [];
-    const story = stories[name] || "";
-    if (list.length) {
-      list.forEach((p, pi) =>
-        entries.push({
-          type: pi === 0 ? "Remember this" : "On the road",
-          ic: pi === 0 ? "✨" : "📷",
-          place: name,
-          time: p.ts ? fmtTime(p.ts) : "",
-          w: "",
-          cap: pi === 0 ? story || p.note || "" : p.note || "",
-          userImg: p.url,
-          q: q(name),
-        })
-      );
-    } else {
-      // no captures yet — still seat the stop in the book with a real park photo
-      entries.push({
-        type: si === 0 ? "Departure" : "Remember this",
-        ic: si === 0 ? "🚗" : "✨",
-        place: name,
-        time: "",
-        w: "",
-        cap: story || "",
-        userImg: null,
-        q: q(name),
-      });
-    }
+  const spreads = stops.map((s, i) => {
+    const photos = (() => { try { return getPhotosFor(s.name) || []; } catch { return []; } })();
+    const p0 = photos[0];
+    return {
+      name: s.name,
+      park: s.state ? s.name + " · " + s.state : s.name,
+      q: [s.name + " National Park", s.name],
+      userImg: p0 ? p0.url : null,
+      story: stories[s.name] || "",
+      date: p0 && p0.ts ? fmtDate(p0.ts) : "",
+      lat: s.lat != null ? s.lat : (p0 ? p0.lat : null),
+      lng: s.lng != null ? s.lng : (p0 ? p0.lng : null),
+      chapter: i + 1,
+    };
   });
-
-  // custom photo-stops that aren't in the itinerary (e.g. a town, a pullout)
-  Object.keys(photos).forEach((name) => {
-    if (stops.some((s) => s.name === name)) return;
-    (photos[name] || []).forEach((p) =>
-      entries.push({
-        type: "Remember this", ic: "✨", place: name,
-        time: p.ts ? fmtTime(p.ts) : "", w: "", cap: p.note || "",
-        userImg: p.url, q: q(name),
-      })
-    );
-  });
-
-  const trip = {};
-  if (meta.tripName) trip.title = meta.tripName;
-  const dates = fmtDates(meta.startDate, meta.endDate);
-  if (dates) trip.dates = dates;
-  // eyebrow region = the states you crossed, else a neutral label
   const states = [...new Set(stops.map((s) => s.state).filter(Boolean))];
-  trip.region = states.length ? states.join(" · ") : "A Park Buddy Trip";
-  // Trip Mode status line = the real route
-  if (stops.length >= 2) trip.modeLine = stops[0].name + " → " + stops[stops.length - 1].name + " · " + stops.length + " stops";
-  else if (stops.length === 1) trip.modeLine = stops[0].name;
-  else if (meta.tripName) trip.modeLine = meta.tripName;
-
-  // moment prompts = gentle nudges for stops that have no photo yet
-  const prompts = [];
-  stops.forEach((s) => {
-    if (!(photos[s.name] && photos[s.name].length)) {
-      prompts.push({
-        type: "Remember this", ic: "✨",
-        title: "Add " + s.name + " to your book",
-        msg: "Capture a moment at " + s.name + " — it becomes a spread automatically.",
-        place: s.name, w: "", q: q(s.name),
-      });
-    }
-  });
-
-  return { entries, trip, prompts };
+  return {
+    isDemo: false, tick,
+    title: meta.tripName || "Your Trip Book",
+    author: "",
+    region: states.length ? states.join(" · ") : "A Park Buddy Trip",
+    spreads,
+  };
 }
 
+/* ---------------- shared pieces ---------------- */
+const Eyebrow = ({ children, style }) => (
+  <div style={{ fontFamily: mono, fontSize: ".55rem", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--pb-gold-soft)", ...style }}>{children}</div>
+);
+
+// The photo half of a spread — user's own photo, else a licensed park photo.
+function SpreadPhoto({ spread, rounded = true, showBadge = true }) {
+  const fetched = usePhoto(spread.userImg ? null : spread.q);
+  const src = spread.userImg || fetched;
+  const coord = fmtCoord(spread.lat, spread.lng);
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", borderRadius: rounded ? 6 : 0, background: "linear-gradient(160deg,#16321f,#0c1c12)" }}>
+      {src && <img src={src} alt={spread.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(6,14,10,.15) 0%,transparent 30%,rgba(6,14,10,.72))" }} />
+      {showBadge && coord && (
+        <span style={{ position: "absolute", left: 12, top: 12, fontFamily: mono, fontSize: ".52rem", letterSpacing: ".08em", color: "#e9e3d5", background: "rgba(10,17,12,.6)", border: "1px solid rgba(217,183,121,.4)", borderRadius: 6, padding: "4px 8px", WebkitBackdropFilter: "blur(4px)", backdropFilter: "blur(4px)" }}>{coord}</span>
+      )}
+      <div style={{ position: "absolute", left: 14, bottom: 12, right: 14 }}>
+        <div style={{ fontFamily: serif, fontWeight: 600, color: "#fff", fontSize: "1.05rem", lineHeight: 1.15, textShadow: "0 2px 8px rgba(0,0,0,.6)" }}>{spread.name}</div>
+        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "rgba(233,227,213,.85)", marginTop: 3 }}>{spread.park}</div>
+      </div>
+    </div>
+  );
+}
+
+// The story half of a spread.
+function SpreadStory({ spread }) {
+  return (
+    <div style={{ padding: "10px 6px" }}>
+      <Eyebrow>Chapter {spread.chapter}</Eyebrow>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "var(--pb-ink)", margin: "8px 0 0", lineHeight: 1.1 }}>{spread.name}</h3>
+      <div style={{ width: 40, height: 1, background: "var(--pb-line-strong)", margin: "12px 0 14px" }} />
+      <p style={{ fontFamily: serif, fontSize: "1rem", lineHeight: 1.7, color: "var(--pb-ink-2)" }}>
+        {spread.story || <span style={{ color: "var(--pb-muted)", fontStyle: "italic" }}>No story yet — add one in Stop Tools, or this becomes a clean typographic page in print.</span>}
+      </p>
+      {spread.date && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", color: "var(--pb-muted)", marginTop: 16 }}>{spread.date}</div>}
+    </div>
+  );
+}
+
+// The full open-book spread (photo page ‖ story page) used on desktop.
+function Spread({ spread }) {
+  return (
+    <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 720, width: "100%" }}>
+      <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
+      <SpreadStory spread={spread} />
+    </div>
+  );
+}
+
+function Pager({ i, n, label, onPrev, onNext, dots }) {
+  const btn = { cursor: "pointer", width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "transparent", color: "var(--pb-ink)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" };
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 20 }}>
+      <button style={btn} onClick={onPrev} aria-label="Previous">‹</button>
+      {dots ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          {Array.from({ length: n }).map((_, k) => (
+            <span key={k} style={{ width: k === i ? 16 : 6, height: 6, borderRadius: 999, background: k === i ? "var(--pb-gold)" : "var(--pb-line-strong)", transition: "width .2s" }} />
+          ))}
+        </div>
+      ) : (
+        <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".95rem", color: "var(--pb-ink-2)", minWidth: 90, textAlign: "center" }}>{label}</span>
+      )}
+      <button style={btn} onClick={onNext} aria-label="Next">›</button>
+    </div>
+  );
+}
+
+/* ---------------- cover preview (Theme step) ---------------- */
+function CoverPreview({ title, author, region, layout, palette, dateLabel }) {
+  const base = palette.base, ink = palette.ink;
+  return (
+    <div style={{ width: 340, maxWidth: "80%", aspectRatio: "17/22", background: base, color: ink, border: "1px solid var(--pb-line)", boxShadow: "0 40px 90px -50px rgba(0,0,0,.8)", borderRadius: 4, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      {/* gold frame rule */}
+      <div aria-hidden style={{ position: "absolute", inset: 16, border: "1px solid rgba(217,183,121,.45)", borderRadius: 2, pointerEvents: "none" }} />
+      {layout.key === "split" ? (
+        <>
+          <div style={{ flex: "0 0 46%", position: "relative", margin: 22, marginBottom: 0, overflow: "hidden", borderRadius: 2 }}>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#2a4a38,#12241a)" }} />
+          </div>
+          <CoverText title={title} author={author} region={region} ink={ink} dateLabel={dateLabel} compact />
+        </>
+      ) : (
+        <div style={{ margin: "auto", textAlign: "center", padding: "0 26px" }}>
+          <CoverText title={title} author={author} region={region} ink={ink} dateLabel={dateLabel} />
+        </div>
+      )}
+    </div>
+  );
+}
+function CoverText({ title, author, region, ink, dateLabel, compact }) {
+  return (
+    <div style={{ textAlign: "center", padding: compact ? "18px 26px 26px" : 0 }}>
+      <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".3em", textTransform: "uppercase", color: "rgba(217,183,121,.9)" }}>Vol. I</div>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", lineHeight: 1.1, margin: "12px 0 0", color: ink }}>{title}</h3>
+      {region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", opacity: .75, marginTop: 8, color: ink }}>A journey through {region}</div>}
+      <div aria-hidden style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,.6)", margin: "22px auto", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(217,183,121,.9)", fontSize: ".7rem" }}>✦</div>
+      {author && <div style={{ fontFamily: mono, fontSize: ".55rem", letterSpacing: ".14em", textTransform: "uppercase", color: ink, opacity: .85 }}>{author}</div>}
+      {dateLabel && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".75rem", opacity: .6, marginTop: 6, color: ink }}>{dateLabel}</div>}
+    </div>
+  );
+}
+
+/* ==================================================================== */
 export default function TripBook() {
-  const rootRef = useRef(null);
+  useTheme(); // re-render on theme change so tokens flip
+  const book = useBook();
+  const [step, setStep] = useState("diary"); // diary | theme | preview
+  const [role, setRole] = useState("author"); // author | reader
+  const [sel, setSel] = useState(0);
+  const [layoutKey, setLayoutKey] = useState("split");
+  const [pal, setPal] = useState("forest");
+  const [isPhone, setIsPhone] = useState(false);
   const [reserve, setReserve] = useState(null);
+  const [mobilePage, setMobilePage] = useState("photo"); // photo | story
+  const [toolsOpen, setToolsOpen] = useState(true);
 
   useEffect(() => {
-    // The ported inline styles reference fonts by their literal family names,
-    // but next/font self-hosts them under hashed names — so load the literal
-    // families for this page (the app isn't CSP-restricted).
-    const FID = "tb-studio-fonts";
-    if (!document.getElementById(FID)) {
-      const l = document.createElement("link");
-      l.id = FID;
-      l.rel = "stylesheet";
-      l.href =
-        "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap";
-      document.head.appendChild(l);
-    }
-
-    const el = rootRef.current;
-    if (!el) return;
-    // Recolor the ported studio to the Park Buddy palette: its near-black base and
-    // top-bar glass → dark-green (--pb-bg #0a1712). Gold accents, cream book pages
-    // and the Cormorant serif already match Park Buddy, so this is all it takes.
-    el.innerHTML = MARKUP
-      .split("#0e0e0c").join("#0a1712")
-      .split("rgba(14,14,12").join("rgba(10,23,18");
-    // The studio ships its own "Trip Book" top bar; the page now renders the real
-    // Park Buddy header above it, so demote the studio bar to a sub-bar — hide its
-    // brand block and drop it below the site header, keeping the stepper + action.
-    try {
-      const hdr = el.querySelector("header");
-      if (hdr) {
-        hdr.style.top = "56px";
-        hdr.style.zIndex = "30";
-        if (hdr.firstElementChild) hdr.firstElementChild.style.display = "none";
-      }
-    } catch {}
-    let studio;
-    let watchId = null;
-    try {
-      studio = mountStudio(buildRealData());
-    } catch (e) {
-      console.error("Trip Book Studio failed to mount:", e);
-    }
-
-    // Replace the demo "Added to cart" toast with the real Reserve flow. The
-    // order buttons live in the injected markup, so re-bind them after mount.
-    if (studio) {
-      const openReserve = () => {
-        try {
-          const theme = (studio.THEMES[studio.sel] || {}).name || "";
-          const pr = studio.PRINTS[studio.S.print] || ["", ""];
-          setReserve({
-            theme, size: pr[0], price: pr[1], title: studio.S.title || "",
-            dates: studio.S.dates || "", dedication: studio.S.ded || "",
-            entries: (studio.entries || []).map((e) => ({ type: e.type, place: e.place, cap: e.cap, userImg: e.userImg, q: e.q })),
-          });
-        } catch (e) {}
-      };
-      const ob = document.getElementById("orderBtn");
-      if (ob) ob.onclick = openReserve;
-      const ta = document.getElementById("topAction");
-      if (ta) ta.onclick = () => {
-        if (studio.step < 2) studio.setStep(studio.step + 1);
-        else openReserve();
-      };
-
-      // "Print-ready PDF" — generate the Lulu-spec interior PDF and download it,
-      // so the traveler can preview exactly what gets printed.
-      if (!document.getElementById("tb-pdf-btn")) {
-        const dl = document.createElement("button");
-        dl.id = "tb-pdf-btn";
-        dl.textContent = "⬇ Print-ready PDF";
-        dl.style.cssText = "cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;color:#f4f1ea;background:rgba(255,255,255,.04);border:1px solid rgba(217,183,121,.35);border-radius:999px;padding:9px 16px";
-        dl.onclick = async () => {
-          const prev = dl.textContent; dl.textContent = "Preparing…"; dl.disabled = true;
-          try {
-            const payload = {
-              title: studio.S.title, dates: studio.S.dates, dedication: studio.S.ded,
-              entries: (studio.entries || []).map((e) => ({ place: e.place, cap: e.cap, userImg: e.userImg, q: e.q })),
-            };
-            const r = await fetch("/api/interior-pdf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Couldn't build the PDF."); }
-            const blob = await r.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = "trip-book-interior.pdf";
-            document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 4000);
-          } catch (e) { alert(e.message || "Couldn't build the PDF."); }
-          finally { dl.textContent = prev; dl.disabled = false; }
-        };
-        const cb = document.getElementById("closeBook");
-        if (cb && cb.parentElement) cb.parentElement.appendChild(dl);
-      }
-    }
-
-    // Live GPS: on a real trip, offer to use the traveler's location and turn the
-    // diary prompt into a real arrival ("You've reached <stop>"). Reuses the same
-    // coord resolution + arrival threshold as /trip-mode.
-    if (studio) {
-      (async () => {
-        let raw = [];
-        try { raw = getStops() || []; } catch {}
-        if (!raw.length) return; // demo → no geofencing
-        const coord = {};
-        try {
-          await loadScript("/trip-data.js");
-          // key by both the dataset's short name AND "<name> National Park" so a
-          // stop stored either way resolves (the dataset uses short names).
-          (window.TRIP_PARKS || []).forEach((p) => {
-            if (p && p.name) { coord[p.name] = { lat: p.lat, lng: p.lng }; coord[p.name + " National Park"] = { lat: p.lat, lng: p.lng }; }
-          });
-        } catch {}
-        const findCoord = (s) => {
-          if (s.lat != null) return s;
-          const bare = s.name.replace(/\s+national park$/i, "").trim();
-          return coord[s.name] || coord[bare] || null;
-        };
-        const geoStops = raw
-          .map((s) => { const c = findCoord(s); return c && c.lat != null ? { name: s.name, lat: c.lat, lng: c.lng, q: [s.name + " National Park", s.name] } : null; })
-          .filter(Boolean);
-        if (!geoStops.length) return;
-
-        const setText = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
-        const showPrompt = (p) => {
-          const cardEl = document.getElementById("promptCard"); if (cardEl) cardEl.style.display = "";
-          setText("promptIcon", p.ic); setText("promptTitle", p.title); setText("promptMsg", p.msg);
-          const cs = document.getElementById("capStamp");
-          try { if (cs) cs.innerHTML = studio.stamp(p.place, p.w || ""); } catch {}
-          studio._ap = p;
-        };
-        const notified = {};
-        const onPos = (pos) => {
-          const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          const btn = document.getElementById("tb-loc-btn"); if (btn) btn.textContent = "📍 Location on";
-          try { addCrumb(c.lat, c.lng); } catch {}
-          let near = null, nd = Infinity;
-          geoStops.forEach((s) => { const d = distMiles(c.lat, c.lng, s.lat, s.lng); if (d < nd) { nd = d; near = s; } });
-          if (near && nd <= 2) {
-            showPrompt({ type: "Remember this", ic: "📍", title: "You've reached " + near.name, msg: "You made it — grab a photo for your book.", place: near.name, w: "", q: near.q });
-            setText("tripModeLine", "You're at " + near.name);
-            if (!notified[near.name]) {
-              notified[near.name] = true;
-              try { if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("You've reached " + near.name + " 📸", { body: "Snap a photo for your trip book." }); } catch {}
-            }
-          } else if (near) {
-            setText("tripModeLine", "Nearest: " + near.name + " · " + (nd < 10 ? nd.toFixed(1) : Math.round(nd)) + " mi");
-          }
-        };
-        const onErr = (err) => { const btn = document.getElementById("tb-loc-btn"); if (btn) btn.textContent = err && err.code === 1 ? "Location denied" : "Location error"; };
-        const startGeo = () => {
-          const btn = document.getElementById("tb-loc-btn");
-          if (!navigator.geolocation) { if (btn) btn.textContent = "Location unavailable"; return; }
-          if (btn) btn.textContent = "📍 Locating…";
-          try { if (typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission().catch(() => {}); } catch {}
-          watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
-        };
-
-        if (!document.getElementById("tb-loc-btn")) {
-          const anchor = document.getElementById("tripModeLine");
-          const row = anchor ? anchor.parentElement : null;
-          if (row) {
-            row.style.flexWrap = "wrap";
-            const b = document.createElement("button");
-            b.id = "tb-loc-btn";
-            b.textContent = "📍 Use my location";
-            b.style.cssText = "cursor:pointer;font-family:var(--pb-mono),monospace;font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;color:#0e0e0c;background:linear-gradient(120deg,#e8cf9a,#c9a35f);border:none;border-radius:999px;padding:6px 12px;margin-left:auto";
-            b.onclick = startGeo;
-            row.appendChild(b);
-          }
-        }
-      })();
-    }
-
-    return () => {
-      try {
-        studio && studio.destroy && studio.destroy();
-      } catch (e) {}
-      try {
-        if (watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
-      } catch (e) {}
-      if (el) el.innerHTML = "";
-    };
+    const m = window.matchMedia("(max-width: 860px)");
+    const on = () => setIsPhone(m.matches); on();
+    m.addEventListener ? m.addEventListener("change", on) : m.addListener(on);
+    return () => (m.removeEventListener ? m.removeEventListener("change", on) : m.removeListener(on));
   }, []);
+
+  const spreads = book.spreads;
+  const n = spreads.length;
+  const cur = spreads[Math.min(sel, n - 1)] || spreads[0];
+  const layout = LAYOUTS.find((l) => l.key === layoutKey) || LAYOUTS[0];
+  const palette = [...PALETTES.dark, ...PALETTES.light].find((p) => p.key === pal) || PALETTES.dark[0];
+  const isLightPal = PALETTES.light.some((p) => p.key === pal);
+  const pages = 4 + n * 4;
+  const priceNum = 35 + n * 10;
+  const price = "$" + priceNum;
+
+  const prev = () => setSel((s) => (s - 1 + n) % n);
+  const next = () => setSel((s) => (s + 1) % n);
+
+  const openReserve = () => setReserve({
+    theme: palette.name, size: SIZE, price, title: book.title, dates: "", dedication: "",
+    pages, stops: n,
+    entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
+  });
+
+  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role };
 
   return (
     <>
-      <SiteHeader acctSlot />
-      <div className="tbstudio" ref={rootRef} />
+      <SiteHeader acctSlot mobileChromeless hideTabBar />
+      <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: isPhone ? 0 : 90 }}>
+        {isPhone
+          ? <MobilePhone {...commonProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
+          : <Desktop {...commonProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} />}
+      </div>
       {reserve && <ReserveModal data={reserve} onClose={() => setReserve(null)} />}
+      <style>{`
+        .bs-stopcard:hover{ border-color: var(--pb-line-strong) !important; }
+        .bs-btn:hover{ border-color: var(--pb-gold-2) !important; }
+        .bs-reels::-webkit-scrollbar{ display:none; }
+      `}</style>
     </>
   );
 }
 
-// Honest reservation flow — captures the edition + buyer, no charge. Becomes real
-// checkout once Lulu (print) + Stripe (payment) are wired; POSTs to /api/book-order.
+/* ---------------- top bar (desktop) ---------------- */
+function TopBar({ step, setStep, role, setRole }) {
+  const steps = [["diary", "Diary"], ["theme", "Theme"], ["preview", "Preview"]];
+  return (
+    <div style={{ position: "sticky", top: 90, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 64, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ color: "var(--pb-gold)" }}>♟</span>
+        <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>Book Studio</span>
+        <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".1em", color: "var(--pb-muted)" }}>· The Park Buddy</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+        {steps.map(([k, label], i) => (
+          <button key={k} onClick={() => setStep(k)} style={{ cursor: "pointer", background: "none", border: "none", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 7, color: step === k ? "var(--pb-ink)" : "var(--pb-muted)" }}>
+            <span style={{ fontFamily: mono, fontSize: ".56rem", color: step === k ? "var(--pb-gold)" : "var(--pb-muted)" }}>{"0" + (i + 1)}</span>
+            <span style={{ fontSize: ".92rem", fontWeight: step === k ? 700 : 500 }}>{label}</span>
+            {step === k && <span style={{ width: 14, height: 1, background: "var(--pb-gold)" }} />}
+          </button>
+        ))}
+      </div>
+      <RoleToggle role={role} setRole={setRole} />
+    </div>
+  );
+}
+function RoleToggle({ role, setRole }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Workspace Role</span>
+      <div style={{ display: "flex", background: "var(--pb-tint)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3 }}>
+        {["author", "reader"].map((r) => (
+          <button key={r} onClick={() => setRole(r)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".76rem", fontWeight: role === r ? 700 : 500, textTransform: "capitalize", border: "none", borderRadius: 999, padding: "5px 14px", background: role === r ? GOLD : "transparent", color: role === r ? "#0a1712" : "var(--pb-ink-2)" }}>{r}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- desktop steps ---------------- */
+function Desktop(props) {
+  const { step } = props;
+  return (
+    <>
+      <TopBar step={step} setStep={props.setStep} role={props.role} setRole={props.setRole} />
+      <div style={{ maxWidth: 1440, margin: "0 auto" }}>
+        {step === "diary" && <DiaryDesktop {...props} />}
+        {step === "theme" && <ThemeDesktop {...props} />}
+        {step === "preview" && <PreviewDesktop {...props} />}
+      </div>
+    </>
+  );
+}
+
+function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book }) {
+  const author = role === "author";
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: author ? "300px 1fr 320px" : "1fr", minHeight: "calc(100vh - 160px)" }}>
+      {author && (
+        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+          <Eyebrow>Your Stops ({n})</Eyebrow>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+            {spreads.map((s, i) => (
+              <button key={i} className="bs-stopcard" onClick={() => setSel(i)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: i === sel ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (i === sel ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)" }}>{"0" + (i + 1)}</span>
+                  <span style={{ fontFamily: mono, fontSize: ".5rem", color: s.userImg ? "var(--pb-go)" : "var(--pb-muted)" }}>{s.userImg ? "✓ Photo" : "＋ Add photo"}</span>
+                </div>
+                <div style={{ fontWeight: 600, fontSize: ".9rem", color: "var(--pb-ink)", marginTop: 4 }}>{s.name}</div>
+                <div style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>{s.park}</div>
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
+        <Spread spread={cur} />
+        <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
+      </main>
+      {author && <StopTools spread={cur} />}
+    </div>
+  );
+}
+
+function StopTools({ spread }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(spread.story || "");
+  const [dist, setDist] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const fileRef = useRef(null);
+  useEffect(() => { setDraft(spread.story || ""); setEditing(false); }, [spread.name]);
+
+  const saveStory = () => { try { setStory(spread.name, draft); } catch {} setEditing(false); };
+  const onFile = async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { const url = await fileToDataUrl(f); addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }); } catch {}
+    e.target.value = "";
+  };
+  const locate = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        try { addCrumb(pos.coords.latitude, pos.coords.longitude); } catch {}
+        if (spread.lat != null) setDist(distMiles(pos.coords.latitude, pos.coords.longitude, spread.lat, spread.lng));
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+  const coord = fmtCoord(spread.lat, spread.lng);
+  const btn = { cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" };
+  return (
+    <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+      <Eyebrow>Stop Tools</Eyebrow>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Edit Story &amp; Photo</h3>
+
+      <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "14px 15px", marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>GPS Signal</span>
+          <button onClick={locate} style={{ cursor: "pointer", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", border: "1px solid " + (dist != null ? "var(--pb-go)" : "var(--pb-line-strong)"), color: dist != null ? "var(--pb-go)" : "var(--pb-ink-2)", background: dist != null ? "rgba(79,217,138,.08)" : "transparent", borderRadius: 999, padding: "3px 9px" }}>
+            {locating ? "locating…" : dist != null ? (dist < 10 ? dist.toFixed(1) : Math.round(dist)) + " mi away" : "Use my location"}
+          </button>
+        </div>
+        <div style={{ fontFamily: mono, fontSize: ".9rem", color: "var(--pb-ink)", marginTop: 8 }}>{coord || "—"}</div>
+        <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 2 }}>Recorded {spread.name}</div>
+      </div>
+
+      {editing ? (
+        <div style={{ marginBottom: 12 }}>
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={6} placeholder="Write the story of this stop…" style={{ width: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 12px", color: "var(--pb-ink)", fontFamily: serif, fontSize: ".92rem", lineHeight: 1.5, outline: "none", resize: "vertical" }} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button onClick={saveStory} style={{ ...btn, flex: 1, color: "#0a1712", background: GOLD, border: "none" }}>Save story</button>
+            <button onClick={() => setEditing(false)} style={{ ...btn, flex: "0 0 auto" }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button className="bs-btn" style={{ ...btn, width: "100%", marginBottom: 10 }} onClick={() => setEditing(true)}>✎ Edit Story Content</button>
+      )}
+      <button className="bs-btn" style={{ ...btn, width: "100%" }} onClick={() => fileRef.current && fileRef.current.click()}>⤢ Swap Photo</button>
+      <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+
+      <div style={{ marginTop: 24 }}>
+        <Eyebrow>Layout rules</Eyebrow>
+        <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+          <li style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>• Chapters sort automatically by your route order.</li>
+          <li style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>• Only your own photos are printed — an un-photographed stop becomes a clean typographic page.</li>
+        </ul>
+      </div>
+    </aside>
+  );
+}
+
+function ThemeDesktop({ book, layout, setLayoutKey, pal, setPal, palette, price, pages, setStep, role, setRole }) {
+  const reader = role === "reader";
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
+      {!reader && (
+        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+          <Eyebrow>Cover Layouts</Eyebrow>
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "var(--pb-ink)", margin: "6px 0 16px" }}>Select Silhouette</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {LAYOUTS.map((l) => (
+              <button key={l.key} className="bs-stopcard" onClick={() => setLayoutKey(l.key)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: l.key === layout.key ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (l.key === layout.key ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "11px 13px" }}>
+                <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)" }}>{l.name}</div>
+                <div style={{ fontSize: ".7rem", color: "var(--pb-muted)", marginTop: 2 }}>{l.desc}</div>
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: 22 }}>
+            <Eyebrow>Color Palettes</Eyebrow>
+            {[["Dark", PALETTES.dark], ["Light", PALETTES.light]].map(([label, list]) => (
+              <div key={label} style={{ marginTop: 12 }}>
+                <div style={{ fontFamily: mono, fontSize: ".48rem", letterSpacing: ".12em", color: "var(--pb-muted)", marginBottom: 6 }}>{label}</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {list.map((p) => (
+                    <button key={p.key} onClick={() => setPal(p.key)} title={p.name} aria-label={p.name} style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", background: p.base, border: "2px solid " + (p.key === pal ? "var(--pb-gold)" : "var(--pb-line-strong)") }} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
+      <main style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
+        <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" />
+      </main>
+      {!reader && (
+        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+          <Eyebrow>Summary</Eyebrow>
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Theme Selection</h3>
+          <SummaryRows rows={[["Format", SIZE], ["Theme", palette.name], ["Cover Layout", layout.name], ["Base Color", palette.base], ["Accent", "Champagne Gold"]]} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", margin: "18px 0" }}>
+            <span style={{ color: "var(--pb-gold)" }}>✦</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)" }}>Gold Foil Imprint</div>
+              <div style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Front &amp; spine debossing</div>
+            </div>
+          </div>
+          <button onClick={() => setStep("preview")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Preview Book →</button>
+        </aside>
+      )}
+    </div>
+  );
+}
+const SummaryRows = ({ rows }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    {rows.map(([k, v]) => (
+      <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+        <span style={{ fontSize: ".82rem", color: "var(--pb-ink-2)" }}>{k}</span>
+        <span style={{ fontFamily: mono, fontSize: ".76rem", color: "var(--pb-ink)", textAlign: "right" }}>{v}</span>
+      </div>
+    ))}
+  </div>
+);
+
+function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role }) {
+  const reader = role === "reader";
+  const toc = [["Cover Layout", "—"], ["Introduction", "01"], ...spreads.map((s, i) => [s.name, String(4 + i * 4).padStart(2, "0")]), ["Final Page Summary", String(pages).padStart(2, "0")]];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
+      {!reader && (
+        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+          <Eyebrow>Book Contents</Eyebrow>
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 14 }}>
+            {toc.map(([label, pg], i) => {
+              const active = i >= 2 && i - 2 === sel;
+              return (
+                <button key={i} onClick={() => i >= 2 && i - 2 < n && setSel(i - 2)} style={{ textAlign: "left", cursor: i >= 2 ? "pointer" : "default", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: active ? "var(--pb-surface-2)" : "transparent", border: "none" }}>
+                  <span style={{ fontSize: ".85rem", color: active ? "var(--pb-ink)" : "var(--pb-ink-2)", fontWeight: active ? 600 : 400 }}>{label}</span>
+                  <span style={{ fontFamily: mono, fontSize: ".6rem", color: "var(--pb-muted)" }}>{pg}</span>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+      )}
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
+        <Spread spread={cur} />
+        <Pager i={sel} n={n} onPrev={prev} onNext={next} dots />
+      </main>
+      {!reader && (
+        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+          <Eyebrow>Order Details</Eyebrow>
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Review &amp; Imprint</h3>
+          <SummaryRows rows={[["Format", SIZE], ["Pages", pages + " Pages"], ["Theme", palette.name], ["Cover", layout.name], ["Stops Included", n + " Stops"]]} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
+            <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Total Price</span>
+            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}.00</span>
+          </div>
+          <button onClick={openReserve} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Order Book</button>
+          <div style={{ textAlign: "center", fontFamily: mono, fontSize: ".56rem", letterSpacing: ".04em", color: "var(--pb-muted)", marginTop: 10 }}>Secured by Stripe · Lulu Print-on-Demand</div>
+          <p style={{ fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.5, marginTop: 14 }}>Only your own photos are printed. Stops without a photo get a beautiful typographic page.</p>
+        </aside>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- mobile ---------------- */
+function MobilePhone(props) {
+  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen } = props;
+  const BAR = 64;
+  return (
+    <div style={{ paddingBottom: BAR + 10 }}>
+      {/* top */}
+      <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--pb-line)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: "var(--pb-gold)" }}>♟</span>
+          <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1rem", color: "var(--pb-ink)" }}>Book Studio</span>
+        </div>
+        <RoleToggle role={role} setRole={setRole} />
+      </div>
+
+      <div style={{ padding: "16px" }}>
+        {step === "diary" && (
+          <>
+            {role === "author" && (
+              <>
+                <Eyebrow>Your Stops ({n})</Eyebrow>
+                <div className="bs-reels" style={{ display: "flex", gap: 10, overflowX: "auto", margin: "10px -4px 16px", padding: "0 4px 4px", scrollbarWidth: "none" }}>
+                  {spreads.map((s, i) => (
+                    <button key={i} onClick={() => setSel(i)} style={{ flex: "0 0 46%", textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: i === sel ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (i === sel ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 11px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontFamily: mono, fontSize: ".46rem", color: "var(--pb-muted)" }}>{"0" + (i + 1)}</span>
+                        <span style={{ fontFamily: mono, fontSize: ".46rem", color: s.userImg ? "var(--pb-go)" : "var(--pb-muted)" }}>{s.userImg ? "✓" : "＋"}</span>
+                      </div>
+                      <div style={{ fontWeight: 600, fontSize: ".8rem", color: "var(--pb-ink)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", background: "var(--pb-tint)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: 3, marginBottom: 14 }}>
+                  {[["photo", "Photo Spread"], ["story", "Story Text"]].map(([k, l]) => (
+                    <button key={k} onClick={() => setMobilePage(k)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: mobilePage === k ? 700 : 500, border: "none", borderRadius: 8, padding: "8px", background: mobilePage === k ? "var(--pb-surface)" : "transparent", color: mobilePage === k ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={{ maxWidth: 460, margin: "0 auto" }}>
+              {mobilePage === "photo" || role === "reader"
+                ? <div style={{ aspectRatio: "3/4", borderRadius: 12, overflow: "hidden", border: "1px solid var(--pb-line)" }}><SpreadPhoto spread={cur} rounded={false} /></div>
+                : <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: 18 }}><SpreadStory spread={cur} /></div>}
+            </div>
+            {role === "author" && (
+              <div style={{ maxWidth: 460, margin: "14px auto 0", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, overflow: "hidden" }}>
+                <button onClick={() => setToolsOpen((v) => !v)} style={{ width: "100%", cursor: "pointer", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "none", border: "none" }}>
+                  <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Stop Tools · {fmtCoord(cur.lat, cur.lng) || "—"}</span>
+                  <span style={{ color: "var(--pb-ink-2)" }}>{toolsOpen ? "▾" : "▸"}</span>
+                </button>
+                {toolsOpen && <div style={{ padding: "0 14px 14px" }}><MobileStopTools spread={cur} /></div>}
+              </div>
+            )}
+            <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
+          </>
+        )}
+
+        {step === "theme" && (
+          <>
+            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 20px" }}>
+              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" />
+            </div>
+            <Eyebrow>Cover Layouts</Eyebrow>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0 18px" }}>
+              {LAYOUTS.map((l) => (
+                <button key={l.key} onClick={() => setLayoutKey(l.key)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: l.key === layout.key ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (l.key === layout.key ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "11px 13px" }}>
+                  <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)" }}>{l.name}</div>
+                  <div style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{l.desc}</div>
+                </button>
+              ))}
+            </div>
+            <Eyebrow>Color Palettes</Eyebrow>
+            <div style={{ display: "flex", gap: 8, margin: "10px 0 20px", flexWrap: "wrap" }}>
+              {[...PALETTES.dark, ...PALETTES.light].map((p) => (
+                <button key={p.key} onClick={() => setPal(p.key)} title={p.name} style={{ cursor: "pointer", width: 38, height: 38, borderRadius: "50%", background: p.base, border: "2px solid " + (p.key === pal ? "var(--pb-gold)" : "var(--pb-line-strong)") }} />
+              ))}
+            </div>
+            <button onClick={() => setStep("preview")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Preview Book →</button>
+          </>
+        )}
+
+        {step === "preview" && (
+          <>
+            <div style={{ maxWidth: 460, margin: "0 auto 4px" }}>
+              <div style={{ aspectRatio: "3/4", borderRadius: 12, overflow: "hidden", border: "1px solid var(--pb-line)" }}><SpreadPhoto spread={cur} rounded={false} /></div>
+            </div>
+            <Pager i={sel} n={n} onPrev={prev} onNext={next} dots />
+            <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "16px 16px", marginTop: 18 }}>
+              <Eyebrow>Order Details</Eyebrow>
+              <div style={{ margin: "12px 0" }}><SummaryRows rows={[["Format", SIZE], ["Pages", pages + " Pages"], ["Stops", n + " Stops"]]} /></div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", paddingTop: 12 }}>
+                <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Total</span>
+                <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: "var(--pb-gold)" }}>{price}.00</span>
+              </div>
+            </div>
+            <button onClick={openReserve} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "14px", marginTop: 14 }}>Order Book</button>
+          </>
+        )}
+      </div>
+
+      {/* bottom bar */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40, height: BAR, display: "grid", gridTemplateColumns: "repeat(4,1fr)", background: "var(--pb-glass-strong)", borderTop: "1px solid var(--pb-line)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {[["diary", "Diary", "📖"], ["theme", "Theme", "✦"], ["preview", "Preview", "▤"], ["order", "Order", "🛍"]].map(([k, label, ic]) => {
+          const active = k === "order" ? false : step === k;
+          return (
+            <button key={k} onClick={() => k === "order" ? openReserve() : setStep(k)} style={{ cursor: "pointer", fontFamily: "inherit", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, color: active ? "var(--pb-gold)" : "var(--pb-muted)" }}>
+              <span style={{ fontSize: "1rem" }}>{ic}</span>
+              <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".08em", textTransform: "uppercase" }}>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MobileStopTools({ spread }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(spread.story || "");
+  const fileRef = useRef(null);
+  useEffect(() => { setDraft(spread.story || ""); setEditing(false); }, [spread.name]);
+  const onFile = async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { const url = await fileToDataUrl(f); addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }); } catch {}
+    e.target.value = "";
+  };
+  const btn = { flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface-2)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "10px" };
+  return editing ? (
+    <div>
+      <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={4} style={{ width: "100%", background: "var(--pb-surface-2)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "10px", color: "var(--pb-ink)", fontFamily: serif, fontSize: ".9rem", outline: "none" }} />
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button onClick={() => { try { setStory(spread.name, draft); } catch {} setEditing(false); }} style={{ ...btn, color: "#0a1712", background: GOLD, border: "none" }}>Save</button>
+        <button onClick={() => setEditing(false)} style={btn}>Cancel</button>
+      </div>
+    </div>
+  ) : (
+    <div style={{ display: "flex", gap: 8 }}>
+      <button style={btn} onClick={() => setEditing(true)}>✎ Edit Story</button>
+      <button style={btn} onClick={() => fileRef.current && fileRef.current.click()}>⤢ Swap Photo</button>
+      <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+    </div>
+  );
+}
+
+/* ---------------- reservation + Stripe/Lulu checkout (unchanged logic) ---------------- */
 function ReserveModal({ data, onClose }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -332,9 +717,8 @@ function ReserveModal({ data, onClose }) {
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
   const [agree, setAgree] = useState(false);
-  const [status, setStatus] = useState("idle"); // idle | sending | done
+  const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-
   const priceNum = parseFloat(String(data.price).replace(/[^0-9.]/g, "")) || 0;
   const total = priceNum ? "$" + (priceNum * qty).toFixed(0) : data.price;
 
@@ -346,14 +730,8 @@ function ReserveModal({ data, onClose }) {
 
   const submit = async () => {
     setError("");
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
-      setError("Enter a valid email address.");
-      return;
-    }
-    if (!agree) {
-      setError("Please confirm you have the rights to the photos in your book.");
-      return;
-    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setError("Enter a valid email address."); return; }
+    if (!agree) { setError("Please confirm you have the rights to the photos in your book."); return; }
     setStatus("sending");
     const headers = { "Content-Type": "application/json" };
     const payload = JSON.stringify({
@@ -361,29 +739,15 @@ function ReserveModal({ data, onClose }) {
       title: data.title, theme: data.theme, size: data.size, price: data.price,
       dates: data.dates, dedication: data.dedication, entries: data.entries,
     });
-
-    // 1) Always record the reservation (waitlist / order intent).
     let reserved = false;
-    try {
-      const r = await fetch("/api/book-order", { method: "POST", headers, body: payload });
-      const d = await r.json().catch(() => ({}));
-      reserved = r.ok && d.ok;
-    } catch {}
-
-    // 2) If payments are live, send them to Stripe Checkout; otherwise fall back
-    //    to the honest "you're reserved" confirmation.
+    try { const r = await fetch("/api/book-order", { method: "POST", headers, body: payload }); const d = await r.json().catch(() => ({})); reserved = r.ok && d.ok; } catch {}
     try {
       const r = await fetch("/api/checkout", { method: "POST", headers, body: payload });
       const d = await r.json().catch(() => ({}));
       if (r.ok && d.url) { window.location.href = d.url; return; }
       if (reserved) { setStatus("done"); return; }
-      setStatus("idle");
-      setError(d.error || "Couldn't complete that right now. Please try again.");
-    } catch {
-      if (reserved) { setStatus("done"); return; }
-      setStatus("idle");
-      setError("Network error — please try again.");
-    }
+      setStatus("idle"); setError(d.error || "Couldn't complete that right now. Please try again.");
+    } catch { if (reserved) { setStatus("done"); return; } setStatus("idle"); setError("Network error — please try again."); }
   };
 
   return (
@@ -398,7 +762,7 @@ function ReserveModal({ data, onClose }) {
           </div>
         ) : (
           <>
-            <div className="tbres-kicker">Reserve your copy</div>
+            <div className="tbres-kicker">Almost there</div>
             <div className="tbres-title">{data.title || "Your Trip Book"}</div>
             <div className="tbres-sum">
               <span>Theme <b>{data.theme}</b></span>
@@ -406,43 +770,22 @@ function ReserveModal({ data, onClose }) {
               <span>Hardcover <b>{data.price}</b></span>
             </div>
             <div className="tbres-total"><span>Est. total</span><b>{total}</b></div>
-
-            <div className="tbres-field">
-              <label>Your name</label>
-              <input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Rivera" />
-            </div>
-            <div className="tbres-field">
-              <label>Email *</label>
-              <input className="tbres-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
-            </div>
+            <div className="tbres-field"><label>Your name</label><input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Rivera" /></div>
+            <div className="tbres-field"><label>Email *</label><input className="tbres-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" /></div>
             <div className="tbres-row">
-              <div className="tbres-field" style={{ flex: "0 0 92px" }}>
-                <label>Copies</label>
-                <input className="tbres-input" type="number" min="1" max="20" value={qty}
-                  onChange={(e) => setQty(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))} />
-              </div>
-              <div className="tbres-field">
-                <label>Ship to (optional)</label>
-                <input className="tbres-input" value={ship} onChange={(e) => setShip(e.target.value)} placeholder="City, State" />
-              </div>
+              <div className="tbres-field" style={{ flex: "0 0 92px" }}><label>Copies</label><input className="tbres-input" type="number" min="1" max="20" value={qty} onChange={(e) => setQty(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))} /></div>
+              <div className="tbres-field"><label>Ship to (optional)</label><input className="tbres-input" value={ship} onChange={(e) => setShip(e.target.value)} placeholder="City, State" /></div>
             </div>
-            <div className="tbres-field">
-              <label>Note (optional)</label>
-              <textarea className="tbres-ta" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything you'd like us to know" />
-            </div>
-
-            <p className="tbres-note">This reserves your edition — you won&rsquo;t be charged. Printed books are made on demand; we&rsquo;ll email you to complete the order when fulfillment is live.</p>
-            <p className="tbres-note">Your printed book is made from the photos <b>you</b> added — any stop you didn&rsquo;t photograph becomes a clean, designed page (we don&rsquo;t print stock photos in your book).</p>
-            <p className="tbres-note">Made to order: misprinted or damaged books are replaced or refunded. Because each book is custom-printed just for you, change-of-mind returns aren&rsquo;t possible once printing starts. See our <a href="/terms" target="_blank" rel="noopener" style={{ color: "var(--pb-gold,#c9a35f)", textDecoration: "underline" }}>full terms</a>.</p>
+            <div className="tbres-field"><label>Note (optional)</label><textarea className="tbres-ta" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything you'd like us to know" /></div>
+            <p className="tbres-note">Only your own photos are printed — any stop you didn&rsquo;t photograph becomes a clean, designed page (we don&rsquo;t print stock photos in your book).</p>
+            <p className="tbres-note">Made to order: misprinted or damaged books are replaced or refunded. Because each is custom-printed, change-of-mind returns aren&rsquo;t possible once printing starts. See our <a href="/terms" target="_blank" rel="noopener" style={{ color: "var(--pb-gold,#c9a35f)", textDecoration: "underline" }}>full terms</a>.</p>
             <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "6px 0 2px", cursor: "pointer", fontSize: ".82rem", lineHeight: 1.45 }}>
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2, flex: "none", accentColor: "#c9a35f", width: 16, height: 16 }} />
-              <span>I own or have the rights to use the photos in this book, and they don&rsquo;t include content I&rsquo;m not allowed to reproduce.</span>
+              <span>I own or have the rights to use the photos in this book.</span>
             </label>
             {error && <div className="tbres-err">{error}</div>}
             <div className="tbres-actions">
-              <button className="tbres-btn" disabled={status === "sending" || !agree} onClick={submit}>
-                {status === "sending" ? "Reserving…" : "Reserve my copy"}
-              </button>
+              <button className="tbres-btn" disabled={status === "sending" || !agree} onClick={submit}>{status === "sending" ? "Working…" : "Checkout"}</button>
               <button className="tbres-cancel" onClick={onClose}>Cancel</button>
             </div>
           </>

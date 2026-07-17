@@ -383,10 +383,14 @@ const SlotNum = ({ n }) => (n ? (
   <div aria-hidden style={{ position: "absolute", top: 5, left: 5, zIndex: 2, minWidth: 17, height: 17, padding: "0 3px", borderRadius: 9, background: "rgba(12,22,16,.82)", color: "#f4f1ea", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{n}</div>
 ) : null);
 
-// The full open-book spread (photo page ‖ story page) used on desktop.
+/* The photo shows in its OWN orientation, whole — `contain`, not `cover`. The slot's
+   shape is the layout's page frame, not the photo's; filling it with `cover` cropped a
+   portrait down to a landscape band ("why is my portrait landscape?"). We'd rather
+   show the whole photo, centered on the page, than silently cut the top and bottom
+   off someone's shot. The margins are the page paper (transparent → the card behind). */
 const PhotoSlot = ({ url, num }) => (
-  <div style={{ position: "relative", overflow: "hidden", borderRadius: 4, background: "#0c1c12", height: "100%" }}>
-    <img src={url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+  <div style={{ position: "relative", overflow: "hidden", borderRadius: 4, height: "100%" }}>
+    <img src={url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }} />
     <SlotNum n={num} />
   </div>
 );

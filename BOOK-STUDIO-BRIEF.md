@@ -131,11 +131,24 @@ Keep taps big, the spread swipeable, and the primary action always reachable (st
 
 ---
 
-## 7. Deliverables
+## 7. Deliverables — STATIC visual handoff (no prototype/interactions needed)
 
-Frames for **Diary, Theme, Preview** in **both dark and light**, the matching **phone**
-frames for **Diary / Theme / Preview / Order**, plus these states: **empty** (a stop with
-no photo yet), **Author vs Reader**, and the **order/checkout confirmation**.
+This is a **front-end / visual handoff only** — no clickable prototype, no wiring. All
+interactions (Author/Reader toggle, spread page-turns, live title/theme/cover updates,
+GPS Stop Tools, checkout) are built in code during the port. So please **draw every state
+as its own flat frame** — don't rely on interactions to imply a state. Provide:
+
+- **Desktop, dark + light:** Diary · Theme · Preview (6 frames).
+- **Phone, dark + light:** Diary · Theme · Preview · Order (8 frames).
+- **State frames** (desktop dark is fine for these, unless noted):
+  - **Author** vs **Reader** view of the Diary spread (2 frames — show what Reader hides).
+  - A stop **with a photo** vs an **empty stop** ("＋ Add photo" / typographic page) (2).
+  - Diary spread showing a **different stop** selected (so the selected-state styling is clear).
+  - The **order/checkout confirmation** (desktop panel + phone bottom-sheet).
+- Ship the **type styles, color tokens, and spacing** as styles/variables if possible, so
+  the port matches exactly.
+
+Frame naming: `book-studio / <step> / <theme> / <state>` (e.g. `book-studio/diary/dark/reader`).
 
 **References in the same Figma file:** frame `29:4` ("book-studio-unified") for the
 open-book spread + cover + order-bar polish, and the "Book Builder Studio interactive pages"

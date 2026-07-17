@@ -113,38 +113,65 @@ const FINISHES = [
    ({ default:{mode,count}, stops:{ [name]:{mode,count} } }). Only the traveler's
    OWN photos fill photo slots — empty slots stay as honest "add a photo" tiles
    (they print as a designed typographic page, never stock). */
-/* A chapter is always a two-page SPREAD. Each page is independently either photos
-   (1-4 of them) or story text — so "photos on both sides" means choosing a count
-   for each side, a story fills both pages, and swapping a photo page for a text
-   page is just changing that page's type. */
-/* Preset names say what you GET, in the same words as the pages themselves:
-   a photo page is "photo", a page of writing is "story". */
+/* A chapter is a two-page SPREAD. Each page (pane) is divided into 1–4 SECTIONS —
+   the most the paper sensibly splits into — and every section is independently a
+   PHOTO or a STORY block. Sections are freely mixed and interchangeable: that's the
+   whole model. Photo and story stay separate cells (no text over a photo). A story
+   section carries its own text, capped to fit the space it's given.
+     layout = { left: [section…], right: [section…] }
+     section = { type: "photo" } | { type: "story", text?: string } */
+const MAX_SECTIONS = 4;
 const PRESETS = [
-  { key: "photo-diary", name: "Photo + story", hint: "A photo facing what you wrote.", left: { type: "photos", count: 1 }, right: { type: "story", count: 1 } },
-  { key: "photo-photo", name: "Photos on both pages", hint: "One photo per page — no writing.", left: { type: "photos", count: 1 }, right: { type: "photos", count: 1 } },
-  { key: "grid", name: "Photo grid + story", hint: "Four photos facing what you wrote.", left: { type: "photos", count: 4 }, right: { type: "story", count: 1 } },
-  { key: "story", name: "Story on both pages", hint: "Writing only — it runs across the whole spread.", left: { type: "story", count: 1 }, right: { type: "story", count: 1 } },
+  { key: "photo-story", name: "Photo + story", hint: "A photo facing what you wrote.", left: [{ type: "photo" }], right: [{ type: "story" }] },
+  { key: "photo-photo", name: "Photos on both pages", hint: "One photo per page — no writing.", left: [{ type: "photo" }], right: [{ type: "photo" }] },
+  { key: "grid", name: "Four photos + story", hint: "A 2×2 photo grid facing your writing.", left: [{ type: "photo" }, { type: "photo" }, { type: "photo" }, { type: "photo" }], right: [{ type: "story" }] },
+  { key: "photo-caption", name: "Photo + caption, both pages", hint: "A photo above a short caption on each page.", left: [{ type: "photo" }, { type: "story" }], right: [{ type: "photo" }, { type: "story" }] },
+  { key: "story", name: "Story on both pages", hint: "Writing only, across the whole spread.", left: [{ type: "story" }], right: [{ type: "story" }] },
 ];
 const LKEY = "pb_book_layouts";
-const DEFAULT_LAYOUT = { left: { type: "photos", count: 1 }, right: { type: "story", count: 1 } };
-// Accepts the old {mode,count} shape so saved books keep working.
+const DEFAULT_LAYOUT = { left: [{ type: "photo" }], right: [{ type: "story" }] };
+const cleanSection = (s) => (s && s.type === "story" ? (s.text != null ? { type: "story", text: s.text } : { type: "story" }) : { type: "photo" });
+// Normalise a pane to an array of 1–4 sections, migrating the older shapes:
+//   • {type:"photos"|"story", count}  (per-side type + count)
+//   • array already in the new form
+function normSide(side) {
+  if (Array.isArray(side)) { const a = side.slice(0, MAX_SECTIONS).map(cleanSection); return a.length ? a : [{ type: "photo" }]; }
+  if (side && side.type) {
+    const t = side.type === "story" ? "story" : "photo";
+    const n = t === "story" ? 1 : Math.max(1, Math.min(MAX_SECTIONS, side.count || 1));
+    return Array.from({ length: n }, () => ({ type: t }));
+  }
+  return [{ type: "photo" }];
+}
+// Also accepts the oldest {mode,count} shape so saved books keep working.
 function normLayout(l) {
   if (!l) return DEFAULT_LAYOUT;
-  if (l.left && l.right) return l;
-  const c = Math.max(1, Math.min(4, l.count || 2));
-  if (l.mode === "photo-photo") return { left: { type: "photos", count: 1 }, right: { type: "photos", count: 1 } };
-  if (l.mode === "grid") return { left: { type: "photos", count: c }, right: { type: "story", count: 1 } };
-  if (l.mode === "story") return { left: { type: "story", count: 1 }, right: { type: "story", count: 1 } };
-  return DEFAULT_LAYOUT;
+  if (!l.left && !l.right && l.mode) {
+    const c = Math.max(1, Math.min(MAX_SECTIONS, l.count || 4));
+    if (l.mode === "photo-photo") return { left: [{ type: "photo" }], right: [{ type: "photo" }] };
+    if (l.mode === "grid") return { left: Array.from({ length: c }, () => ({ type: "photo" })), right: [{ type: "story" }] };
+    if (l.mode === "story") return { left: [{ type: "story" }], right: [{ type: "story" }] };
+    return DEFAULT_LAYOUT;
+  }
+  return { left: normSide(l.left), right: normSide(l.right) };
 }
+const photoCount = (side) => side.filter((s) => s.type === "photo").length;
+const storyCount = (side) => side.filter((s) => s.type === "story").length;
 // How many photos this chapter needs before nothing is an empty slot.
-const photosNeeded = (l) => { const n = normLayout(l); return (n.left.type === "photos" ? n.left.count : 0) + (n.right.type === "photos" ? n.right.count : 0); };
-const describeLayout = (l) => {
-  const n = normLayout(l);
-  const side = (s) => (s.type === "story" ? "story" : `${s.count} photo${s.count > 1 ? "s" : ""}`);
-  if (n.left.type === "story" && n.right.type === "story") return "Story across both pages";
-  return `${side(n.left)} · ${side(n.right)}`;
+const photosNeeded = (l) => { const n = normLayout(l); return photoCount(n.left) + photoCount(n.right); };
+const describeSide = (side) => {
+  const p = photoCount(side), s = storyCount(side);
+  const parts = [];
+  if (p) parts.push(`${p} photo${p > 1 ? "s" : ""}`);
+  if (s) parts.push(`${s} text`);
+  return parts.join(" + ") || "empty";
 };
+const describeLayout = (l) => { const n = normLayout(l); return `${describeSide(n.left)} · ${describeSide(n.right)}`; };
+/* A story section that's 1/n of a page holds roughly this many characters before it
+   would overrun its box in print — a quarter-page can't take a full page of prose.
+   The textarea enforces it and the count shows how much is left. */
+const STORY_CAP = { 1: 700, 2: 340, 3: 220, 4: 160 };
+const storyCap = (sectionsOnPage) => STORY_CAP[Math.max(1, Math.min(MAX_SECTIONS, sectionsOnPage))] || 160;
 function readLayouts() { try { return JSON.parse(localStorage.getItem(LKEY) || "{}") || {}; } catch { return {}; } }
 function writeLayouts(o) {
   try { localStorage.setItem(LKEY, JSON.stringify(o)); window.dispatchEvent(new Event("pb:booklayout")); } catch {}
@@ -158,6 +185,26 @@ function setStopLayout(name, patch) {
   writeLayouts(o);
 }
 function clearStopLayout(name) { const o = readLayouts(); if (o.stops) delete o.stops[name]; writeLayouts(o); }
+// Set one story section's text. Editing text materialises the layout as a stop
+// override (writing implies you've customised this chapter). The globally-first
+// story section also mirrors to the trip story so the two stay in sync; extra
+// writing blocks are book-only, carried on the section.
+function setSectionStory(name, pane, idx, text) {
+  const o = readLayouts(); o.stops = o.stops || {};
+  const cur = normLayout(o.stops[name] || getDefaultLayout());
+  o.stops[name] = { ...cur, [pane]: cur[pane].map((s, i) => (i === idx ? { ...s, text } : s)) };
+  writeLayouts(o);
+}
+/* Walk a spread's sections in reading order (left pane, then right) and number the
+   photos and story blocks globally — the numbers the preview shows and Stop Tools
+   matches. photoIndex → which photo fills it; storyIndex → which writing block. */
+function planSpread(lay) {
+  let pi = 0, si = 0;
+  const plan = (side) => side.map((s) => (s.type === "photo"
+    ? { type: "photo", photoIndex: pi++ }
+    : { type: "story", storyIndex: si++, text: s.text }));
+  return { left: plan(lay.left), right: plan(lay.right) };
+}
 /* The cover photo is a CHOICE, kept alongside the layouts so it rides the same
    change event. Until it's made we fall back to the first photo in the book —
    a sensible opening image rather than a blank cover — but the moment the
@@ -401,14 +448,48 @@ const EmptySlot = ({ num }) => (
     <SlotNum n={num} />＋ Add a photo
   </div>
 );
-// `startNum` is the 1-based slot number of the first cell — matches the photo's
-// position in the chapter, so preview and strip agree.
-function PhotoGrid({ photos, count, startNum = 1 }) {
-  const cells = Array.from({ length: count }, (_, i) => (photos || [])[i] || null);
-  const cols = count === 4 ? 2 : 1;
+// One story SECTION on a page. Compact — it may be a quarter of a page — so type
+// scales down when it shares the page. The chapter title rides the first writing
+// block of the chapter only, so a book always has one somewhere.
+function StorySection({ spread, planned, dense, storyText }) {
+  const text = storyText != null ? storyText : (planned.storyIndex === 0 ? spread.story : "");
+  const isFirst = planned.storyIndex === 0;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 6, width: "100%", height: "100%" }}>
-      {cells.map((p, i) => (p ? <PhotoSlot key={i} url={p.url} num={startNum + i} /> : <EmptySlot key={i} num={startNum + i} />))}
+    <div style={{ height: "100%", overflow: "hidden", padding: dense ? "8px 8px" : "10px 6px" }}>
+      {isFirst && <>
+        <Eyebrow>Chapter {spread.chapter}</Eyebrow>
+        <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: dense ? "1.05rem" : "1.5rem", color: "var(--pb-ink)", margin: "6px 0 0", lineHeight: 1.1 }}>{spread.name}</h3>
+        <div style={{ width: 36, height: 1, background: "var(--pb-line-strong)", margin: dense ? "9px 0 10px" : "12px 0 14px" }} />
+      </>}
+      <p style={{ fontFamily: serif, fontSize: dense ? ".82rem" : "1rem", lineHeight: 1.6, color: "var(--pb-ink-2)", margin: 0 }}>
+        {text || <span style={{ color: "var(--pb-muted)", fontStyle: "italic" }}>Write this section in Stop Tools — or it prints as a clean blank page.</span>}
+      </p>
+    </div>
+  );
+}
+
+// One cell of a page — a photo (numbered slot, own orientation) or a story block.
+// A lone empty photo cell falls back to the licensed hero image; empty cells in a
+// grid stay honest "add a photo" tiles.
+function SectionCell({ planned, spread, dense, hero }) {
+  if (planned.type === "story") return <StorySection spread={spread} planned={planned} dense={dense} storyText={planned.text} />;
+  const p = (spread.photos || [])[planned.photoIndex];
+  const num = planned.photoIndex + 1;
+  if (p) return <PhotoSlot url={p.url} num={num} />;
+  if (hero) return <div style={{ height: "100%", position: "relative" }}><SpreadPhoto spread={spread} /><SlotNum n={num} /></div>;
+  return <EmptySlot num={num} />;
+}
+
+// A page (pane) lays its 1–4 sections into a grid: 1 full, 2 stacked, 3 stacked,
+// 4 as a 2×2. Each cell fills its share so the page is the same height either side.
+function Pane({ sections, spread, hero }) {
+  const n = sections.length;
+  const grid = n >= 4
+    ? { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr" }
+    : { gridTemplateColumns: "1fr", gridTemplateRows: `repeat(${n}, 1fr)` };
+  return (
+    <div style={{ display: "grid", ...grid, gap: 6, height: "100%" }}>
+      {sections.map((s, i) => <SectionCell key={i} planned={s} spread={spread} dense={n > 1} hero={hero} />)}
     </div>
   );
 }
@@ -440,51 +521,23 @@ const PageNums = ({ start, single }) => {
   );
 };
 
-// One page of a spread: either photos (1-4) or the story. Every page fills its
-// half of the spread, so the book is the same size whatever it's made of.
-function Page({ cfg, spread, offset }) {
-  if (cfg.type === "story") return <div style={{ height: "100%", overflow: "hidden" }}><SpreadStory spread={spread} /></div>;
-  const slice = (spread.photos || []).slice(offset, offset + cfg.count);
-  if (cfg.count === 1) {
-    return <div style={{ height: "100%", position: "relative" }}>{slice[0] ? <PhotoSlot url={slice[0].url} num={offset + 1} /> : <><SpreadPhoto spread={spread} /><SlotNum n={offset + 1} /></>}</div>;
-  }
-  return <div style={{ height: "100%" }}><PhotoGrid photos={slice} count={cfg.count} startNum={offset + 1} /></div>;
-}
-
 /* Two 3:4 pages side by side, with the gutter between them — the aspect of the
-   open book. It lives on the pages row so EVERY composition is the same size:
-   without it a text-only chapter collapsed to the height of its own prose and
-   rendered as a stunted half-book. */
+   open book. It lives on the pages row so EVERY composition is the same size,
+   whatever mix of photos and text the pages hold. */
 const SPREAD_ASPECT = "1.53 / 1";
 
 function Spread({ spread, startPage = 3 }) {
   const ready = useLayoutTick();
   const lay = layoutOf(spread, ready);
+  const plan = planSpread(lay);
+  const totalPhotos = photoCount(lay.left) + photoCount(lay.right);
   const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
-  // rowGap/columnGap, not the `gap` shorthand: the story spread below re-uses this
-  // and overrides columnGap, and React warns (then drops one) when a shorthand and
-  // its longhand are both set on a re-render.
-  const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: "14px", columnGap: "14px", aspectRatio: SPREAD_ASPECT };
-  const bothStory = lay.left.type === "story" && lay.right.type === "story";
-
-  // Text-only chapter: the prose runs across both pages as balanced columns, so
-  // both pages carry writing — not one page of text beside a blank one.
-  if (bothStory) {
-    return (
-      <div style={card}>
-        <div style={{ ...pages, display: "block", padding: "18px 8px", columnCount: 2, columnGap: "34px", overflow: "hidden" }}>
-          <SpreadStory spread={spread} />
-        </div>
-        <PageNums start={startPage} />
-      </div>
-    );
-  }
-  const rightOffset = lay.left.type === "photos" ? lay.left.count : 0;
+  const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "14px", aspectRatio: SPREAD_ASPECT };
   return (
     <div style={card}>
       <div style={pages}>
-        <Page cfg={lay.left} spread={spread} offset={0} />
-        <Page cfg={lay.right} spread={spread} offset={rightOffset} />
+        <Pane sections={plan.left} spread={spread} hero={totalPhotos === 1} />
+        <Pane sections={plan.right} spread={spread} hero={totalPhotos === 1} />
       </div>
       <PageNums start={startPage} />
     </div>
@@ -942,28 +995,41 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
 // a single chapter (Stop Tools).
 function LayoutPicker({ value, onChange, onReset, isOverride }) {
   const lay = normLayout(value);
-  const presetOn = (p) => JSON.stringify({ l: p.left, r: p.right }) === JSON.stringify({ l: lay.left, r: lay.right });
-  const setSide = (side, patch) => onChange({ ...lay, [side]: { ...lay[side], ...patch } });
+  const types = (side) => side.map((s) => s.type).join(",");
+  const presetOn = (p) => types(normSide(p.left)) === types(lay.left) && types(normSide(p.right)) === types(lay.right);
+  const setSide = (side, sections) => onChange({ ...lay, [side]: sections });
+  // Changing a section's type keeps any story text it was carrying.
+  const setType = (side, i, type) => setSide(side, lay[side].map((s, k) => (k === i ? (type === "story" ? cleanSection({ ...s, type: "story" }) : { type: "photo" }) : s)));
+  const addSection = (side) => { if (lay[side].length < MAX_SECTIONS) setSide(side, [...lay[side], { type: "photo" }]); };
+  const removeSection = (side) => { if (lay[side].length > 1) setSide(side, lay[side].slice(0, -1)); };
+  const stepBtn = (off) => ({ cursor: off ? "default" : "pointer", width: 20, height: 20, borderRadius: 6, border: "1px solid var(--pb-line-strong)", background: "transparent", color: off ? "var(--pb-line-strong)" : "var(--pb-ink)", fontFamily: "inherit", fontSize: ".8rem", lineHeight: 1, opacity: off ? 0.5 : 1 });
 
   const SideCtl = ({ side, label }) => {
-    const cfg = lay[side];
+    const sections = lay[side];
     return (
       <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "9px 10px" }}>
-        <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>{label}</div>
-        {/* photo ↔ text swap for this page */}
-        <div style={{ display: "flex", background: "var(--pb-tint)", borderRadius: 8, padding: 2, marginBottom: cfg.type === "photos" ? 7 : 0 }}>
-          {[["photos", "Photos"], ["story", "Story"]].map(([t, l]) => (
-            <button key={t} onClick={() => setSide(side, { type: t })} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: cfg.type === t ? 700 : 500, border: "none", borderRadius: 6, padding: "5px", background: cfg.type === t ? "var(--pb-surface-2)" : "transparent", color: cfg.type === t ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+          <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{label}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={() => removeSection(side)} disabled={sections.length <= 1} aria-label="Fewer sections" style={stepBtn(sections.length <= 1)}>−</button>
+            <span style={{ fontFamily: mono, fontSize: ".55rem", color: "var(--pb-ink-2)", minWidth: 20, textAlign: "center" }}>{sections.length}</span>
+            <button onClick={() => addSection(side)} disabled={sections.length >= MAX_SECTIONS} aria-label="More sections" style={stepBtn(sections.length >= MAX_SECTIONS)}>+</button>
+          </span>
+        </div>
+        {/* One row per section, top to bottom as they stack on the page — each flips
+            between a photo and a story block. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {sections.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)", width: 12, textAlign: "center" }}>{i + 1}</span>
+              <div style={{ display: "flex", flex: 1, background: "var(--pb-tint)", borderRadius: 6, padding: 2 }}>
+                {[["photo", "Photo"], ["story", "Story"]].map(([t, l]) => (
+                  <button key={t} onClick={() => setType(side, i, t)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".66rem", fontWeight: s.type === t ? 700 : 500, border: "none", borderRadius: 4, padding: "4px", background: s.type === t ? "var(--pb-surface-2)" : "transparent", color: s.type === t ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-        {cfg.type === "photos" && (
-          <div style={{ display: "flex", gap: 4 }}>
-            {[1, 2, 3, 4].map((c) => (
-              <button key={c} onClick={() => setSide(side, { count: c })} title={`${c} photo${c > 1 ? "s" : ""} on this page`}
-                style={{ flex: 1, cursor: "pointer", fontFamily: mono, fontSize: ".7rem", fontWeight: c === cfg.count ? 700 : 500, border: "1px solid " + (c === cfg.count ? "var(--pb-gold-2)" : "var(--pb-line)"), background: c === cfg.count ? "var(--pb-surface-2)" : "transparent", color: "var(--pb-ink)", borderRadius: 6, padding: "5px 0" }}>{c}</button>
-            ))}
-          </div>
-        )}
       </div>
     );
   };
@@ -972,13 +1038,14 @@ function LayoutPicker({ value, onChange, onReset, isOverride }) {
     <>
       <div style={{ display: "grid", gap: 5, marginBottom: 10 }}>
         {PRESETS.map((p) => (
-          <button key={p.key} onClick={() => onChange({ left: p.left, right: p.right })} title={p.hint}
+          <button key={p.key} onClick={() => onChange({ left: normSide(p.left), right: normSide(p.right) })} title={p.hint}
             style={{ cursor: "pointer", textAlign: "left", width: "100%", fontFamily: "inherit", border: "1px solid " + (presetOn(p) ? "var(--pb-gold-2)" : "var(--pb-line)"), background: presetOn(p) ? "var(--pb-surface-2)" : "transparent", color: "var(--pb-ink)", borderRadius: 8, padding: "7px 10px" }}>
             <span style={{ display: "block", fontSize: ".72rem", fontWeight: presetOn(p) ? 700 : 500 }}>{p.name}</span>
             <span style={{ display: "block", fontSize: ".62rem", color: "var(--pb-muted)", marginTop: 2 }}>{p.hint}</span>
           </button>
         ))}
       </div>
+      <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>Or build it yourself — up to 4 sections a page</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <SideCtl side="left" label="Left page" />
         <SideCtl side="right" label="Right page" />
@@ -1104,14 +1171,15 @@ function PhotoStrip({ spread, size }) {
   const lay = layoutOf(spread, ready);
   const photos = spread.photos || [];
   const need = photosNeeded(lay);
-  const leftCount = lay.left.type === "photos" ? lay.left.count : 0;
 
-  // Which page a slot lands on, and how wide it prints there.
-  const slotOf = (i) => {
-    if (lay.left.type === "photos" && i < leftCount) return { page: "Left", inches: slotInches(size.trim, lay.left.count, false) };
-    if (lay.right.type === "photos" && i < leftCount + lay.right.count) return { page: "Right", inches: slotInches(size.trim, lay.right.count, false) };
-    return null; // beyond what this composition prints
-  };
+  // Each photo slot in fill order → which pane it's on and how wide it prints there
+  // (a 2×2 grid cell is half-page width; a stacked cell is full width).
+  const photoSlots = [];
+  [["left", "Left"], ["right", "Right"]].forEach(([key, label]) => {
+    const paneCount = lay[key].length;
+    lay[key].forEach((s) => { if (s.type === "photo") photoSlots.push({ page: label, inches: slotInches(size.trim, paneCount === 4 ? 4 : 1, false) }); });
+  });
+  const slotOf = (i) => photoSlots[i] || null;
   if (!photos.length) {
     return <div style={{ fontSize: ".7rem", color: "var(--pb-muted)", lineHeight: 1.5 }}>No photos on this chapter yet.{need ? ` This layout prints ${need}.` : ""}</div>;
   }
@@ -1177,17 +1245,55 @@ function movePhotoIn(spread, from, to) {
   }
 }
 
+// One writing section's editor, capped to the space it prints in. The first writing
+// block of a chapter mirrors the trip's story; extra blocks are book-only.
+function StoryBox({ spread, item, labelled }) {
+  const initial = () => (item.text != null ? item.text : (item.storyIndex === 0 ? (spread.story || "") : ""));
+  const [draft, setDraft] = useState(initial);
+  useEffect(() => { setDraft(initial()); /* reset when the chapter or this section changes */ }, [spread.name, item.pane, item.idx, item.text]);
+  const dirty = draft !== initial();
+  const left = item.cap - draft.length;
+  const save = () => {
+    try { setSectionStory(spread.name, item.pane, item.idx, draft); if (item.storyIndex === 0) setStory(spread.name, draft); } catch {}
+  };
+  return (
+    <div>
+      {labelled && <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 5 }}>{item.label} page</div>}
+      <textarea value={draft} maxLength={item.cap} onChange={(e) => setDraft(e.target.value)} rows={labelled ? 3 : 5}
+        placeholder="Write this section…"
+        style={{ width: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "10px 11px", color: "var(--pb-ink)", fontFamily: serif, fontSize: ".9rem", lineHeight: 1.5, outline: "none", resize: "vertical" }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+        <span style={{ fontFamily: mono, fontSize: ".5rem", color: left <= 20 ? "var(--pb-prepare)" : "var(--pb-muted)" }}>{left} left</span>
+        <button onClick={save} disabled={!dirty} style={{ marginLeft: "auto", cursor: dirty ? "pointer" : "default", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 700, color: dirty ? "#0a1712" : "var(--pb-muted)", background: dirty ? GOLD : "transparent", border: dirty ? "none" : "1px solid var(--pb-line)", borderRadius: 8, padding: "6px 14px" }}>{dirty ? "Save" : "Saved"}</button>
+      </div>
+    </div>
+  );
+}
+// All the writing sections of a chapter, each capped to its printed size.
+function StorySectionEditors({ spread }) {
+  useLayoutTick();
+  const lay = layoutOf(spread, true);
+  let si = 0;
+  const items = [];
+  [["left", "Left"], ["right", "Right"]].forEach(([pane, label]) => {
+    const count = lay[pane].length;
+    lay[pane].forEach((s, idx) => { if (s.type === "story") items.push({ pane, label, idx, storyIndex: si++, cap: storyCap(count), text: s.text }); });
+  });
+  if (!items.length) return <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.5 }}>This layout has no writing sections. Switch a section to Story in step 1 to write here.</div>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {items.map((it) => <StoryBox key={it.pane + it.idx} spread={spread} item={it} labelled={items.length > 1} />)}
+    </div>
+  );
+}
+
 function StopTools({ spread, onNext, size }) {
   useLayoutTick();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(spread.story || "");
   const [dist, setDist] = useState(null);
   const [locating, setLocating] = useState(false);
   // Multiple at once — a spread can want up to 8 photos across both pages.
   const { fileRef, onFile, busy, error, open } = useAddPhotos(spread);
-  useEffect(() => { setDraft(spread.story || ""); setEditing(false); }, [spread.name]);
 
-  const saveStory = () => { try { setStory(spread.name, draft); } catch {} setEditing(false); };
   const locate = () => {
     if (!navigator.geolocation) return;
     setLocating(true);
@@ -1235,20 +1341,10 @@ function StopTools({ spread, onNext, size }) {
       <div style={{ height: 12 }} />
       <PhotoStrip spread={spread} size={size} />
 
-      {/* STEP 3 — the words. */}
+      {/* STEP 3 — the words, one editor per writing section, each capped to its space. */}
       <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>3</span> Story</div>
       <div style={{ height: 10 }} />
-      {editing ? (
-        <div>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={6} placeholder="Write the story of this stop…" style={{ width: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 12px", color: "var(--pb-ink)", fontFamily: serif, fontSize: ".92rem", lineHeight: 1.5, outline: "none", resize: "vertical" }} />
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button onClick={saveStory} style={{ ...btn, flex: 1, color: "#0a1712", background: GOLD, border: "none" }}>Save story</button>
-            <button onClick={() => setEditing(false)} style={{ ...btn, flex: "0 0 auto" }}>Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <button className="bs-btn" style={{ ...btn, width: "100%" }} onClick={() => setEditing(true)}>{spread.story ? "✎ Edit story" : "✎ Write the story"}</button>
-      )}
+      <StorySectionEditors spread={spread} />
 
       {/* Where this stop was — a quiet footnote, not the headline it used to be. */}
       <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", marginTop: 16 }}>

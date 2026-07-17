@@ -80,6 +80,24 @@ Open follow-ups for this platform:
       sandbox catalog carries), production `0850.FC.PRE.CW.080CW444.MXX` (8.5×8.5);
       interior PDF sizes to the trim. Sandbox shipping = MAIL (GROUND unavailable), prod
       = GROUND. Diagnostic probes (`/api/lulu-cost?probe=…`) are sandbox-only. ✅
+- [ ] **Book Studio → rebuild as the UNIFIED single-page studio** (Figma proto `29:4`
+      "book-studio-unified", fileKey JJlqqcU2BXe2A4WzwS6Oqv, node-id 29-5). Replace the
+      current 3-step wizard (`/trip-book`, TripBook.jsx + studioSource.js) with ONE
+      scrolling "The Book Studio" page that matches the proto, reusing all existing data +
+      the Stripe/Lulu pipeline (no backend changes). Sections, top→bottom:
+      1. Header ("THE BOOK STUDIO") + horizontal **step-flow rail**.
+      2. Title/meta block — book title, subtitle, "by <author>", chips (N STOPS · N PHOTOS · month yr).
+      3. **Open-book SPREAD view** (magazine layout: full-bleed photo page ‖ "CHAPTER n" +
+         story page) with a **SPREAD n / total** pager (‹ ›). Main new UI piece; simpler
+         than the existing 3D page-turn hardcover, so reuse its data/theming.
+      4. **Spread thumbnails** rail — mini spreads, click to jump the spread view.
+      5. **Your Pages** — editable stop cards (photo, story excerpt, Edit/Page, "＋ Add photo"),
+         + "Manage stops"; wired to the real trip stops + Trip Mode captures/stories.
+      6. **Print Covers** — front + back hardcover linen preview.
+      7. Sticky **Order bar** — edition line (8.5×8.5 · pages · 5–7 day) + total ($49) +
+         "Order Book →" → existing reservation/checkout flow.
+      Feasible: front-end restructure only; engine (studioSource.js), themes, /api/photo,
+      /api/checkout + /api/stripe-webhook + Lulu, book_orders all stay. Mobile pass needed.
 - [ ] **Trip Book → GO LIVE** — DEFERRED until the `theparkbuddy.com` domain move (launch
       on the real brand, not park-buddy-gamma.vercel.app). All env flips in Vercel, no code:
       • Lulu **production** creds + `LULU_ENV=production` (SKU auto-switches to 8.5×8.5) +
@@ -254,9 +272,15 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
       or partners exist (keep park-anchored).
 
 ## 🔶 Platform polish
-- [ ] **Landing page redesign** — `/` is still the legacy embed (`public/embed/home`);
-      its nav labels were updated to Book/Shop but the full page should be rebuilt on
-      the design system (Claude-Design → port workflow).
+- [ ] **Compress the landing motion loops** — the 5 Runway `.mp4`s in
+      `public/media/landing` (hero, map-band, reel-glacier/sequoia/teton) are
+      uncompressed (~4–15 MB each, ~43 MB total) because there's no local
+      transcoder. Install `ffmpeg` → re-encode to H.264 (CRF ~26, faststart) + add
+      VP9 `.webm`, target ~1–2 MB each; then re-add the `.webm` `<source>` in
+      MotionTile (LandingPage.jsx). Big mobile-data + LCP win. `MotionTile` already
+      lazy-loads/pauses off-screen so it's not urgent, but do before real traffic.
+- [x] ~~**Landing page redesign**~~ — DONE: `/` is now React (`app/LandingPage.jsx`),
+      user-selectable light/dark theme, Figma-1:1 imagery + Runway motion loops.
 - [ ] **`/about`** legacy embed still has an old "Plan a Trip" header — update to the
       shared banner or fold into the landing redesign.
 - [x] ~~**`/build-trip` redesign**~~ — rebuilt on the dark design system (shared

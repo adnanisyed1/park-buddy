@@ -12,20 +12,43 @@ import { useState, useEffect, useRef, createElement } from "react";
 const KEY = "pb_theme";
 const listeners = new Set();
 
+/* ── THE THEME REGISTRY — the one place themes are declared ────────────────────
+   To ADD A THEME, this is the whole job:
+     1) Add an entry here: { id, label }.
+     2) Add a matching palette block in globals.css:
+          html[data-theme="<id>"] .pb-theme { --pb-bg: …; --pb-ink: …; … }
+        (copy the TEMPLATE comment there and change the colors — nothing else).
+   Everything downstream — the toggle/cycle control, persistence, the no-flash
+   boot script, <ThemedBody>, every page that opted in with `.pb-theme` — picks it
+   up automatically. "dark" is the base palette (globals.css :root); it needs no
+   block. No page code changes to add a theme. */
+export const THEMES = [
+  { id: "dark", label: "Dark" },
+  { id: "light", label: "Light" },
+];
+const THEME_IDS = THEMES.map((t) => t.id);
+
 export function getTheme() {
   if (typeof document === "undefined") return "dark";
-  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  const t = document.documentElement.getAttribute("data-theme");
+  return THEME_IDS.includes(t) ? t : "dark";
 }
 
 export function setTheme(t) {
   if (typeof document === "undefined") return;
-  const v = t === "light" ? "light" : "dark";
+  const v = THEME_IDS.includes(t) ? t : "dark";
   document.documentElement.setAttribute("data-theme", v);
   try { localStorage.setItem(KEY, v); } catch {}
   listeners.forEach((l) => l());
 }
 
-export function toggleTheme() { setTheme(getTheme() === "light" ? "dark" : "light"); }
+// Advance to the next registered theme — one control cycles through any number.
+export function cycleTheme() {
+  const i = THEME_IDS.indexOf(getTheme());
+  setTheme(THEME_IDS[(i + 1) % THEME_IDS.length]);
+}
+// Back-compat name: cycles (dark↔light with two themes; rotates if more are added).
+export function toggleTheme() { cycleTheme(); }
 
 export function subscribeTheme(cb) { listeners.add(cb); return () => listeners.delete(cb); }
 

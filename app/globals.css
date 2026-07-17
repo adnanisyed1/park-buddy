@@ -53,12 +53,34 @@
   --pb-mono: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
 }
 
-/* ── LIGHT THEME ──────────────────────────────────────────────────────────────
-   The --pb-* tokens re-valued for a warm-parchment light theme. Scoped to
-   `html[data-theme="light"] .pb-theme` so a page only flips when it opts in with
-   the `.pb-theme` class (the landing does; the rest of the platform stays on the
-   dark :root values until each page is migrated). Toggle lives in the account menu;
-   see app/lib/theme.js. (Provisional palette — refine to the light Figma.) */
+/* ══ THEME SYSTEM — one standard flow ═════════════════════════════════════════
+   A theme is JUST a palette: a block that re-values the --pb-* tokens. Nothing
+   else. Everything reads --pb-* tokens, so changing the palette shifts the app.
+
+   • "dark" is the BASE palette — the :root values above. It needs no block.
+   • Every other theme is one block:  html[data-theme="<id>"] .pb-theme { … }
+   • A page opts in by wrapping its root in `.pb-theme` and dropping <ThemedBody/>
+     inside (keeps <body> matching). Pages that don't opt in stay on the dark base
+     (e.g. Explore, deliberately).
+
+   TO ADD A THEME (the whole job — just colors + a name):
+     1) Register it in app/lib/theme.js → THEMES: { id: "sunset", label: "Sunset" }.
+     2) Copy the TEMPLATE below, rename the data-theme id, change the color values.
+   The toggle then cycles through it; persistence and no-flash handle themselves.
+
+   TEMPLATE — copy, rename "<id>", recolor:
+     html[data-theme="<id>"] .pb-theme {
+       --pb-bg: …; --pb-bg-2: …; --pb-surface: …; --pb-surface-2: …;
+       --pb-line: …; --pb-line-strong: …;
+       --pb-gold: …; --pb-gold-2: …; --pb-gold-soft: …; --pb-grad-gold: …;
+       --pb-ink: …; --pb-ink-2: …; --pb-muted: …;
+       --pb-go: …; --pb-prepare: …; --pb-hold: …;
+       --pb-shadow: …; --pb-shadow-gold: …;
+       --pb-glass: …; --pb-glass-strong: …; --pb-tint: …; --pb-bg-0: …;
+     }
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+/* ── LIGHT ── warm-parchment palette (from the light Figma). */
 html[data-theme="light"] .pb-theme {
   --pb-bg: #faf8f4;            /* warm off-white (from the light Figma) */
   --pb-bg-2: #f0ede6;          /* deeper cream (footers, wells) */

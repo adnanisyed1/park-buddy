@@ -694,8 +694,12 @@ export default function TripBook() {
 /* ---------------- top bar (desktop) ---------------- */
 function TopBar({ step, setStep, role, setRole, price, pages }) {
   const steps = [["diary", "Diary"], ["theme", "Theme"], ["preview", "Preview"]];
+  /* NOT sticky. The workspace is a fixed-height, non-scrolling column, which makes
+     it a scroll container — so `top: 90` would be measured from the workspace
+     rather than the viewport and shunt this bar 90px down over the rails. It's a
+     plain row at the top of the column; nothing scrolls past it. */
   return (
-    <div style={{ position: "sticky", top: 90, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 60, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
+    <div style={{ flex: "0 0 auto", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 60, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
       {/* No logo here — the main Park Buddy banner above owns the brand. This is a
           page toolbar, not a second banner. */}
       <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "var(--pb-ink)" }}>Book Studio</span>
@@ -741,7 +745,7 @@ function Desktop(props) {
     <>
       <TopBar step={step} setStep={props.setStep} role={props.role} setRole={props.setRole} price={props.price} pages={props.pages} />
       {props.book && props.book.isDemo && (
-        <div style={{ background: "rgba(232,207,154,.08)", borderBottom: "1px solid var(--pb-line)", padding: "9px 26px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+        <div style={{ flex: "0 0 auto", background: "rgba(232,207,154,.08)", borderBottom: "1px solid var(--pb-line)", padding: "9px 26px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
           <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Sample book</span>
           <span style={{ fontSize: ".8rem", color: "var(--pb-ink-2)" }}>You&rsquo;re looking at an example — build an itinerary or add your own pages and it becomes yours.</span>
           <Link href="/build-trip" style={{ fontSize: ".8rem", fontWeight: 700, color: "var(--pb-gold)", textDecoration: "none" }}>Build a trip →</Link>

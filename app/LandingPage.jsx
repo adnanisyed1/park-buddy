@@ -149,7 +149,10 @@ const PINS = [
 ];
 function ExploreSection() {
   return (
-    <section style={{ ...section }}>
+    // Intentional dark feature-band — stays dark even in Light mode (per the light
+    // Figma). `.pb-forcedark` re-asserts the dark --pb-* tokens for this subtree.
+    <section className="pb-forcedark" style={{ background: "var(--pb-bg)" }}>
+     <div style={{ ...section }}>
       <div className="pbl-split" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 40, alignItems: "center" }}>
         <div>
           <Eyebrow>Explore</Eyebrow>
@@ -182,6 +185,7 @@ function ExploreSection() {
           </div>
         </div>
       </div>
+     </div>
     </section>
   );
 }
@@ -432,7 +436,7 @@ export default function LandingPage() {
   const theme = useTheme();
   useEffect(() => {
     const prev = document.body.style.background;
-    document.body.style.background = theme === "light" ? "#f7f3ea" : "#0a1712";
+    document.body.style.background = theme === "light" ? "#faf8f4" : "#0a1712";
     return () => { document.body.style.background = prev; };
   }, [theme]);
   return (

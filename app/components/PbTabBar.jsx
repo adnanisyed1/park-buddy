@@ -146,23 +146,23 @@ export default function PbTabBar({ active }) {
   );
 }
 
-const barStyle = { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 230, gridTemplateColumns: "repeat(5,1fr)", alignItems: "end", background: "rgba(7,13,9,.96)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", borderTop: "1px solid var(--pb-line)", padding: "9px 4px calc(10px + env(safe-area-inset-bottom))" };
+const barStyle = { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 230, gridTemplateColumns: "repeat(5,1fr)", alignItems: "end", background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", borderTop: "1px solid var(--pb-line)", padding: "9px 4px calc(10px + env(safe-area-inset-bottom))" };
 const lbl = { fontSize: ".6rem", fontFamily: "var(--pb-sans)" };
-const tabStyle = (on) => ({ cursor: "pointer", background: "transparent", border: "none", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: on ? "var(--pb-gold)" : "#7f8a82", padding: "4px 0" });
+const tabStyle = (on) => ({ cursor: "pointer", background: "transparent", border: "none", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: on ? "var(--pb-gold)" : "var(--pb-muted)", padding: "4px 0" });
 const askWrap = { cursor: "pointer", background: "transparent", border: "none", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#d9b779" };
 const askCircle = { width: 50, height: 50, borderRadius: "50%", background: "linear-gradient(140deg,#f0dcac,#c9a35f)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: -24, border: "4px solid var(--pb-bg)", boxShadow: "0 8px 20px -6px rgba(217,183,121,.7)" };
 
 const scrimStyle = { position: "fixed", inset: 0, zIndex: 210, background: "rgba(4,8,6,.58)", display: "block" };
-const sheetStyle = { position: "fixed", left: 0, right: 0, bottom: 66, zIndex: 220, maxHeight: "calc(88vh - 66px)", background: "rgba(9,17,12,.99)", WebkitBackdropFilter: "blur(24px) saturate(1.3)", backdropFilter: "blur(24px) saturate(1.3)", border: "1px solid var(--pb-line-strong)", borderBottom: "none", borderRadius: "22px 22px 0 0", boxShadow: "0 -30px 60px -28px rgba(0,0,0,.9)", display: "flex", flexDirection: "column" };
+const sheetStyle = { position: "fixed", left: 0, right: 0, bottom: 66, zIndex: 220, maxHeight: "calc(88vh - 66px)", background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(24px) saturate(1.3)", backdropFilter: "blur(24px) saturate(1.3)", border: "1px solid var(--pb-line-strong)", borderBottom: "none", borderRadius: "22px 22px 0 0", boxShadow: "0 -30px 60px -28px rgba(0,0,0,.9)", display: "flex", flexDirection: "column" };
 const grip = { width: 42, height: 4, borderRadius: 99, background: "rgba(255,255,255,.18)", margin: "0 auto" };
 const sheetTitle = { fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "1.7rem", color: "var(--pb-ink)" };
 const xBtn = { cursor: "pointer", width: 38, height: 38, borderRadius: 11, background: "transparent", border: "1px solid var(--pb-line-strong)", color: "#e7e3d8", display: "flex", alignItems: "center", justifyContent: "center" };
 const segWrap = { display: "inline-flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 99, padding: 3 };
-const segBtn = (on) => ({ cursor: "pointer", fontFamily: "inherit", padding: "7px 16px", border: "none", borderRadius: 99, fontSize: ".78rem", fontWeight: on ? 700 : 600, background: on ? gold : "transparent", color: on ? "#0a1712" : "#aeb4bd" });
+const segBtn = (on) => ({ cursor: "pointer", fontFamily: "inherit", padding: "7px 16px", border: "none", borderRadius: 99, fontSize: ".78rem", fontWeight: on ? 700 : 600, background: on ? gold : "transparent", color: on ? "#0a1712" : "var(--pb-ink-2)" });
 const gridStyle = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "2px 16px calc(22px + env(safe-area-inset-bottom))" };
-const boxStyle = { position: "relative", display: "flex", flexDirection: "column", gap: 9, padding: "16px 15px", borderRadius: 16, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)", textDecoration: "none", transition: "transform .18s ease,border-color .22s,background .22s" };
+const boxStyle = { position: "relative", display: "flex", flexDirection: "column", gap: 9, padding: "16px 15px", borderRadius: 16, background: "var(--pb-tint)", border: "1px solid var(--pb-line)", textDecoration: "none", transition: "transform .18s ease,border-color .22s,background .22s" };
 const boxIc = { width: 32, height: 32, color: "var(--pb-gold)" };
 const boxTitle = { fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "1.24rem", lineHeight: 1.04, color: "var(--pb-ink)" };
-const boxDesc = { fontSize: ".75rem", lineHeight: 1.35, color: "#8a938c" };
+const boxDesc = { fontSize: ".75rem", lineHeight: 1.35, color: "var(--pb-muted)" };
 const soonChip = { position: "absolute", top: 12, right: 12, fontFamily: "var(--pb-mono)", fontSize: ".46rem", letterSpacing: ".12em", color: "#c9a35f", border: "1px solid var(--pb-line-strong)", borderRadius: 99, padding: "2px 7px" };
-const emptyState = { gridColumn: "1/-1", textAlign: "center", color: "#7f8a82", padding: "46px 12px", fontSize: ".92rem" };
+const emptyState = { gridColumn: "1/-1", textAlign: "center", color: "var(--pb-muted)", padding: "46px 12px", fontSize: ".92rem" };

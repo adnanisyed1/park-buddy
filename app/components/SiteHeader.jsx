@@ -110,7 +110,7 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
       </Link>
       {open && (
         <div onMouseEnter={onOpen} onMouseLeave={onClose} style={{ position: "absolute", top: "100%", left: 0, right: 0, paddingTop: 14, zIndex: 90 }}>
-          <div style={{ width: "100%", background: "rgba(11,23,16,.97)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: 14, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
+          <div style={{ width: "100%", background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: 14, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
             {hasSoon && (
               <div style={{ display: "inline-flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3, margin: "2px 2px 10px" }}>
                 {[["live", "Live"], ["soon", "Coming soon"]].map(([k, lbl]) => (
@@ -246,8 +246,8 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         aria-label={"You're in " + here + " — open the menu"}
         style={{
           display: "none", flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center", gap: 9, cursor: "pointer",
-          fontFamily: "var(--pb-sans)", color: "#e7e3d8",
-          background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
+          fontFamily: "var(--pb-sans)", color: "var(--pb-ink)",
+          background: solid ? "var(--pb-bg)" : "var(--pb-glass)",
           WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)",
           border: "1px solid var(--pb-line-strong)", borderRadius: 22, padding: "13px 16px",
           boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
@@ -264,7 +264,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           flex: "none", marginLeft: "auto", position: "relative",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 28,
           padding: "10px 34px",
-          background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)",
+          background: solid ? "var(--pb-bg)" : "var(--pb-glass)",
           WebkitBackdropFilter: "blur(22px) saturate(1.4)",
           backdropFilter: "blur(22px) saturate(1.4)",
           border: "1px solid var(--pb-line-strong)",
@@ -272,7 +272,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
         }}
       >
-      <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "#c3c8d0" }}>
+      <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "var(--pb-ink-2)" }}>
         {/* Explore ▾ — the ways to experience the parks */}
         <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={tab === "explore"} open={openKey === "explore"} onOpen={() => openDrop("explore")} onClose={closeDrop} />
         {LINKS.map((l) => (
@@ -306,25 +306,39 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       {/* Account cluster — kept visually separate from the section nav (Sign in /
           account / Ask / My Trip), pushed to the right. */}
       <div className="pb-nav-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+        {/* Desktop theme toggle — icon-only sun/moon; mirrors the account-drawer toggle. */}
+        <button
+          type="button"
+          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+          title={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+          style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: "50%", background: "transparent", border: "1px solid var(--pb-line-strong)", color: "var(--pb-ink)", flex: "none" }}
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            {theme === "light"
+              ? <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+              : <><circle cx="12" cy="12" r="4" /><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6 6 4.5 4.5M19.5 19.5 18 18M18 6l1.5-1.5M4.5 19.5 6 18" /></>}
+          </svg>
+        </button>
         {showTrip && (
           <button
             type="button"
             onClick={openTrip}
-            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 15px" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 15px" }}
           >
             🎒 My Trip
             <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".58rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
           </button>
         )}
         {user ? (
-          <button type="button" onClick={openAuth} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 13px 5px 5px" }}>
+          <button type="button" onClick={openAuth} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 13px 5px 5px" }}>
             {avatar
               ? <img src={avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover" }} />
               : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: ".78rem" }}>{(displayName || "?").charAt(0).toUpperCase()}</span>}
             <span style={{ maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</span>
           </button>
         ) : (
-          <button type="button" onClick={openAuth} style={{ cursor: "pointer", fontFamily: "inherit", color: "#e7e3d8", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}>
+          <button type="button" onClick={openAuth} style={{ cursor: "pointer", fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}>
             Sign in
           </button>
         )}
@@ -345,7 +359,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         aria-label={menuOpen ? "Close menu" : "Open menu"}
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
-        style={{ display: "none", flex: "none", cursor: "pointer", background: solid ? "var(--pb-bg)" : "rgba(9,17,12,.6)", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 14, width: 50, height: 48, alignItems: "center", justifyContent: "center", color: "var(--pb-ink)" }}
+        style={{ display: "none", flex: "none", cursor: "pointer", background: solid ? "var(--pb-bg)" : "var(--pb-glass)", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 14, width: 50, height: 48, alignItems: "center", justifyContent: "center", color: "var(--pb-ink)" }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           {menuOpen ? <><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></> : <><line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" /></>}
@@ -358,7 +372,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       {menuOpen && (
         <div
           className="pb-mobile-menu"
-          style={{ position: "absolute", top: "100%", right: 0, width: "min(320px, calc(100vw - 24px))", maxHeight: "calc(100vh - 70px)", overflowY: "auto", background: "rgba(7,10,16,.98)", WebkitBackdropFilter: "blur(20px) saturate(1.3)", backdropFilter: "blur(20px) saturate(1.3)", border: "1px solid var(--pb-line)", borderRadius: 18, marginTop: 8, padding: "16px", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}
+          style={{ position: "absolute", top: "100%", right: 0, width: "min(320px, calc(100vw - 24px))", maxHeight: "calc(100vh - 70px)", overflowY: "auto", background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(20px) saturate(1.3)", backdropFilter: "blur(20px) saturate(1.3)", border: "1px solid var(--pb-line)", borderRadius: 18, marginTop: 8, padding: "16px", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}
         >
           {/* Identity header */}
           <button type="button" onClick={openAccount} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)", borderRadius: 14, padding: "12px 14px", fontFamily: "inherit" }}>
@@ -377,7 +391,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           </button>
 
           {showTrip && (
-            <button type="button" onClick={() => { setMenuOpen(false); openTrip(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontFamily: "inherit", color: "#e7e3d8", fontSize: ".92rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px" }}>
+            <button type="button" onClick={() => { setMenuOpen(false); openTrip(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".92rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px" }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>🎒 My Trip</span>
               <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
             </button>

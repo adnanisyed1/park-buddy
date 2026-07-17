@@ -44,6 +44,9 @@
   --pb-radius-lg: 24px;
   --pb-shadow: 0 40px 100px -60px rgba(0, 0, 0, 0.9);
   --pb-shadow-gold: 0 10px 40px -14px rgba(217, 183, 121, 0.6);
+  --pb-glass: rgba(9, 17, 12, 0.6);        /* translucent nav pill / bar */
+  --pb-glass-strong: rgba(8, 13, 9, 0.97); /* drawer / sheet / bottom bar */
+  --pb-tint: rgba(255, 255, 255, 0.03);    /* faint fill on cards/boxes */
   --pb-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
   --pb-sans: var(--font-inter), "Inter", system-ui, sans-serif;
   --pb-mono: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
@@ -56,24 +59,39 @@
    dark :root values until each page is migrated). Toggle lives in the account menu;
    see app/lib/theme.js. (Provisional palette — refine to the light Figma.) */
 html[data-theme="light"] .pb-theme {
-  --pb-bg: #f7f3ea;            /* warm parchment */
-  --pb-bg-2: #efe8d9;          /* deeper cream (footers, wells) */
-  --pb-surface: #fffdf8;       /* card — near-white warm */
-  --pb-surface-2: #f3ecdd;     /* raised / active card */
-  --pb-line: rgba(28, 46, 34, 0.14);   /* hairline — forest tint */
-  --pb-line-strong: rgba(28, 46, 34, 0.24);
-  --pb-gold: #a9762b;          /* deeper gold — legible as text on cream */
-  --pb-gold-2: #8a5e1e;
-  --pb-gold-soft: #9c7433;
+  --pb-bg: #faf8f4;            /* warm off-white (from the light Figma) */
+  --pb-bg-2: #f0ede6;          /* deeper cream (footers, wells) */
+  --pb-surface: #ffffff;       /* white card */
+  --pb-surface-2: #f4f6f3;     /* raised / active card (faint green tint) */
+  --pb-line: rgba(26, 58, 42, 0.10);   /* hairline — forest tint */
+  --pb-line-strong: rgba(26, 58, 42, 0.18);
+  --pb-gold: #a37c3f;          /* deep gold — legible as text on cream */
+  --pb-gold-2: #8a6529;
+  --pb-gold-soft: #a37c3f;
   /* --pb-grad-gold unchanged: gold buttons keep dark text and pop on light too */
-  --pb-ink: #1c2e22;           /* dark forest — primary text */
-  --pb-ink-2: #46564c;         /* secondary text */
-  --pb-muted: #79847a;         /* tertiary / fine print */
-  --pb-go: #2e9e63;            /* verdicts, darkened for contrast on light */
-  --pb-prepare: #b07d32;
-  --pb-hold: #c2653f;
-  --pb-shadow: 0 30px 70px -46px rgba(28, 46, 34, 0.30);
-  --pb-shadow-gold: 0 10px 34px -14px rgba(169, 118, 43, 0.45);
+  --pb-ink: #1a3a2a;           /* dark forest — primary text */
+  --pb-ink-2: #5a6168;         /* secondary text (cool gray) */
+  --pb-muted: #858c8f;         /* tertiary / fine print */
+  --pb-go: #1e8e4d;            /* verdicts, darkened for contrast on light */
+  --pb-prepare: #b0812f;
+  --pb-hold: #c85e3c;
+  --pb-shadow: 0 24px 60px -40px rgba(26, 58, 42, 0.26);
+  --pb-shadow-gold: 0 10px 30px -14px rgba(163, 124, 63, 0.4);
+  --pb-glass: rgba(255, 255, 255, 0.72);       /* light translucent nav */
+  --pb-glass-strong: rgba(255, 255, 255, 0.97);
+  --pb-tint: rgba(26, 58, 42, 0.04);           /* faint fill on cards */
+}
+
+/* Re-assert the DARK token values for a subtree, regardless of the page theme —
+   used for the landing's intentional dark feature-bands (the Explore map + close),
+   which stay dark even in Light mode (per the light Figma). */
+.pb-forcedark {
+  --pb-bg: #0a1712; --pb-bg-2: #08130d; --pb-surface: #0b1710; --pb-surface-2: #0e2016;
+  --pb-line: rgba(217, 183, 121, 0.16); --pb-line-strong: rgba(217, 183, 121, 0.30);
+  --pb-gold: #e8cf9a; --pb-gold-2: #c9a35f; --pb-gold-soft: #d9b779;
+  --pb-ink: #f4f1ea; --pb-ink-2: #aab0ba; --pb-muted: #7f8a82;
+  --pb-go: #4fd98a; --pb-prepare: #e8cf9a; --pb-hold: #e0906a;
+  --pb-glass: rgba(9, 17, 12, 0.6); --pb-glass-strong: rgba(8, 13, 9, 0.97); --pb-tint: rgba(255, 255, 255, 0.03);
 }
 
 * { margin: 0; box-sizing: border-box; }

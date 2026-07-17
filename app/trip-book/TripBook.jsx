@@ -58,28 +58,29 @@ const LAYOUTS = [
   { key: "editorial", name: "Editorial", desc: "Big headline spanning the cover" },
   { key: "manuscript", name: "Manuscript", desc: "Botanical bookplate imprint" },
 ];
+/* ── Predefined themes ───────────────────────────────────────────────────────
+   A theme is a PRESET: base + ink + accent, plus the cover silhouette that suits
+   it. Picking one should make a good-looking book with zero design work. Every
+   ink/base pair here measures ≥11:1 and every accent ≥4.5:1 on its base, checked
+   for full-colour print on 80# coated stock (screen contrast flatters — reflective
+   ink needs more headroom than the WCAG web minimum). 5 dark / 5 light. */
 const PALETTES = {
   dark: [
-    { key: "forest", name: "Forest Dark", base: "#0A1712", ink: "#f4f1ea" },
-    { key: "charcoal", name: "Charcoal", base: "#17181a", ink: "#f2f2f0" },
-    { key: "navy", name: "Midnight Navy", base: "#0f1a2e", ink: "#eef2f8" },
-    { key: "oxblood", name: "Oxblood", base: "#2a1416", ink: "#f4e9e6" },
-    { key: "espresso", name: "Espresso", base: "#241a12", ink: "#f2e8dc" },
-    { key: "slate", name: "Slate Blue", base: "#141b22", ink: "#e8eef4" },
-    { key: "plum", name: "Deep Plum", base: "#1e1420", ink: "#f2e6f0" },
-    { key: "pine", name: "Black Pine", base: "#0c1410", ink: "#e9f0ea" },
+    { key: "black-pine", name: "Black Pine", base: "#0C1512", ink: "#E9EFE7", accent: "#C9A24A", silhouette: "manuscript", mood: "Misty forest, redwoods, the Pacific Northwest.", desc: "Old-growth dark with a struck-brass title." },
+    { key: "canyon-dusk", name: "Canyon Dusk", base: "#2B1410", ink: "#F3E7DB", accent: "#D9743C", silhouette: "split", mood: "Desert reds — Utah, Sedona, the Colorado Plateau.", desc: "Deep red rock at last light." },
+    { key: "cobalt-meridian", name: "Cobalt Meridian", base: "#101E38", ink: "#EAF0FA", accent: "#D8B15C", silhouette: "centered", mood: "Night skies, coastlines, big water.", desc: "Royal blue and pale gold — an atlas, not a scrapbook." },
+    { key: "ash-ember", name: "Ash & Ember", base: "#1A1B1D", ink: "#EFEEEB", accent: "#C56B3E", silhouette: "editorial", mood: "Lava fields — Lassen, Volcanoes, the Cascades.", desc: "Volcanic charcoal with a copper spark." },
+    { key: "alpenglow", name: "Alpenglow", base: "#241830", ink: "#F1E9F2", accent: "#F2A07C", silhouette: "centered", mood: "Alpine dusk — the Tetons, Rainier.", desc: "Twilight violet warmed by peach on the peaks." },
   ],
   light: [
-    { key: "parchment", name: "Parchment", base: "#FAF8F4", ink: "#1a3a2a" },
-    { key: "sage", name: "Sage", base: "#eef1ea", ink: "#1f3326" },
-    { key: "blush", name: "Blush", base: "#f6efe9", ink: "#3a2a24" },
-    { key: "mist", name: "Mist", base: "#eef1f6", ink: "#20303f" },
-    { key: "linen", name: "Linen", base: "#f4efe6", ink: "#3a3226" },
-    { key: "cloud", name: "Cloud", base: "#f2f4f6", ink: "#2a3138" },
-    { key: "rose", name: "Rose Quartz", base: "#f6eef0", ink: "#3a2830" },
-    { key: "meadow", name: "Meadow", base: "#eef3ec", ink: "#25352a" },
+    { key: "cirrus", name: "Cirrus", base: "#F7F8F8", ink: "#22272A", accent: "#3D6DA8", silhouette: "minimal", mood: "Modernist, gift-ready, any park.", desc: "Near-white and quiet — the photographs do the talking." },
+    { key: "glacier-milk", name: "Glacier Milk", base: "#E9EFF2", ink: "#172A34", accent: "#1F6F7E", silhouette: "split", mood: "Alpine winter, glaciers, deep lakes.", desc: "Pale meltwater blue with deep lake teal." },
+    { key: "lichen-field", name: "Lichen Field", base: "#E7EBE1", ink: "#232E1E", accent: "#8A5A34", silhouette: "manuscript", mood: "Meadows, the Appalachians, spring.", desc: "Soft sage paper, moss ink, bark copper." },
+    { key: "sunbleached", name: "Sunbleached", base: "#EBE6DA", ink: "#2A2621", accent: "#2F4A6B", silhouette: "editorial", mood: "Desert, coast, dunes, high summer.", desc: "Sun-faded sand cooled by indigo." },
+    { key: "serigraph", name: "Serigraph", base: "#E6E2D6", ink: "#1A2E22", accent: "#AE3A24", silhouette: "editorial", mood: "WPA heritage — Yellowstone, the classics.", desc: "Flat poster inks, straight out of the 1930s park shop." },
   ],
 };
+const ALL_THEMES = [...PALETTES.dark, ...PALETTES.light];
 
 // ── Physical print options (real Lulu SKUs) ──────────────────────────────────
 // The pod_package_id is TRIM.COLOR.QUALITY.BIND.PAPER.FINISH(+linen+foil). All
@@ -125,14 +126,68 @@ function setStopLayout(name, patch) {
   writeLayouts(o);
 }
 function clearStopLayout(name) { const o = readLayouts(); if (o.stops) delete o.stops[name]; writeLayouts(o); }
-// Re-render whenever any layout changes.
+// Re-render whenever any layout changes. Returns `ready` — false during SSR and the
+// first client render — because these layouts live in localStorage, which the server
+// can't see. Reading it during render made the server and client disagree
+// ("photo-diary" vs a saved grid) and React threw away the server HTML.
 function useLayoutTick() {
   const [, set] = useState(0);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
+    setReady(true);
     const on = () => set((x) => x + 1);
     window.addEventListener("pb:booklayout", on);
     return () => window.removeEventListener("pb:booklayout", on);
   }, []);
+  return ready;
+}
+
+/* ── Book-only pages ─────────────────────────────────────────────────────────
+   The Studio READS the itinerary (trip.js) — it never writes to it. Chapters
+   preloaded from your itinerary are edited in Build a Trip; anything you add HERE
+   ("your own stop & photo") lives only in the book, in localStorage
+   `pb_book_extras`, so making a book never mutates your trip. */
+const XKEY = "pb_book_extras";
+function readExtras() { try { return JSON.parse(localStorage.getItem(XKEY) || "[]") || []; } catch { return []; } }
+function writeExtras(a) { try { localStorage.setItem(XKEY, JSON.stringify(a)); window.dispatchEvent(new Event("pb:bookextras")); } catch {} }
+function addExtra({ name, story = "", photos = [] }) {
+  const a = readExtras();
+  a.push({ id: "x" + Date.now().toString(36), name, story, photos });
+  writeExtras(a);
+}
+function removeExtra(id) { writeExtras(readExtras().filter((e) => e.id !== id)); }
+function updateExtra(id, patch) { writeExtras(readExtras().map((e) => (e.id === id ? { ...e, ...patch } : e))); }
+function moveExtra(id, dir) {
+  const a = readExtras();
+  const i = a.findIndex((e) => e.id === id), j = i + dir;
+  if (i === -1 || j < 0 || j >= a.length) return;
+  const [it] = a.splice(i, 1); a.splice(j, 0, it); writeExtras(a);
+}
+
+const isHex = (s) => /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test((s || "").trim());
+const normHex = (s) => { let h = (s || "").trim(); if (!h.startsWith("#")) h = "#" + h; return h.length === 4 ? "#" + h.slice(1).split("").map((c) => c + c).join("") : h.toLowerCase(); };
+function lum(hex) {
+  try {
+    const n = normHex(hex).slice(1);
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16) / 255);
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  } catch { return 0; }
+}
+const contrast = (a, b) => { const L1 = lum(a), L2 = lum(b); const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1]; return (hi + 0.05) / (lo + 0.05); };
+const INK_DARK = "#1A1F1C", INK_LIGHT = "#F2F1EC";
+// We choose the ink, never the customer — ink choice is where amateur books die.
+function inkFor(hex) { return lum(hex) > 0.35 ? INK_DARK : INK_LIGHT; }
+// Print needs more headroom than the web minimum: reflective ink + dot gain eat
+// apparent contrast, so we hold a 7:1 floor. Mid-tone bases fail against BOTH inks
+// — that's the trap, and we block it rather than let someone order a fuzzy book.
+function customCheck(hex) {
+  if (!isHex(hex)) return { ok: false, reason: "Enter a hex code like #2A4A38." };
+  const h = normHex(hex);
+  const cd = contrast(h, INK_DARK), cl = contrast(h, INK_LIGHT);
+  const best = cd >= cl ? { ink: INK_DARK, ratio: cd } : { ink: INK_LIGHT, ratio: cl };
+  if (best.ratio < 7) return { ok: false, ...best, reason: "This shade sits in the middle — text won't print crisply on it. Try going deeper or lighter." };
+  return { ok: true, ...best };
 }
 
 // Compose the Lulu pod_package_id from the current selection. (Validate each combo
@@ -174,15 +229,26 @@ function useBook() {
   useEffect(() => {
     const a = subscribeTrip(() => setTick((t) => t + 1));
     const b = subscribeTripMode(() => setTick((t) => t + 1));
-    return () => { a && a(); b && b(); };
+    const c = () => setTick((t) => t + 1);
+    window.addEventListener("pb:bookextras", c);
+    return () => { a && a(); b && b(); window.removeEventListener("pb:bookextras", c); };
   }, []);
 
   let stops = [], meta = {};
   try { stops = getStops() || []; } catch {}
   try { meta = getMeta() || {}; } catch {}
   const stories = (() => { try { return getStory() || {}; } catch { return {}; } })();
+  const extras = readExtras();
 
-  const hasTrip = stops.length > 0;
+  // Your own book-only pages, appended after the itinerary chapters.
+  const extraSpreads = extras.map((e, i) => ({
+    name: e.name, park: "Your own page", q: [e.name],
+    userImg: (e.photos || [])[0] || null, photos: e.photos || [],
+    story: e.story || "", date: "", lat: null, lng: null,
+    chapter: stops.length + i + 1, source: "own", id: e.id,
+  }));
+
+  const hasTrip = stops.length > 0 || extras.length > 0;
   if (!hasTrip) {
     const spreads = DEMO.stops.map((s, i) => ({
       name: s.name, park: s.park, q: s.q, userImg: null, photos: [], story: s.story,
@@ -205,6 +271,7 @@ function useBook() {
       lat: s.lat != null ? s.lat : (p0 ? p0.lat : null),
       lng: s.lng != null ? s.lng : (p0 ? p0.lng : null),
       chapter: i + 1,
+      source: "itinerary",
     };
   });
   const states = [...new Set(stops.map((s) => s.state).filter(Boolean))];
@@ -213,7 +280,7 @@ function useBook() {
     title: meta.tripName || "Your Trip Book",
     author: "",
     region: states.length ? states.join(" · ") : "A Park Buddy Trip",
-    spreads,
+    spreads: [...spreads, ...extraSpreads],
   };
 }
 
@@ -279,22 +346,35 @@ function PhotoGrid({ photos, count }) {
 
 // The open-book spread. Its composition comes from the stop's own layout, else the
 // book default (see MODES / pb_book_layouts).
+// Real page numbers — chapter n occupies pages 4+(n-1)*4 and the facing page.
+const pagesOf = (spread) => { const l = 4 + ((spread.chapter || 1) - 1) * 4; return [l, l + 1]; };
+const PageNums = ({ spread, single }) => {
+  const [l, r] = pagesOf(spread);
+  const pad = (x) => String(x).padStart(2, "0");
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", color: "var(--pb-muted)", padding: "8px 4px 0", gridColumn: "1 / -1" }}>
+      <span>{pad(l)}</span>{!single && <span>{pad(r)}</span>}
+    </div>
+  );
+};
+
 function Spread({ spread }) {
-  useLayoutTick();
-  const lay = getStopLayout(spread.name) || getDefaultLayout();
+  const ready = useLayoutTick();
+  const lay = ready ? (getStopLayout(spread.name) || getDefaultLayout()) : DEFAULT_LAYOUT;
   const mode = lay.mode || "photo-diary";
   const count = Math.max(2, Math.min(4, lay.count || 2));
   const photos = spread.photos || [];
-  const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 720, width: "100%" };
+  const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", maxWidth: 720, width: "100%" };
 
   if (mode === "story") {
-    return <div style={{ ...card, gridTemplateColumns: "1fr", maxWidth: 460 }}><SpreadStory spread={spread} /></div>;
+    return <div style={{ ...card, gridTemplateColumns: "1fr", maxWidth: 460 }}><SpreadStory spread={spread} /><PageNums spread={spread} single /></div>;
   }
   if (mode === "photo-photo") {
     return (
       <div style={card}>
         <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
         <div style={{ aspectRatio: "3/4" }}>{photos[1] ? <PhotoSlot url={photos[1]} /> : <EmptySlot />}</div>
+        <PageNums spread={spread} />
       </div>
     );
   }
@@ -303,6 +383,7 @@ function Spread({ spread }) {
       <div style={card}>
         <div style={{ aspectRatio: "3/4" }}><PhotoGrid photos={photos} count={count} /></div>
         <SpreadStory spread={spread} />
+        <PageNums spread={spread} />
       </div>
     );
   }
@@ -310,6 +391,7 @@ function Spread({ spread }) {
     <div style={card}>
       <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
       <SpreadStory spread={spread} />
+      <PageNums spread={spread} />
     </div>
   );
 }
@@ -437,11 +519,17 @@ export default function TripBook() {
   const [role, setRole] = useState("author"); // author | reader
   const [sel, setSel] = useState(0);
   const [layoutKey, setLayoutKey] = useState("split");
-  const [pal, setPal] = useState("forest");
+  const [pal, setPal] = useState("black-pine");
   const [isPhone, setIsPhone] = useState(false);
   const [reserve, setReserve] = useState(null);
   const [mobilePage, setMobilePage] = useState("photo"); // photo | story
   const [toolsOpen, setToolsOpen] = useState(true);
+  const [customBase, setCustomBase] = useState("#0c1512");
+  // The whole studio is composed from localStorage (trip, photos, extras, layouts),
+  // which the server can't read — so we render nothing until mounted rather than
+  // emit server HTML that the client immediately contradicts.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [sizeKey, setSizeKey] = useState("square");
   const [coverKey, setCoverKey] = useState("casewrap");
   const [finishKey, setFinishKey] = useState("matte");
@@ -458,8 +546,17 @@ export default function TripBook() {
   const n = spreads.length;
   const cur = spreads[Math.min(sel, n - 1)] || spreads[0];
   const layout = LAYOUTS.find((l) => l.key === layoutKey) || LAYOUTS[0];
-  const palette = [...PALETTES.dark, ...PALETTES.light].find((p) => p.key === pal) || PALETTES.dark[0];
-  const isLightPal = PALETTES.light.some((p) => p.key === pal);
+  const custom = customCheck(customBase);
+  const palette = pal === "custom"
+    ? { key: "custom", name: "Custom " + normHex(customBase).toUpperCase(), base: normHex(customBase), ink: custom.ink || INK_LIGHT, accent: "#C9A24A" }
+    : (ALL_THEMES.find((p) => p.key === pal) || PALETTES.dark[0]);
+  const isLightPal = pal === "custom" ? lum(customBase) > 0.35 : PALETTES.light.some((p) => p.key === pal);
+  // A theme is a preset — picking one also sets the cover silhouette it was designed for.
+  const pickTheme = (key) => {
+    setPal(key);
+    const t = ALL_THEMES.find((p) => p.key === key);
+    if (t && t.silhouette) setLayoutKey(t.silhouette);
+  };
   const size = SIZES.find((s) => s.key === sizeKey) || SIZES[0];
   const cover = COVERS.find((c) => c.key === coverKey) || COVERS[0];
   const finish = FINISHES.find((f) => f.key === finishKey) || FINISHES[0];
@@ -478,8 +575,17 @@ export default function TripBook() {
     entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
   });
 
-  const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, priceNum };
+  const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, priceNum, customBase, setCustomBase, pickTheme };
   const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, openManage: () => setManageOpen(true) };
+
+  if (!mounted) {
+    return (
+      <>
+        <SiteHeader acctSlot hideTabBar />
+        <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", paddingTop: 90 }} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -712,7 +818,7 @@ function StopTools({ spread, onNext }) {
   );
 }
 
-function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey }) {
+function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme }) {
   useLayoutTick();
   const reader = role === "reader";
   const coverImg = ((spreads || []).find((s) => s.userImg) || {}).userImg || null;
@@ -731,17 +837,8 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
             ))}
           </div>
           <div style={{ marginTop: 22 }}>
-            <Eyebrow>Color Palettes</Eyebrow>
-            {[["Dark", PALETTES.dark], ["Light", PALETTES.light]].map(([label, list]) => (
-              <div key={label} style={{ marginTop: 12 }}>
-                <div style={{ fontFamily: mono, fontSize: ".48rem", letterSpacing: ".12em", color: "var(--pb-muted)", marginBottom: 6 }}>{label}</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {list.map((p) => (
-                    <button key={p.key} onClick={() => setPal(p.key)} title={p.name} aria-label={p.name} style={{ cursor: "pointer", width: 34, height: 34, borderRadius: "50%", background: p.base, border: "2px solid " + (p.key === pal ? "var(--pb-gold)" : "var(--pb-line-strong)") }} />
-                  ))}
-                </div>
-              </div>
-            ))}
+            <ThemeCards pal={pal} pickTheme={pickTheme} />
+            <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />
           </div>
           <div style={{ marginTop: 24 }}>
             <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
@@ -777,6 +874,73 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
           )}
           <button onClick={() => setStep("preview")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Preview Book →</button>
         </aside>
+      )}
+    </div>
+  );
+}
+
+// Predefined themes — the "pick one and it looks good" path. Each card previews its
+// real base/ink/accent and says when to use it; choosing one also sets the cover
+// silhouette it was designed for.
+function ThemeCards({ pal, pickTheme }) {
+  return (
+    <>
+      <Eyebrow>Themes</Eyebrow>
+      <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 10px" }}>Curated for print — pick one and your book is designed.</div>
+      {[["Dark", PALETTES.dark], ["Light", PALETTES.light]].map(([label, list]) => (
+        <div key={label} style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>{label}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {list.map((t) => {
+              const on = t.key === pal;
+              return (
+                <button key={t.key} className="bs-stopcard" onClick={() => pickTheme(t.key)} title={t.mood}
+                  style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "8px 10px" }}>
+                  {/* real colours, square chips — no shrink, so no ovals */}
+                  <span aria-hidden style={{ display: "flex", flex: "0 0 auto", borderRadius: 5, overflow: "hidden", border: "1px solid var(--pb-line-strong)" }}>
+                    {[t.base, t.ink, t.accent].map((c, i) => <span key={i} style={{ width: 12, height: 26, background: c, display: "block" }} />)}
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: "block", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{t.name}</span>
+                    <span style={{ display: "block", fontSize: ".66rem", color: "var(--pb-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.desc}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// Any colour the customer wants — swatch + hex field. Ink is auto-chosen for
+// legible print, so a custom colour can't produce an unreadable book.
+function CustomColor({ pal, setPal, customBase, setCustomBase }) {
+  const [txt, setTxt] = useState(customBase);
+  useEffect(() => { setTxt(customBase); }, [customBase]);
+  const active = pal === "custom";
+  const chk = customCheck(txt);
+  const apply = (v) => {
+    setTxt(v);
+    // Only commit a colour that will actually print legibly.
+    if (customCheck(v).ok) { setCustomBase(normHex(v)); setPal("custom"); }
+  };
+  return (
+    <div style={{ marginTop: 16 }}>
+      <Eyebrow>Custom colour</Eyebrow>
+      <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 8px" }}>Any colour you like — type a hex code or pick one.</div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input type="color" value={isHex(customBase) ? normHex(customBase) : "#0c1512"} onChange={(e) => apply(e.target.value)} aria-label="Pick any colour"
+          style={{ flex: "0 0 38px", width: 38, height: 38, padding: 0, border: "2px solid " + (active ? "var(--pb-gold)" : "var(--pb-line-strong)"), borderRadius: 8, background: "none", cursor: "pointer" }} />
+        <input value={txt} onChange={(e) => apply(e.target.value)} placeholder="#0C1512" spellCheck={false} aria-label="Hex colour code"
+          style={{ flex: 1, minWidth: 0, fontFamily: mono, fontSize: ".8rem", textTransform: "uppercase", background: "var(--pb-surface)", border: "1px solid " + (!chk.ok ? "var(--pb-hold)" : active ? "var(--pb-gold-2)" : "var(--pb-line-strong)"), borderRadius: 8, padding: "9px 10px", color: "var(--pb-ink)", outline: "none" }} />
+      </div>
+      {!chk.ok && <div style={{ fontSize: ".66rem", color: "var(--pb-hold)", marginTop: 6, lineHeight: 1.45 }}>{chk.reason}</div>}
+      {chk.ok && active && (
+        <div style={{ fontSize: ".66rem", color: "var(--pb-muted)", marginTop: 6, lineHeight: 1.45 }}>
+          Type set to {chk.ink === INK_LIGHT ? "light" : "dark"} automatically ({chk.ratio.toFixed(1)}:1) so it stays crisp in print.
+        </div>
       )}
     </div>
   );
@@ -893,7 +1057,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
 
 /* ---------------- mobile ---------------- */
 function MobilePhone(props) {
-  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey } = props;
+  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme } = props;
   const BAR = 64;
   return (
     <div style={{ paddingBottom: BAR + 10 }}>
@@ -963,12 +1127,9 @@ function MobilePhone(props) {
                 </button>
               ))}
             </div>
-            <Eyebrow>Color Palettes</Eyebrow>
-            <div style={{ display: "flex", gap: 8, margin: "10px 0 22px", flexWrap: "wrap" }}>
-              {[...PALETTES.dark, ...PALETTES.light].map((p) => (
-                <button key={p.key} onClick={() => setPal(p.key)} title={p.name} style={{ cursor: "pointer", width: 38, height: 38, borderRadius: "50%", background: p.base, border: "2px solid " + (p.key === pal ? "var(--pb-gold)" : "var(--pb-line-strong)") }} />
-              ))}
-            </div>
+            <ThemeCards pal={pal} pickTheme={pickTheme} />
+            <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />
+            <div style={{ height: 22 }} />
             <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
               <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>Est. total</span>
@@ -1042,67 +1203,91 @@ function MobileStopTools({ spread }) {
 }
 
 /* ---------------- manage stops (add / delete / reorder) ---------------- */
-// Operates on the REAL trip (trip.js). Adding a location here creates a real trip
-// if there wasn't one (so the Yosemite sample is replaced by the user's own book).
+// TWO sources, kept separate on purpose:
+//   1. Preloaded from your itinerary — READ-ONLY here. The itinerary is the source
+//      of truth and is edited in Build a Trip; the book follows it automatically.
+//   2. Your own pages — book-only extras that never touch the itinerary.
 function ManageStops({ onClose }) {
   const [, force] = useState(0);
   useEffect(() => {
     const un = subscribeTrip(() => force((x) => x + 1));
+    const onX = () => force((x) => x + 1);
+    window.addEventListener("pb:bookextras", onX);
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
-    return () => { un && un(); document.removeEventListener("keydown", onKey); };
+    return () => { un && un(); window.removeEventListener("pb:bookextras", onX); document.removeEventListener("keydown", onKey); };
   }, [onClose]);
   const stops = (() => { try { return getStops() || []; } catch { return []; } })();
+  const extras = readExtras();
   const [name, setName] = useState("");
-  const [photo, setPhoto] = useState(null);
+  const [pending, setPending] = useState([]);
   const fileRef = useRef(null);
 
   const onFile = async (e) => {
-    const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { setPhoto({ url: await fileToDataUrl(f) }); } catch {}
+    const files = Array.from(e.target.files || []);
+    const urls = [];
+    for (const f of files) { try { urls.push(await fileToDataUrl(f)); } catch {} }
+    setPending((p) => [...p, ...urls]);
     e.target.value = "";
   };
   const add = () => {
     const nm = name.trim(); if (!nm) return;
-    try { addStop(nm); if (photo) addPhoto(nm, { url: photo.url }); } catch {}
-    setName(""); setPhoto(null);
+    addExtra({ name: nm, photos: pending });
+    setName(""); setPending([]);
   };
 
   const iconBtn = { cursor: "pointer", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", color: "var(--pb-ink)", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" };
+  const secLabel = { fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", marginBottom: 8 };
+
   return (
     <div className="tbres-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="tbres-card" role="dialog" aria-modal="true" style={{ maxWidth: 520 }}>
-        <div className="tbres-kicker">Manage stops</div>
-        <div className="tbres-title">Your book's pages</div>
-        <p className="tbres-note" style={{ marginTop: 4 }}>Reorder, remove, or add a place. Each stop becomes a chapter — add a photo and it prints; leave it and you get a clean typographic page.</p>
+      <div className="tbres-card" role="dialog" aria-modal="true" style={{ maxWidth: 560 }}>
+        <div className="tbres-kicker">Manage pages</div>
+        <div className="tbres-title">What&rsquo;s in your book</div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "14px 0" }}>
-          {stops.length === 0 && <div style={{ fontSize: ".85rem", color: "var(--pb-muted)" }}>No stops yet — add your first place below. (You're viewing the sample book until then.)</div>}
-          {stops.map((s, i) => (
-            <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "9px 11px" }}>
-              <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".55rem", color: "var(--pb-muted)", width: 18 }}>{"0" + (i + 1)}</span>
-              <span style={{ flex: 1, fontWeight: 600, fontSize: ".88rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
-              <button style={{ ...iconBtn, opacity: i === 0 ? .35 : 1 }} disabled={i === 0} onClick={() => moveStop(s.name, -1)} aria-label="Move up">↑</button>
-              <button style={{ ...iconBtn, opacity: i === stops.length - 1 ? .35 : 1 }} disabled={i === stops.length - 1} onClick={() => moveStop(s.name, 1)} aria-label="Move down">↓</button>
-              <button style={{ ...iconBtn, color: "var(--pb-hold)" }} onClick={() => removeStop(s.name)} aria-label="Remove">✕</button>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ borderTop: "1px solid var(--pb-line)", paddingTop: 14 }}>
-          <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", marginBottom: 8 }}>Add a place</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-            <input list="pb-park-list" className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Park, town, or any place" style={{ flex: 1 }} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
-            <button onClick={() => fileRef.current && fileRef.current.click()} style={{ ...iconBtn, width: "auto", padding: "0 12px", gap: 6 }}>{photo ? "✓ Photo" : "＋ Photo"}</button>
-            <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+        {/* 1 — from the itinerary (read-only) */}
+        <div style={{ marginTop: 16 }}>
+          <div style={secLabel}>Preloaded from your itinerary ({stops.length})</div>
+          <p className="tbres-note" style={{ margin: "0 0 8px" }}>These follow your trip automatically — add, remove or reorder them in your itinerary and the book updates itself.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {stops.length === 0 && <div style={{ fontSize: ".82rem", color: "var(--pb-muted)" }}>No itinerary yet — build one and its stops become chapters here.</div>}
+            {stops.map((s, i) => (
+              <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "8px 11px" }}>
+                <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".55rem", color: "var(--pb-muted)", width: 18 }}>{"0" + (i + 1)}</span>
+                <span style={{ flex: 1, fontWeight: 600, fontSize: ".86rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+                <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".46rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Itinerary</span>
+              </div>
+            ))}
           </div>
-          <datalist id="pb-park-list">
-            {DEMO.stops.map((s) => <option key={s.name} value={s.name} />)}
-          </datalist>
-          <button onClick={add} disabled={!name.trim()} style={{ cursor: name.trim() ? "pointer" : "not-allowed", width: "100%", marginTop: 10, fontFamily: "inherit", fontWeight: 700, fontSize: ".85rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 10, padding: "11px", opacity: name.trim() ? 1 : .5 }}>Add to book</button>
+          <Link href="/build-trip" style={{ display: "inline-block", marginTop: 10, fontFamily: "inherit", fontWeight: 700, fontSize: ".8rem", color: "var(--pb-gold)", textDecoration: "none" }}>Edit your itinerary →</Link>
         </div>
 
-        <div className="tbres-actions" style={{ marginTop: 14 }}>
+        {/* 2 — your own book-only pages */}
+        <div style={{ borderTop: "1px solid var(--pb-line)", marginTop: 18, paddingTop: 16 }}>
+          <div style={secLabel}>Add your own stop &amp; photo ({extras.length})</div>
+          <p className="tbres-note" style={{ margin: "0 0 8px" }}>Anything you want in the book that isn&rsquo;t a trip stop — a roadside diner, a campsite, a person. These live only in the book; your itinerary is untouched.</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+            {extras.map((e, i) => (
+              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "8px 11px" }}>
+                <span style={{ flex: 1, fontWeight: 600, fontSize: ".86rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</span>
+                <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".46rem", color: "var(--pb-muted)" }}>{(e.photos || []).length} photo{(e.photos || []).length === 1 ? "" : "s"}</span>
+                <button style={{ ...iconBtn, opacity: i === 0 ? .35 : 1 }} disabled={i === 0} onClick={() => moveExtra(e.id, -1)} aria-label="Move up">↑</button>
+                <button style={{ ...iconBtn, opacity: i === extras.length - 1 ? .35 : 1 }} disabled={i === extras.length - 1} onClick={() => moveExtra(e.id, 1)} aria-label="Move down">↓</button>
+                <button style={{ ...iconBtn, color: "var(--pb-hold)" }} onClick={() => removeExtra(e.id)} aria-label="Remove">✕</button>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+            <input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this page — e.g. “Moab diner”" style={{ flex: 1 }} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+            <button onClick={() => fileRef.current && fileRef.current.click()} style={{ ...iconBtn, width: "auto", padding: "0 12px" }}>{pending.length ? `✓ ${pending.length}` : "＋ Photos"}</button>
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFile} style={{ display: "none" }} />
+          </div>
+          <button onClick={add} disabled={!name.trim()} style={{ cursor: name.trim() ? "pointer" : "not-allowed", width: "100%", marginTop: 10, fontFamily: "inherit", fontWeight: 700, fontSize: ".85rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 10, padding: "11px", opacity: name.trim() ? 1 : .5 }}>Add page to book</button>
+        </div>
+
+        <div className="tbres-actions" style={{ marginTop: 16 }}>
           <button className="tbres-btn" onClick={onClose}>Done</button>
         </div>
       </div>

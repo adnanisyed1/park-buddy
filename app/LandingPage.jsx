@@ -132,9 +132,7 @@ function Hero() {
   const hero = "/media/landing/hero.jpg"; // Figma light frame (12:4) hero render
   return (
     <header style={{ position: "relative", minHeight: "min(100vh,860px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "120px 20px 90px", overflow: "hidden" }}>
-      {/* Hero stays a still for now — user is remaking the hero video. Restore
-          video="/media/landing/hero" once hero.mp4 lands (see MOTION_READY note). */}
-      <MotionTile img={hero} video={null} alt="" imgStyle={{ transform: "scale(1.05)" }} />
+      <MotionTile img={hero} video="/media/landing/hero" alt="" imgStyle={{ transform: "scale(1.05)" }} />
       {/* Two-part scrim: a light legibility wash up top (fades out by ~58%), then a
           long dissolve to the page that ramps through the page's OWN hue at 0→full
           alpha (var(--pb-bg-0) → var(--pb-bg)) so there's no muddy dark→cream band. */}
@@ -351,18 +349,23 @@ function PinesSection() {
           <H2>Reels, but for the wild.</H2>
           <p style={{ fontSize: ".96rem", lineHeight: 1.6, color: "var(--pb-ink-2)", marginTop: 14 }}>Short videos & photos of real, GPS‑verified adventures — pinned to the exact place, shown next to today's conditions. No stock. No fakes.</p>
         </div>
-        <div className="pbl-pines" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.1fr", gap: 14, marginTop: 40, alignItems: "stretch" }}>
-          {[["Glacier", "GO", "reel-glacier"], ["Sequoia", null, "reel-sequoia"], ["Grand Teton", "PREPARE", "reel-teton"]].map(([name, v, base]) => (
-            <div key={name} style={{ position: "relative", aspectRatio: "3/4", borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
-              <MotionTile img={`/media/landing/${base}.jpg`} video={`/media/landing/${base}`} alt={name} overlay="linear-gradient(180deg,rgba(6,14,10,.15) 0%,transparent 40%,rgba(6,14,10,.85))" />
-              {v && <span style={{ position: "absolute", right: 10, top: 10 }}><VChip v={v} small /></span>}
-              {/* play affordance (Pines is short video) */}
-              <span style={{ position: "absolute", top: "44%", left: "50%", transform: "translate(-50%,-50%)", width: 40, height: 40, borderRadius: "50%", background: "rgba(10,17,12,.5)", border: "1px solid rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
-              </span>
-              <span style={{ position: "absolute", left: 12, bottom: 12, fontFamily: serif, fontWeight: 600, color: "#fff", fontSize: "1rem", textShadow: "0 2px 8px #000" }}>📍 {name}</span>
-            </div>
-          ))}
+        {/* Desktop: reels row (3) + early-access card. Phone: reels become a
+            swipeable strip showing ~2 at a time (see .pbl-reels/.pbl-reel CSS),
+            with the early-access card stacked below. */}
+        <div className="pbl-pines" style={{ display: "grid", gridTemplateColumns: "3fr 1.1fr", gap: 14, marginTop: 40, alignItems: "stretch" }}>
+          <div className="pbl-reels" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+            {[["Glacier", "GO", "reel-glacier"], ["Sequoia", null, "reel-sequoia"], ["Grand Teton", "PREPARE", "reel-teton"]].map(([name, v, base]) => (
+              <div key={name} className="pbl-reel" style={{ position: "relative", aspectRatio: "3/4", borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
+                <MotionTile img={`/media/landing/${base}.jpg`} video={`/media/landing/${base}`} alt={name} overlay="linear-gradient(180deg,rgba(6,14,10,.15) 0%,transparent 40%,rgba(6,14,10,.85))" />
+                {v && <span style={{ position: "absolute", right: 10, top: 10 }}><VChip v={v} small /></span>}
+                {/* play affordance (Pines is short video) */}
+                <span style={{ position: "absolute", top: "44%", left: "50%", transform: "translate(-50%,-50%)", width: 40, height: 40, borderRadius: "50%", background: "rgba(10,17,12,.5)", border: "1px solid rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
+                </span>
+                <span style={{ position: "absolute", left: 12, bottom: 12, fontFamily: serif, fontWeight: 600, color: "#fff", fontSize: "1rem", textShadow: "0 2px 8px #000" }}>📍 {name}</span>
+              </div>
+            ))}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 12, padding: "22px 20px", borderRadius: 16, background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)" }}>
             <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", color: "var(--pb-gold-soft)" }}>EARLY ACCESS</div>
             <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", lineHeight: 1.1 }}>Get behind the Pines before anyone else.</div>
@@ -545,13 +548,25 @@ export default function LandingPage() {
           .pbl-split { grid-template-columns: 1fr !important; }
           .pbl-swap { order: 2; }
           .pbl-5 { grid-template-columns: 1fr 1fr !important; }
-          .pbl-pines { grid-template-columns: 1fr 1fr !important; }
+          .pbl-pines { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 680px){
           .pbl-3 { grid-template-columns: 1fr !important; }
           .pbl-5 { grid-template-columns: 1fr 1fr !important; }
-          .pbl-pines { grid-template-columns: 1fr 1fr !important; }
           .pbl-tripcard { grid-template-columns: 1fr !important; }
+          /* Pines reels → swipeable strip, ~2 in view with a peek of the next */
+          .pbl-reels {
+            display: flex !important;
+            grid-template-columns: none !important;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            gap: 12px;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+          }
+          .pbl-reels::-webkit-scrollbar { display: none; }
+          .pbl-reel { flex: 0 0 46%; scroll-snap-align: start; }
         }
       `}</style>
     </div>

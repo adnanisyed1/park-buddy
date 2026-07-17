@@ -3,11 +3,12 @@
 // The React landing page (replaces the legacy public/embed/home). Built from the
 // Figma handoff (fileKey JJlqqcU2BXe2A4WzwS6Oqv) on the shared platform shell —
 // SiteHeader (top nav + mobile bubble) + PbTabBar (mobile bottom bar) come from
-// <SiteHeader/>, so a single nav change hits the whole platform. Scenery is real,
-// licensed park photography via /api/photo; the graphical bits (map, verdict chips,
-// passport stamps, Bortle badge) are SVG/CSS. Copy is 1:1 with the design. Honesty:
-// live sections link to real routes; Pines is "early access", the "Your Edge" trio
-// is framed "coming".
+// <SiteHeader/>, so a single nav change hits the whole platform. Section imagery is
+// the set of tiles generated for the Figma light frame (12:4) — hero, the scenic-
+// route illustration, Pines reels, shop products, close band — served from
+// /public/media/landing (see CoverImg). The graphical bits (verdict chips, passport
+// stamps, Bortle badge) are SVG/CSS. Copy is 1:1 with the design. Honesty: live
+// sections link to real routes; Pines is "early access", the "Your Edge" trio "coming".
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
@@ -42,6 +43,17 @@ function Photo({ q, alt = "", style, overlay }) {
     </div>
   );
 }
+/* Static cover image — the real generated tiles from the Figma light frame (12:4),
+   stored under /public/media/landing. Used where the design ships a specific asset
+   (hero, the scenic-route illustration, Pines reels, shop products, close band). */
+function CoverImg({ src, alt = "", style, imgStyle, overlay }) {
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(160deg,#16321f,#0c1c12)", ...style }}>
+      <img src={src} alt={alt} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...imgStyle }} />
+      {overlay && <div style={{ position: "absolute", inset: 0, background: overlay }} />}
+    </div>
+  );
+}
 
 const Eyebrow = ({ children, style }) => (
   <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--pb-gold-soft)", ...style }}>{children}</div>
@@ -56,7 +68,7 @@ const section = { maxWidth: 1120, margin: "0 auto", padding: "clamp(72px,10vw,12
 
 /* ============================= HERO ============================= */
 function Hero() {
-  const hero = usePhoto("Grand Teton National Park");
+  const hero = "/media/landing/hero.jpg"; // Figma light frame (12:4) hero render
   return (
     <header style={{ position: "relative", minHeight: "min(100vh,860px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "120px 20px 90px", overflow: "hidden" }}>
       <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: `url(${hero || "/media/hero-loop-poster.jpg"})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.05)" }} />
@@ -141,12 +153,6 @@ function VerdictEngine() {
 }
 
 /* ====================== EXPLORE (map) ====================== */
-const PINS = [
-  { name: "Olympic", x: 8, y: 22, v: "GO" }, { name: "Yosemite", x: 12, y: 52, v: "PREPARE" },
-  { name: "Zion", x: 26, y: 58, v: "GO" }, { name: "Yellowstone", x: 40, y: 30, v: "PREPARE" },
-  { name: "Grand Canyon", x: 30, y: 62, v: "GO" }, { name: "Smoky Mtns", x: 74, y: 60, v: "GO" },
-  { name: "Acadia", x: 90, y: 26, v: "HOLD" },
-];
 function ExploreSection() {
   return (
     // Intentional dark feature-band — stays dark even in Light mode (per the light
@@ -163,13 +169,9 @@ function ExploreSection() {
           <Link href="/explore" style={{ fontFamily: sans, fontWeight: 700, fontSize: ".9rem", color: "var(--pb-gold)", textDecoration: "none" }}>Open the live map →</Link>
         </div>
         <div style={{ position: "relative", aspectRatio: "16/11", borderRadius: 20, overflow: "hidden", border: "1px solid var(--pb-line-strong)", background: "radial-gradient(120% 100% at 50% 0%,#12241a,#0a1712)" }}>
-          <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(217,183,121,.09) 1px,transparent 1px)", backgroundSize: "26px 26px", opacity: .5 }} />
-          {PINS.map((p) => (
-            <span key={p.name} style={{ position: "absolute", left: p.x + "%", top: p.y + "%", transform: "translate(-50%,-100%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <svg width="20" height="26" viewBox="0 0 24 30"><path d="M12 0C6 0 1.5 4.6 1.5 10.5 1.5 18 12 30 12 30S22.5 18 22.5 10.5C22.5 4.6 18 0 12 0Z" fill={V[p.v]} stroke="rgba(0,0,0,.35)" /><circle cx="12" cy="10.5" r="3.6" fill="#0a1712" /></svg>
-              <span style={{ fontFamily: mono, fontSize: ".44rem", color: "#cfd6cf", marginTop: 2, whiteSpace: "nowrap", textShadow: "0 1px 3px #000" }}>{p.name}</span>
-            </span>
-          ))}
+          {/* Real "map that breathes" render from the Figma light frame (glowing US
+              outline on the console table); the verdict card floats over it. */}
+          <CoverImg src="/media/landing/map-band.jpg" alt="Live national-park map" />
           {/* verdict card */}
           <div style={{ position: "absolute", right: 14, top: 14, width: 190, background: "rgba(9,17,12,.9)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", border: "1px solid " + V.PREPARE + "55", borderRadius: 14, padding: "12px 13px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -195,20 +197,26 @@ function TripStudioSection() {
   return (
     <section style={{ ...section }}>
       <div className="pbl-split" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 40, alignItems: "center" }}>
-        <div className="pbl-swap" style={{ position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", padding: 18 }}>
-          <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".14em", color: "var(--pb-gold-soft)", marginBottom: 12 }}>ROUTE ITINERARY · 4 DAYS</div>
-          {[["Yosemite Valley", "GO", "Clear sky · 76°F"], ["Death Valley", "PREPARE", "Extreme heat · 112°F"]].map(([n, v, d], i) => (
-            <div key={n}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0" }}>
-                <span style={{ width: 30, height: 30, borderRadius: "50%", flex: "none", background: "linear-gradient(150deg,#1f5e46,#0e2016)", border: "1px solid " + V[v] + "88", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, color: V[v], fontSize: ".85rem" }}>{i + 1}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ fontSize: ".95rem", color: "var(--pb-ink)" }}>{n}</b><VChip v={v} small /></div>
-                  <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>{d}</div>
+        <div className="pbl-swap pbl-tripcard" style={{ position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", padding: 18, display: "grid", gridTemplateColumns: "1fr 0.9fr", gap: 16, alignItems: "center" }}>
+          <div>
+            <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".14em", color: "var(--pb-gold-soft)", marginBottom: 12 }}>ROUTE ITINERARY · 4 DAYS</div>
+            {[["Yosemite Valley", "GO", "Clear sky · 76°F"], ["Death Valley", "PREPARE", "Extreme heat · 112°F"]].map(([n, v, d], i) => (
+              <div key={n}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0" }}>
+                  <span style={{ width: 30, height: 30, borderRadius: "50%", flex: "none", background: "linear-gradient(150deg,#1f5e46,#0e2016)", border: "1px solid " + V[v] + "88", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, color: V[v], fontSize: ".85rem" }}>{i + 1}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ fontSize: ".95rem", color: "var(--pb-ink)" }}>{n}</b><VChip v={v} small /></div>
+                    <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>{d}</div>
+                  </div>
                 </div>
+                {i === 0 && <div style={{ marginLeft: 15, paddingLeft: 20, borderLeft: "1px dashed var(--pb-line-strong)", fontFamily: mono, fontSize: ".6rem", color: "var(--pb-muted)", padding: "4px 0 4px 20px" }}>↓ Drive 4h 15m</div>}
               </div>
-              {i === 0 && <div style={{ marginLeft: 15, paddingLeft: 20, borderLeft: "1px dashed var(--pb-line-strong)", fontFamily: mono, fontSize: ".6rem", color: "var(--pb-muted)", padding: "4px 0 4px 20px" }}>↓ Drive 4h 15m</div>}
-            </div>
-          ))}
+            ))}
+          </div>
+          {/* Scenic-route illustration generated for this section (Figma light 12:4) */}
+          <div style={{ position: "relative", aspectRatio: "4/3", borderRadius: 14, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
+            <CoverImg src="/media/landing/scenic-route.jpg" alt="Illustrated scenic route" />
+          </div>
         </div>
         <div>
           <Eyebrow>Plan</Eyebrow>
@@ -278,10 +286,15 @@ function PinesSection() {
           <p style={{ fontSize: ".96rem", lineHeight: 1.6, color: "var(--pb-ink-2)", marginTop: 14 }}>Short videos & photos of real, GPS‑verified adventures — pinned to the exact place, shown next to today's conditions. No stock. No fakes.</p>
         </div>
         <div className="pbl-pines" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.1fr", gap: 14, marginTop: 40, alignItems: "stretch" }}>
-          {["Grand Teton National Park", "Sequoia National Park", "Zion National Park"].map((p) => (
-            <div key={p} style={{ position: "relative", aspectRatio: "3/4", borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
-              <Photo q={p} overlay="linear-gradient(180deg,transparent 50%,rgba(6,14,10,.85))" />
-              <span style={{ position: "absolute", left: 12, bottom: 12, fontFamily: serif, fontWeight: 600, color: "#fff", fontSize: "1rem", textShadow: "0 2px 8px #000" }}>📍 {p.replace(" National Park", "")}</span>
+          {[["Glacier", "GO", "/media/landing/reel-glacier.jpg"], ["Sequoia", null, "/media/landing/reel-sequoia.jpg"], ["Grand Teton", "PREPARE", "/media/landing/reel-teton.jpg"]].map(([name, v, src]) => (
+            <div key={name} style={{ position: "relative", aspectRatio: "3/4", borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
+              <CoverImg src={src} alt={name} overlay="linear-gradient(180deg,rgba(6,14,10,.15) 0%,transparent 40%,rgba(6,14,10,.85))" />
+              {v && <span style={{ position: "absolute", right: 10, top: 10 }}><VChip v={v} small /></span>}
+              {/* play affordance (Pines is short video) */}
+              <span style={{ position: "absolute", top: "44%", left: "50%", transform: "translate(-50%,-50%)", width: 40, height: 40, borderRadius: "50%", background: "rgba(10,17,12,.5)", border: "1px solid rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
+              </span>
+              <span style={{ position: "absolute", left: 12, bottom: 12, fontFamily: serif, fontWeight: 600, color: "#fff", fontSize: "1rem", textShadow: "0 2px 8px #000" }}>📍 {name}</span>
             </div>
           ))}
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 12, padding: "22px 20px", borderRadius: 16, background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)" }}>
@@ -305,9 +318,9 @@ function PinesSection() {
 
 /* ====================== SHOP ====================== */
 const PRODUCTS = [
-  { l: "Trail Badges Collection", d: "Heavyweight embroidered t‑shirt", q: "Yosemite National Park" },
-  { l: "Tribes Hoodie", d: "Deep forest fleece, oversized fit", q: "Sequoia National Park" },
-  { l: "Trip Book", d: "Custom‑printed adventure logbook", q: "Grand Canyon National Park", href: "/trip-book" },
+  { l: "Trail Badges Collection", d: "Heavyweight embroidered t‑shirt", price: "$38", src: "/media/landing/shop-badges-tee.jpg" },
+  { l: "Tribes Hoodie", d: "Deep forest fleece, oversized fit", price: "$72", src: "/media/landing/shop-tribes-hoodie.jpg" },
+  { l: "Trip Book", d: "Custom‑printed adventure logbook", price: "$45", src: "/media/landing/shop-trip-book.jpg", href: "/trip-book" },
 ];
 function ShopSection() {
   return (
@@ -323,10 +336,13 @@ function ShopSection() {
       <div className="pbl-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 34 }}>
         {PRODUCTS.map((p) => (
           <Link key={p.l} href={p.href || "/shop"} className="pbl-card" style={{ borderRadius: 18, overflow: "hidden", border: "1px solid var(--pb-line)", background: "var(--pb-surface)", textDecoration: "none" }}>
-            <div style={{ position: "relative", aspectRatio: "4/3" }}><Photo q={p.q} overlay="linear-gradient(180deg,rgba(10,23,18,.1),rgba(10,23,18,.55))" /></div>
-            <div style={{ padding: "14px 16px 18px" }}>
-              <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>{p.l}</div>
-              <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 2 }}>{p.d}</div>
+            <div style={{ position: "relative", aspectRatio: "4/3", background: "#f2f0ec" }}><CoverImg src={p.src} alt={p.l} style={{ background: "#f2f0ec" }} imgStyle={{ objectFit: "cover" }} /></div>
+            <div style={{ padding: "14px 16px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>{p.l}</div>
+                <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 2 }}>{p.d}</div>
+              </div>
+              <span style={{ fontFamily: mono, fontSize: ".8rem", fontWeight: 700, color: "var(--pb-gold)", flex: "none", marginTop: 3 }}>{p.price}</span>
             </div>
           </Link>
         ))}
@@ -392,7 +408,7 @@ const SoonTag = () => <span style={{ position: "absolute", top: 16, right: 16, f
 
 /* ====================== CLOSE ====================== */
 function CloseSection() {
-  const bg = usePhoto("Grand Canyon National Park");
+  const bg = "/media/landing/close.jpg"; // Figma light frame (12:4) closing band
   return (
     <section style={{ position: "relative", minHeight: 420, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "clamp(80px,12vw,140px) 24px", overflow: "hidden" }}>
       <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: `url(${bg || "/media/hero-loop-poster.jpg"})`, backgroundSize: "cover", backgroundPosition: "center" }} />
@@ -469,6 +485,7 @@ export default function LandingPage() {
           .pbl-3 { grid-template-columns: 1fr !important; }
           .pbl-5 { grid-template-columns: 1fr 1fr !important; }
           .pbl-pines { grid-template-columns: 1fr 1fr !important; }
+          .pbl-tripcard { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>

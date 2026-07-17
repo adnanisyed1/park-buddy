@@ -427,7 +427,10 @@ function Spread({ spread, startPage = 3 }) {
   const ready = useLayoutTick();
   const lay = layoutOf(spread, ready);
   const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
-  const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", aspectRatio: SPREAD_ASPECT };
+  // rowGap/columnGap, not the `gap` shorthand: the story spread below re-uses this
+  // and overrides columnGap, and React warns (then drops one) when a shorthand and
+  // its longhand are both set on a re-render.
+  const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: "14px", columnGap: "14px", aspectRatio: SPREAD_ASPECT };
   const bothStory = lay.left.type === "story" && lay.right.type === "story";
 
   // Text-only chapter: the prose runs across both pages as balanced columns, so
@@ -435,7 +438,7 @@ function Spread({ spread, startPage = 3 }) {
   if (bothStory) {
     return (
       <div style={card}>
-        <div style={{ ...pages, display: "block", padding: "18px 8px", columnCount: 2, columnGap: 34, overflow: "hidden" }}>
+        <div style={{ ...pages, display: "block", padding: "18px 8px", columnCount: 2, columnGap: "34px", overflow: "hidden" }}>
           <SpreadStory spread={spread} />
         </div>
         <PageNums start={startPage} />
@@ -659,22 +662,27 @@ export default function TripBook() {
 
   if (!mounted) {
     return (
-      <>
+      <div className="pb-theme">
         <SiteHeader acctSlot hideTabBar />
-        <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", paddingTop: 90 }} />
-      </>
+        <div style={{ minHeight: "100vh", background: "var(--pb-bg)", paddingTop: 90 }} />
+      </div>
     );
   }
 
   return (
-    <>
+    /* `.pb-theme` wraps the HEADER TOO. It's the class that opts a page into the
+       light palette, and it only ever re-values --pb-* tokens (no layout of its
+       own) — so a header outside it kept the dark theme's near-white ink while the
+       page under it went cream, which is why sign-in, My Trip and the theme toggle
+       read as invisible in light mode. */
+    <div className="pb-theme">
       {/* The MAIN Park Buddy banner stays — same header as the landing/rest of the
           platform. The studio's own bar sits below it as a page toolbar (and supplies
           the phone's bottom bar, so hideTabBar avoids two bottom bars). */}
       <SiteHeader acctSlot hideTabBar />
       {/* Desktop is a fixed-height workspace: the book stays put and only the rails
           scroll. (Phone keeps normal page scrolling.) */}
-      <div className="pb-theme" style={{ background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: 90,
+      <div style={{ background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: 90,
         ...(isPhone ? { minHeight: "100vh" } : { height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }) }}>
         {isPhone
           ? <MobilePhone {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
@@ -687,7 +695,7 @@ export default function TripBook() {
         .bs-btn:hover{ border-color: var(--pb-gold-2) !important; }
         .bs-reels::-webkit-scrollbar{ display:none; }
       `}</style>
-    </>
+    </div>
   );
 }
 

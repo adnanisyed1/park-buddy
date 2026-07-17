@@ -1419,47 +1419,8 @@ function movePhotoIn(spread, from, to) {
   }
 }
 
-// One writing section's editor, capped to the space it prints in. The first writing
-// block of a chapter mirrors the trip's story; extra blocks are book-only.
-function StoryBox({ spread, item, labelled }) {
-  const initial = () => (item.text != null ? item.text : (item.storyIndex === 0 ? (spread.story || "") : ""));
-  const [draft, setDraft] = useState(initial);
-  useEffect(() => { setDraft(initial()); /* reset when the chapter or this section changes */ }, [spread.name, item.pane, item.idx, item.text]);
-  const dirty = draft !== initial();
-  const left = item.cap - draft.length;
-  const save = () => {
-    try { setSectionStory(spread.name, item.pane, item.idx, draft); if (item.storyIndex === 0) setStory(spread.name, draft); } catch {}
-  };
-  return (
-    <div>
-      {labelled && <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 5 }}>{item.label} page</div>}
-      <textarea value={draft} maxLength={item.cap} onChange={(e) => setDraft(e.target.value)} rows={labelled ? 3 : 5}
-        placeholder="Write this section…"
-        style={{ width: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "10px 11px", color: "var(--pb-ink)", fontFamily: serif, fontSize: ".9rem", lineHeight: 1.5, outline: "none", resize: "vertical" }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-        <span style={{ fontFamily: mono, fontSize: ".5rem", color: left <= 20 ? "var(--pb-prepare)" : "var(--pb-muted)" }}>{left} left</span>
-        <button onClick={save} disabled={!dirty} style={{ marginLeft: "auto", cursor: dirty ? "pointer" : "default", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 700, color: dirty ? "#0a1712" : "var(--pb-muted)", background: dirty ? GOLD : "transparent", border: dirty ? "none" : "1px solid var(--pb-line)", borderRadius: 8, padding: "6px 14px" }}>{dirty ? "Save" : "Saved"}</button>
-      </div>
-    </div>
-  );
-}
-// All the writing sections of a chapter, each capped to its printed size.
-function StorySectionEditors({ spread }) {
-  useLayoutTick();
-  const lay = layoutOf(spread, true);
-  let si = 0;
-  const items = [];
-  [["left", "Left"], ["right", "Right"]].forEach(([pane, label]) => {
-    const count = lay[pane].length;
-    lay[pane].forEach((s, idx) => { if (s.type === "story") items.push({ pane, label, idx, storyIndex: si++, cap: storyCap(count), text: s.text }); });
-  });
-  if (!items.length) return <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.5 }}>This layout has no writing sections. Switch a section to Story in step 1 to write here.</div>;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {items.map((it) => <StoryBox key={it.pane + it.idx} spread={spread} item={it} labelled={items.length > 1} />)}
-    </div>
-  );
-}
+// (Story is written directly on the book now — see InlineStory. Stop Tools Step 3
+// points there instead of carrying its own editors.)
 
 // Attach a location stamp as a photo, letting the user choose the spot: this stop's
 // own coordinates, or their current location.
@@ -1512,6 +1473,8 @@ function StopTools({ spread, onNext, size, onAddPage }) {
     );
   };
   const coord = fmtCoord(spread.lat, spread.lng);
+  // Open the same Ask Park Buddy assistant the header launches (its floating button).
+  const openAsk = () => { const f = document.querySelector(".pbask-fab, #askPill"); if (f) f.click(); else window.location.href = "/#ask"; };
   const btn = { cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" };
   const lay = layoutOf(spread, true);
   const need = photosNeeded(lay);
@@ -1550,10 +1513,13 @@ function StopTools({ spread, onNext, size, onAddPage }) {
       <div style={{ height: 12 }} />
       <PhotoStrip spread={spread} size={size} />
 
-      {/* STEP 3 — the words, one editor per writing section, each capped to its space. */}
+      {/* STEP 3 — the words. No editor here: you write straight onto the book. */}
       <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>3</span> Write the story</div>
-      <p style={hint}>Type here or straight onto the page. A smaller section holds fewer words — the counter shows how many are left.</p>
-      <StorySectionEditors spread={spread} />
+      <p style={hint}>Write it on the book — click any writing section on the page and type. It saves as you go.</p>
+      <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "13px 14px" }}>
+        <div style={{ fontSize: ".78rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>Want a hand with the words? <b>Ask Park Buddy</b> to draft or polish your story.</div>
+        <button onClick={openAsk} style={{ cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "inherit", fontSize: ".82rem", fontWeight: 700, color: "#14210f", background: "var(--pb-grad-gold)", border: "none", borderRadius: 10, padding: "10px" }}>✦ Ask Park Buddy</button>
+      </div>
 
       {/* Where this stop was — a quiet footnote, not the headline it used to be. */}
       <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", marginTop: 16 }}>

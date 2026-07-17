@@ -51,13 +51,18 @@ function usePhoto(candidates) {
 }
 
 /* ---------------- static config ---------------- */
+/* Cover silhouettes. `photo` says whether this cover uses your cover photo at all —
+   the picker greys the photo chooser out on a type-only cover rather than letting
+   you pick a photo that never prints. */
 const LAYOUTS = [
-  { key: "centered", name: "Centered", desc: "Gold title centered with fine text layout" },
-  { key: "split", name: "Split Photo", desc: "Top-half photo, title beneath" },
-  { key: "minimal", name: "Minimal", desc: "Small debossed gold type, corner aligned" },
-  { key: "editorial", name: "Editorial", desc: "Big headline spanning the cover" },
-  { key: "manuscript", name: "Manuscript", desc: "Botanical bookplate imprint" },
+  { key: "split", name: "Photo on top, title below", desc: "Your photo fills the top half.", photo: "half" },
+  { key: "full", name: "Photo across the whole cover", desc: "Full-bleed photo, title over it.", photo: "full" },
+  { key: "centered", name: "Title only, centered", desc: "No photo — gold type and a seal.", photo: "none" },
+  { key: "editorial", name: "Title only, big headline", desc: "No photo — the title spans the cover.", photo: "none" },
+  { key: "minimal", name: "Title only, corner type", desc: "No photo — small type, low and quiet.", photo: "none" },
+  { key: "manuscript", name: "Title only, bookplate", desc: "No photo — a botanical imprint frame.", photo: "none" },
 ];
+const layoutFor = (key) => LAYOUTS.find((l) => l.key === key) || LAYOUTS[0];
 /* ── Predefined themes ───────────────────────────────────────────────────────
    A theme is a PRESET: base + ink + accent, plus the cover silhouette that suits
    it. Picking one should make a good-looking book with zero design work. Every
@@ -150,6 +155,12 @@ function setStopLayout(name, patch) {
   writeLayouts(o);
 }
 function clearStopLayout(name) { const o = readLayouts(); if (o.stops) delete o.stops[name]; writeLayouts(o); }
+/* The cover photo is a CHOICE, kept alongside the layouts so it rides the same
+   change event. Until it's made we fall back to the first photo in the book —
+   a sensible opening image rather than a blank cover — but the moment the
+   traveller picks one, that's what prints. */
+function getCoverPick() { return readLayouts().cover || null; }
+function setCoverPick(url) { const o = readLayouts(); o.cover = url; writeLayouts(o); }
 // Re-render whenever any layout changes. Returns `ready` — false during SSR and the
 // first client render — because these layouts live in localStorage, which the server
 // can't see. Reading it during render made the server and client disagree
@@ -492,6 +503,23 @@ function CoverPreview({ title, author, region, layout, palette, dateLabel, cover
         </div>
       </>
     );
+  } else if (k === "full") {
+    // Full-bleed photo. The title sits in a scrim at the foot so it stays legible
+    // whatever photo lands underneath it — a bright sky must not eat the title.
+    inner = (
+      <div style={{ position: "absolute", inset: 0 }}>
+        {photo}
+        <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(0,0,0,.42) 0%,rgba(0,0,0,0) 38%,rgba(0,0,0,.18) 58%,rgba(0,0,0,.78) 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, padding: 26, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>{vol}{seal}</div>
+          <div>
+            <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", lineHeight: 1.08, margin: "0 0 6px", color: "#F4F2EC" }}>{title}</h3>
+            {region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".82rem", color: "rgba(244,242,236,.8)", marginBottom: 10 }}>A journey through {region}</div>}
+            {author && <div style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(244,242,236,.85)" }}>{author}</div>}
+          </div>
+        </div>
+      </div>
+    );
   } else if (k === "minimal") {
     inner = (
       <div style={{ position: "absolute", inset: 0, padding: 30, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
@@ -591,8 +619,10 @@ export default function TripBook() {
 
   const spreads = book.spreads;
   const n = spreads.length;
-  const cur = spreads[Math.min(sel, n - 1)] || spreads[0];
-  const layout = LAYOUTS.find((l) => l.key === layoutKey) || LAYOUTS[0];
+  const cur = spreads[Math.min(Math.max(sel, 0), n - 1)] || spreads[0];
+  const layout = layoutFor(layoutKey);
+  // The chosen cover photo wins; until one is chosen, the book's first photo stands in.
+  const coverImg = (mounted && getCoverPick()) || (spreads.find((s) => s.userImg) || {}).userImg || null;
   const custom = customCheck(customBase);
   const palette = pal === "custom"
     ? { key: "custom", name: "Custom " + normHex(customBase).toUpperCase(), base: normHex(customBase), ink: custom.ink || INK_LIGHT, accent: "#C9A24A" }
@@ -614,8 +644,9 @@ export default function TripBook() {
   const priceNum = size.base + n * size.perStop + cover.add;
   const price = "$" + priceNum;
 
-  const prev = () => setSel((s) => (s - 1 + n) % n);
-  const next = () => setSel((s) => (s + 1) % n);
+  // -1 is the cover, so the pager runs cover → chapter 01 → … and wraps.
+  const prev = () => setSel((s) => ((s + 1 - 1 + (n + 1)) % (n + 1)) - 1);
+  const next = () => setSel((s) => ((s + 1 + 1) % (n + 1)) - 1);
 
   const openReserve = () => setReserve({
     theme: palette.name, size: sizeName, price, title: book.title, dates: "", dedication: "",
@@ -624,7 +655,7 @@ export default function TripBook() {
   });
 
   const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, priceNum, customBase, setCustomBase, pickTheme };
-  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, starts, openManage: () => setManageOpen(true) };
+  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, starts, coverImg, layoutKey, openManage: () => setManageOpen(true) };
 
   if (!mounted) {
     return (
@@ -767,8 +798,26 @@ function StopCard({ spread, i, active, onSelect }) {
   );
 }
 
-function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage, setStep, starts }) {
+/* The cover's own card in the page list. It sits above chapter 01 because that's
+   where it sits in the book. */
+function CoverCard({ active, onSelect, layoutKey, coverImg }) {
+  const lay = layoutFor(layoutKey);
+  return (
+    <button onClick={onSelect} className="bs-stopcard"
+      style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", gap: 10, alignItems: "center", background: active ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (active ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "10px 11px" }}>
+      <div aria-hidden style={{ flex: "0 0 30px", height: 40, borderRadius: 3, border: "1px solid var(--pb-line)", background: lay.photo !== "none" && coverImg ? `center/cover url(${coverImg})` : "var(--pb-tint)" }} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Cover</div>
+        <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)", margin: "1px 0 2px" }}>Front cover</div>
+        <div style={{ fontSize: ".66rem", color: "var(--pb-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lay.name}</div>
+      </div>
+    </button>
+  );
+}
+
+function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage, setStep, starts, layoutKey, setLayoutKey, palette, coverImg, cover, finish, size }) {
   const author = role === "author";
+  const onCover = sel === -1;
   // Fixed height + independently scrolling rails — the book stays put instead of
   // the whole page scrolling away under you.
   return (
@@ -776,19 +825,24 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
       {author && (
         <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Eyebrow>Your Stops ({n})</Eyebrow>
+            <Eyebrow>Your Pages ({n + 1})</Eyebrow>
             <button onClick={openManage} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 11px" }}>Manage</button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
+            <CoverCard active={onCover} onSelect={() => setSel(-1)} layoutKey={layoutKey} coverImg={coverImg} />
             {spreads.map((s, i) => <StopCard key={s.id || s.name} spread={s} i={i} active={i === sel} onSelect={() => setSel(i)} />)}
           </div>
         </aside>
       )}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "24px 30px", overflowY: "auto" }}>
-        <Spread spread={cur} startPage={(starts || [])[sel] || 3} />
-        <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
+        {onCover
+          ? <CoverPreview title={book.title} author={book.author} region={book.region} layout={layoutFor(layoutKey)} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
+          : <Spread spread={cur} startPage={(starts || [])[sel] || 3} />}
+        <Pager i={sel + 1} n={n + 1} label={onCover ? "Front cover" : cur.name} onPrev={prev} onNext={next} />
       </main>
-      {author && <StopTools spread={cur} onNext={() => setStep("theme")} />}
+      {author && (onCover
+        ? <CoverTools spreads={spreads} layoutKey={layoutKey} setLayoutKey={setLayoutKey} coverImg={coverImg} onNext={() => setStep("theme")} />
+        : <StopTools spread={cur} onNext={() => setStep("theme")} />)}
     </div>
   );
 }
@@ -844,6 +898,80 @@ function LayoutPicker({ value, onChange, onReset, isOverride }) {
         </button>
       )}
     </>
+  );
+}
+
+/* The cover silhouette list — what shape the cover is, in the same words on
+   desktop and phone. */
+function CoverLayoutList({ layoutKey, setLayoutKey }) {
+  return (
+    <div style={{ display: "grid", gap: 5 }}>
+      {LAYOUTS.map((l) => (
+        <button key={l.key} onClick={() => setLayoutKey(l.key)}
+          style={{ cursor: "pointer", textAlign: "left", fontFamily: "inherit", background: l.key === layoutKey ? "var(--pb-surface-2)" : "transparent", border: "1px solid " + (l.key === layoutKey ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 8, padding: "7px 10px" }}>
+          <span style={{ display: "block", fontSize: ".72rem", fontWeight: l.key === layoutKey ? 700 : 500, color: "var(--pb-ink)" }}>{l.name}</span>
+          <span style={{ display: "block", fontSize: ".62rem", color: "var(--pb-muted)", marginTop: 2 }}>{l.desc}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* Which photo goes on the cover. Every photo already in the book is a candidate —
+   you shouldn't have to re-upload a shot that's already on page 12. */
+function CoverPhotoPicker({ spreads, layoutKey, coverImg }) {
+  const fileRef = useRef(null);
+  const usesPhoto = layoutFor(layoutKey).photo !== "none";
+  const pool = [];
+  for (const s of spreads || []) for (const u of s.photos || []) if (u && !pool.includes(u)) pool.push(u);
+
+  const onFile = async (e) => {
+    const f = (e.target.files || [])[0];
+    if (f) { try { setCoverPick(await fileToDataUrl(f)); } catch {} }
+    e.target.value = "";
+  };
+  if (!usesPhoto) {
+    return (
+      <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.5, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "11px 12px" }}>
+        This cover is type only — no photo prints on it. Pick a photo layout above to choose one.
+      </div>
+    );
+  }
+  return (
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+        {pool.map((u) => (
+          <button key={u} onClick={() => setCoverPick(u)} aria-label="Use this photo on the cover"
+            style={{ cursor: "pointer", padding: 0, aspectRatio: "3/4", borderRadius: 6, overflow: "hidden", border: "2px solid " + (u === coverImg ? "var(--pb-gold)" : "var(--pb-line)"), background: `center/cover url(${u})` }} />
+        ))}
+        <button onClick={() => fileRef.current && fileRef.current.click()}
+          style={{ cursor: "pointer", aspectRatio: "3/4", borderRadius: 6, border: "1px dashed var(--pb-line-strong)", background: "transparent", color: "var(--pb-muted)", fontFamily: mono, fontSize: ".55rem", lineHeight: 1.3 }}>＋<br />Upload</button>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+      <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 8, lineHeight: 1.5 }}>
+        {pool.length === 0
+          ? "No photos in the book yet — upload one, or add photos to a stop and they'll show up here."
+          : getCoverPick() ? "This is your cover photo." : "Using the first photo in your book until you pick one."}
+      </div>
+    </>
+  );
+}
+
+/* Cover tools — the cover is a page of the book, so it's composed in step 1
+   alongside every other page, not left to be inferred from the theme. */
+function CoverTools({ spreads, layoutKey, setLayoutKey, coverImg, onNext }) {
+  useLayoutTick();
+  const cap = { fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 7 };
+  return (
+    <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+      <Eyebrow>Cover Tools</Eyebrow>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Design your cover</h3>
+      <div style={cap}>Cover layout</div>
+      <CoverLayoutList layoutKey={layoutKey} setLayoutKey={setLayoutKey} />
+      <div style={{ ...cap, marginTop: 18 }}>Cover photo</div>
+      <CoverPhotoPicker spreads={spreads} layoutKey={layoutKey} coverImg={coverImg} />
+      <button onClick={onNext} style={{ cursor: "pointer", width: "100%", marginTop: 22, fontFamily: "inherit", fontSize: ".85rem", fontWeight: 700, color: "#14210f", background: "var(--pb-gold)", border: "none", borderRadius: 10, padding: "12px" }}>Next: Theme →</button>
+    </aside>
   );
 }
 
@@ -939,25 +1067,17 @@ function StopTools({ spread, onNext }) {
   );
 }
 
-function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme }) {
+function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme, coverImg }) {
   useLayoutTick();
   const reader = role === "reader";
-  const coverImg = ((spreads || []).find((s) => s.userImg) || {}).userImg || null;
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!reader && (
         <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
-          <Eyebrow>Cover Layouts</Eyebrow>
-          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "var(--pb-ink)", margin: "6px 0 16px" }}>Select Silhouette</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {LAYOUTS.map((l) => (
-              <button key={l.key} className="bs-stopcard" onClick={() => setLayoutKey(l.key)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: l.key === layout.key ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (l.key === layout.key ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "11px 13px" }}>
-                <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)" }}>{l.name}</div>
-                <div style={{ fontSize: ".7rem", color: "var(--pb-muted)", marginTop: 2 }}>{l.desc}</div>
-              </button>
-            ))}
-          </div>
-          <div style={{ marginTop: 22 }}>
+          {/* The cover's layout and photo are composed in step 1 with every other
+              page; this step is the book's look and materials. Picking a theme still
+              moves the cover to the silhouette it was designed around. */}
+          <div style={{ marginTop: 0 }}>
             <ThemeCards pal={pal} pickTheme={pickTheme} />
             <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />
           </div>
@@ -1130,11 +1250,10 @@ function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, fini
   );
 }
 
-function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish, starts }) {
+function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish, starts, coverImg }) {
   const reader = role === "reader";
   const [pv, setPv] = useState(0); // 0 cover · 1 intro · 2..n+1 stops · n+2 final
   const total = n + 3;
-  const coverImg = (spreads.find((s) => s.userImg) || {}).userImg || null;
   const toc = [["Cover", "—"], ["Introduction", "02"], ...spreads.map((s, i) => [s.name, String((starts || [])[i] || 3).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -1178,7 +1297,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
 
 /* ---------------- mobile ---------------- */
 function MobilePhone(props) {
-  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme } = props;
+  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme, coverImg } = props;
   const BAR = 64;
   return (
     <div style={{ paddingBottom: BAR + 10 }}>
@@ -1199,6 +1318,10 @@ function MobilePhone(props) {
                   <button onClick={openManage} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 11px" }}>Manage</button>
                 </div>
                 <div className="bs-reels" style={{ display: "flex", gap: 10, overflowX: "auto", margin: "10px -4px 16px", padding: "0 4px 4px", scrollbarWidth: "none" }}>
+                  <button onClick={() => setSel(-1)} style={{ flex: "0 0 46%", textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: sel === -1 ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (sel === -1 ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 11px" }}>
+                    <div style={{ fontFamily: mono, fontSize: ".46rem", color: "var(--pb-muted)" }}>COVER</div>
+                    <div style={{ fontWeight: 600, fontSize: ".8rem", color: "var(--pb-ink)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Front cover</div>
+                  </button>
                   {spreads.map((s, i) => (
                     <button key={i} onClick={() => setSel(i)} style={{ flex: "0 0 46%", textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: i === sel ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (i === sel ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 11px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -1209,44 +1332,53 @@ function MobilePhone(props) {
                     </button>
                   ))}
                 </div>
-                <div style={{ display: "flex", background: "var(--pb-tint)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: 3, marginBottom: 14 }}>
-                  {[["photo", "Photo Spread"], ["story", "Story Text"]].map(([k, l]) => (
-                    <button key={k} onClick={() => setMobilePage(k)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: mobilePage === k ? 700 : 500, border: "none", borderRadius: 8, padding: "8px", background: mobilePage === k ? "var(--pb-surface)" : "transparent", color: mobilePage === k ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
-                  ))}
-                </div>
+                {sel !== -1 && (
+                  <div style={{ display: "flex", background: "var(--pb-tint)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: 3, marginBottom: 14 }}>
+                    {[["photo", "Photo Spread"], ["story", "Story Text"]].map(([k, l]) => (
+                      <button key={k} onClick={() => setMobilePage(k)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: mobilePage === k ? 700 : 500, border: "none", borderRadius: 8, padding: "8px", background: mobilePage === k ? "var(--pb-surface)" : "transparent", color: mobilePage === k ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
+                    ))}
+                  </div>
+                )}
               </>
             )}
             <div style={{ maxWidth: 460, margin: "0 auto" }}>
-              {mobilePage === "photo" || role === "reader"
-                ? <div style={{ aspectRatio: "3/4", borderRadius: 12, overflow: "hidden", border: "1px solid var(--pb-line)" }}><SpreadPhoto spread={cur} rounded={false} /></div>
-                : <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: 18 }}><SpreadStory spread={cur} /></div>}
+              {sel === -1
+                ? <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
+                : mobilePage === "photo" || role === "reader"
+                  ? <div style={{ aspectRatio: "3/4", borderRadius: 12, overflow: "hidden", border: "1px solid var(--pb-line)" }}><SpreadPhoto spread={cur} rounded={false} /></div>
+                  : <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: 18 }}><SpreadStory spread={cur} /></div>}
             </div>
             {role === "author" && (
               <div style={{ maxWidth: 460, margin: "14px auto 0", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, overflow: "hidden" }}>
                 <button onClick={() => setToolsOpen((v) => !v)} style={{ width: "100%", cursor: "pointer", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "none", border: "none" }}>
-                  <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Stop Tools · {fmtCoord(cur.lat, cur.lng) || "—"}</span>
+                  <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{sel === -1 ? "Cover Tools" : `Stop Tools · ${fmtCoord(cur.lat, cur.lng) || "—"}`}</span>
                   <span style={{ color: "var(--pb-ink-2)" }}>{toolsOpen ? "▾" : "▸"}</span>
                 </button>
-                {toolsOpen && <div style={{ padding: "0 14px 14px" }}><MobileStopTools spread={cur} /></div>}
+                {toolsOpen && (
+                  <div style={{ padding: "0 14px 14px" }}>
+                    {sel === -1 ? (
+                      <>
+                        <Eyebrow>Cover layout</Eyebrow>
+                        <div style={{ height: 8 }} />
+                        <CoverLayoutList layoutKey={layout.key} setLayoutKey={setLayoutKey} />
+                        <div style={{ height: 14 }} />
+                        <Eyebrow>Cover photo</Eyebrow>
+                        <div style={{ height: 8 }} />
+                        <CoverPhotoPicker spreads={spreads} layoutKey={layout.key} coverImg={coverImg} />
+                      </>
+                    ) : <MobileStopTools spread={cur} />}
+                  </div>
+                )}
               </div>
             )}
-            <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
+            <Pager i={sel + 1} n={n + 1} label={sel === -1 ? "Front cover" : cur.name} onPrev={prev} onNext={next} />
           </>
         )}
 
         {step === "theme" && (
           <>
             <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 20px" }}>
-              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={(spreads.find((s) => s.userImg) || {}).userImg || null} cover={cover} finish={finish} size={size} />
-            </div>
-            <Eyebrow>Cover Layouts</Eyebrow>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0 18px" }}>
-              {LAYOUTS.map((l) => (
-                <button key={l.key} onClick={() => setLayoutKey(l.key)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: l.key === layout.key ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (l.key === layout.key ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "11px 13px" }}>
-                  <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)" }}>{l.name}</div>
-                  <div style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{l.desc}</div>
-                </button>
-              ))}
+              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
             </div>
             <ThemeCards pal={pal} pickTheme={pickTheme} />
             <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />

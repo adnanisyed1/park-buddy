@@ -249,36 +249,80 @@ function Pager({ i, n, label, onPrev, onNext, dots }) {
 }
 
 /* ---------------- cover preview (Theme step) ---------------- */
-function CoverPreview({ title, author, region, layout, palette, dateLabel }) {
+// Each layout renders a visibly distinct silhouette so the choice is meaningful.
+function CoverPreview({ title, author, region, layout, palette, dateLabel, coverImg }) {
   const base = palette.base, ink = palette.ink;
+  const gold = "rgba(217,183,121,.9)";
+  const goldLine = "rgba(217,183,121,.45)";
+  const photo = <div style={{ position: "absolute", inset: 0, background: coverImg ? `center/cover url(${coverImg})` : "linear-gradient(160deg,#2a4a38,#12241a)" }} />;
+  const vol = <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".3em", textTransform: "uppercase", color: gold }}>Vol. I</div>;
+  const byline = author ? <div style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".14em", textTransform: "uppercase", color: ink, opacity: .85 }}>{author}</div> : null;
+  const sub = region ? <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", opacity: .75, color: ink }}>A journey through {region}</div> : null;
+  const seal = <div aria-hidden style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,.6)", display: "flex", alignItems: "center", justifyContent: "center", color: gold, fontSize: ".7rem" }}>✦</div>;
+
+  let inner;
+  const k = layout.key;
+  if (k === "split") {
+    inner = (
+      <>
+        <div style={{ flex: "0 0 48%", position: "relative", margin: 20, marginBottom: 0, overflow: "hidden", borderRadius: 2 }}>{photo}</div>
+        <div style={{ textAlign: "center", padding: "16px 24px 24px" }}>
+          {vol}
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", lineHeight: 1.1, margin: "8px 0 6px", color: ink }}>{title}</h3>
+          {sub}<div style={{ marginTop: 12 }}>{byline}</div>
+        </div>
+      </>
+    );
+  } else if (k === "minimal") {
+    inner = (
+      <div style={{ position: "absolute", inset: 0, padding: 30, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>{vol}{seal}</div>
+        <div>
+          <h3 style={{ fontFamily: serif, fontWeight: 500, fontSize: "1.35rem", lineHeight: 1.15, margin: "0 0 6px", color: ink }}>{title}</h3>
+          {byline}
+        </div>
+      </div>
+    );
+  } else if (k === "editorial") {
+    inner = (
+      <div style={{ position: "absolute", inset: 0, padding: 26, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        {vol}
+        <h3 style={{ fontFamily: serif, fontWeight: 700, fontSize: "2.6rem", lineHeight: 0.98, margin: "10px 0 12px", color: ink, letterSpacing: "-.01em" }}>{title}</h3>
+        <div style={{ height: 2, width: 46, background: gold, marginBottom: 12 }} />
+        {sub}<div style={{ marginTop: "auto" }}>{byline}</div>
+      </div>
+    );
+  } else if (k === "manuscript") {
+    inner = (
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 34 }}>
+        <div aria-hidden style={{ position: "absolute", inset: 24, border: "1px solid " + goldLine }} />
+        <div>
+          {seal}
+          <div style={{ height: 1, width: 90, background: goldLine, margin: "16px auto" }} />
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontStyle: "italic", fontSize: "1.5rem", lineHeight: 1.15, margin: 0, color: ink }}>{title}</h3>
+          <div style={{ height: 1, width: 90, background: goldLine, margin: "16px auto" }} />
+          {byline}
+        </div>
+      </div>
+    );
+  } else { // centered (default)
+    inner = (
+      <div style={{ margin: "auto", textAlign: "center", padding: "0 28px" }}>
+        {vol}
+        <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", lineHeight: 1.1, margin: "12px 0 0", color: ink }}>{title}</h3>
+        {sub && <div style={{ marginTop: 8 }}>{sub}</div>}
+        <div style={{ margin: "22px auto", display: "flex", justifyContent: "center" }}>{seal}</div>
+        {byline}
+        {dateLabel && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".75rem", opacity: .6, marginTop: 6, color: ink }}>{dateLabel}</div>}
+      </div>
+    );
+  }
+
+  const framed = k === "centered" || k === "split";
   return (
     <div style={{ width: 340, maxWidth: "80%", aspectRatio: "17/22", background: base, color: ink, border: "1px solid var(--pb-line)", boxShadow: "0 40px 90px -50px rgba(0,0,0,.8)", borderRadius: 4, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      {/* gold frame rule */}
-      <div aria-hidden style={{ position: "absolute", inset: 16, border: "1px solid rgba(217,183,121,.45)", borderRadius: 2, pointerEvents: "none" }} />
-      {layout.key === "split" ? (
-        <>
-          <div style={{ flex: "0 0 46%", position: "relative", margin: 22, marginBottom: 0, overflow: "hidden", borderRadius: 2 }}>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,#2a4a38,#12241a)" }} />
-          </div>
-          <CoverText title={title} author={author} region={region} ink={ink} dateLabel={dateLabel} compact />
-        </>
-      ) : (
-        <div style={{ margin: "auto", textAlign: "center", padding: "0 26px" }}>
-          <CoverText title={title} author={author} region={region} ink={ink} dateLabel={dateLabel} />
-        </div>
-      )}
-    </div>
-  );
-}
-function CoverText({ title, author, region, ink, dateLabel, compact }) {
-  return (
-    <div style={{ textAlign: "center", padding: compact ? "18px 26px 26px" : 0 }}>
-      <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".3em", textTransform: "uppercase", color: "rgba(217,183,121,.9)" }}>Vol. I</div>
-      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem", lineHeight: 1.1, margin: "12px 0 0", color: ink }}>{title}</h3>
-      {region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", opacity: .75, marginTop: 8, color: ink }}>A journey through {region}</div>}
-      <div aria-hidden style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(217,183,121,.6)", margin: "22px auto", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(217,183,121,.9)", fontSize: ".7rem" }}>✦</div>
-      {author && <div style={{ fontFamily: mono, fontSize: ".55rem", letterSpacing: ".14em", textTransform: "uppercase", color: ink, opacity: .85 }}>{author}</div>}
-      {dateLabel && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".75rem", opacity: .6, marginTop: 6, color: ink }}>{dateLabel}</div>}
+      {framed && <div aria-hidden style={{ position: "absolute", inset: 16, border: "1px solid " + goldLine, borderRadius: 2, pointerEvents: "none" }} />}
+      {inner}
     </div>
   );
 }
@@ -611,9 +655,34 @@ const SummaryRows = ({ rows }) => (
   </div>
 );
 
+// A book "page" for the Preview flip-through: cover, intro, a stop spread, or the close.
+function BookPage({ pv, n, spreads, book, palette, layout, coverImg }) {
+  if (pv === 0) return <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} coverImg={coverImg} />;
+  if (pv === 1) return (
+    <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "48px 40px", textAlign: "center" }}>
+      <Eyebrow>Introduction</Eyebrow>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.9rem", color: "var(--pb-ink)", margin: "14px 0 0" }}>{book.title}</h3>
+      {book.region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1rem", color: "var(--pb-ink-2)", marginTop: 8 }}>A journey through {book.region}</div>}
+      <div style={{ width: 44, height: 1, background: "var(--pb-line-strong)", margin: "22px auto" }} />
+      <p style={{ fontFamily: serif, fontSize: ".98rem", lineHeight: 1.7, color: "var(--pb-ink-2)", maxWidth: 340, margin: "0 auto" }}>{n} chapters, gathered from the road — the places we stood, the light we caught, and the stories worth keeping.</p>
+    </div>
+  );
+  if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} />;
+  return (
+    <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "56px 40px", textAlign: "center" }}>
+      <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.5rem", color: "var(--pb-ink)" }}>Adventure&rsquo;s better with a Buddy.</div>
+      <div style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", color: "var(--pb-gold)", display: "flex", alignItems: "center", justifyContent: "center", margin: "22px auto 0" }}>✦</div>
+      <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 22 }}>The Park Buddy · parkbuddy.app</div>
+    </div>
+  );
+}
+
 function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish }) {
   const reader = role === "reader";
-  const toc = [["Cover Layout", "—"], ["Introduction", "01"], ...spreads.map((s, i) => [s.name, String(4 + i * 4).padStart(2, "0")]), ["Final Page Summary", String(pages).padStart(2, "0")]];
+  const [pv, setPv] = useState(0); // 0 cover · 1 intro · 2..n+1 stops · n+2 final
+  const total = n + 3;
+  const coverImg = (spreads.find((s) => s.userImg) || {}).userImg || null;
+  const toc = [["Cover", "—"], ["Introduction", "01"], ...spreads.map((s, i) => [s.name, String(4 + i * 4).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
       {!reader && (
@@ -621,9 +690,9 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
           <Eyebrow>Book Contents</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", marginTop: 14 }}>
             {toc.map(([label, pg], i) => {
-              const active = i >= 2 && i - 2 === sel;
+              const active = i === pv;
               return (
-                <button key={i} onClick={() => i >= 2 && i - 2 < n && setSel(i - 2)} style={{ textAlign: "left", cursor: i >= 2 ? "pointer" : "default", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: active ? "var(--pb-surface-2)" : "transparent", border: "none" }}>
+                <button key={i} onClick={() => setPv(i)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 8, background: active ? "var(--pb-surface-2)" : "transparent", border: "none" }}>
                   <span style={{ fontSize: ".85rem", color: active ? "var(--pb-ink)" : "var(--pb-ink-2)", fontWeight: active ? 600 : 400 }}>{label}</span>
                   <span style={{ fontFamily: mono, fontSize: ".6rem", color: "var(--pb-muted)" }}>{pg}</span>
                 </button>
@@ -633,8 +702,8 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
         </aside>
       )}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
-        <Spread spread={cur} />
-        <Pager i={sel} n={n} onPrev={prev} onNext={next} dots />
+        <BookPage pv={pv} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} />
+        <Pager i={pv} n={total} onPrev={() => setPv((p) => (p - 1 + total) % total)} onNext={() => setPv((p) => (p + 1) % total)} dots />
       </main>
       {!reader && (
         <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>

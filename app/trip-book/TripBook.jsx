@@ -337,8 +337,8 @@ export default function TripBook() {
 
   return (
     <>
-      <SiteHeader acctSlot mobileChromeless hideTabBar />
-      <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: isPhone ? 0 : 90 }}>
+      <SiteHeader acctSlot bare hideTabBar />
+      <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans }}>
         {isPhone
           ? <MobilePhone {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
           : <Desktop {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} />}
@@ -358,12 +358,12 @@ export default function TripBook() {
 function TopBar({ step, setStep, role, setRole }) {
   const steps = [["diary", "Diary"], ["theme", "Theme"], ["preview", "Preview"]];
   return (
-    <div style={{ position: "sticky", top: 90, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 64, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ color: "var(--pb-gold)" }}>♟</span>
+    <div style={{ position: "sticky", top: 0, zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 66, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
+      <Link href="/" title="Back to Park Buddy" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+        <img src="/brand/the-park-buddy-badge.png" alt="Park Buddy" width={34} height={34} style={{ width: 34, height: 34, objectFit: "contain", borderRadius: 8 }} />
         <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>Book Studio</span>
         <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".1em", color: "var(--pb-muted)" }}>· The Park Buddy</span>
-      </div>
+      </Link>
       <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
         {steps.map(([k, label], i) => (
           <button key={k} onClick={() => setStep(k)} style={{ cursor: "pointer", background: "none", border: "none", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 7, color: step === k ? "var(--pb-ink)" : "var(--pb-muted)" }}>
@@ -662,10 +662,10 @@ function MobilePhone(props) {
     <div style={{ paddingBottom: BAR + 10 }}>
       {/* top */}
       <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--pb-line)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ color: "var(--pb-gold)" }}>♟</span>
+        <Link href="/" title="Back to Park Buddy" style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none" }}>
+          <img src="/brand/the-park-buddy-badge.png" alt="Park Buddy" width={28} height={28} style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 6 }} />
           <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1rem", color: "var(--pb-ink)" }}>Book Studio</span>
-        </div>
+        </Link>
         <RoleToggle role={role} setRole={setRole} />
       </div>
 

@@ -149,7 +149,7 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
 // mobileChromeless: on phones (≤860px), hide the floating top island (logo + nav
 // pill + hamburger) but keep the platform bottom bar + modals. Pines uses this so
 // its own top toggle can own the top edge (memory/project-mobile-nav-redesign.md).
-export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false, hideTabBar = false }) {
+export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false, hideTabBar = false, bare = false }) {
   const [openKey, setOpenKey] = useState(null); // which top-nav dropdown is open ("explore" | "book" | "shop")
   const [menuOpen, setMenuOpen] = useState(false);
   // Hover-intent: the dropdown anchors below the pill, so moving the mouse from a tab
@@ -234,7 +234,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         fontFamily: "var(--pb-sans)",
       }}
     >
-      <Logo className={mobileChromeless ? "pb-chromeless" : undefined} />
+      <Logo className={[mobileChromeless ? "pb-chromeless" : "", bare ? "pb-bare-hide" : ""].filter(Boolean).join(" ") || undefined} />
 
       {/* Phone-only "you are here" bubble — the current section name; tap to open the
           platform "Go anywhere" tile sheet. Hidden on Pines (mobileChromeless) and on
@@ -442,6 +442,13 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
            teal FAB (off-brand vs the --pb-* system) and open it from the gold header
            button instead. */
         .pbask-fab { display: none !important; }
+        ${bare ? `/* Bare mode (immersive pages like Book Studio): hide the nav island
+             on every size so the page can supply its own header; the modals and
+             assistant that also live here keep working. Only renders on the bare page,
+             so plain class selectors are safe — no child-combinator, which would trip a
+             server/client escaping mismatch (hydration error). */
+          .pb-nav-pill, .pb-nav-actions, .pb-mobile-bubble,
+          .pb-mobile-burger, .pb-mobile-menu, .pb-bare-hide { display: none !important; }` : ""}
       `}</style>
 
       {/* Platform-wide trip planner dialog — auto-opens on any add-to-trip. */}

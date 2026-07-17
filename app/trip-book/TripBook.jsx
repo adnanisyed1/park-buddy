@@ -14,7 +14,7 @@ import Link from "next/link";
 import "./studio.css"; // .tbres-* styles for the reservation modal
 import SiteHeader from "../components/SiteHeader";
 import { useTheme } from "../lib/theme";
-import { getStops, getMeta, subscribeTrip } from "../lib/trip";
+import { getStops, getMeta, subscribeTrip, addStop, removeStop, moveStop } from "../lib/trip";
 import {
   getPhotosFor, getStory, setStory, addPhoto, fileToDataUrl,
   distMiles, addCrumb, subscribeTripMode,
@@ -64,15 +64,50 @@ const PALETTES = {
     { key: "charcoal", name: "Charcoal", base: "#17181a", ink: "#f2f2f0" },
     { key: "navy", name: "Midnight Navy", base: "#0f1a2e", ink: "#eef2f8" },
     { key: "oxblood", name: "Oxblood", base: "#2a1416", ink: "#f4e9e6" },
+    { key: "espresso", name: "Espresso", base: "#241a12", ink: "#f2e8dc" },
+    { key: "slate", name: "Slate Blue", base: "#141b22", ink: "#e8eef4" },
+    { key: "plum", name: "Deep Plum", base: "#1e1420", ink: "#f2e6f0" },
+    { key: "pine", name: "Black Pine", base: "#0c1410", ink: "#e9f0ea" },
   ],
   light: [
     { key: "parchment", name: "Parchment", base: "#FAF8F4", ink: "#1a3a2a" },
     { key: "sage", name: "Sage", base: "#eef1ea", ink: "#1f3326" },
     { key: "blush", name: "Blush", base: "#f6efe9", ink: "#3a2a24" },
     { key: "mist", name: "Mist", base: "#eef1f6", ink: "#20303f" },
+    { key: "linen", name: "Linen", base: "#f4efe6", ink: "#3a3226" },
+    { key: "cloud", name: "Cloud", base: "#f2f4f6", ink: "#2a3138" },
+    { key: "rose", name: "Rose Quartz", base: "#f6eef0", ink: "#3a2830" },
+    { key: "meadow", name: "Meadow", base: "#eef3ec", ink: "#25352a" },
   ],
 };
-const SIZE = '8.5" × 11" Hardcover';
+
+// ── Physical print options (real Lulu SKUs) ──────────────────────────────────
+// The pod_package_id is TRIM.COLOR.QUALITY.BIND.PAPER.FINISH(+linen+foil). All
+// options are premium full color on 80# coated white (photo stock). Retail prices
+// are guided tiers (Lulu print cost + margin + shipping); wire live /api/lulu-cost
+// before charging real money. base + perStop drive the running total.
+const SIZES = [
+  { key: "square", name: 'Square · 8.5 × 8.5"', trim: "0850X0850", base: 44, perStop: 5, note: "Classic keepsake — sits beautifully on a shelf." },
+  { key: "landscape", name: 'Landscape · 11 × 8.5"', trim: "1100X0850", base: 54, perStop: 6, note: "Wider pages — best for sweeping scenery shots." },
+];
+const COVERS = [
+  { key: "casewrap", name: "Photo Hardcover", bind: "CW", add: 0, note: "Your cover photo printed edge-to-edge.", guide: "Most popular" },
+  { key: "linen", name: "Linen + Gold Foil", bind: "LW", add: 20, note: "Forest linen wrap with a gold-foil-stamped spine.", guide: "Heirloom" },
+];
+const FINISHES = [
+  { key: "matte", name: "Matte", code: "M", add: 0, note: "Soft, glare-free — our default." },
+  { key: "gloss", name: "Gloss", code: "G", add: 0, note: "Punchy, high-shine color." },
+];
+// Compose the Lulu pod_package_id from the current selection. (Validate each combo
+// in the Lulu sandbox before go-live — see /api/lulu-cost.)
+function skuFor(sizeKey, coverKey, finishKey) {
+  const sz = SIZES.find((s) => s.key === sizeKey) || SIZES[0];
+  const cv = COVERS.find((c) => c.key === coverKey) || COVERS[0];
+  const fin = FINISHES.find((f) => f.key === finishKey) || FINISHES[0];
+  // linen wrap → forest linen (F) + gold foil (G); casewrap → no linen/foil (XX)
+  const suffix = cv.key === "linen" ? "M" + "FG" : fin.code + "XX";
+  return `${sz.trim}.FC.PRE.${cv.bind}.080CW444.${suffix}`;
+}
 
 // Yosemite sample shown when the visitor has no trip yet (matches the Figma demo).
 const DEMO = {
@@ -261,6 +296,10 @@ export default function TripBook() {
   const [reserve, setReserve] = useState(null);
   const [mobilePage, setMobilePage] = useState("photo"); // photo | story
   const [toolsOpen, setToolsOpen] = useState(true);
+  const [sizeKey, setSizeKey] = useState("square");
+  const [coverKey, setCoverKey] = useState("casewrap");
+  const [finishKey, setFinishKey] = useState("matte");
+  const [manageOpen, setManageOpen] = useState(false);
 
   useEffect(() => {
     const m = window.matchMedia("(max-width: 860px)");
@@ -275,30 +314,37 @@ export default function TripBook() {
   const layout = LAYOUTS.find((l) => l.key === layoutKey) || LAYOUTS[0];
   const palette = [...PALETTES.dark, ...PALETTES.light].find((p) => p.key === pal) || PALETTES.dark[0];
   const isLightPal = PALETTES.light.some((p) => p.key === pal);
+  const size = SIZES.find((s) => s.key === sizeKey) || SIZES[0];
+  const cover = COVERS.find((c) => c.key === coverKey) || COVERS[0];
+  const finish = FINISHES.find((f) => f.key === finishKey) || FINISHES[0];
+  const sizeName = size.name.replace(/·/, "").replace(/\s+/g, " ").trim() + " Hardcover";
+  const sku = skuFor(sizeKey, coverKey, finishKey);
   const pages = 4 + n * 4;
-  const priceNum = 35 + n * 10;
+  const priceNum = size.base + n * size.perStop + cover.add;
   const price = "$" + priceNum;
 
   const prev = () => setSel((s) => (s - 1 + n) % n);
   const next = () => setSel((s) => (s + 1) % n);
 
   const openReserve = () => setReserve({
-    theme: palette.name, size: SIZE, price, title: book.title, dates: "", dedication: "",
-    pages, stops: n,
+    theme: palette.name, size: sizeName, price, title: book.title, dates: "", dedication: "",
+    pages, stops: n, cover: cover.name, finish: finish.name, sku,
     entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
   });
 
-  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role };
+  const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, priceNum };
+  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, openManage: () => setManageOpen(true) };
 
   return (
     <>
       <SiteHeader acctSlot mobileChromeless hideTabBar />
       <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: isPhone ? 0 : 90 }}>
         {isPhone
-          ? <MobilePhone {...commonProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
-          : <Desktop {...commonProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} />}
+          ? <MobilePhone {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
+          : <Desktop {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} />}
       </div>
       {reserve && <ReserveModal data={reserve} onClose={() => setReserve(null)} />}
+      {manageOpen && <ManageStops spreads={spreads} onClose={() => setManageOpen(false)} />}
       <style>{`
         .bs-stopcard:hover{ border-color: var(--pb-line-strong) !important; }
         .bs-btn:hover{ border-color: var(--pb-gold-2) !important; }
@@ -359,13 +405,16 @@ function Desktop(props) {
   );
 }
 
-function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book }) {
+function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage }) {
   const author = role === "author";
   return (
     <div style={{ display: "grid", gridTemplateColumns: author ? "300px 1fr 320px" : "1fr", minHeight: "calc(100vh - 160px)" }}>
       {author && (
         <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "28px 20px" }}>
-          <Eyebrow>Your Stops ({n})</Eyebrow>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Eyebrow>Your Stops ({n})</Eyebrow>
+            <button onClick={openManage} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 11px" }}>Manage</button>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
             {spreads.map((s, i) => (
               <button key={i} className="bs-stopcard" onClick={() => setSel(i)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: i === sel ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (i === sel ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 12, padding: "12px 14px" }}>
@@ -459,7 +508,7 @@ function StopTools({ spread }) {
   );
 }
 
-function ThemeDesktop({ book, layout, setLayoutKey, pal, setPal, palette, price, pages, setStep, role, setRole }) {
+function ThemeDesktop({ book, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey }) {
   const reader = role === "reader";
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
@@ -488,6 +537,9 @@ function ThemeDesktop({ book, layout, setLayoutKey, pal, setPal, palette, price,
               </div>
             ))}
           </div>
+          <div style={{ marginTop: 24 }}>
+            <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
+          </div>
         </aside>
       )}
       <main style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
@@ -496,19 +548,56 @@ function ThemeDesktop({ book, layout, setLayoutKey, pal, setPal, palette, price,
       {!reader && (
         <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
           <Eyebrow>Summary</Eyebrow>
-          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Theme Selection</h3>
-          <SummaryRows rows={[["Format", SIZE], ["Theme", palette.name], ["Cover Layout", layout.name], ["Base Color", palette.base], ["Accent", "Champagne Gold"]]} />
-          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", margin: "18px 0" }}>
-            <span style={{ color: "var(--pb-gold)" }}>✦</span>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)" }}>Gold Foil Imprint</div>
-              <div style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Front &amp; spine debossing</div>
-            </div>
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Your Edition</h3>
+          <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Finish", cover.key === "linen" ? "Matte linen" : finish.name], ["Theme", palette.name], ["Cover art", layout.name]]} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
+            <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Est. total</span>
+            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: "var(--pb-gold)" }}>{price}.00</span>
           </div>
+          {cover.key === "linen" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
+              <span style={{ color: "var(--pb-gold)" }}>✦</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: ".85rem", color: "var(--pb-ink)" }}>Gold Foil Spine</div>
+                <div style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Debossed on forest linen</div>
+              </div>
+            </div>
+          )}
           <button onClick={() => setStep("preview")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Preview Book →</button>
         </aside>
       )}
     </div>
+  );
+}
+
+// Physical print options (size / cover / finish) with guided prices — real Lulu SKUs.
+function FormatPicker({ size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey }) {
+  const Row = ({ label, items, sel, onPick, priced }) => (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontFamily: mono, fontSize: ".48rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 7 }}>{label}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {items.map((it) => (
+          <button key={it.key} className="bs-stopcard" onClick={() => onPick(it.key)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: it.key === sel ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (it.key === sel ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <span style={{ fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{it.name}</span>
+              {it.guide && <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-gold)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "2px 7px" }}>{it.guide}</span>}
+              {priced && it.add > 0 && <span style={{ fontFamily: mono, fontSize: ".6rem", color: "var(--pb-gold-soft)" }}>+${it.add}</span>}
+            </div>
+            {it.note && <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{it.note}</div>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <>
+      <Eyebrow>Format &amp; Finish</Eyebrow>
+      <div style={{ height: 10 }} />
+      <Row label="Size" items={SIZES} sel={sizeKey} onPick={setSizeKey} />
+      <Row label="Cover" items={COVERS} sel={coverKey} onPick={setCoverKey} priced />
+      {cover.key !== "linen" && <Row label="Cover finish" items={FINISHES} sel={finishKey} onPick={setFinishKey} />}
+      <p style={{ fontSize: ".68rem", color: "var(--pb-muted)", lineHeight: 1.5 }}>All editions are premium full-color on 80# photo paper. Prices are estimates — final total (with shipping) is confirmed at checkout.</p>
+    </>
   );
 }
 const SummaryRows = ({ rows }) => (
@@ -522,7 +611,7 @@ const SummaryRows = ({ rows }) => (
   </div>
 );
 
-function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role }) {
+function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish }) {
   const reader = role === "reader";
   const toc = [["Cover Layout", "—"], ["Introduction", "01"], ...spreads.map((s, i) => [s.name, String(4 + i * 4).padStart(2, "0")]), ["Final Page Summary", String(pages).padStart(2, "0")]];
   return (
@@ -551,7 +640,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
         <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
           <Eyebrow>Order Details</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Review &amp; Imprint</h3>
-          <SummaryRows rows={[["Format", SIZE], ["Pages", pages + " Pages"], ["Theme", palette.name], ["Cover", layout.name], ["Stops Included", n + " Stops"]]} />
+          <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Pages", pages + " Pages"], ["Theme", palette.name], ["Stops Included", n + " Stops"]]} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
             <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Total Price</span>
             <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}.00</span>
@@ -567,7 +656,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
 
 /* ---------------- mobile ---------------- */
 function MobilePhone(props) {
-  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen } = props;
+  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey } = props;
   const BAR = 64;
   return (
     <div style={{ paddingBottom: BAR + 10 }}>
@@ -585,7 +674,10 @@ function MobilePhone(props) {
           <>
             {role === "author" && (
               <>
-                <Eyebrow>Your Stops ({n})</Eyebrow>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Eyebrow>Your Stops ({n})</Eyebrow>
+                  <button onClick={openManage} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 11px" }}>Manage</button>
+                </div>
                 <div className="bs-reels" style={{ display: "flex", gap: 10, overflowX: "auto", margin: "10px -4px 16px", padding: "0 4px 4px", scrollbarWidth: "none" }}>
                   {spreads.map((s, i) => (
                     <button key={i} onClick={() => setSel(i)} style={{ flex: "0 0 46%", textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: i === sel ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (i === sel ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 11px" }}>
@@ -637,10 +729,15 @@ function MobilePhone(props) {
               ))}
             </div>
             <Eyebrow>Color Palettes</Eyebrow>
-            <div style={{ display: "flex", gap: 8, margin: "10px 0 20px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, margin: "10px 0 22px", flexWrap: "wrap" }}>
               {[...PALETTES.dark, ...PALETTES.light].map((p) => (
                 <button key={p.key} onClick={() => setPal(p.key)} title={p.name} style={{ cursor: "pointer", width: 38, height: 38, borderRadius: "50%", background: p.base, border: "2px solid " + (p.key === pal ? "var(--pb-gold)" : "var(--pb-line-strong)") }} />
               ))}
+            </div>
+            <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
+              <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>Est. total</span>
+              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}.00</span>
             </div>
             <button onClick={() => setStep("preview")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Preview Book →</button>
           </>
@@ -654,7 +751,7 @@ function MobilePhone(props) {
             <Pager i={sel} n={n} onPrev={prev} onNext={next} dots />
             <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "16px 16px", marginTop: 18 }}>
               <Eyebrow>Order Details</Eyebrow>
-              <div style={{ margin: "12px 0" }}><SummaryRows rows={[["Format", SIZE], ["Pages", pages + " Pages"], ["Stops", n + " Stops"]]} /></div>
+              <div style={{ margin: "12px 0" }}><SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Pages", pages + " Pages"], ["Stops", n + " Stops"]]} /></div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", paddingTop: 12 }}>
                 <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Total</span>
                 <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: "var(--pb-gold)" }}>{price}.00</span>
@@ -705,6 +802,75 @@ function MobileStopTools({ spread }) {
       <button style={btn} onClick={() => setEditing(true)}>✎ Edit Story</button>
       <button style={btn} onClick={() => fileRef.current && fileRef.current.click()}>⤢ Swap Photo</button>
       <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+    </div>
+  );
+}
+
+/* ---------------- manage stops (add / delete / reorder) ---------------- */
+// Operates on the REAL trip (trip.js). Adding a location here creates a real trip
+// if there wasn't one (so the Yosemite sample is replaced by the user's own book).
+function ManageStops({ onClose }) {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const un = subscribeTrip(() => force((x) => x + 1));
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => { un && un(); document.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+  const stops = (() => { try { return getStops() || []; } catch { return []; } })();
+  const [name, setName] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const fileRef = useRef(null);
+
+  const onFile = async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { setPhoto({ url: await fileToDataUrl(f) }); } catch {}
+    e.target.value = "";
+  };
+  const add = () => {
+    const nm = name.trim(); if (!nm) return;
+    try { addStop(nm); if (photo) addPhoto(nm, { url: photo.url }); } catch {}
+    setName(""); setPhoto(null);
+  };
+
+  const iconBtn = { cursor: "pointer", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", color: "var(--pb-ink)", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" };
+  return (
+    <div className="tbres-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="tbres-card" role="dialog" aria-modal="true" style={{ maxWidth: 520 }}>
+        <div className="tbres-kicker">Manage stops</div>
+        <div className="tbres-title">Your book's pages</div>
+        <p className="tbres-note" style={{ marginTop: 4 }}>Reorder, remove, or add a place. Each stop becomes a chapter — add a photo and it prints; leave it and you get a clean typographic page.</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "14px 0" }}>
+          {stops.length === 0 && <div style={{ fontSize: ".85rem", color: "var(--pb-muted)" }}>No stops yet — add your first place below. (You're viewing the sample book until then.)</div>}
+          {stops.map((s, i) => (
+            <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "9px 11px" }}>
+              <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".55rem", color: "var(--pb-muted)", width: 18 }}>{"0" + (i + 1)}</span>
+              <span style={{ flex: 1, fontWeight: 600, fontSize: ".88rem", color: "var(--pb-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+              <button style={{ ...iconBtn, opacity: i === 0 ? .35 : 1 }} disabled={i === 0} onClick={() => moveStop(s.name, -1)} aria-label="Move up">↑</button>
+              <button style={{ ...iconBtn, opacity: i === stops.length - 1 ? .35 : 1 }} disabled={i === stops.length - 1} onClick={() => moveStop(s.name, 1)} aria-label="Move down">↓</button>
+              <button style={{ ...iconBtn, color: "var(--pb-hold)" }} onClick={() => removeStop(s.name)} aria-label="Remove">✕</button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderTop: "1px solid var(--pb-line)", paddingTop: 14 }}>
+          <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-gold-soft)", marginBottom: 8 }}>Add a place</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+            <input list="pb-park-list" className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Park, town, or any place" style={{ flex: 1 }} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+            <button onClick={() => fileRef.current && fileRef.current.click()} style={{ ...iconBtn, width: "auto", padding: "0 12px", gap: 6 }}>{photo ? "✓ Photo" : "＋ Photo"}</button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+          </div>
+          <datalist id="pb-park-list">
+            {DEMO.stops.map((s) => <option key={s.name} value={s.name} />)}
+          </datalist>
+          <button onClick={add} disabled={!name.trim()} style={{ cursor: name.trim() ? "pointer" : "not-allowed", width: "100%", marginTop: 10, fontFamily: "inherit", fontWeight: 700, fontSize: ".85rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 10, padding: "11px", opacity: name.trim() ? 1 : .5 }}>Add to book</button>
+        </div>
+
+        <div className="tbres-actions" style={{ marginTop: 14 }}>
+          <button className="tbres-btn" onClick={onClose}>Done</button>
+        </div>
+      </div>
     </div>
   );
 }

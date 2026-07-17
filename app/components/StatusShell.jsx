@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PhotoThumb from "./PhotoThumb";
 import SiteHeader from "./SiteHeader";
-import { DarkBody } from "../lib/useDarkBody";
+import { ThemedBody } from "../lib/theme";
 
 // Shared look for the new /trail-status, /lake-status, /campground-status
 // pages — standalone deep-linkable content pages (SEO + shareable), separate
@@ -10,13 +10,15 @@ import { DarkBody } from "../lib/useDarkBody";
 // glass header, monospace micro-labels, Space Grotesk stat numbers, cream
 // content area below the hero.
 
-// Migrated to the platform design tokens (dark futuristic-royal). `ink`/`green`
-// are TEXT colors (now light); `cream`/`card`/`dark`/`heroDark` are BACKGROUNDS
-// (now dark). The one place COLORS.cream was used as light TEXT (the dark
-// ConditionCard) is fixed inline below to a literal light value.
+// Content colors are platform TOKENS so these pages honor the light/dark toggle
+// (text darkens and backgrounds lighten in light mode). `dark`/`heroDark` stay
+// literal dark on purpose: `heroDark` sits under the hero photo, and `dark` is the
+// deliberately-dark ConditionCard (permits/fees) that reads light-on-dark in BOTH
+// themes. The hero's own overlaid text is literal-light inline (it's always over a
+// darkened photo) — see HeroBand.
 export const COLORS = {
-  ink: "#f4f1ea", green: "#f4f1ea", gold: "#e8cf9a", goldDark: "#c9a35f",
-  muted: "#7f8a82", cream: "#0a1712", card: "#0b1710", line: "rgba(217,183,121,.16)",
+  ink: "var(--pb-ink)", green: "var(--pb-ink)", gold: "var(--pb-gold)", goldDark: "var(--pb-gold-2)",
+  muted: "var(--pb-muted)", cream: "var(--pb-bg)", card: "var(--pb-surface)", line: "var(--pb-line)",
   dark: "#0e2016", heroDark: "#0a1712",
 };
 const sans = "var(--pb-sans)";
@@ -27,8 +29,8 @@ const microLabel = { fontFamily: mono, fontSize: ".6rem", letterSpacing: ".16em"
 
 export function StatusShell({ children, hero, backHref, backLabel, headerRight, wide, bare }) {
   return (
-    <div style={{ minHeight: "100vh", paddingTop: 62, background: COLORS.cream, fontFamily: sans, color: COLORS.ink }}>
-      <DarkBody />
+    <div className="pb-theme" style={{ minHeight: "100vh", paddingTop: 62, background: COLORS.cream, fontFamily: sans, color: COLORS.ink }}>
+      <ThemedBody />
       <SiteHeader active="explore" />
       {headerRight && <div style={{ position: "fixed", top: 11, right: "clamp(16px,4vw,54px)", zIndex: 101 }}>{headerRight}</div>}
       {hero}
@@ -63,7 +65,7 @@ export function HeroBand({ photoUrl, photoAlt, breadcrumb, title, titleSub, pill
         <span style={{ position: "absolute", top: 14, right: 16, zIndex: 3, background: "rgba(12,26,18,.7)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.22)", color: "rgba(244,241,234,.9)", fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", borderRadius: 999, padding: "5px 11px" }}>{photoBadge}</span>
       )}
       <div style={{ position: "relative", zIndex: 2, maxWidth: tall ? 1180 : 900, margin: "0 auto", width: "100%", padding: "clamp(118px,13vh,138px) clamp(16px,4vw,40px) 36px", boxSizing: "border-box" }}>
-        {breadcrumb && <div style={{ ...microLabel, color: COLORS.gold, textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>{breadcrumb}</div>}
+        {breadcrumb && <div style={{ ...microLabel, color: "#e8cf9a", textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>{breadcrumb}</div>}
         <h1 style={{ fontFamily: serif, fontWeight: 800, color: "#f4f1ea", fontSize: tall ? "clamp(2.4rem,6vw,4.2rem)" : "clamp(2rem,5.4vw,3.4rem)", lineHeight: 1, letterSpacing: "-.02em", margin: "10px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.55)" }}>
           {title}{titleSub && <span style={{ fontStyle: "italic", color: "rgba(251,246,234,.72)", fontWeight: 500, fontSize: ".42em", letterSpacing: 0, display: "block", marginTop: 6 }}>{titleSub}</span>}
         </h1>

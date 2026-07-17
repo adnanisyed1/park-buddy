@@ -7,7 +7,7 @@
 // `html[data-theme="light"] .pb-theme` — so a page only goes light when it opts in
 // with the `.pb-theme` class (the landing does; the rest of the platform stays dark
 // until each page is migrated — one step at a time).
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, createElement } from "react";
 
 const KEY = "pb_theme";
 const listeners = new Set();
@@ -41,6 +41,23 @@ export function useThemedBody(ref) {
     const un = subscribeTheme(apply);
     return () => { un(); document.body.style.background = ""; };
   }, [ref]);
+}
+
+// Renderable form for SERVER components (e.g. StatusShell): drop <ThemedBody /> inside
+// a `.pb-theme` root. It reads that root's resolved background and paints <body> to
+// match (following the toggle), so overscroll never flashes the other theme.
+export function ThemedBody() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const apply = () => {
+      const scope = ref.current && ref.current.closest(".pb-theme");
+      if (scope) document.body.style.background = getComputedStyle(scope).backgroundColor;
+    };
+    apply();
+    const un = subscribeTheme(apply);
+    return () => { un(); document.body.style.background = ""; };
+  }, []);
+  return createElement("span", { ref, "aria-hidden": "true", style: { display: "none" } });
 }
 
 // SSR-safe: starts "dark" (matches the server render), then syncs to the real

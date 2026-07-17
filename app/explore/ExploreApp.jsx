@@ -1384,7 +1384,9 @@ export default function ExploreApp() {
   const selNps = sel ? npsData[sel.name] : null; // description / activities / things to do
   const selPlaces = sel ? placesData[sel.name] : null; // campgrounds + rec areas (undefined = still loading)
 
-  // Deep link to the full live-status page (same targets the legacy map used).
+  // Deep link to the full live-status page. Parks/forests/state-parks each have a
+  // dedicated React page; other destinations show their live status in the map's own
+  // detail panel (the legacy /park-status page is retired, so no external link).
   const statusHrefFor = (p) =>
     p
       ? p.type === "national_park" && p.id
@@ -1393,8 +1395,6 @@ export default function ExploreApp() {
         ? "/forests/" + p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
         : p.type === "state_park" && p.destId
         ? "/state-parks/" + encodeURIComponent(p.destId)
-        : p.destId
-        ? "/park-status?dest=" + encodeURIComponent(p.destId)
         : null
       : null;
 

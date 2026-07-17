@@ -79,6 +79,19 @@ const nextConfig = {
       },
     ];
   },
+  // Retire the legacy embed pages. /plan is now Trip Studio (/build-trip) and
+  // /park-status is now the React park page (/parks/:id). 301 so old bookmarks,
+  // SEO links, and any stray in-app reference land on the current page.
+  async redirects() {
+    return [
+      { source: "/plan", destination: "/build-trip", permanent: true },
+      // Old ?park=<numericId> deep-links to the matching React park page; anything
+      // else (?park=<name>, ?dest=, no param) falls through to the parks index so it
+      // never 404s.
+      { source: "/park-status", has: [{ type: "query", key: "park", value: "(?<parkId>\\d+)" }], destination: "/parks/:parkId", permanent: true },
+      { source: "/park-status", destination: "/parks", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

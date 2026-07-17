@@ -116,8 +116,7 @@ export default function About() {
         </Link>
         <div className={styles.navlinks}>
           <Link href="/explore">Map</Link>
-          <Link href="/plan">Plan a Trip</Link>
-          <Link href="/build-trip">Build a Trip</Link>
+          <Link href="/build-trip">Trip Studio</Link>
         </div>
       </nav>
 

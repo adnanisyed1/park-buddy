@@ -7,9 +7,10 @@ export default function sitemap() {
     // "/" is the marketing landing page; "/explore" is the interactive map.
     { path: "/", priority: 1.0, changeFrequency: "daily" },
     { path: "/explore", priority: 1.0, changeFrequency: "daily" },
-    { path: "/plan", priority: 0.9, changeFrequency: "weekly" },
     { path: "/build-trip", priority: 0.9, changeFrequency: "weekly" },
-    { path: "/park-status", priority: 0.7, changeFrequency: "daily" },
+    { path: "/parks", priority: 0.8, changeFrequency: "daily" },
+    { path: "/book", priority: 0.6, changeFrequency: "weekly" },
+    { path: "/shop", priority: 0.6, changeFrequency: "weekly" },
     { path: "/about", priority: 0.5, changeFrequency: "monthly" },
   ];
   return routes.map((r) => ({

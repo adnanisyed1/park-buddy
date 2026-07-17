@@ -519,7 +519,7 @@
         '<p style="font-family:' + SANS + ';font-size:clamp(1.02rem,1.7vw,1.28rem);margin:22px 0 0;max-width:54ch;color:rgba(251,246,234,.88);line-height:1.55;text-shadow:0 2px 14px rgba(0,0,0,.4);animation:exb-rise .8s ease .1s both">One honest go / no-go call for every U.S. national park \u2014 live weather, alerts and conditions, plus the tools to plan the whole trip around them.</p>' +
         '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:30px;animation:exb-rise .9s ease .15s both">' +
           '<button class="exb-btn gold" data-hero="map">Explore the live map \u2192</button>' +
-          '<button class="exb-btn ghost" data-hero="/plan">Plan a trip</button>' +
+          '<button class="exb-btn ghost" data-hero="/build-trip">Plan a trip</button>' +
         '</div>' +
         '<div class="exb-quick" style="margin-top:22px;animation:exb-rise 1s ease .2s both"><span class="lbl">Or jump to</span>' +
           '<a data-hero="status">Park status</a><span class="sep">\u00b7</span>' +

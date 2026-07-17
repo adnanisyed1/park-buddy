@@ -98,6 +98,43 @@ const FINISHES = [
   { key: "matte", name: "Matte", code: "M", add: 0, note: "Soft, glare-free — our default." },
   { key: "gloss", name: "Gloss", code: "G", add: 0, note: "Punchy, high-shine color." },
 ];
+/* ── Page composition ────────────────────────────────────────────────────────
+   How each chapter's spread is laid out. A book-wide DEFAULT applies to every
+   stop; any stop can override it. Persisted in localStorage `pb_book_layouts`
+   ({ default:{mode,count}, stops:{ [name]:{mode,count} } }). Only the traveler's
+   OWN photos fill photo slots — empty slots stay as honest "add a photo" tiles
+   (they print as a designed typographic page, never stock). */
+const MODES = [
+  { key: "photo-diary", name: "Photo + diary", desc: "One photo, story facing it." },
+  { key: "photo-photo", name: "Photos both pages", desc: "A photo on each page, no story." },
+  { key: "grid", name: "Photo grid + diary", desc: "Several photos on one page, story facing." },
+  { key: "story", name: "Story only", desc: "A clean typographic page." },
+];
+const LKEY = "pb_book_layouts";
+const DEFAULT_LAYOUT = { mode: "photo-diary", count: 2 };
+function readLayouts() { try { return JSON.parse(localStorage.getItem(LKEY) || "{}") || {}; } catch { return {}; } }
+function writeLayouts(o) {
+  try { localStorage.setItem(LKEY, JSON.stringify(o)); window.dispatchEvent(new Event("pb:booklayout")); } catch {}
+}
+function getDefaultLayout() { return { ...DEFAULT_LAYOUT, ...(readLayouts().default || {}) }; }
+function setDefaultLayout(patch) { const o = readLayouts(); o.default = { ...getDefaultLayout(), ...patch }; writeLayouts(o); }
+function getStopLayout(name) { const s = readLayouts().stops || {}; return s[name] || null; }
+function setStopLayout(name, patch) {
+  const o = readLayouts(); o.stops = o.stops || {};
+  o.stops[name] = { ...(o.stops[name] || getDefaultLayout()), ...patch };
+  writeLayouts(o);
+}
+function clearStopLayout(name) { const o = readLayouts(); if (o.stops) delete o.stops[name]; writeLayouts(o); }
+// Re-render whenever any layout changes.
+function useLayoutTick() {
+  const [, set] = useState(0);
+  useEffect(() => {
+    const on = () => set((x) => x + 1);
+    window.addEventListener("pb:booklayout", on);
+    return () => window.removeEventListener("pb:booklayout", on);
+  }, []);
+}
+
 // Compose the Lulu pod_package_id from the current selection. (Validate each combo
 // in the Lulu sandbox before go-live — see /api/lulu-cost.)
 function skuFor(sizeKey, coverKey, finishKey) {
@@ -148,7 +185,7 @@ function useBook() {
   const hasTrip = stops.length > 0;
   if (!hasTrip) {
     const spreads = DEMO.stops.map((s, i) => ({
-      name: s.name, park: s.park, q: s.q, userImg: null, story: s.story,
+      name: s.name, park: s.park, q: s.q, userImg: null, photos: [], story: s.story,
       date: "", lat: s.lat, lng: s.lng, chapter: i + 1,
     }));
     return { isDemo: true, tick, title: DEMO.title, author: DEMO.author, region: DEMO.region, spreads };
@@ -162,6 +199,7 @@ function useBook() {
       park: s.state ? s.name + " · " + s.state : s.name,
       q: [s.name + " National Park", s.name],
       userImg: p0 ? p0.url : null,
+      photos: photos.map((p) => p.url).filter(Boolean),
       story: stories[s.name] || "",
       date: p0 && p0.ts ? fmtDate(p0.ts) : "",
       lat: s.lat != null ? s.lat : (p0 ? p0.lat : null),
@@ -220,9 +258,56 @@ function SpreadStory({ spread }) {
 }
 
 // The full open-book spread (photo page ‖ story page) used on desktop.
-function Spread({ spread }) {
+const PhotoSlot = ({ url }) => (
+  <div style={{ position: "relative", overflow: "hidden", borderRadius: 4, background: "#0c1c12" }}>
+    <img src={url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+  </div>
+);
+// An un-filled slot stays honest: it prints as a designed page, never stock art.
+const EmptySlot = () => (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: "1px dashed var(--pb-line-strong)", color: "var(--pb-muted)", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".08em", textAlign: "center", padding: 8 }}>＋ Add a photo</div>
+);
+function PhotoGrid({ photos, count }) {
+  const cells = Array.from({ length: count }, (_, i) => (photos || [])[i] || null);
+  const cols = count === 4 ? 2 : 1;
   return (
-    <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 720, width: "100%" }}>
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 6, width: "100%", height: "100%" }}>
+      {cells.map((u, i) => (u ? <PhotoSlot key={i} url={u} /> : <EmptySlot key={i} />))}
+    </div>
+  );
+}
+
+// The open-book spread. Its composition comes from the stop's own layout, else the
+// book default (see MODES / pb_book_layouts).
+function Spread({ spread }) {
+  useLayoutTick();
+  const lay = getStopLayout(spread.name) || getDefaultLayout();
+  const mode = lay.mode || "photo-diary";
+  const count = Math.max(2, Math.min(4, lay.count || 2));
+  const photos = spread.photos || [];
+  const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 720, width: "100%" };
+
+  if (mode === "story") {
+    return <div style={{ ...card, gridTemplateColumns: "1fr", maxWidth: 460 }}><SpreadStory spread={spread} /></div>;
+  }
+  if (mode === "photo-photo") {
+    return (
+      <div style={card}>
+        <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
+        <div style={{ aspectRatio: "3/4" }}>{photos[1] ? <PhotoSlot url={photos[1]} /> : <EmptySlot />}</div>
+      </div>
+    );
+  }
+  if (mode === "grid") {
+    return (
+      <div style={card}>
+        <div style={{ aspectRatio: "3/4" }}><PhotoGrid photos={photos} count={count} /></div>
+        <SpreadStory spread={spread} />
+      </div>
+    );
+  }
+  return (
+    <div style={card}>
       <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
       <SpreadStory spread={spread} />
     </div>
@@ -467,7 +552,7 @@ function Desktop(props) {
   );
 }
 
-function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage }) {
+function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage, setStep }) {
   const author = role === "author";
   return (
     <div style={{ display: "grid", gridTemplateColumns: author ? "300px 1fr 320px" : "1fr", minHeight: "calc(100vh - 160px)" }}>
@@ -495,12 +580,47 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
         <Spread spread={cur} />
         <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
       </main>
-      {author && <StopTools spread={cur} />}
+      {author && <StopTools spread={cur} onNext={() => setStep("theme")} />}
     </div>
   );
 }
 
-function StopTools({ spread }) {
+// Page-composition picker — used for the book DEFAULT (Theme step) and to override
+// a single chapter (Stop Tools).
+function LayoutPicker({ value, onChange, onReset, isOverride }) {
+  const mode = value.mode || "photo-diary";
+  const count = Math.max(2, Math.min(4, value.count || 2));
+  return (
+    <>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {MODES.map((m) => (
+          <button key={m.key} className="bs-stopcard" onClick={() => onChange({ mode: m.key })} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: m.key === mode ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (m.key === mode ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{m.name}</div>
+            <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{m.desc}</div>
+          </button>
+        ))}
+      </div>
+      {mode === "grid" && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontFamily: mono, fontSize: ".48rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>Photos on that page</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {[2, 3, 4].map((c) => (
+              <button key={c} onClick={() => onChange({ count: c })} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: c === count ? 700 : 500, border: "1px solid " + (c === count ? "var(--pb-gold-2)" : "var(--pb-line)"), background: c === count ? "var(--pb-surface-2)" : "var(--pb-surface)", color: "var(--pb-ink)", borderRadius: 8, padding: "7px" }}>{c}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {onReset && (
+        <button onClick={onReset} disabled={!isOverride} style={{ cursor: isOverride ? "pointer" : "default", width: "100%", marginTop: 10, fontFamily: "inherit", fontSize: ".72rem", color: isOverride ? "var(--pb-gold)" : "var(--pb-muted)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "7px", opacity: isOverride ? 1 : .55 }}>
+          {isOverride ? "↺ Use book default" : "Using book default"}
+        </button>
+      )}
+    </>
+  );
+}
+
+function StopTools({ spread, onNext }) {
+  useLayoutTick();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(spread.story || "");
   const [dist, setDist] = useState(null);
@@ -509,9 +629,12 @@ function StopTools({ spread }) {
   useEffect(() => { setDraft(spread.story || ""); setEditing(false); }, [spread.name]);
 
   const saveStory = () => { try { setStory(spread.name, draft); } catch {} setEditing(false); };
+  // Multiple at once — a grid spread needs 2-4 photos on one page.
   const onFile = async (e) => {
-    const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { const url = await fileToDataUrl(f); addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }); } catch {}
+    const files = Array.from(e.target.files || []);
+    for (const f of files) {
+      try { const url = await fileToDataUrl(f); addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }); } catch {}
+    }
     e.target.value = "";
   };
   const locate = () => {
@@ -556,8 +679,23 @@ function StopTools({ spread }) {
       ) : (
         <button className="bs-btn" style={{ ...btn, width: "100%", marginBottom: 10 }} onClick={() => setEditing(true)}>✎ Edit Story Content</button>
       )}
-      <button className="bs-btn" style={{ ...btn, width: "100%" }} onClick={() => fileRef.current && fileRef.current.click()}>⤢ Swap Photo</button>
-      <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+      <button className="bs-btn" style={{ ...btn, width: "100%" }} onClick={() => fileRef.current && fileRef.current.click()}>＋ Add / swap photo</button>
+      <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFile} style={{ display: "none" }} />
+      <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", marginTop: 6, textAlign: "center" }}>
+        {(spread.photos || []).length} photo{(spread.photos || []).length === 1 ? "" : "s"} on this chapter
+      </div>
+
+      {/* Per-chapter page composition — overrides the book default. */}
+      <div style={{ marginTop: 22 }}>
+        <Eyebrow>This chapter&rsquo;s pages</Eyebrow>
+        <div style={{ height: 10 }} />
+        <LayoutPicker
+          value={getStopLayout(spread.name) || getDefaultLayout()}
+          onChange={(p) => setStopLayout(spread.name, p)}
+          onReset={() => clearStopLayout(spread.name)}
+          isOverride={!!getStopLayout(spread.name)}
+        />
+      </div>
 
       <div style={{ marginTop: 24 }}>
         <Eyebrow>Layout rules</Eyebrow>
@@ -566,11 +704,16 @@ function StopTools({ spread }) {
           <li style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>• Only your own photos are printed — an un-photographed stop becomes a clean typographic page.</li>
         </ul>
       </div>
+
+      {onNext && (
+        <button onClick={onNext} style={{ cursor: "pointer", width: "100%", marginTop: 24, fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Next: Theme →</button>
+      )}
     </aside>
   );
 }
 
 function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey }) {
+  useLayoutTick();
   const reader = role === "reader";
   const coverImg = ((spreads || []).find((s) => s.userImg) || {}).userImg || null;
   return (
@@ -602,6 +745,12 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
           </div>
           <div style={{ marginTop: 24 }}>
             <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
+          </div>
+          {/* Book-wide page composition; any chapter can override it in Stop Tools. */}
+          <div style={{ marginTop: 24 }}>
+            <Eyebrow>Default page layout</Eyebrow>
+            <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 10px" }}>Applies to every chapter — override any one in Diary → Stop Tools.</div>
+            <LayoutPicker value={getDefaultLayout()} onChange={(p) => setDefaultLayout(p)} />
           </div>
         </aside>
       )}

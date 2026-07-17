@@ -16,7 +16,7 @@ import SiteHeader from "../components/SiteHeader";
 import { useTheme } from "../lib/theme";
 import { getStops, getMeta, subscribeTrip, addStop, removeStop, moveStop } from "../lib/trip";
 import {
-  getPhotosFor, getStory, setStory, addPhoto, removePhoto,
+  getPhotosFor, getStory, setStory, addPhoto, removePhoto, movePhoto,
   distMiles, addCrumb, subscribeTripMode,
 } from "../lib/tripmode";
 // Book photos take the PRINT path, not Trip Mode's 1280px snapshot path — see
@@ -374,22 +374,37 @@ function SpreadStory({ spread }) {
   );
 }
 
+// Every photo slot wears its number, and the same number labels the photo in Stop
+// Tools — so "slot ② is that photo" is something you SEE, not work out. Circled
+// digits (①..⑧) cover the most any spread prints (4 + 4).
+const CIRCLED = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧"];
+const slotGlyph = (n) => CIRCLED[n - 1] || "(" + n + ")";
+const SlotNum = ({ n }) => (n ? (
+  <div aria-hidden style={{ position: "absolute", top: 5, left: 5, zIndex: 2, minWidth: 17, height: 17, padding: "0 3px", borderRadius: 9, background: "rgba(12,22,16,.82)", color: "#f4f1ea", fontFamily: mono, fontSize: ".6rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{n}</div>
+) : null);
+
 // The full open-book spread (photo page ‖ story page) used on desktop.
-const PhotoSlot = ({ url }) => (
-  <div style={{ position: "relative", overflow: "hidden", borderRadius: 4, background: "#0c1c12" }}>
+const PhotoSlot = ({ url, num }) => (
+  <div style={{ position: "relative", overflow: "hidden", borderRadius: 4, background: "#0c1c12", height: "100%" }}>
     <img src={url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+    <SlotNum n={num} />
   </div>
 );
-// An un-filled slot stays honest: it prints as a designed page, never stock art.
-const EmptySlot = () => (
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: "1px dashed var(--pb-line-strong)", color: "var(--pb-muted)", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".08em", textAlign: "center", padding: 8 }}>＋ Add a photo</div>
+// An un-filled slot stays honest: it prints as a designed page, never stock art. It
+// still carries its number, so an empty slot is a place you can see needs a photo.
+const EmptySlot = ({ num }) => (
+  <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: "1px dashed var(--pb-line-strong)", color: "var(--pb-muted)", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".08em", textAlign: "center", padding: 8 }}>
+    <SlotNum n={num} />＋ Add a photo
+  </div>
 );
-function PhotoGrid({ photos, count }) {
+// `startNum` is the 1-based slot number of the first cell — matches the photo's
+// position in the chapter, so preview and strip agree.
+function PhotoGrid({ photos, count, startNum = 1 }) {
   const cells = Array.from({ length: count }, (_, i) => (photos || [])[i] || null);
   const cols = count === 4 ? 2 : 1;
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 6, width: "100%", height: "100%" }}>
-      {cells.map((p, i) => (p ? <PhotoSlot key={i} url={p.url} /> : <EmptySlot key={i} />))}
+      {cells.map((p, i) => (p ? <PhotoSlot key={i} url={p.url} num={startNum + i} /> : <EmptySlot key={i} num={startNum + i} />))}
     </div>
   );
 }
@@ -427,9 +442,9 @@ function Page({ cfg, spread, offset }) {
   if (cfg.type === "story") return <div style={{ height: "100%", overflow: "hidden" }}><SpreadStory spread={spread} /></div>;
   const slice = (spread.photos || []).slice(offset, offset + cfg.count);
   if (cfg.count === 1) {
-    return <div style={{ height: "100%" }}>{slice[0] ? <PhotoSlot url={slice[0].url} /> : <SpreadPhoto spread={spread} />}</div>;
+    return <div style={{ height: "100%", position: "relative" }}>{slice[0] ? <PhotoSlot url={slice[0].url} num={offset + 1} /> : <><SpreadPhoto spread={spread} /><SlotNum n={offset + 1} /></>}</div>;
   }
-  return <div style={{ height: "100%" }}><PhotoGrid photos={slice} count={cfg.count} /></div>;
+  return <div style={{ height: "100%" }}><PhotoGrid photos={slice} count={cfg.count} startNum={offset + 1} /></div>;
 }
 
 /* Two 3:4 pages side by side, with the gutter between them — the aspect of the
@@ -1092,24 +1107,40 @@ function PhotoStrip({ spread, size }) {
   if (!photos.length) {
     return <div style={{ fontSize: ".7rem", color: "var(--pb-muted)", lineHeight: 1.5 }}>No photos on this chapter yet.{need ? ` This layout prints ${need}.` : ""}</div>;
   }
+  const last = photos.length - 1;
+  const mv = { cursor: "pointer", width: 20, height: 18, fontFamily: "inherit", fontSize: ".7rem", lineHeight: 1, color: "var(--pb-ink-2)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 5, padding: 0 };
+  const mvOff = { ...mv, cursor: "default", color: "var(--pb-line-strong)", opacity: 0.5 };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
       {photos.map((p, i) => {
         const slot = slotOf(i);
+        // The row's number IS the slot it fills — the same ① ② … on the book page.
         return (
-          <div key={p.url + i} style={{ display: "flex", gap: 9, alignItems: "flex-start", opacity: slot ? 1 : 0.55 }}>
-            <div aria-hidden style={{ flex: "0 0 38px", height: 48, borderRadius: 4, border: "1px solid var(--pb-line)", background: `center/cover url(${p.url})` }} />
+          <div key={p.url + i} style={{ display: "flex", gap: 8, alignItems: "flex-start", opacity: slot ? 1 : 0.5 }}>
+            <div aria-hidden style={{ position: "relative", flex: "0 0 38px", height: 48, borderRadius: 4, border: "1px solid var(--pb-line)", background: `center/cover url(${p.url})` }}>
+              {slot && <SlotNum n={i + 1} />}
+            </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".1em", textTransform: "uppercase", color: slot ? "var(--pb-gold-soft)" : "var(--pb-muted)" }}>
-                {slot ? `${slot.page} page` : "Not printed — this layout has no slot for it"}
+                {slot ? `${slotGlyph(i + 1)} ${slot.page} page` : "Not printed — no slot in this layout"}
               </div>
               {slot && <div style={{ marginTop: 3 }}><ResBadge rec={p} inches={slot.inches} /></div>}
             </div>
+            {/* Reorder = re-slot: move a photo up/down to change which ① ② … it fills. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: "0 0 auto" }}>
+              <button onClick={() => movePhotoIn(spread, i, i - 1)} disabled={i === 0} aria-label="Move earlier" style={i === 0 ? mvOff : mv}>↑</button>
+              <button onClick={() => movePhotoIn(spread, i, i + 1)} disabled={i === last} aria-label="Move later" style={i === last ? mvOff : mv}>↓</button>
+            </div>
             <button onClick={() => removePhotoFrom(spread, i)} aria-label="Remove this photo"
-              style={{ cursor: "pointer", flex: "0 0 auto", fontFamily: "inherit", fontSize: ".7rem", color: "var(--pb-muted)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 6, padding: "2px 7px" }}>✕</button>
+              style={{ cursor: "pointer", flex: "0 0 auto", fontFamily: "inherit", fontSize: ".7rem", color: "var(--pb-muted)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 6, padding: "2px 7px", alignSelf: "center" }}>✕</button>
           </div>
         );
       })}
+      {need > 0 && photos.length > need && (
+        <div style={{ fontSize: ".64rem", color: "var(--pb-prepare)", lineHeight: 1.45, marginTop: 2 }}>
+          This layout prints {need}. The extra {photos.length - need} won&rsquo;t print — reorder to choose which do, or remove them.
+        </div>
+      )}
     </div>
   );
 }
@@ -1123,6 +1154,18 @@ function removePhotoFrom(spread, i) {
     const list = getPhotosFor(spread.name) || [];
     const target = list[i];
     if (target && target.id) removePhoto(spread.name, target.id);
+  }
+}
+// Move a photo between slots — book-only pages reorder their own array; itinerary
+// chapters reorder in Trip Mode. Either way the preview re-renders into the new slots.
+function movePhotoIn(spread, from, to) {
+  if (spread.source === "own") {
+    const list = [...(spread.photos || [])];
+    if (to < 0 || to >= list.length) return;
+    const [it] = list.splice(from, 1); list.splice(to, 0, it);
+    updateExtra(spread.id, { photos: list });
+  } else {
+    movePhoto(spread.name, from, to);
   }
 }
 
@@ -1152,24 +1195,43 @@ function StopTools({ spread, onNext, size }) {
   };
   const coord = fmtCoord(spread.lat, spread.lng);
   const btn = { cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" };
+  const lay = layoutOf(spread, true);
+  const need = photosNeeded(lay);
+  const have = (spread.photos || []).length;
+  const stepCap = { fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-gold-soft)", display: "flex", alignItems: "center", gap: 7 };
+  const stepDot = { flex: "0 0 auto", width: 16, height: 16, borderRadius: "50%", background: "var(--pb-gold)", color: "#14210f", fontSize: ".58rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" };
   return (
     <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
       <Eyebrow>Stop Tools</Eyebrow>
-      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Edit Story &amp; Photo</h3>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>{spread.name}</h3>
 
-      <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "14px 15px", marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>GPS Signal</span>
-          <button onClick={locate} style={{ cursor: "pointer", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", border: "1px solid " + (dist != null ? "var(--pb-go)" : "var(--pb-line-strong)"), color: dist != null ? "var(--pb-go)" : "var(--pb-ink-2)", background: dist != null ? "rgba(79,217,138,.08)" : "transparent", borderRadius: 999, padding: "3px 9px" }}>
-            {locating ? "locating…" : dist != null ? (dist < 10 ? dist.toFixed(1) : Math.round(dist)) + " mi away" : "Use my location"}
-          </button>
-        </div>
-        <div style={{ fontFamily: mono, fontSize: ".9rem", color: "var(--pb-ink)", marginTop: 8 }}>{coord || "—"}</div>
-        <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 2 }}>Recorded {spread.name}</div>
-      </div>
+      {/* STEP 1 — the page layout: it decides how many photo slots there are, so it
+          comes before the photos that fill them. */}
+      <div style={stepCap}><span style={stepDot}>1</span> Choose this page&rsquo;s layout</div>
+      <div style={{ height: 10 }} />
+      <LayoutPicker
+        value={getStopLayout(spread.name) || getDefaultLayout()}
+        onChange={(p) => setStopLayout(spread.name, p)}
+        onReset={() => clearStopLayout(spread.name)}
+        isOverride={!!getStopLayout(spread.name)}
+      />
 
+      {/* STEP 2 — the photos for those slots, numbered to match the book, reorderable. */}
+      <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>2</span> Photos {need ? `(${Math.min(have, need)}/${need})` : ""}</div>
+      <div style={{ height: 10 }} />
+      <button className="bs-btn" style={{ ...btn, width: "100%", opacity: busy ? 0.6 : 1 }} disabled={!!busy} onClick={open}>
+        {busy ? `Adding ${busy} photo${busy === 1 ? "" : "s"}…` : need && have < need ? `＋ Add ${need - have} more photo${need - have === 1 ? "" : "s"}` : "＋ Add photos"}
+      </button>
+      <PhotoInput fileRef={fileRef} onFile={onFile} />
+      {error && <div style={{ fontSize: ".7rem", color: "var(--pb-avoid)", marginTop: 7, lineHeight: 1.45 }}>{error}</div>}
+      <div style={{ height: 12 }} />
+      <PhotoStrip spread={spread} size={size} />
+
+      {/* STEP 3 — the words. */}
+      <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>3</span> Story</div>
+      <div style={{ height: 10 }} />
       {editing ? (
-        <div style={{ marginBottom: 12 }}>
+        <div>
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={6} placeholder="Write the story of this stop…" style={{ width: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 12px", color: "var(--pb-ink)", fontFamily: serif, fontSize: ".92rem", lineHeight: 1.5, outline: "none", resize: "vertical" }} />
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button onClick={saveStory} style={{ ...btn, flex: 1, color: "#0a1712", background: GOLD, border: "none" }}>Save story</button>
@@ -1177,39 +1239,18 @@ function StopTools({ spread, onNext, size }) {
           </div>
         </div>
       ) : (
-        <button className="bs-btn" style={{ ...btn, width: "100%", marginBottom: 10 }} onClick={() => setEditing(true)}>✎ Edit Story Content</button>
+        <button className="bs-btn" style={{ ...btn, width: "100%" }} onClick={() => setEditing(true)}>{spread.story ? "✎ Edit story" : "✎ Write the story"}</button>
       )}
-      <button className="bs-btn" style={{ ...btn, width: "100%", opacity: busy ? 0.6 : 1 }} disabled={!!busy} onClick={open}>
-        {busy ? `Adding ${busy} photo${busy === 1 ? "" : "s"}…` : "＋ Add photos"}
-      </button>
-      <PhotoInput fileRef={fileRef} onFile={onFile} />
-      {error && <div style={{ fontSize: ".7rem", color: "var(--pb-avoid)", marginTop: 7, lineHeight: 1.45 }}>{error}</div>}
 
-      {/* The photos on this chapter — which page each lands on, and how it'll print. */}
-      <div style={{ marginTop: 16 }}>
-        <Eyebrow>Photos on this chapter</Eyebrow>
-        <div style={{ height: 10 }} />
-        <PhotoStrip spread={spread} size={size} />
-      </div>
-
-      {/* Per-chapter page composition — overrides the book default. */}
-      <div style={{ marginTop: 22 }}>
-        <Eyebrow>This chapter&rsquo;s pages</Eyebrow>
-        <div style={{ height: 10 }} />
-        <LayoutPicker
-          value={getStopLayout(spread.name) || getDefaultLayout()}
-          onChange={(p) => setStopLayout(spread.name, p)}
-          onReset={() => clearStopLayout(spread.name)}
-          isOverride={!!getStopLayout(spread.name)}
-        />
-      </div>
-
-      <div style={{ marginTop: 24 }}>
-        <Eyebrow>Layout rules</Eyebrow>
-        <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-          <li style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>• Chapters sort automatically by your route order.</li>
-          <li style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>• Only your own photos are printed — an un-photographed stop becomes a clean typographic page.</li>
-        </ul>
+      {/* Where this stop was — a quiet footnote, not the headline it used to be. */}
+      <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", marginTop: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Location</span>
+          <button onClick={locate} style={{ cursor: "pointer", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", border: "1px solid " + (dist != null ? "var(--pb-go)" : "var(--pb-line-strong)"), color: dist != null ? "var(--pb-go)" : "var(--pb-ink-2)", background: dist != null ? "rgba(79,217,138,.08)" : "transparent", borderRadius: 999, padding: "3px 9px" }}>
+            {locating ? "locating…" : dist != null ? (dist < 10 ? dist.toFixed(1) : Math.round(dist)) + " mi away" : "Use my location"}
+          </button>
+        </div>
+        <div style={{ fontFamily: mono, fontSize: ".82rem", color: "var(--pb-ink)", marginTop: 6 }}>{coord || "—"}</div>
       </div>
 
       {onNext && (

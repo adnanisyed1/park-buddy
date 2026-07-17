@@ -101,6 +101,17 @@ export function removePhoto(stop, id) {
   if (!all[stop].length) delete all[stop];
   write(PHOTOS, all);
 }
+// Reorder a stop's photos by index — the order IS which slot each photo fills, so
+// this is how a photo moves between slots ① ② ③ … in the book.
+export function movePhoto(stop, from, to) {
+  const all = read(PHOTOS, {});
+  const list = all[stop] || [];
+  if (from < 0 || from >= list.length || to < 0 || to >= list.length) return;
+  const [it] = list.splice(from, 1);
+  list.splice(to, 0, it);
+  all[stop] = list;
+  write(PHOTOS, all);
+}
 
 // ---------- checklist ----------
 export function getChecklist() { return read(CHECK, {}); }

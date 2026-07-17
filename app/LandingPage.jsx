@@ -55,6 +55,48 @@ function CoverImg({ src, alt = "", style, imgStyle, overlay }) {
   );
 }
 
+/* ── Animated tiles ──────────────────────────────────────────────────────────
+   Once the Runway loops are exported and dropped into /public/media/landing (each
+   as <name>.webm + <name>.mp4), flip MOTION_READY to true. Until then MotionTile
+   renders the still `img` only, so there are NO 404s in the meantime.
+   Naming the app expects (basenames passed as `video`):
+     hero, map-band, reel-glacier, reel-sequoia, reel-teton  */
+const MOTION_READY = false;
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const on = () => setReduced(!!m.matches);
+    on();
+    m.addEventListener ? m.addEventListener("change", on) : m.addListener(on);
+    return () => (m.removeEventListener ? m.removeEventListener("change", on) : m.removeListener(on));
+  }, []);
+  return reduced;
+}
+
+// A cover tile that plays a muted, looping, autoplay video when one is available
+// (and the user hasn't asked for reduced motion), falling back to the still image
+// — which also serves as the video's poster so nothing flashes on load.
+function MotionTile({ img, video, alt = "", style, imgStyle, overlay }) {
+  const reduced = usePrefersReducedMotion();
+  const useVideo = MOTION_READY && video && !reduced;
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(160deg,#16321f,#0c1c12)", ...style }}>
+      {useVideo ? (
+        <video autoPlay muted loop playsInline preload="metadata" poster={img} aria-label={alt}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...imgStyle }}>
+          <source src={video + ".webm"} type="video/webm" />
+          <source src={video + ".mp4"} type="video/mp4" />
+        </video>
+      ) : (
+        <img src={img} alt={alt} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...imgStyle }} />
+      )}
+      {overlay && <div style={{ position: "absolute", inset: 0, background: overlay }} />}
+    </div>
+  );
+}
+
 const Eyebrow = ({ children, style }) => (
   <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--pb-gold-soft)", ...style }}>{children}</div>
 );
@@ -71,7 +113,7 @@ function Hero() {
   const hero = "/media/landing/hero.jpg"; // Figma light frame (12:4) hero render
   return (
     <header style={{ position: "relative", minHeight: "min(100vh,860px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "120px 20px 90px", overflow: "hidden" }}>
-      <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: `url(${hero || "/media/hero-loop-poster.jpg"})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.05)" }} />
+      <MotionTile img={hero} video="/media/landing/hero" alt="" imgStyle={{ transform: "scale(1.05)" }} />
       {/* Two-part scrim: a light legibility wash up top (fades out by ~58%), then a
           long dissolve to the page that ramps through the page's OWN hue at 0→full
           alpha (var(--pb-bg-0) → var(--pb-bg)) so there's no muddy dark→cream band. */}
@@ -174,7 +216,7 @@ function ExploreSection() {
         <div style={{ position: "relative", aspectRatio: "16/11", borderRadius: 20, overflow: "hidden", border: "1px solid var(--pb-line-strong)", background: "radial-gradient(120% 100% at 50% 0%,#12241a,#0a1712)" }}>
           {/* Real "map that breathes" render from the Figma light frame (glowing US
               outline on the console table); the verdict card floats over it. */}
-          <CoverImg src="/media/landing/map-band.jpg" alt="Live national-park map" />
+          <MotionTile img="/media/landing/map-band.jpg" video="/media/landing/map-band" alt="Live national-park map" />
           {/* verdict card */}
           <div style={{ position: "absolute", right: 14, top: 14, width: 190, background: "rgba(9,17,12,.9)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", border: "1px solid " + V.PREPARE + "55", borderRadius: 14, padding: "12px 13px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -289,9 +331,9 @@ function PinesSection() {
           <p style={{ fontSize: ".96rem", lineHeight: 1.6, color: "var(--pb-ink-2)", marginTop: 14 }}>Short videos & photos of real, GPS‑verified adventures — pinned to the exact place, shown next to today's conditions. No stock. No fakes.</p>
         </div>
         <div className="pbl-pines" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.1fr", gap: 14, marginTop: 40, alignItems: "stretch" }}>
-          {[["Glacier", "GO", "/media/landing/reel-glacier.jpg"], ["Sequoia", null, "/media/landing/reel-sequoia.jpg"], ["Grand Teton", "PREPARE", "/media/landing/reel-teton.jpg"]].map(([name, v, src]) => (
+          {[["Glacier", "GO", "reel-glacier"], ["Sequoia", null, "reel-sequoia"], ["Grand Teton", "PREPARE", "reel-teton"]].map(([name, v, base]) => (
             <div key={name} style={{ position: "relative", aspectRatio: "3/4", borderRadius: 16, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
-              <CoverImg src={src} alt={name} overlay="linear-gradient(180deg,rgba(6,14,10,.15) 0%,transparent 40%,rgba(6,14,10,.85))" />
+              <MotionTile img={`/media/landing/${base}.jpg`} video={`/media/landing/${base}`} alt={name} overlay="linear-gradient(180deg,rgba(6,14,10,.15) 0%,transparent 40%,rgba(6,14,10,.85))" />
               {v && <span style={{ position: "absolute", right: 10, top: 10 }}><VChip v={v} small /></span>}
               {/* play affordance (Pines is short video) */}
               <span style={{ position: "absolute", top: "44%", left: "50%", transform: "translate(-50%,-50%)", width: 40, height: 40, borderRadius: "50%", background: "rgba(10,17,12,.5)", border: "1px solid rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>

@@ -72,7 +72,10 @@ function Hero() {
   return (
     <header style={{ position: "relative", minHeight: "min(100vh,860px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "120px 20px 90px", overflow: "hidden" }}>
       <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: `url(${hero || "/media/hero-loop-poster.jpg"})`, backgroundSize: "cover", backgroundPosition: "center", transform: "scale(1.05)" }} />
-      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(10,23,18,.55) 0%,rgba(10,23,18,.35) 35%,rgba(10,23,18,.85) 78%,var(--pb-bg) 100%)" }} />
+      {/* Two-part scrim: a light legibility wash up top (fades out by ~58%), then a
+          long dissolve to the page that ramps through the page's OWN hue at 0→full
+          alpha (var(--pb-bg-0) → var(--pb-bg)) so there's no muddy dark→cream band. */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(10,23,18,.5) 0%,rgba(10,23,18,.24) 30%,rgba(10,23,18,.08) 56%,var(--pb-bg-0) 66%,var(--pb-bg) 99%)" }} />
       <div style={{ position: "relative", maxWidth: 820 }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, ...{}, fontFamily: mono, fontSize: ".6rem", letterSpacing: ".2em", textTransform: "uppercase", color: "#e7e3d8", border: "1px solid rgba(217,183,121,.4)", borderRadius: 999, padding: "7px 16px", background: "rgba(9,17,12,.35)", WebkitBackdropFilter: "blur(6px)", backdropFilter: "blur(6px)" }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: V.GO, boxShadow: "0 0 8px " + V.GO }} /> The honest national park companion

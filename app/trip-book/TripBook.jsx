@@ -1437,6 +1437,8 @@ function StopTools({ spread, onNext, size, onAddPage }) {
         onReset={() => clearStopLayout(spread.name)}
         isOverride={!!getStopLayout(spread.name)}
       />
+      <div style={{ height: 16 }} />
+      <MarginPicker />
 
       {/* STEP 2 — the photos for those slots, numbered to match the book, reorderable. */}
       <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>2</span> Add your photos {need ? `(${Math.min(have, need)}/${need})` : ""}</div>
@@ -1497,11 +1499,8 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
           <div style={{ marginTop: 24 }}>
             <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
           </div>
-          {/* Page layout is chosen per chapter in Diary → Stop Tools. This step is the
-              book's look and materials — including its margins. */}
-          <div style={{ marginTop: 24 }}>
-            <MarginPicker />
-          </div>
+          {/* Page layout AND margins are chosen per chapter in Diary → Stop Tools.
+              This step is the book's look and materials. */}
         </aside>
       )}
       <main style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
@@ -1796,8 +1795,6 @@ function MobilePhone(props) {
             <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />
             <div style={{ height: 22 }} />
             <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
-            <div style={{ height: 22 }} />
-            <MarginPicker />
             <div style={{ height: 22 }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
               <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>Est. total</span>

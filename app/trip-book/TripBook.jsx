@@ -250,8 +250,13 @@ function Pager({ i, n, label, onPrev, onNext, dots }) {
 
 /* ---------------- cover preview (Theme step) ---------------- */
 // Each layout renders a visibly distinct silhouette so the choice is meaningful.
-function CoverPreview({ title, author, region, layout, palette, dateLabel, coverImg }) {
-  const base = palette.base, ink = palette.ink;
+function CoverPreview({ title, author, region, layout, palette, dateLabel, coverImg, cover, finish, size }) {
+  const isLinen = cover && cover.key === "linen";
+  const isGloss = !isLinen && finish && finish.key === "gloss";
+  // Linen editions are a woven forest cloth with gold-foil type — show that, don't
+  // just describe it, so the buyer sees the material they picked.
+  const base = isLinen ? "#1b2a20" : palette.base;
+  const ink = isLinen ? "#e8cf9a" : palette.ink;
   const gold = "rgba(217,183,121,.9)";
   const goldLine = "rgba(217,183,121,.45)";
   const photo = <div style={{ position: "absolute", inset: 0, background: coverImg ? `center/cover url(${coverImg})` : "linear-gradient(160deg,#2a4a38,#12241a)" }} />;
@@ -319,10 +324,22 @@ function CoverPreview({ title, author, region, layout, palette, dateLabel, cover
   }
 
   const framed = k === "centered" || k === "split";
+  // Woven linen texture (fine warp/weft) so the linen edition looks like cloth.
+  const linenTexture = "repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 1px, transparent 1px 3px)";
+  const bg = isLinen ? `${linenTexture}, ${base}` : base;
+  const ratio = size && size.key === "landscape" ? "22/17" : "17/22";
+  const label = [cover ? cover.name : null, isLinen ? "Matte linen" : finish ? finish.name : null, size ? size.name.replace("·", "").replace(/\s+/g, " ").trim() : null].filter(Boolean).join(" · ");
   return (
-    <div style={{ width: 340, maxWidth: "80%", aspectRatio: "17/22", background: base, color: ink, border: "1px solid var(--pb-line)", boxShadow: "0 40px 90px -50px rgba(0,0,0,.8)", borderRadius: 4, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      {framed && <div aria-hidden style={{ position: "absolute", inset: 16, border: "1px solid " + goldLine, borderRadius: 2, pointerEvents: "none" }} />}
-      {inner}
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, maxWidth: "100%" }}>
+      <div style={{ width: ratio === "22/17" ? 420 : 340, maxWidth: "86%", aspectRatio: ratio, background: bg, color: ink, border: "1px solid " + (isLinen ? "rgba(217,183,121,.3)" : "var(--pb-line)"), boxShadow: isLinen ? "0 40px 90px -50px rgba(0,0,0,.9), inset 0 0 60px rgba(0,0,0,.35)" : "0 40px 90px -50px rgba(0,0,0,.8)", borderRadius: 4, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {framed && <div aria-hidden style={{ position: "absolute", inset: 16, border: "1px solid " + goldLine, borderRadius: 2, pointerEvents: "none" }} />}
+        {inner}
+        {/* gold-foil spine hint on linen editions */}
+        {isLinen && <div aria-hidden style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 9, background: "linear-gradient(90deg,rgba(217,183,121,.55),rgba(217,183,121,.08))", pointerEvents: "none" }} />}
+        {/* gloss sheen */}
+        {isGloss && <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(115deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.04) 30%, transparent 55%)", pointerEvents: "none" }} />}
+      </div>
+      {label && <div style={{ fontFamily: mono, fontSize: ".54rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)", textAlign: "center" }}>{label}</div>}
     </div>
   );
 }
@@ -381,8 +398,11 @@ export default function TripBook() {
 
   return (
     <>
-      <SiteHeader acctSlot bare hideTabBar />
-      <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans }}>
+      {/* The MAIN Park Buddy banner stays — same header as the landing/rest of the
+          platform. The studio's own bar sits below it as a page toolbar (and supplies
+          the phone's bottom bar, so hideTabBar avoids two bottom bars). */}
+      <SiteHeader acctSlot hideTabBar />
+      <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: 90 }}>
         {isPhone
           ? <MobilePhone {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
           : <Desktop {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} />}
@@ -402,12 +422,10 @@ export default function TripBook() {
 function TopBar({ step, setStep, role, setRole }) {
   const steps = [["diary", "Diary"], ["theme", "Theme"], ["preview", "Preview"]];
   return (
-    <div style={{ position: "sticky", top: 0, zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 66, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
-      <Link href="/" title="Back to Park Buddy" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-        <img src="/brand/the-park-buddy-badge.png" alt="Park Buddy" width={34} height={34} style={{ width: 34, height: 34, objectFit: "contain", borderRadius: 8 }} />
-        <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>Book Studio</span>
-        <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".1em", color: "var(--pb-muted)" }}>· The Park Buddy</span>
-      </Link>
+    <div style={{ position: "sticky", top: 90, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 60, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
+      {/* No logo here — the main Park Buddy banner above owns the brand. This is a
+          page toolbar, not a second banner. */}
+      <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "var(--pb-ink)" }}>Book Studio</span>
       <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
         {steps.map(([k, label], i) => (
           <button key={k} onClick={() => setStep(k)} style={{ cursor: "pointer", background: "none", border: "none", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 7, color: step === k ? "var(--pb-ink)" : "var(--pb-muted)" }}>
@@ -552,8 +570,9 @@ function StopTools({ spread }) {
   );
 }
 
-function ThemeDesktop({ book, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey }) {
+function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey }) {
   const reader = role === "reader";
+  const coverImg = ((spreads || []).find((s) => s.userImg) || {}).userImg || null;
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
       {!reader && (
@@ -587,7 +606,7 @@ function ThemeDesktop({ book, layout, setLayoutKey, pal, setPal, palette, price,
         </aside>
       )}
       <main style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
-        <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" />
+        <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
       </main>
       {!reader && (
         <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
@@ -656,8 +675,8 @@ const SummaryRows = ({ rows }) => (
 );
 
 // A book "page" for the Preview flip-through: cover, intro, a stop spread, or the close.
-function BookPage({ pv, n, spreads, book, palette, layout, coverImg }) {
-  if (pv === 0) return <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} coverImg={coverImg} />;
+function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, finish, size }) {
+  if (pv === 0) return <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} coverImg={coverImg} cover={cover} finish={finish} size={size} />;
   if (pv === 1) return (
     <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "48px 40px", textAlign: "center" }}>
       <Eyebrow>Introduction</Eyebrow>
@@ -702,7 +721,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
         </aside>
       )}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
-        <BookPage pv={pv} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} />
+        <BookPage pv={pv} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} cover={cover} finish={finish} size={size} />
         <Pager i={pv} n={total} onPrev={() => setPv((p) => (p - 1 + total) % total)} onNext={() => setPv((p) => (p + 1) % total)} dots />
       </main>
       {!reader && (
@@ -730,11 +749,9 @@ function MobilePhone(props) {
   return (
     <div style={{ paddingBottom: BAR + 10 }}>
       {/* top */}
-      <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--pb-line)" }}>
-        <Link href="/" title="Back to Park Buddy" style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none" }}>
-          <img src="/brand/the-park-buddy-badge.png" alt="Park Buddy" width={28} height={28} style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 6 }} />
-          <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1rem", color: "var(--pb-ink)" }}>Book Studio</span>
-        </Link>
+      {/* Sits below the main Park Buddy banner (fixed, ~90px) — a page toolbar. */}
+      <div style={{ position: "sticky", top: 90, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)", borderBottom: "1px solid var(--pb-line)" }}>
+        <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1rem", color: "var(--pb-ink)" }}>Book Studio</span>
         <RoleToggle role={role} setRole={setRole} />
       </div>
 
@@ -786,7 +803,7 @@ function MobilePhone(props) {
         {step === "theme" && (
           <>
             <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 20px" }}>
-              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" />
+              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={(spreads.find((s) => s.userImg) || {}).userImg || null} cover={cover} finish={finish} size={size} />
             </div>
             <Eyebrow>Cover Layouts</Eyebrow>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "10px 0 18px" }}>

@@ -90,6 +90,13 @@ export default function RootLayout({ children }) {
     // errors #418/#423/#425 in production. React recovers, but noisily.
     <html lang="en" className={`${spectral.variable} ${hanken.variable} ${spaceGrotesk.variable} ${cormorant.variable} ${inter.variable} ${spaceMono.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
+        {/* Light/dark theme: apply the saved choice (or the device preference) to
+            <html data-theme> BEFORE first paint, so there's no flash. See app/lib/theme.js. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('pb_theme');if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`,
+          }}
+        />
         {/* Google Maps key, injected from the environment (Netlify env var).
             Runs before any embed-pipeline script (config.js no longer carries a
             literal key — the leaked one was rotated). NEXT_PUBLIC_* values are

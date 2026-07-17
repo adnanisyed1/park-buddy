@@ -8,6 +8,7 @@ import AuthModal from "./AuthModal";
 import AccountPanel from "./AccountPanel";
 import loadScript from "./load-script";
 import { useAuth } from "../lib/auth";
+import { useTheme, setTheme } from "../lib/theme";
 import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU } from "../lib/nav-menus";
 import PbTabBar, { PATHS, DEFAULT_ICON, Ico } from "./PbTabBar";
@@ -199,6 +200,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   // and the account pill both open the one AuthModal (which shows sign-in when
   // signed out, the account panel when signed in).
   const { user, openAuth } = useAuth();
+  const theme = useTheme(); // "light" | "dark" — for the account-menu toggle
   const openAccount = () => { setMenuOpen(false); openAuth(); };
   // Phone top-bar bubble: shows the current section ("where you are") and, when
   // tapped, opens the platform "Go anywhere" tile sheet (the same sheet the bottom
@@ -384,6 +386,19 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           <button type="button" onClick={() => { setMenuOpen(false); askBuddy(); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", fontSize: ".92rem", fontWeight: 600, color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", padding: "13px 17px", borderRadius: 12 }}>
             ✦ Ask Park Buddy
           </button>
+
+          {/* Theme toggle — Light / Dark (rolling out platform-wide one page at a time). */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "4px 4px 2px" }}>
+            <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Theme</span>
+            <div style={{ display: "inline-flex", gap: 2, background: "rgba(127,138,130,.14)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3 }}>
+              {[["light", "Light", "M12 3v2M12 19v2M5 12H3M21 12h-2M6 6 4.5 4.5M19.5 19.5 18 18M18 6l1.5-1.5M4.5 19.5 6 18"], ["dark", "Dark", "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"]].map(([k, lbl, d]) => (
+                <button key={k} type="button" onClick={() => setTheme(k)} aria-pressed={theme === k} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: ".76rem", fontWeight: theme === k ? 700 : 600, border: "none", borderRadius: 999, padding: "6px 12px", background: theme === k ? "var(--pb-grad-gold)" : "transparent", color: theme === k ? "var(--pb-bg)" : "var(--pb-ink-2)" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill={k === "dark" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{k === "dark" ? <path d={d} /> : <><circle cx="12" cy="12" r="4" /><path d={d} /></>}</svg>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div style={{ height: 1, background: "var(--pb-line)", margin: "2px 2px" }} />
           <div style={{ display: "flex", gap: 18, padding: "2px 4px" }}>

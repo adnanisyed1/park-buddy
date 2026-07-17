@@ -49,6 +49,33 @@
   --pb-mono: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
 }
 
+/* ── LIGHT THEME ──────────────────────────────────────────────────────────────
+   The --pb-* tokens re-valued for a warm-parchment light theme. Scoped to
+   `html[data-theme="light"] .pb-theme` so a page only flips when it opts in with
+   the `.pb-theme` class (the landing does; the rest of the platform stays on the
+   dark :root values until each page is migrated). Toggle lives in the account menu;
+   see app/lib/theme.js. (Provisional palette — refine to the light Figma.) */
+html[data-theme="light"] .pb-theme {
+  --pb-bg: #f7f3ea;            /* warm parchment */
+  --pb-bg-2: #efe8d9;          /* deeper cream (footers, wells) */
+  --pb-surface: #fffdf8;       /* card — near-white warm */
+  --pb-surface-2: #f3ecdd;     /* raised / active card */
+  --pb-line: rgba(28, 46, 34, 0.14);   /* hairline — forest tint */
+  --pb-line-strong: rgba(28, 46, 34, 0.24);
+  --pb-gold: #a9762b;          /* deeper gold — legible as text on cream */
+  --pb-gold-2: #8a5e1e;
+  --pb-gold-soft: #9c7433;
+  /* --pb-grad-gold unchanged: gold buttons keep dark text and pop on light too */
+  --pb-ink: #1c2e22;           /* dark forest — primary text */
+  --pb-ink-2: #46564c;         /* secondary text */
+  --pb-muted: #79847a;         /* tertiary / fine print */
+  --pb-go: #2e9e63;            /* verdicts, darkened for contrast on light */
+  --pb-prepare: #b07d32;
+  --pb-hold: #c2653f;
+  --pb-shadow: 0 30px 70px -46px rgba(28, 46, 34, 0.30);
+  --pb-shadow-gold: 0 10px 34px -14px rgba(169, 118, 43, 0.45);
+}
+
 * { margin: 0; box-sizing: border-box; }
 
 html, body { height: 100%; }

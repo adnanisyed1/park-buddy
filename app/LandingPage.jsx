@@ -11,7 +11,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
-import useDarkBody from "./lib/useDarkBody";
+import { useTheme } from "./lib/theme";
 
 const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
 const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
@@ -426,9 +426,17 @@ function Footer() {
 }
 
 export default function LandingPage() {
-  useDarkBody();
+  // Theme-aware body paint (the fixed backdrop below covers most of it; this catches
+  // overscroll). The landing opts into theming via the .pb-theme wrapper, so the
+  // --pb-* tokens flip to their light values when the user picks Light.
+  const theme = useTheme();
+  useEffect(() => {
+    const prev = document.body.style.background;
+    document.body.style.background = theme === "light" ? "#f7f3ea" : "#0a1712";
+    return () => { document.body.style.background = prev; };
+  }, [theme]);
   return (
-    <>
+    <div className="pb-theme">
       <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: -1 }} />
       <SiteHeader active={null} />
       <main style={{ fontFamily: sans, color: "var(--pb-ink)", overflowX: "hidden" }}>
@@ -459,6 +467,6 @@ export default function LandingPage() {
           .pbl-pines { grid-template-columns: 1fr 1fr !important; }
         }
       `}</style>
-    </>
+    </div>
   );
 }

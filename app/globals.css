@@ -62,16 +62,16 @@ html[data-theme="light"] .pb-theme {
   --pb-bg: #faf8f4;            /* warm off-white (from the light Figma) */
   --pb-bg-2: #f0ede6;          /* deeper cream (footers, wells) */
   --pb-surface: #ffffff;       /* white card */
-  --pb-surface-2: #f4f6f3;     /* raised / active card (faint green tint) */
-  --pb-line: rgba(26, 58, 42, 0.10);   /* hairline — forest tint */
+  --pb-surface-2: #f0f5f2;     /* raised / active card (faint green tint) — Figma 12:4 */
+  --pb-line: #e8e4df;          /* hairline — warm neutral border (Figma 12:4) */
   --pb-line-strong: rgba(26, 58, 42, 0.18);
   --pb-gold: #a37c3f;          /* deep gold — legible as text on cream */
-  --pb-gold-2: #8a6529;
+  --pb-gold-2: #c9a35f;        /* deep gold — matches Figma 12:4 accent */
   --pb-gold-soft: #a37c3f;
   /* --pb-grad-gold unchanged: gold buttons keep dark text and pop on light too */
   --pb-ink: #1a3a2a;           /* dark forest — primary text */
   --pb-ink-2: #5a6168;         /* secondary text (cool gray) */
-  --pb-muted: #858c8f;         /* tertiary / fine print */
+  --pb-muted: #7e858b;         /* tertiary / fine print (Figma 12:4) */
   --pb-go: #1e8e4d;            /* verdicts, darkened for contrast on light */
   --pb-prepare: #b0812f;
   --pb-hold: #c85e3c;

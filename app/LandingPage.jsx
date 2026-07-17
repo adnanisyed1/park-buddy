@@ -56,12 +56,13 @@ function CoverImg({ src, alt = "", style, imgStyle, overlay }) {
 }
 
 /* ── Animated tiles ──────────────────────────────────────────────────────────
-   Once the Runway loops are exported and dropped into /public/media/landing (each
-   as <name>.webm + <name>.mp4), flip MOTION_READY to true. Until then MotionTile
-   renders the still `img` only, so there are NO 404s in the meantime.
-   Naming the app expects (basenames passed as `video`):
-     hero, map-band, reel-glacier, reel-sequoia, reel-teton  */
-const MOTION_READY = false;
+   Runway loops live in /public/media/landing as <name>.mp4 (mp4/H.264 plays
+   everywhere; no webm since there's no local transcoder yet). MotionTile lazy-
+   loads each clip as it nears the viewport. Live now: map-band, reel-glacier,
+   reel-sequoia, reel-teton. Hero is intentionally still (user is remaking its
+   video) — set the Hero MotionTile's `video` prop back to "/media/landing/hero"
+   once hero.mp4 is dropped in. */
+const MOTION_READY = true;
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -75,20 +76,38 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-// A cover tile that plays a muted, looping, autoplay video when one is available
-// (and the user hasn't asked for reduced motion), falling back to the still image
-// — which also serves as the video's poster so nothing flashes on load.
+// A cover tile that plays a muted, looping video when one is available (and the
+// user hasn't asked for reduced motion), falling back to the still — which also
+// serves as the video's poster so nothing flashes on load. The clip is LAZY: its
+// src is only attached (and playback started) once the tile scrolls near the
+// viewport, and it pauses when scrolled away — so the (uncompressed) videos don't
+// download until needed and don't burn CPU/battery off-screen.
 function MotionTile({ img, video, alt = "", style, imgStyle, overlay }) {
   const reduced = usePrefersReducedMotion();
   const useVideo = MOTION_READY && video && !reduced;
+  const vidRef = useRef(null);
+  useEffect(() => {
+    const v = vidRef.current;
+    if (!useVideo || !v) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          if (!v.src) v.src = video + ".mp4"; // attach on first approach → defers the download
+          v.play && v.play().catch(() => {});
+        } else if (v.src) {
+          v.pause && v.pause();
+        }
+      },
+      { rootMargin: "300px" }
+    );
+    io.observe(v);
+    return () => io.disconnect();
+  }, [useVideo, video]);
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(160deg,#16321f,#0c1c12)", ...style }}>
       {useVideo ? (
-        <video autoPlay muted loop playsInline preload="metadata" poster={img} aria-label={alt}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...imgStyle }}>
-          <source src={video + ".webm"} type="video/webm" />
-          <source src={video + ".mp4"} type="video/mp4" />
-        </video>
+        <video ref={vidRef} muted loop playsInline preload="none" poster={img} aria-label={alt}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...imgStyle }} />
       ) : (
         <img src={img} alt={alt} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", ...imgStyle }} />
       )}
@@ -113,7 +132,9 @@ function Hero() {
   const hero = "/media/landing/hero.jpg"; // Figma light frame (12:4) hero render
   return (
     <header style={{ position: "relative", minHeight: "min(100vh,860px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "120px 20px 90px", overflow: "hidden" }}>
-      <MotionTile img={hero} video="/media/landing/hero" alt="" imgStyle={{ transform: "scale(1.05)" }} />
+      {/* Hero stays a still for now — user is remaking the hero video. Restore
+          video="/media/landing/hero" once hero.mp4 lands (see MOTION_READY note). */}
+      <MotionTile img={hero} video={null} alt="" imgStyle={{ transform: "scale(1.05)" }} />
       {/* Two-part scrim: a light legibility wash up top (fades out by ~58%), then a
           long dissolve to the page that ramps through the page's OWN hue at 0→full
           alpha (var(--pb-bg-0) → var(--pb-bg)) so there's no muddy dark→cream band. */}

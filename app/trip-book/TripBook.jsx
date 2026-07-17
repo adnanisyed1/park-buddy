@@ -200,10 +200,12 @@ function setSectionStory(name, pane, idx, text) {
    matches. photoIndex → which photo fills it; storyIndex → which writing block. */
 function planSpread(lay) {
   let pi = 0, si = 0;
-  const plan = (side) => side.map((s) => (s.type === "photo"
-    ? { type: "photo", photoIndex: pi++ }
-    : { type: "story", storyIndex: si++, text: s.text }));
-  return { left: plan(lay.left), right: plan(lay.right) };
+  // Each section carries where it lives (pane + index + how many share the page) so a
+  // cell rendered on the book can save itself — that's what makes inline editing work.
+  const plan = (side, pane) => side.map((s, idx) => (s.type === "photo"
+    ? { type: "photo", photoIndex: pi++, pane, idx, paneCount: side.length }
+    : { type: "story", storyIndex: si++, text: s.text, pane, idx, paneCount: side.length }));
+  return { left: plan(lay.left, "left"), right: plan(lay.right, "right") };
 }
 /* The cover photo is a CHOICE, kept alongside the layouts so it rides the same
    change event. Until it's made we fall back to the first photo in the book —
@@ -450,20 +452,51 @@ const EmptySlot = ({ num }) => (
 );
 // One story SECTION on a page. Compact — it may be a quarter of a page — so type
 // scales down when it shares the page. The chapter title rides the first writing
-// block of the chapter only, so a book always has one somewhere.
-function StorySection({ spread, planned, dense, storyText }) {
-  const text = storyText != null ? storyText : (planned.storyIndex === 0 ? spread.story : "");
+// block of the chapter only, so a book always has one somewhere. When `editable`,
+// the body is a textarea styled as the page's own prose, so you write straight onto
+// the book — capped to the space the section prints in.
+function StorySection({ spread, planned, dense, editable }) {
+  const text = planned.text != null ? planned.text : (planned.storyIndex === 0 ? spread.story : "");
   const isFirst = planned.storyIndex === 0;
+  const bodyFont = dense ? ".82rem" : "1rem";
   return (
-    <div style={{ height: "100%", overflow: "hidden", padding: dense ? "8px 8px" : "10px 6px" }}>
+    <div style={{ height: "100%", overflow: "hidden", padding: dense ? "8px 8px" : "10px 6px", display: "flex", flexDirection: "column" }}>
       {isFirst && <>
         <Eyebrow>Chapter {spread.chapter}</Eyebrow>
         <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: dense ? "1.05rem" : "1.5rem", color: "var(--pb-ink)", margin: "6px 0 0", lineHeight: 1.1 }}>{spread.name}</h3>
         <div style={{ width: 36, height: 1, background: "var(--pb-line-strong)", margin: dense ? "9px 0 10px" : "12px 0 14px" }} />
       </>}
-      <p style={{ fontFamily: serif, fontSize: dense ? ".82rem" : "1rem", lineHeight: 1.6, color: "var(--pb-ink-2)", margin: 0 }}>
-        {text || <span style={{ color: "var(--pb-muted)", fontStyle: "italic" }}>Write this section in Stop Tools — or it prints as a clean blank page.</span>}
-      </p>
+      {editable
+        ? <InlineStory spread={spread} planned={planned} font={bodyFont} />
+        : <p style={{ fontFamily: serif, fontSize: bodyFont, lineHeight: 1.6, color: "var(--pb-ink-2)", margin: 0 }}>
+            {text || <span style={{ color: "var(--pb-muted)", fontStyle: "italic" }}>Write this section in Stop Tools — or it prints as a clean blank page.</span>}
+          </p>}
+    </div>
+  );
+}
+
+// Write straight onto the page. The textarea looks like the printed prose (serif,
+// no chrome) and shares everything with the Stop Tools editor: same cap for the
+// section's size, same store, first block still mirrors the trip story. Saves when
+// you click away, so typing doesn't thrash localStorage.
+function InlineStory({ spread, planned, font }) {
+  const cap = storyCap(planned.paneCount);
+  const seed = () => (planned.text != null ? planned.text : (planned.storyIndex === 0 ? (spread.story || "") : ""));
+  const [val, setVal] = useState(seed);
+  useEffect(() => { setVal(seed()); }, [spread.name, planned.pane, planned.idx, planned.text]);
+  const save = () => {
+    if (val === seed()) return;
+    try { setSectionStory(spread.name, planned.pane, planned.idx, val); if (planned.storyIndex === 0) setStory(spread.name, val); } catch {}
+  };
+  const left = cap - val.length;
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <textarea
+        value={val} maxLength={cap} onChange={(e) => setVal(e.target.value)} onBlur={save}
+        placeholder="Write here…"
+        style={{ flex: 1, minHeight: 0, width: "100%", resize: "none", border: "none", outline: "none", background: "transparent",
+          fontFamily: serif, fontSize: font, lineHeight: 1.6, color: "var(--pb-ink-2)", padding: 0 }} />
+      <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", color: left <= 20 ? "var(--pb-prepare)" : "var(--pb-muted)", textAlign: "right", marginTop: 2 }}>{left}</div>
     </div>
   );
 }
@@ -471,8 +504,8 @@ function StorySection({ spread, planned, dense, storyText }) {
 // One cell of a page — a photo (numbered slot, own orientation) or a story block.
 // A lone empty photo cell falls back to the licensed hero image; empty cells in a
 // grid stay honest "add a photo" tiles.
-function SectionCell({ planned, spread, dense, hero }) {
-  if (planned.type === "story") return <StorySection spread={spread} planned={planned} dense={dense} storyText={planned.text} />;
+function SectionCell({ planned, spread, dense, hero, editable }) {
+  if (planned.type === "story") return <StorySection spread={spread} planned={planned} dense={dense} editable={editable} />;
   const p = (spread.photos || [])[planned.photoIndex];
   const num = planned.photoIndex + 1;
   if (p) return <PhotoSlot url={p.url} num={num} />;
@@ -482,14 +515,14 @@ function SectionCell({ planned, spread, dense, hero }) {
 
 // A page (pane) lays its 1–4 sections into a grid: 1 full, 2 stacked, 3 stacked,
 // 4 as a 2×2. Each cell fills its share so the page is the same height either side.
-function Pane({ sections, spread, hero }) {
+function Pane({ sections, spread, hero, editable }) {
   const n = sections.length;
   const grid = n >= 4
     ? { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr" }
     : { gridTemplateColumns: "1fr", gridTemplateRows: `repeat(${n}, 1fr)` };
   return (
     <div style={{ display: "grid", ...grid, gap: 6, height: "100%" }}>
-      {sections.map((s, i) => <SectionCell key={i} planned={s} spread={spread} dense={n > 1} hero={hero} />)}
+      {sections.map((s, i) => <SectionCell key={i} planned={s} spread={spread} dense={n > 1} hero={hero} editable={editable} />)}
     </div>
   );
 }
@@ -526,7 +559,7 @@ const PageNums = ({ start, single }) => {
    whatever mix of photos and text the pages hold. */
 const SPREAD_ASPECT = "1.53 / 1";
 
-function Spread({ spread, startPage = 3 }) {
+function Spread({ spread, startPage = 3, editable = false }) {
   const ready = useLayoutTick();
   const lay = layoutOf(spread, ready);
   const plan = planSpread(lay);
@@ -536,8 +569,8 @@ function Spread({ spread, startPage = 3 }) {
   return (
     <div style={card}>
       <div style={pages}>
-        <Pane sections={plan.left} spread={spread} hero={totalPhotos === 1} />
-        <Pane sections={plan.right} spread={spread} hero={totalPhotos === 1} />
+        <Pane sections={plan.left} spread={spread} hero={totalPhotos === 1} editable={editable} />
+        <Pane sections={plan.right} spread={spread} hero={totalPhotos === 1} editable={editable} />
       </div>
       <PageNums start={startPage} />
     </div>
@@ -981,7 +1014,7 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "24px 30px", overflowY: "auto" }}>
         {onCover
           ? <CoverPreview title={book.title} author={book.author} region={book.region} layout={layoutFor(layoutKey)} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
-          : <Spread spread={cur} startPage={(starts || [])[sel] || 3} />}
+          : <Spread spread={cur} startPage={(starts || [])[sel] || 3} editable={author} />}
         <Pager i={sel + 1} n={n + 1} label={onCover ? "Front cover" : cur.name} onPrev={prev} onNext={next} />
       </main>
       {author && (onCover

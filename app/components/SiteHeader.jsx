@@ -395,9 +395,10 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
 
       <style>{`
         @media (max-width: 860px) {
-          /* Phone: the desktop pill gives way to the where-you-are bubble + an
-             account hamburger sitting outside it. */
+          /* Phone: the desktop pill + account cluster give way to the where-you-are
+             bubble + an account hamburger sitting outside it. */
           .pb-nav-pill { display: none !important; }
+          .pb-nav-actions { display: none !important; }
           .pb-mobile-bubble { display: flex !important; }
           .pb-mobile-burger { display: inline-flex !important; }
           /* Chromeless pages (Pines) draw their own top toggle — hide the island. */

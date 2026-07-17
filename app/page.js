@@ -1,26 +1,15 @@
-import EmbeddedSite from "./components/EmbeddedSite";
-import EmbedAuthBridge from "./components/EmbedAuthBridge";
+import LandingPage from "./LandingPage";
 
-// Homepage = the futuristic-royal LANDING page (public/embed/home), ported 1:1
-// from the user's Claude-design spec (~/Downloads/parkbuddy-landing-preview.html).
-// Forest-green + champagne-gold, animated topographic hero canvas, live-conditions
-// ticker, persona spotlight, AI-agent + plan/pack, alerts, Stay/Cars/Gear booking,
-// scrollytelling "Learn", Pro tiers, "List with us" intake, and a pre-flight filter
-// modal that writes pb_map_filters → /explore. Photos come from our /api/photo.
-// The full interactive map lives at /explore; the older bento launcher is retained
-// at public/embed/index (unrouted) as a fallback reference.
+// Homepage = the React LANDING page (app/LandingPage.jsx), built from the Figma
+// handoff and mounted on the shared platform shell (SiteHeader + PbTabBar) — the
+// last legacy embed is retired, so the whole platform is now one React base.
 export const metadata = {
-  title: "Park Buddy — See every park like never before",
+  title: "Park Buddy — Know if today's the day",
   description:
-    "One living map for every U.S. national park — plus the national forests, state parks, trails, scenic drives, lakes and campgrounds around them. Real conditions, charted in real time.",
+    "The honest national park companion: one live go/no-go call for every U.S. national park — real weather, alerts, air and fire — plus everything to plan, book and live the trip.",
   alternates: { canonical: "/" },
 };
 
 export default function HomePage() {
-  return (
-    <>
-      <EmbeddedSite page="home" />
-      <EmbedAuthBridge />
-    </>
-  );
+  return <LandingPage />;
 }

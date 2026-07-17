@@ -172,6 +172,18 @@ const describeLayout = (l) => { const n = normLayout(l); return `${describeSide(
    The textarea enforces it and the count shows how much is left. */
 const STORY_CAP = { 1: 700, 2: 340, 3: 220, 4: 160 };
 const storyCap = (sectionsOnPage) => STORY_CAP[Math.max(1, Math.min(MAX_SECTIONS, sectionsOnPage))] || 160;
+/* Page margins — the white border content is inset from the trim edge, a book-wide
+   choice. Values from print guidance (Lulu safety margin = 0.5"): full-bleed is the
+   photo-only exception at 0; Standard matches the 0.5" safety line; Gallery is a
+   wide, premium frame. `in` is inches; the preview insets by in/trim. */
+const MARGINS = [
+  { key: "fullbleed", name: "Full bleed", in: 0, note: "Edge-to-edge — best for photos. Keep text away from the edges." },
+  { key: "standard", name: "Standard", in: 0.5, note: "A clean, even border — the safe default for photos and text." },
+  { key: "gallery", name: "Gallery", in: 0.75, note: "A wide, museum-style frame." },
+];
+const marginOf = (key) => MARGINS.find((m) => m.key === key) || MARGINS[1];
+function getBookMargin() { return readLayouts().margin || "standard"; }
+function setBookMargin(key) { const o = readLayouts(); o.margin = key; writeLayouts(o); }
 function readLayouts() { try { return JSON.parse(localStorage.getItem(LKEY) || "{}") || {}; } catch { return {}; } }
 function writeLayouts(o) {
   try { localStorage.setItem(LKEY, JSON.stringify(o)); window.dispatchEvent(new Event("pb:booklayout")); } catch {}
@@ -582,18 +594,22 @@ const PageNums = ({ start, single }) => {
    whatever mix of photos and text the pages hold. */
 const SPREAD_ASPECT = "1.53 / 1";
 
-function Spread({ spread, startPage = 3, editable = false }) {
+function Spread({ spread, startPage = 3, editable = false, size }) {
   const ready = useLayoutTick();
   const lay = layoutOf(spread, ready);
   const plan = planSpread(lay);
   const totalPhotos = photoCount(lay.left) + photoCount(lay.right);
+  // Book-wide margin, inset as a fraction of the trim so the preview matches print.
+  const trimIn = ((size && parseInt(String(size.trim).slice(0, 4), 10)) || 850) / 100;
+  const marginPct = ready ? (marginOf(getBookMargin()).in / trimIn) * 100 : 0;
   const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
   const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "14px", aspectRatio: SPREAD_ASPECT };
+  const pad = { height: "100%", boxSizing: "border-box", ...(marginPct ? { padding: `${marginPct}%` } : {}) };
   return (
     <div style={card}>
       <div style={pages}>
-        <Pane sections={plan.left} spread={spread} hero={totalPhotos === 1} editable={editable} />
-        <Pane sections={plan.right} spread={spread} hero={totalPhotos === 1} editable={editable} />
+        <div style={pad}><Pane sections={plan.left} spread={spread} hero={totalPhotos === 1} editable={editable} /></div>
+        <div style={pad}><Pane sections={plan.right} spread={spread} hero={totalPhotos === 1} editable={editable} /></div>
       </div>
       <PageNums start={startPage} />
     </div>
@@ -1037,13 +1053,47 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "24px 30px", overflowY: "auto" }}>
         {onCover
           ? <CoverPreview title={book.title} author={book.author} region={book.region} layout={layoutFor(layoutKey)} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
-          : <Spread spread={cur} startPage={(starts || [])[sel] || 3} editable={author} />}
+          : <Spread spread={cur} startPage={(starts || [])[sel] || 3} editable={author} size={size} />}
         <Pager i={sel + 1} n={n + 1} label={onCover ? "Front cover" : cur.name} onPrev={prev} onNext={next} />
       </main>
       {author && (onCover
         ? <CoverTools spreads={spreads} layoutKey={layoutKey} setLayoutKey={setLayoutKey} coverImg={coverImg} size={size} onNext={() => setStep("theme")} />
         : <StopTools spread={cur} size={size} onNext={() => setStep("theme")}
             onAddPage={() => { addExtra({ name: cur.name + " — more", afterName: cur.name }); setSel(sel + 1); }} />)}
+    </div>
+  );
+}
+
+// One pane's section editor. TOP-LEVEL (not nested in LayoutPicker) on purpose: a
+// component defined inside another is a new type every render, so React unmounts and
+// remounts it each time — which drops a real mouse click when the button is replaced
+// between mousedown and mouseup. That was the "toggle doesn't change it" bug.
+const stepBtnStyle = (off) => ({ cursor: off ? "default" : "pointer", width: 20, height: 20, borderRadius: 6, border: "1px solid var(--pb-line-strong)", background: "transparent", color: off ? "var(--pb-line-strong)" : "var(--pb-ink)", fontFamily: "inherit", fontSize: ".8rem", lineHeight: 1, opacity: off ? 0.5 : 1 });
+function SideCtl({ side, label, sections, onSetType, onAdd, onRemove }) {
+  return (
+    <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "9px 10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+        <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{label}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button onClick={() => onRemove(side)} disabled={sections.length <= 1} aria-label="Fewer sections" style={stepBtnStyle(sections.length <= 1)}>−</button>
+          <span style={{ fontFamily: mono, fontSize: ".55rem", color: "var(--pb-ink-2)", minWidth: 20, textAlign: "center" }}>{sections.length}</span>
+          <button onClick={() => onAdd(side)} disabled={sections.length >= MAX_SECTIONS} aria-label="More sections" style={stepBtnStyle(sections.length >= MAX_SECTIONS)}>+</button>
+        </span>
+      </div>
+      {/* One row per section, top to bottom as they stack on the page — each flips
+          between a photo and a story block. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {sections.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)", width: 12, textAlign: "center" }}>{i + 1}</span>
+            <div style={{ display: "flex", flex: 1, background: "var(--pb-tint)", borderRadius: 6, padding: 2 }}>
+              {[["photo", "Photo"], ["story", "Story"]].map(([t, l]) => (
+                <button key={t} onClick={() => onSetType(side, i, t)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".66rem", fontWeight: s.type === t ? 700 : 500, border: "none", borderRadius: 4, padding: "4px", background: s.type === t ? "var(--pb-surface-2)" : "transparent", color: s.type === t ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1059,37 +1109,6 @@ function LayoutPicker({ value, onChange, onReset, isOverride }) {
   const setType = (side, i, type) => setSide(side, lay[side].map((s, k) => (k === i ? (type === "story" ? cleanSection({ ...s, type: "story" }) : { type: "photo" }) : s)));
   const addSection = (side) => { if (lay[side].length < MAX_SECTIONS) setSide(side, [...lay[side], { type: "photo" }]); };
   const removeSection = (side) => { if (lay[side].length > 1) setSide(side, lay[side].slice(0, -1)); };
-  const stepBtn = (off) => ({ cursor: off ? "default" : "pointer", width: 20, height: 20, borderRadius: 6, border: "1px solid var(--pb-line-strong)", background: "transparent", color: off ? "var(--pb-line-strong)" : "var(--pb-ink)", fontFamily: "inherit", fontSize: ".8rem", lineHeight: 1, opacity: off ? 0.5 : 1 });
-
-  const SideCtl = ({ side, label }) => {
-    const sections = lay[side];
-    return (
-      <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "9px 10px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
-          <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{label}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <button onClick={() => removeSection(side)} disabled={sections.length <= 1} aria-label="Fewer sections" style={stepBtn(sections.length <= 1)}>−</button>
-            <span style={{ fontFamily: mono, fontSize: ".55rem", color: "var(--pb-ink-2)", minWidth: 20, textAlign: "center" }}>{sections.length}</span>
-            <button onClick={() => addSection(side)} disabled={sections.length >= MAX_SECTIONS} aria-label="More sections" style={stepBtn(sections.length >= MAX_SECTIONS)}>+</button>
-          </span>
-        </div>
-        {/* One row per section, top to bottom as they stack on the page — each flips
-            between a photo and a story block. */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          {sections.map((s, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)", width: 12, textAlign: "center" }}>{i + 1}</span>
-              <div style={{ display: "flex", flex: 1, background: "var(--pb-tint)", borderRadius: 6, padding: 2 }}>
-                {[["photo", "Photo"], ["story", "Story"]].map(([t, l]) => (
-                  <button key={t} onClick={() => setType(side, i, t)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".66rem", fontWeight: s.type === t ? 700 : 500, border: "none", borderRadius: 4, padding: "4px", background: s.type === t ? "var(--pb-surface-2)" : "transparent", color: s.type === t ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -1104,14 +1123,41 @@ function LayoutPicker({ value, onChange, onReset, isOverride }) {
       </div>
       <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>Or build it yourself — up to 4 sections a page</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <SideCtl side="left" label="Left page" />
-        <SideCtl side="right" label="Right page" />
+        <SideCtl side="left" label="Left page" sections={lay.left} onSetType={setType} onAdd={addSection} onRemove={removeSection} />
+        <SideCtl side="right" label="Right page" sections={lay.right} onSetType={setType} onAdd={addSection} onRemove={removeSection} />
       </div>
       {onReset && (
         <button onClick={onReset} disabled={!isOverride} style={{ cursor: isOverride ? "pointer" : "default", width: "100%", marginTop: 10, fontFamily: "inherit", fontSize: ".72rem", color: isOverride ? "var(--pb-gold)" : "var(--pb-muted)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "7px", opacity: isOverride ? 1 : .55 }}>
           {isOverride ? "↺ Use book default" : "Using book default"}
         </button>
       )}
+    </>
+  );
+}
+
+// Book-wide page margins. The preview updates as you pick (see Spread).
+function MarginPicker() {
+  useLayoutTick();
+  const cur = getBookMargin();
+  return (
+    <>
+      <Eyebrow>Page margins</Eyebrow>
+      <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 10px" }}>The border around every page. Applies to the whole book.</div>
+      <div style={{ display: "grid", gap: 5 }}>
+        {MARGINS.map((m) => {
+          const on = m.key === cur;
+          return (
+            <button key={m.key} onClick={() => setBookMargin(m.key)}
+              style={{ cursor: "pointer", textAlign: "left", fontFamily: "inherit", background: on ? "var(--pb-surface-2)" : "transparent", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 8, padding: "8px 11px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{ fontSize: ".78rem", fontWeight: on ? 700 : 500, color: "var(--pb-ink)" }}>{m.name}</span>
+                <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)" }}>{m.in ? m.in + '"' : "0"}</span>
+              </div>
+              <div style={{ fontSize: ".64rem", color: "var(--pb-muted)", marginTop: 2, lineHeight: 1.4 }}>{m.note}</div>
+            </button>
+          );
+        })}
+      </div>
     </>
   );
 }
@@ -1451,11 +1497,10 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
           <div style={{ marginTop: 24 }}>
             <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
           </div>
-          {/* Book-wide page composition; any chapter can override it in Stop Tools. */}
+          {/* Page layout is chosen per chapter in Diary → Stop Tools. This step is the
+              book's look and materials — including its margins. */}
           <div style={{ marginTop: 24 }}>
-            <Eyebrow>Default page layout</Eyebrow>
-            <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 10px" }}>Applies to every chapter — override any one in Diary → Stop Tools.</div>
-            <LayoutPicker value={getDefaultLayout()} onChange={(p) => setDefaultLayout(p)} />
+            <MarginPicker />
           </div>
         </aside>
       )}
@@ -1607,7 +1652,7 @@ function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, fini
       <p style={{ fontFamily: serif, fontSize: ".98rem", lineHeight: 1.7, color: "var(--pb-ink-2)", maxWidth: 340, margin: "0 auto" }}>{n} chapters, gathered from the road — the places we stood, the light we caught, and the stories worth keeping.</p>
     </div>
   );
-  if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} startPage={(starts || [])[pv - 2] || 3} />;
+  if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} startPage={(starts || [])[pv - 2] || 3} size={size} />;
   return (
     <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "56px 40px", textAlign: "center" }}>
       <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.5rem", color: "var(--pb-ink)" }}>Adventure&rsquo;s better with a Buddy.</div>
@@ -1751,6 +1796,9 @@ function MobilePhone(props) {
             <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />
             <div style={{ height: 22 }} />
             <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
+            <div style={{ height: 22 }} />
+            <MarginPicker />
+            <div style={{ height: 22 }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
               <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>Est. total</span>
               <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}.00</span>

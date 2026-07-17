@@ -80,24 +80,22 @@ Open follow-ups for this platform:
       sandbox catalog carries), production `0850.FC.PRE.CW.080CW444.MXX` (8.5×8.5);
       interior PDF sizes to the trim. Sandbox shipping = MAIL (GROUND unavailable), prod
       = GROUND. Diagnostic probes (`/api/lulu-cost?probe=…`) are sandbox-only. ✅
-- [ ] **Book Studio → rebuild as the UNIFIED single-page studio** (Figma proto `29:4`
-      "book-studio-unified", fileKey JJlqqcU2BXe2A4WzwS6Oqv, node-id 29-5). Replace the
-      current 3-step wizard (`/trip-book`, TripBook.jsx + studioSource.js) with ONE
-      scrolling "The Book Studio" page that matches the proto, reusing all existing data +
-      the Stripe/Lulu pipeline (no backend changes). Sections, top→bottom:
-      1. Header ("THE BOOK STUDIO") + horizontal **step-flow rail**.
-      2. Title/meta block — book title, subtitle, "by <author>", chips (N STOPS · N PHOTOS · month yr).
-      3. **Open-book SPREAD view** (magazine layout: full-bleed photo page ‖ "CHAPTER n" +
-         story page) with a **SPREAD n / total** pager (‹ ›). Main new UI piece; simpler
-         than the existing 3D page-turn hardcover, so reuse its data/theming.
-      4. **Spread thumbnails** rail — mini spreads, click to jump the spread view.
-      5. **Your Pages** — editable stop cards (photo, story excerpt, Edit/Page, "＋ Add photo"),
-         + "Manage stops"; wired to the real trip stops + Trip Mode captures/stories.
-      6. **Print Covers** — front + back hardcover linen preview.
-      7. Sticky **Order bar** — edition line (8.5×8.5 · pages · 5–7 day) + total ($49) +
-         "Order Book →" → existing reservation/checkout flow.
-      Feasible: front-end restructure only; engine (studioSource.js), themes, /api/photo,
-      /api/checkout + /api/stripe-webhook + Lulu, book_orders all stay. Mobile pass needed.
+- [x] ~~**Book Studio → rebuild on the delivered Figma workspace design**~~ — DONE
+      (Figma file 1IuuEX2vq8RVRnyGaEUlMl; commit c17afed). `/trip-book` rebuilt as a clean
+      React 3-step workspace (Diary → Theme → Preview) on the --pb-* system: Author/Reader
+      toggle, open-book spread + pager, Stop Tools (GPS + live distance, edit story, swap
+      photo), cover silhouettes + dark/light palettes + live cover, Order Details wired to
+      the existing reservation + Stripe/Lulu checkout. Mobile: bottom bar
+      (Diary·Theme·Preview·Order) + Photo⇄Story toggle + collapsible tools (new SiteHeader
+      `hideTabBar` prop). Composes from the real trip; Yosemite sample when empty. The old
+      imperative `studioSource.js` is now unused (safe to delete on a later pass).
+      (Superseded the earlier `29:4` single-page concept — we went with the workspace design.)
+- [ ] **Book Studio follow-ups** — delete the now-unused `studioSource.js` + `studio.css`
+      leftovers (keep only the `.tbres-*` reservation-modal styles the new page still uses);
+      wire the real trip **title/dates/author** into the cover + a proper Introduction/Final
+      page; consider real cover-layout differences (Centered/Minimal/Editorial/Manuscript
+      currently share one preview). The empty-state (no trip) shows the Yosemite sample —
+      could add a subtle "sample — build a trip to make it yours" banner.
 - [ ] **Trip Book → GO LIVE** — DEFERRED until the `theparkbuddy.com` domain move (launch
       on the real brand, not park-buddy-gamma.vercel.app). All env flips in Vercel, no code:
       • Lulu **production** creds + `LULU_ENV=production` (SKU auto-switches to 8.5×8.5) +

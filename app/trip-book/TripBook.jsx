@@ -659,7 +659,11 @@ export default function TripBook() {
   const cur = spreads[Math.min(Math.max(sel, 0), n - 1)] || spreads[0];
   const layout = layoutFor(layoutKey);
   // The chosen cover photo wins; until one is chosen, the book's first photo stands in.
-  const coverImg = (mounted && getCoverPick()) || (spreads.find((s) => s.userImg) || {}).userImg || null;
+  // getCoverPick() is a RECORD {url,path,w,h}; everything that draws the cover needs a
+  // URL string (url(${coverImg})), so extract .url. Passing the object printed
+  // url([object Object]) and the cover showed nothing.
+  const coverPick = mounted ? getCoverPick() : null;
+  const coverImg = (coverPick && coverPick.url) || (spreads.find((s) => s.userImg) || {}).userImg || null;
   const custom = customCheck(customBase);
   const palette = pal === "custom"
     ? { key: "custom", name: "Custom " + normHex(customBase).toUpperCase(), base: normHex(customBase), ink: custom.ink || INK_LIGHT, accent: "#C9A24A" }

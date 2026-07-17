@@ -21,6 +21,11 @@ Supabase → Storage → New bucket → name `book-photos`, **Public = OFF**. No
 client-side reads it; the PDF builder pulls bytes with the service key.
 
 Next, in order:
+- [ ] **Location-stamp map source is print-licensed** — the new "Map" section type
+      (a static map + coordinates) uses Google Static Maps in the preview
+      (`staticMapUrl` in TripBook). Google Static Maps in a SOLD, PRINTED book needs
+      Google's permission — swap for a print-licensed static-image provider
+      (Mapbox / Stadia / Geoapify) before a map stamp is printed. Preview is fine.
 - [ ] **PDF builder learns the new compositions** — `lib/interiorPdf.js` still renders
       the old one-photo-per-stop layout, so "Story on both pages" / grids / per-side
       counts print as something else. Must land before any proof is shown to a customer.

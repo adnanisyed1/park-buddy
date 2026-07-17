@@ -130,7 +130,21 @@ const PRESETS = [
 ];
 const LKEY = "pb_book_layouts";
 const DEFAULT_LAYOUT = { left: [{ type: "photo" }], right: [{ type: "story" }] };
-const cleanSection = (s) => (s && s.type === "story" ? (s.text != null ? { type: "story", text: s.text } : { type: "story" }) : { type: "photo" });
+// A section is a photo, a story block, or a LOCATION STAMP (a little map of where you
+// were + the coordinates beneath it). Story carries its text; a map carries its own
+// lat/lng/label (all optional — it falls back to the stop's location).
+function cleanSection(s) {
+  if (!s) return { type: "photo" };
+  if (s.type === "story") return s.text != null ? { type: "story", text: s.text } : { type: "story" };
+  if (s.type === "map") {
+    const m = { type: "map" };
+    if (s.lat != null) m.lat = s.lat;
+    if (s.lng != null) m.lng = s.lng;
+    if (s.label != null) m.label = s.label;
+    return m;
+  }
+  return { type: "photo" };
+}
 // Normalise a pane to an array of 1–4 sections, migrating the older shapes:
 //   • {type:"photos"|"story", count}  (per-side type + count)
 //   • array already in the new form
@@ -160,10 +174,11 @@ const storyCount = (side) => side.filter((s) => s.type === "story").length;
 // How many photos this chapter needs before nothing is an empty slot.
 const photosNeeded = (l) => { const n = normLayout(l); return photoCount(n.left) + photoCount(n.right); };
 const describeSide = (side) => {
-  const p = photoCount(side), s = storyCount(side);
+  const p = photoCount(side), s = storyCount(side), m = side.filter((x) => x.type === "map").length;
   const parts = [];
   if (p) parts.push(`${p} photo${p > 1 ? "s" : ""}`);
   if (s) parts.push(`${s} text`);
+  if (m) parts.push(`${m} map`);
   return parts.join(" + ") || "empty";
 };
 const describeLayout = (l) => { const n = normLayout(l); return `${describeSide(n.left)} · ${describeSide(n.right)}`; };
@@ -207,6 +222,29 @@ function setSectionStory(name, pane, idx, text) {
   o.stops[name] = { ...cur, [pane]: cur[pane].map((s, i) => (i === idx ? { ...s, text } : s)) };
   writeLayouts(o);
 }
+// Set a location-stamp section's location/label ({lat,lng} and/or {label}).
+function setSectionMap(name, pane, idx, patch) {
+  const o = readLayouts(); o.stops = o.stops || {};
+  const cur = normLayout(o.stops[name] || getDefaultLayout());
+  o.stops[name] = { ...cur, [pane]: cur[pane].map((s, i) => (i === idx ? { ...s, ...patch } : s)) };
+  writeLayouts(o);
+}
+/* A static map image of a spot, for a location stamp. Uses the same Google key as the
+   rest of the app when present; returns null otherwise so the stamp falls back to a
+   designed placeholder rather than a broken image.
+   ⚠ PRINT LICENSING: Google Static Maps in a SOLD, PRINTED book needs Google's
+   permission — fine for the on-screen preview, must be swapped for a print-licensed
+   provider (Mapbox/Stadia/Geoapify static images) before a map stamp is printed.
+   Tracked in TODO. */
+function gmapsKey() {
+  try { return localStorage.getItem("pb_gmaps_key") || (typeof window !== "undefined" && window.GMAPS_KEY) || ""; } catch { return ""; }
+}
+function staticMapUrl(lat, lng) {
+  const key = gmapsKey();
+  if (lat == null || lng == null || !key) return null;
+  const c = `${(+lat).toFixed(5)},${(+lng).toFixed(5)}`;
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${c}&zoom=12&size=400x300&scale=2&maptype=terrain&markers=color:0xC9A24A%7C${c}&key=${key}`;
+}
 /* Walk a spread's sections in reading order (left pane, then right) and number the
    photos and story blocks globally — the numbers the preview shows and Stop Tools
    matches. photoIndex → which photo fills it; storyIndex → which writing block. */
@@ -214,9 +252,12 @@ function planSpread(lay) {
   let pi = 0, si = 0;
   // Each section carries where it lives (pane + index + how many share the page) so a
   // cell rendered on the book can save itself — that's what makes inline editing work.
-  const plan = (side, pane) => side.map((s, idx) => (s.type === "photo"
-    ? { type: "photo", photoIndex: pi++, pane, idx, paneCount: side.length }
-    : { type: "story", storyIndex: si++, text: s.text, pane, idx, paneCount: side.length }));
+  const plan = (side, pane) => side.map((s, idx) => {
+    const base = { pane, idx, paneCount: side.length };
+    if (s.type === "photo") return { ...base, type: "photo", photoIndex: pi++ };
+    if (s.type === "map") return { ...base, type: "map", lat: s.lat, lng: s.lng, label: s.label };
+    return { ...base, type: "story", storyIndex: si++, text: s.text };
+  });
   return { left: plan(lay.left, "left"), right: plan(lay.right, "right") };
 }
 /* The cover photo is a CHOICE, kept alongside the layouts so it rides the same
@@ -527,11 +568,42 @@ function InlineStory({ spread, planned, font }) {
   );
 }
 
-// One cell of a page — a photo (numbered slot, own orientation) or a story block.
-// A lone empty photo cell falls back to the licensed hero image; empty cells in a
-// grid stay honest "add a photo" tiles.
+/* A LOCATION STAMP — a small map of where you were, with the coordinates (and an
+   optional place name) beneath it, like a postcard mark. Location falls back to the
+   stop's own coordinates when the section carries none. */
+function MapStamp({ lat, lng, label, dense }) {
+  const url = staticMapUrl(lat, lng);
+  const coord = fmtCoord(lat, lng);
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: 4, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
+      <div style={{ flex: 1, minHeight: 0, position: "relative", background: "var(--pb-tint)" }}>
+        {url
+          ? <img src={url} alt={coord || "location"} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          : <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--pb-muted)", gap: 4 }}>
+              <span style={{ fontSize: dense ? "1.4rem" : "2rem", lineHeight: 1 }}>⌖</span>
+              {!coord && <span style={{ fontFamily: mono, fontSize: ".5rem" }}>No location set</span>}
+            </div>}
+      </div>
+      <div style={{ flex: "0 0 auto", padding: dense ? "5px 7px" : "8px 10px", textAlign: "center", background: "var(--pb-surface)", borderTop: "1px solid var(--pb-line)" }}>
+        {label && <div style={{ fontFamily: serif, fontSize: dense ? ".72rem" : ".92rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{label}</div>}
+        {coord && <div style={{ fontFamily: mono, fontSize: dense ? ".48rem" : ".56rem", letterSpacing: ".08em", color: "var(--pb-muted)", marginTop: 2 }}>{coord}</div>}
+      </div>
+    </div>
+  );
+}
+
+// One cell of a page — a photo (numbered slot, own orientation), a story block, or a
+// location stamp. A lone empty photo cell falls back to the licensed hero image;
+// empty cells in a grid stay honest "add a photo" tiles.
 function SectionCell({ planned, spread, dense, hero, editable }) {
   if (planned.type === "story") return <StorySection spread={spread} planned={planned} dense={dense} editable={editable} />;
+  if (planned.type === "map") {
+    return <MapStamp
+      lat={planned.lat != null ? planned.lat : spread.lat}
+      lng={planned.lng != null ? planned.lng : spread.lng}
+      label={planned.label != null ? planned.label : spread.name}
+      dense={dense} />;
+  }
   const p = (spread.photos || [])[planned.photoIndex];
   const num = planned.photoIndex + 1;
   if (p) return <PhotoSlot url={p.url} num={num} />;
@@ -1087,8 +1159,8 @@ function SideCtl({ side, label, sections, onSetType, onAdd, onRemove }) {
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)", width: 12, textAlign: "center" }}>{i + 1}</span>
             <div style={{ display: "flex", flex: 1, background: "var(--pb-tint)", borderRadius: 6, padding: 2 }}>
-              {[["photo", "Photo"], ["story", "Story"]].map(([t, l]) => (
-                <button key={t} onClick={() => onSetType(side, i, t)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".66rem", fontWeight: s.type === t ? 700 : 500, border: "none", borderRadius: 4, padding: "4px", background: s.type === t ? "var(--pb-surface-2)" : "transparent", color: s.type === t ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
+              {[["photo", "Photo"], ["story", "Story"], ["map", "Map"]].map(([t, l]) => (
+                <button key={t} onClick={() => onSetType(side, i, t)} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".6rem", fontWeight: s.type === t ? 700 : 500, border: "none", borderRadius: 4, padding: "4px 2px", background: s.type === t ? "var(--pb-surface-2)" : "transparent", color: s.type === t ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
               ))}
             </div>
           </div>
@@ -1105,8 +1177,8 @@ function LayoutPicker({ value, onChange, onReset, isOverride }) {
   const types = (side) => side.map((s) => s.type).join(",");
   const presetOn = (p) => types(normSide(p.left)) === types(lay.left) && types(normSide(p.right)) === types(lay.right);
   const setSide = (side, sections) => onChange({ ...lay, [side]: sections });
-  // Changing a section's type keeps any story text it was carrying.
-  const setType = (side, i, type) => setSide(side, lay[side].map((s, k) => (k === i ? (type === "story" ? cleanSection({ ...s, type: "story" }) : { type: "photo" }) : s)));
+  // Changing a section's type keeps whatever that type carries (story text, map coords).
+  const setType = (side, i, type) => setSide(side, lay[side].map((s, k) => (k === i ? cleanSection({ ...s, type }) : s)));
   const addSection = (side) => { if (lay[side].length < MAX_SECTIONS) setSide(side, [...lay[side], { type: "photo" }]); };
   const removeSection = (side) => { if (lay[side].length > 1) setSide(side, lay[side].slice(0, -1)); };
 
@@ -1393,6 +1465,54 @@ function StorySectionEditors({ spread }) {
   );
 }
 
+// One location-stamp's controls: shows where it's pinned (defaulting to the stop's
+// own coordinates), lets you drop your current location on it, name the place, or
+// reset to the stop.
+function MapStampBox({ spread, item, labelled }) {
+  const [locating, setLocating] = useState(false);
+  const [lbl, setLbl] = useState(item.label != null ? item.label : (spread.name || ""));
+  useEffect(() => { setLbl(item.label != null ? item.label : (spread.name || "")); }, [spread.name, item.pane, item.idx, item.label]);
+  const lat = item.lat != null ? item.lat : spread.lat;
+  const lng = item.lng != null ? item.lng : spread.lng;
+  const coord = fmtCoord(lat, lng);
+  const usingStop = item.lat == null && item.lng == null;
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (p) => { setLocating(false); try { setSectionMap(spread.name, item.pane, item.idx, { lat: p.coords.latitude, lng: p.coords.longitude }); } catch {} },
+      () => setLocating(false), { enableHighAccuracy: true, timeout: 15000 });
+  };
+  const cbtn = { cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 8, padding: "7px 10px" };
+  return (
+    <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "10px 11px" }}>
+      {labelled && <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>{item.pageLabel} page</div>}
+      <div style={{ fontFamily: mono, fontSize: ".7rem", color: coord ? "var(--pb-ink)" : "var(--pb-muted)" }}>{coord || "No location yet — use your location or the stop's."}</div>
+      <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", marginTop: 2 }}>{usingStop ? "Using this stop's location" : "Custom location"}</div>
+      <input value={lbl} onChange={(e) => setLbl(e.target.value)} onBlur={() => { try { setSectionMap(spread.name, item.pane, item.idx, { label: lbl }); } catch {} }} placeholder="Place name (optional)" maxLength={60}
+        style={{ width: "100%", boxSizing: "border-box", marginTop: 8, background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "7px 9px", color: "var(--pb-ink)", fontFamily: serif, fontSize: ".85rem", outline: "none" }} />
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <button onClick={useMyLocation} style={{ ...cbtn, flex: 1 }}>{locating ? "locating…" : "⌖ Use my location"}</button>
+        {!usingStop && <button onClick={() => { try { setSectionMap(spread.name, item.pane, item.idx, { lat: null, lng: null }); } catch {} }} style={cbtn}>Reset</button>}
+      </div>
+    </div>
+  );
+}
+function MapStampEditors({ spread }) {
+  useLayoutTick();
+  const lay = layoutOf(spread, true);
+  const items = [];
+  [["left", "Left"], ["right", "Right"]].forEach(([pane, pageLabel]) => {
+    lay[pane].forEach((s, idx) => { if (s.type === "map") items.push({ pane, idx, pageLabel, lat: s.lat, lng: s.lng, label: s.label }); });
+  });
+  if (!items.length) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {items.map((it) => <MapStampBox key={it.pane + it.idx} spread={spread} item={it} labelled={items.length > 1} />)}
+    </div>
+  );
+}
+
 function StopTools({ spread, onNext, size, onAddPage }) {
   useLayoutTick();
   const [dist, setDist] = useState(null);
@@ -1418,6 +1538,7 @@ function StopTools({ spread, onNext, size, onAddPage }) {
   const lay = layoutOf(spread, true);
   const need = photosNeeded(lay);
   const have = (spread.photos || []).length;
+  const hasMap = [...lay.left, ...lay.right].some((s) => s.type === "map");
   const stepCap = { fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-gold-soft)", display: "flex", alignItems: "center", gap: 7 };
   const stepDot = { flex: "0 0 auto", width: 16, height: 16, borderRadius: "50%", background: "var(--pb-gold)", color: "#14210f", fontSize: ".58rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" };
   const hint = { fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.5, margin: "5px 0 10px" };
@@ -1455,6 +1576,15 @@ function StopTools({ spread, onNext, size, onAddPage }) {
       <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>3</span> Write the story</div>
       <p style={hint}>Type here or straight onto the page. A smaller section holds fewer words — the counter shows how many are left.</p>
       <StorySectionEditors spread={spread} />
+
+      {/* Location stamps — only when the layout has a Map section. */}
+      {hasMap && (
+        <div style={{ marginTop: 24 }}>
+          <Eyebrow>Location stamps</Eyebrow>
+          <p style={hint}>A little map of where you were, with the coordinates beneath it. Defaults to this stop&rsquo;s spot — drop your own if you like.</p>
+          <MapStampEditors spread={spread} />
+        </div>
+      )}
 
       {/* More room? A continuation page for extra photos or a longer story, right
           after this chapter. */}

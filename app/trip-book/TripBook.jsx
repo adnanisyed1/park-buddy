@@ -346,35 +346,52 @@ function PhotoGrid({ photos, count }) {
 
 // The open-book spread. Its composition comes from the stop's own layout, else the
 // book default (see MODES / pb_book_layouts).
-// Real page numbers — chapter n occupies pages 4+(n-1)*4 and the facing page.
-const pagesOf = (spread) => { const l = 4 + ((spread.chapter || 1) - 1) * 4; return [l, l + 1]; };
-const PageNums = ({ spread, single }) => {
-  const [l, r] = pagesOf(spread);
+/* Page maths — derived from what each chapter ACTUALLY is, not a flat guess.
+   A story-only chapter is one page; every other composition is a spread (two).
+   Getting this wrong mis-numbers the book AND mis-states the page count we quote
+   and send to the printer, so it's computed from the real layouts. Front matter =
+   cover + introduction (2); the closing page is 1. Lulu's hardcover minimum is 24
+   pages and the count must be even — we pad silently rather than make a customer
+   do signature arithmetic. */
+const pageCost = (mode) => (mode === "story" ? 1 : 2);
+const layoutOf = (spread, ready) => (ready ? (getStopLayout(spread.name) || getDefaultLayout()) : DEFAULT_LAYOUT);
+// Start page for every chapter + the book's real page count.
+function paginate(spreads, ready) {
+  const starts = [];
+  let p = 3; // 1-2 = cover + introduction
+  spreads.forEach((s) => { starts.push(p); p += pageCost(layoutOf(s, ready).mode || "photo-diary"); });
+  const closing = p;
+  let total = p; // closing page occupies this
+  total = Math.max(24, total);
+  if (total % 2) total += 1;
+  return { starts, closing, total };
+}
+const PageNums = ({ start, single }) => {
   const pad = (x) => String(x).padStart(2, "0");
   return (
     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", color: "var(--pb-muted)", padding: "8px 4px 0", gridColumn: "1 / -1" }}>
-      <span>{pad(l)}</span>{!single && <span>{pad(r)}</span>}
+      <span>{pad(start)}</span>{!single && <span>{pad(start + 1)}</span>}
     </div>
   );
 };
 
-function Spread({ spread }) {
+function Spread({ spread, startPage = 3 }) {
   const ready = useLayoutTick();
-  const lay = ready ? (getStopLayout(spread.name) || getDefaultLayout()) : DEFAULT_LAYOUT;
+  const lay = layoutOf(spread, ready);
   const mode = lay.mode || "photo-diary";
   const count = Math.max(2, Math.min(4, lay.count || 2));
   const photos = spread.photos || [];
   const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", maxWidth: 720, width: "100%" };
 
   if (mode === "story") {
-    return <div style={{ ...card, gridTemplateColumns: "1fr", maxWidth: 460 }}><SpreadStory spread={spread} /><PageNums spread={spread} single /></div>;
+    return <div style={{ ...card, gridTemplateColumns: "1fr", maxWidth: 460 }}><SpreadStory spread={spread} /><PageNums start={startPage} single /></div>;
   }
   if (mode === "photo-photo") {
     return (
       <div style={card}>
         <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
         <div style={{ aspectRatio: "3/4" }}>{photos[1] ? <PhotoSlot url={photos[1]} /> : <EmptySlot />}</div>
-        <PageNums spread={spread} />
+        <PageNums start={startPage} />
       </div>
     );
   }
@@ -383,7 +400,7 @@ function Spread({ spread }) {
       <div style={card}>
         <div style={{ aspectRatio: "3/4" }}><PhotoGrid photos={photos} count={count} /></div>
         <SpreadStory spread={spread} />
-        <PageNums spread={spread} />
+        <PageNums start={startPage} />
       </div>
     );
   }
@@ -391,7 +408,7 @@ function Spread({ spread }) {
     <div style={card}>
       <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
       <SpreadStory spread={spread} />
-      <PageNums spread={spread} />
+      <PageNums start={startPage} />
     </div>
   );
 }
@@ -562,7 +579,8 @@ export default function TripBook() {
   const finish = FINISHES.find((f) => f.key === finishKey) || FINISHES[0];
   const sizeName = size.name.replace(/·/, "").replace(/\s+/g, " ").trim() + " Hardcover";
   const sku = skuFor(sizeKey, coverKey, finishKey);
-  const pages = 4 + n * 4;
+  // Real page count + per-chapter start pages, from the actual compositions.
+  const { starts, total: pages } = paginate(spreads, mounted);
   const priceNum = size.base + n * size.perStop + cover.add;
   const price = "$" + priceNum;
 
@@ -576,7 +594,7 @@ export default function TripBook() {
   });
 
   const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, priceNum, customBase, setCustomBase, pickTheme };
-  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, openManage: () => setManageOpen(true) };
+  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, starts, openManage: () => setManageOpen(true) };
 
   if (!mounted) {
     return (
@@ -610,7 +628,7 @@ export default function TripBook() {
 }
 
 /* ---------------- top bar (desktop) ---------------- */
-function TopBar({ step, setStep, role, setRole }) {
+function TopBar({ step, setStep, role, setRole, price, pages }) {
   const steps = [["diary", "Diary"], ["theme", "Theme"], ["preview", "Preview"]];
   return (
     <div style={{ position: "sticky", top: 90, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 26px", height: 60, borderBottom: "1px solid var(--pb-line)", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
@@ -626,7 +644,16 @@ function TopBar({ step, setStep, role, setRole }) {
           </button>
         ))}
       </div>
-      <RoleToggle role={role} setRole={setRole} />
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        {/* Running price — never let the total be a checkout surprise. */}
+        {price && (
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{pages} pages</span>
+            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1rem", color: "var(--pb-gold)" }}>{price}.00</span>
+          </div>
+        )}
+        <RoleToggle role={role} setRole={setRole} />
+      </div>
     </div>
   );
 }
@@ -648,7 +675,14 @@ function Desktop(props) {
   const { step } = props;
   return (
     <>
-      <TopBar step={step} setStep={props.setStep} role={props.role} setRole={props.setRole} />
+      <TopBar step={step} setStep={props.setStep} role={props.role} setRole={props.setRole} price={props.price} pages={props.pages} />
+      {props.book && props.book.isDemo && (
+        <div style={{ background: "rgba(232,207,154,.08)", borderBottom: "1px solid var(--pb-line)", padding: "9px 26px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Sample book</span>
+          <span style={{ fontSize: ".8rem", color: "var(--pb-ink-2)" }}>You&rsquo;re looking at an example — build an itinerary or add your own pages and it becomes yours.</span>
+          <Link href="/build-trip" style={{ fontSize: ".8rem", fontWeight: 700, color: "var(--pb-gold)", textDecoration: "none" }}>Build a trip →</Link>
+        </div>
+      )}
       <div style={{ maxWidth: 1440, margin: "0 auto" }}>
         {step === "diary" && <DiaryDesktop {...props} />}
         {step === "theme" && <ThemeDesktop {...props} />}
@@ -658,7 +692,7 @@ function Desktop(props) {
   );
 }
 
-function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage, setStep }) {
+function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage, setStep, starts }) {
   const author = role === "author";
   return (
     <div style={{ display: "grid", gridTemplateColumns: author ? "300px 1fr 320px" : "1fr", minHeight: "calc(100vh - 160px)" }}>
@@ -683,7 +717,7 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
         </aside>
       )}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
-        <Spread spread={cur} />
+        <Spread spread={cur} startPage={(starts || [])[sel] || 3} />
         <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
       </main>
       {author && <StopTools spread={cur} onNext={() => setStep("theme")} />}
@@ -988,7 +1022,7 @@ const SummaryRows = ({ rows }) => (
 );
 
 // A book "page" for the Preview flip-through: cover, intro, a stop spread, or the close.
-function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, finish, size }) {
+function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, finish, size, starts }) {
   if (pv === 0) return <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} coverImg={coverImg} cover={cover} finish={finish} size={size} />;
   if (pv === 1) return (
     <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "48px 40px", textAlign: "center" }}>
@@ -999,7 +1033,7 @@ function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, fini
       <p style={{ fontFamily: serif, fontSize: ".98rem", lineHeight: 1.7, color: "var(--pb-ink-2)", maxWidth: 340, margin: "0 auto" }}>{n} chapters, gathered from the road — the places we stood, the light we caught, and the stories worth keeping.</p>
     </div>
   );
-  if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} />;
+  if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} startPage={(starts || [])[pv - 2] || 3} />;
   return (
     <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "56px 40px", textAlign: "center" }}>
       <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.5rem", color: "var(--pb-ink)" }}>Adventure&rsquo;s better with a Buddy.</div>
@@ -1009,12 +1043,12 @@ function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, fini
   );
 }
 
-function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish }) {
+function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish, starts }) {
   const reader = role === "reader";
   const [pv, setPv] = useState(0); // 0 cover · 1 intro · 2..n+1 stops · n+2 final
   const total = n + 3;
   const coverImg = (spreads.find((s) => s.userImg) || {}).userImg || null;
-  const toc = [["Cover", "—"], ["Introduction", "01"], ...spreads.map((s, i) => [s.name, String(4 + i * 4).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
+  const toc = [["Cover", "—"], ["Introduction", "02"], ...spreads.map((s, i) => [s.name, String((starts || [])[i] || 3).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
       {!reader && (
@@ -1034,7 +1068,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
         </aside>
       )}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
-        <BookPage pv={pv} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} cover={cover} finish={finish} size={size} />
+        <BookPage pv={pv} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} cover={cover} finish={finish} size={size} starts={starts} />
         <Pager i={pv} n={total} onPrev={() => setPv((p) => (p - 1 + total) % total)} onNext={() => setPv((p) => (p + 1) % total)} dots />
       </main>
       {!reader && (

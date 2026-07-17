@@ -105,14 +105,36 @@ const FINISHES = [
    ({ default:{mode,count}, stops:{ [name]:{mode,count} } }). Only the traveler's
    OWN photos fill photo slots — empty slots stay as honest "add a photo" tiles
    (they print as a designed typographic page, never stock). */
-const MODES = [
-  { key: "photo-diary", name: "Photo + diary", desc: "One photo, story facing it." },
-  { key: "photo-photo", name: "Photos both pages", desc: "A photo on each page, no story." },
-  { key: "grid", name: "Photo grid + diary", desc: "Several photos on one page, story facing." },
-  { key: "story", name: "Story only", desc: "A clean typographic page." },
+/* A chapter is always a two-page SPREAD. Each page is independently either photos
+   (1-4 of them) or story text — so "photos on both sides" means choosing a count
+   for each side, a story fills both pages, and swapping a photo page for a text
+   page is just changing that page's type. */
+const PRESETS = [
+  { key: "photo-diary", name: "Photo + diary", left: { type: "photos", count: 1 }, right: { type: "story", count: 1 } },
+  { key: "photo-photo", name: "Photos both sides", left: { type: "photos", count: 1 }, right: { type: "photos", count: 1 } },
+  { key: "grid", name: "Photo grid + diary", left: { type: "photos", count: 4 }, right: { type: "story", count: 1 } },
+  { key: "story", name: "Story spread", left: { type: "story", count: 1 }, right: { type: "story", count: 1 } },
 ];
 const LKEY = "pb_book_layouts";
-const DEFAULT_LAYOUT = { mode: "photo-diary", count: 2 };
+const DEFAULT_LAYOUT = { left: { type: "photos", count: 1 }, right: { type: "story", count: 1 } };
+// Accepts the old {mode,count} shape so saved books keep working.
+function normLayout(l) {
+  if (!l) return DEFAULT_LAYOUT;
+  if (l.left && l.right) return l;
+  const c = Math.max(1, Math.min(4, l.count || 2));
+  if (l.mode === "photo-photo") return { left: { type: "photos", count: 1 }, right: { type: "photos", count: 1 } };
+  if (l.mode === "grid") return { left: { type: "photos", count: c }, right: { type: "story", count: 1 } };
+  if (l.mode === "story") return { left: { type: "story", count: 1 }, right: { type: "story", count: 1 } };
+  return DEFAULT_LAYOUT;
+}
+// How many photos this chapter needs before nothing is an empty slot.
+const photosNeeded = (l) => { const n = normLayout(l); return (n.left.type === "photos" ? n.left.count : 0) + (n.right.type === "photos" ? n.right.count : 0); };
+const describeLayout = (l) => {
+  const n = normLayout(l);
+  const side = (s) => (s.type === "story" ? "story" : `${s.count} photo${s.count > 1 ? "s" : ""}`);
+  if (n.left.type === "story" && n.right.type === "story") return "Story across both pages";
+  return `${side(n.left)} · ${side(n.right)}`;
+};
 function readLayouts() { try { return JSON.parse(localStorage.getItem(LKEY) || "{}") || {}; } catch { return {}; } }
 function writeLayouts(o) {
   try { localStorage.setItem(LKEY, JSON.stringify(o)); window.dispatchEvent(new Event("pb:booklayout")); } catch {}
@@ -353,18 +375,14 @@ function PhotoGrid({ photos, count }) {
    cover + introduction (2); the closing page is 1. Lulu's hardcover minimum is 24
    pages and the count must be even — we pad silently rather than make a customer
    do signature arithmetic. */
-const pageCost = (mode) => (mode === "story" ? 1 : 2);
-const layoutOf = (spread, ready) => (ready ? (getStopLayout(spread.name) || getDefaultLayout()) : DEFAULT_LAYOUT);
-// Start page for every chapter + the book's real page count.
+const layoutOf = (spread, ready) => normLayout(ready ? (getStopLayout(spread.name) || getDefaultLayout()) : DEFAULT_LAYOUT);
+// Every chapter is a two-page spread, so page maths is simply positional.
 function paginate(spreads, ready) {
-  const starts = [];
-  let p = 3; // 1-2 = cover + introduction
-  spreads.forEach((s) => { starts.push(p); p += pageCost(layoutOf(s, ready).mode || "photo-diary"); });
-  const closing = p;
-  let total = p; // closing page occupies this
+  const starts = spreads.map((_, i) => 3 + i * 2); // 1-2 = cover + introduction
+  let total = 3 + spreads.length * 2; // + the closing page
   total = Math.max(24, total);
   if (total % 2) total += 1;
-  return { starts, closing, total };
+  return { starts, total };
 }
 const PageNums = ({ start, single }) => {
   const pad = (x) => String(x).padStart(2, "0");
@@ -375,39 +393,39 @@ const PageNums = ({ start, single }) => {
   );
 };
 
+// One page of a spread: either photos (1-4) or the story.
+function Page({ cfg, spread, offset }) {
+  if (cfg.type === "story") return <SpreadStory spread={spread} />;
+  const slice = (spread.photos || []).slice(offset, offset + cfg.count);
+  if (cfg.count === 1) {
+    return <div style={{ aspectRatio: "3/4" }}>{slice[0] ? <PhotoSlot url={slice[0]} /> : <SpreadPhoto spread={spread} />}</div>;
+  }
+  return <div style={{ aspectRatio: "3/4" }}><PhotoGrid photos={slice} count={cfg.count} /></div>;
+}
+
 function Spread({ spread, startPage = 3 }) {
   const ready = useLayoutTick();
   const lay = layoutOf(spread, ready);
-  const mode = lay.mode || "photo-diary";
-  const count = Math.max(2, Math.min(4, lay.count || 2));
-  const photos = spread.photos || [];
   const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", maxWidth: 720, width: "100%" };
+  const bothStory = lay.left.type === "story" && lay.right.type === "story";
 
-  if (mode === "story") {
-    return <div style={{ ...card, gridTemplateColumns: "1fr", maxWidth: 460 }}><SpreadStory spread={spread} /><PageNums start={startPage} single /></div>;
-  }
-  if (mode === "photo-photo") {
+  // A story chapter is a full SPREAD — the prose runs across both pages, not a
+  // lonely quarter-page card.
+  if (bothStory) {
     return (
       <div style={card}>
-        <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
-        <div style={{ aspectRatio: "3/4" }}>{photos[1] ? <PhotoSlot url={photos[1]} /> : <EmptySlot />}</div>
+        <div style={{ gridColumn: "1 / -1", padding: "18px 8px", columnCount: 2, columnGap: 34 }}>
+          <SpreadStory spread={spread} />
+        </div>
         <PageNums start={startPage} />
       </div>
     );
   }
-  if (mode === "grid") {
-    return (
-      <div style={card}>
-        <div style={{ aspectRatio: "3/4" }}><PhotoGrid photos={photos} count={count} /></div>
-        <SpreadStory spread={spread} />
-        <PageNums start={startPage} />
-      </div>
-    );
-  }
+  const rightOffset = lay.left.type === "photos" ? lay.left.count : 0;
   return (
     <div style={card}>
-      <div style={{ aspectRatio: "3/4" }}><SpreadPhoto spread={spread} /></div>
-      <SpreadStory spread={spread} />
+      <Page cfg={lay.left} spread={spread} offset={0} />
+      <Page cfg={lay.right} spread={spread} offset={rightOffset} />
       <PageNums start={startPage} />
     </div>
   );
@@ -611,7 +629,10 @@ export default function TripBook() {
           platform. The studio's own bar sits below it as a page toolbar (and supplies
           the phone's bottom bar, so hideTabBar avoids two bottom bars). */}
       <SiteHeader acctSlot hideTabBar />
-      <div className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: 90 }}>
+      {/* Desktop is a fixed-height workspace: the book stays put and only the rails
+          scroll. (Phone keeps normal page scrolling.) */}
+      <div className="pb-theme" style={{ background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: 90,
+        ...(isPhone ? { minHeight: "100vh" } : { height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }) }}>
         {isPhone
           ? <MobilePhone {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
           : <Desktop {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} />}
@@ -683,7 +704,7 @@ function Desktop(props) {
           <Link href="/build-trip" style={{ fontSize: ".8rem", fontWeight: 700, color: "var(--pb-gold)", textDecoration: "none" }}>Build a trip →</Link>
         </div>
       )}
-      <div style={{ maxWidth: 1440, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1440, margin: "0 auto", width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         {step === "diary" && <DiaryDesktop {...props} />}
         {step === "theme" && <ThemeDesktop {...props} />}
         {step === "preview" && <PreviewDesktop {...props} />}
@@ -692,31 +713,66 @@ function Desktop(props) {
   );
 }
 
+// Photos go to the right place: an itinerary chapter's photos live in Trip Mode;
+// a book-only page keeps its own.
+function addPhotosTo(spread, urls) {
+  if (!urls.length) return;
+  if (spread.source === "own") updateExtra(spread.id, { photos: [...(spread.photos || []), ...urls] });
+  else urls.forEach((url) => addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }));
+}
+
+// A stop tile carries its own composition + photo state, and takes photos directly.
+function StopCard({ spread, i, active, onSelect }) {
+  const ready = useLayoutTick();
+  const lay = layoutOf(spread, ready);
+  const need = photosNeeded(lay);
+  const have = (spread.photos || []).length;
+  const fileRef = useRef(null);
+  const onFile = async (e) => {
+    const urls = [];
+    for (const f of Array.from(e.target.files || [])) { try { urls.push(await fileToDataUrl(f)); } catch {} }
+    addPhotosTo(spread, urls);
+    e.target.value = "";
+  };
+  const full = need === 0 || have >= need;
+  return (
+    <div className="bs-stopcard" onClick={onSelect} style={{ cursor: "pointer", background: active ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (active ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 12, padding: "11px 13px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)" }}>{"0" + (i + 1)}</span>
+        <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", textTransform: "uppercase", color: spread.source === "own" ? "var(--pb-gold-soft)" : "var(--pb-muted)" }}>{spread.source === "own" ? "Your page" : "Itinerary"}</span>
+      </div>
+      <div style={{ fontWeight: 600, fontSize: ".9rem", color: "var(--pb-ink)", marginTop: 3 }}>{spread.name}</div>
+      <div style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{spread.park}</div>
+      {/* the composition + how many photos it still needs, right on the tile */}
+      <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".04em", color: "var(--pb-ink-2)", marginTop: 7 }}>{describeLayout(lay)}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7 }}>
+        <span style={{ fontFamily: mono, fontSize: ".5rem", color: full ? "var(--pb-go)" : "var(--pb-prepare)" }}>{have}/{need || "–"} photos</span>
+        <button onClick={(e) => { e.stopPropagation(); fileRef.current && fileRef.current.click(); }}
+          style={{ marginLeft: "auto", cursor: "pointer", fontFamily: "inherit", fontSize: ".66rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "3px 9px" }}>＋ Photos</button>
+        <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFile} onClick={(e) => e.stopPropagation()} style={{ display: "none" }} />
+      </div>
+    </div>
+  );
+}
+
 function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, openManage, setStep, starts }) {
   const author = role === "author";
+  // Fixed height + independently scrolling rails — the book stays put instead of
+  // the whole page scrolling away under you.
   return (
-    <div style={{ display: "grid", gridTemplateColumns: author ? "300px 1fr 320px" : "1fr", minHeight: "calc(100vh - 160px)" }}>
+    <div style={{ display: "grid", gridTemplateColumns: author ? "300px 1fr 320px" : "1fr", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {author && (
-        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Eyebrow>Your Stops ({n})</Eyebrow>
             <button onClick={openManage} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".7rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 11px" }}>Manage</button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-            {spreads.map((s, i) => (
-              <button key={i} className="bs-stopcard" onClick={() => setSel(i)} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: i === sel ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (i === sel ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 12, padding: "12px 14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)" }}>{"0" + (i + 1)}</span>
-                  <span style={{ fontFamily: mono, fontSize: ".5rem", color: s.userImg ? "var(--pb-go)" : "var(--pb-muted)" }}>{s.userImg ? "✓ Photo" : "＋ Add photo"}</span>
-                </div>
-                <div style={{ fontWeight: 600, fontSize: ".9rem", color: "var(--pb-ink)", marginTop: 4 }}>{s.name}</div>
-                <div style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>{s.park}</div>
-              </button>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
+            {spreads.map((s, i) => <StopCard key={s.id || s.name} spread={s} i={i} active={i === sel} onSelect={() => setSel(i)} />)}
           </div>
         </aside>
       )}
-      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 30px", overflow: "hidden" }}>
         <Spread spread={cur} startPage={(starts || [])[sel] || 3} />
         <Pager i={sel} n={n} label={cur.name} onPrev={prev} onNext={next} />
       </main>
@@ -728,28 +784,45 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
 // Page-composition picker — used for the book DEFAULT (Theme step) and to override
 // a single chapter (Stop Tools).
 function LayoutPicker({ value, onChange, onReset, isOverride }) {
-  const mode = value.mode || "photo-diary";
-  const count = Math.max(2, Math.min(4, value.count || 2));
-  return (
-    <>
-      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        {MODES.map((m) => (
-          <button key={m.key} className="bs-stopcard" onClick={() => onChange({ mode: m.key })} style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: m.key === mode ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (m.key === mode ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "10px 12px" }}>
-            <div style={{ fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{m.name}</div>
-            <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{m.desc}</div>
-          </button>
-        ))}
-      </div>
-      {mode === "grid" && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ fontFamily: mono, fontSize: ".48rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>Photos on that page</div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {[2, 3, 4].map((c) => (
-              <button key={c} onClick={() => onChange({ count: c })} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: c === count ? 700 : 500, border: "1px solid " + (c === count ? "var(--pb-gold-2)" : "var(--pb-line)"), background: c === count ? "var(--pb-surface-2)" : "var(--pb-surface)", color: "var(--pb-ink)", borderRadius: 8, padding: "7px" }}>{c}</button>
+  const lay = normLayout(value);
+  const presetOn = (p) => JSON.stringify({ l: p.left, r: p.right }) === JSON.stringify({ l: lay.left, r: lay.right });
+  const setSide = (side, patch) => onChange({ ...lay, [side]: { ...lay[side], ...patch } });
+
+  const SideCtl = ({ side, label }) => {
+    const cfg = lay[side];
+    return (
+      <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "9px 10px" }}>
+        <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>{label}</div>
+        {/* photo ↔ text swap for this page */}
+        <div style={{ display: "flex", background: "var(--pb-tint)", borderRadius: 8, padding: 2, marginBottom: cfg.type === "photos" ? 7 : 0 }}>
+          {[["photos", "Photos"], ["story", "Story"]].map(([t, l]) => (
+            <button key={t} onClick={() => setSide(side, { type: t })} style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".72rem", fontWeight: cfg.type === t ? 700 : 500, border: "none", borderRadius: 6, padding: "5px", background: cfg.type === t ? "var(--pb-surface-2)" : "transparent", color: cfg.type === t ? "var(--pb-ink)" : "var(--pb-muted)" }}>{l}</button>
+          ))}
+        </div>
+        {cfg.type === "photos" && (
+          <div style={{ display: "flex", gap: 4 }}>
+            {[1, 2, 3, 4].map((c) => (
+              <button key={c} onClick={() => setSide(side, { count: c })} title={`${c} photo${c > 1 ? "s" : ""} on this page`}
+                style={{ flex: 1, cursor: "pointer", fontFamily: mono, fontSize: ".7rem", fontWeight: c === cfg.count ? 700 : 500, border: "1px solid " + (c === cfg.count ? "var(--pb-gold-2)" : "var(--pb-line)"), background: c === cfg.count ? "var(--pb-surface-2)" : "transparent", color: "var(--pb-ink)", borderRadius: 6, padding: "5px 0" }}>{c}</button>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {PRESETS.map((p) => (
+          <button key={p.key} onClick={() => onChange({ left: p.left, right: p.right })}
+            style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".68rem", fontWeight: presetOn(p) ? 700 : 500, border: "1px solid " + (presetOn(p) ? "var(--pb-gold-2)" : "var(--pb-line)"), background: presetOn(p) ? "var(--pb-surface-2)" : "transparent", color: "var(--pb-ink)", borderRadius: 999, padding: "5px 10px" }}>{p.name}</button>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <SideCtl side="left" label="Left page" />
+        <SideCtl side="right" label="Right page" />
+      </div>
       {onReset && (
         <button onClick={onReset} disabled={!isOverride} style={{ cursor: isOverride ? "pointer" : "default", width: "100%", marginTop: 10, fontFamily: "inherit", fontSize: ".72rem", color: isOverride ? "var(--pb-gold)" : "var(--pb-muted)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "7px", opacity: isOverride ? 1 : .55 }}>
           {isOverride ? "↺ Use book default" : "Using book default"}
@@ -769,12 +842,11 @@ function StopTools({ spread, onNext }) {
   useEffect(() => { setDraft(spread.story || ""); setEditing(false); }, [spread.name]);
 
   const saveStory = () => { try { setStory(spread.name, draft); } catch {} setEditing(false); };
-  // Multiple at once — a grid spread needs 2-4 photos on one page.
+  // Multiple at once — a spread can want up to 8 photos across both pages.
   const onFile = async (e) => {
-    const files = Array.from(e.target.files || []);
-    for (const f of files) {
-      try { const url = await fileToDataUrl(f); addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }); } catch {}
-    }
+    const urls = [];
+    for (const f of Array.from(e.target.files || [])) { try { urls.push(await fileToDataUrl(f)); } catch {} }
+    addPhotosTo(spread, urls);
     e.target.value = "";
   };
   const locate = () => {
@@ -793,7 +865,7 @@ function StopTools({ spread, onNext }) {
   const coord = fmtCoord(spread.lat, spread.lng);
   const btn = { cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" };
   return (
-    <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+    <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
       <Eyebrow>Stop Tools</Eyebrow>
       <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Edit Story &amp; Photo</h3>
 
@@ -857,9 +929,9 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
   const reader = role === "reader";
   const coverImg = ((spreads || []).find((s) => s.userImg) || {}).userImg || null;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
+    <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!reader && (
-        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Cover Layouts</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "var(--pb-ink)", margin: "6px 0 16px" }}>Select Silhouette</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -889,7 +961,7 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
         <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
       </main>
       {!reader && (
-        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Summary</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Your Edition</h3>
           <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Finish", cover.key === "linen" ? "Matte linen" : finish.name], ["Theme", palette.name], ["Cover art", layout.name]]} />
@@ -1050,9 +1122,9 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
   const coverImg = (spreads.find((s) => s.userImg) || {}).userImg || null;
   const toc = [["Cover", "—"], ["Introduction", "02"], ...spreads.map((s, i) => [s.name, String((starts || [])[i] || 3).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
   return (
-    <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", minHeight: "calc(100vh - 160px)" }}>
+    <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {!reader && (
-        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+        <aside style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Book Contents</Eyebrow>
           <div style={{ display: "flex", flexDirection: "column", marginTop: 14 }}>
             {toc.map(([label, pg], i) => {
@@ -1072,7 +1144,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
         <Pager i={pv} n={total} onPrev={() => setPv((p) => (p - 1 + total) % total)} onNext={() => setPv((p) => (p + 1) % total)} dots />
       </main>
       {!reader && (
-        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "28px 20px" }}>
+        <aside style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Order Details</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>Review &amp; Imprint</h3>
           <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Pages", pages + " Pages"], ["Theme", palette.name], ["Stops Included", n + " Stops"]]} />

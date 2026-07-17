@@ -1423,10 +1423,13 @@ function movePhotoIn(spread, from, to) {
 // points there instead of carrying its own editors.)
 
 // Attach a location stamp as a photo, letting the user choose the spot: this stop's
-// own coordinates, or their current location.
+// own coordinates, their current location, or coordinates they type in.
 function StampAdder({ spread }) {
   const [open, setOpen] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [manual, setManual] = useState(false);
+  const [latS, setLatS] = useState("");
+  const [lngS, setLngS] = useState("");
   const hasStop = spread.lat != null && spread.lng != null;
   const stopCoord = fmtCoord(spread.lat, spread.lng);
   const addStop = () => { addStampTo(spread, { lat: spread.lat, lng: spread.lng, label: spread.name }); setOpen(false); };
@@ -1437,7 +1440,11 @@ function StampAdder({ spread }) {
       (p) => { setLocating(false); setOpen(false); addStampTo(spread, { lat: p.coords.latitude, lng: p.coords.longitude, label: spread.name }); },
       () => setLocating(false), { enableHighAccuracy: true, timeout: 15000 });
   };
+  const lat = parseFloat(latS), lng = parseFloat(lngS);
+  const manualOk = isFinite(lat) && lat >= -90 && lat <= 90 && isFinite(lng) && lng >= -180 && lng <= 180;
+  const addManual = () => { if (!manualOk) return; addStampTo(spread, { lat, lng, label: spread.name }); setManual(false); setLatS(""); setLngS(""); setOpen(false); };
   const opt = { cursor: "pointer", width: "100%", textAlign: "left", fontFamily: "inherit", fontSize: ".76rem", color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "8px 11px" };
+  const inp = { flex: 1, minWidth: 0, background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "7px 9px", color: "var(--pb-ink)", fontFamily: mono, fontSize: ".8rem", outline: "none" };
   return (
     <div style={{ marginTop: 8 }}>
       <button className="bs-btn" onClick={() => setOpen((o) => !o)} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "11px 14px" }}>⌖ Add a location stamp</button>
@@ -1445,6 +1452,21 @@ function StampAdder({ spread }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
           {hasStop && <button onClick={addStop} style={opt}>This stop&rsquo;s spot<span style={{ display: "block", fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)", marginTop: 2 }}>{stopCoord}</span></button>}
           <button onClick={addHere} style={opt}>{locating ? "locating…" : "My current location"}</button>
+          {!manual
+            ? <button onClick={() => setManual(true)} style={opt}>Enter coordinates…</button>
+            : (
+              <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "9px 10px" }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input value={latS} onChange={(e) => setLatS(e.target.value)} inputMode="decimal" placeholder="Latitude" style={inp} />
+                  <input value={lngS} onChange={(e) => setLngS(e.target.value)} inputMode="decimal" placeholder="Longitude" style={inp} />
+                </div>
+                <div style={{ fontSize: ".6rem", color: "var(--pb-muted)", marginTop: 5 }}>Decimal degrees, e.g. 40.3772, -105.5217</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <button onClick={addManual} disabled={!manualOk} style={{ flex: 1, cursor: manualOk ? "pointer" : "default", fontFamily: "inherit", fontSize: ".76rem", fontWeight: 700, color: manualOk ? "#14210f" : "var(--pb-muted)", background: manualOk ? "var(--pb-gold)" : "transparent", border: manualOk ? "none" : "1px solid var(--pb-line)", borderRadius: 8, padding: "7px" }}>Add stamp</button>
+                  <button onClick={() => setManual(false)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".76rem", color: "var(--pb-ink)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "7px 12px" }}>Cancel</button>
+                </div>
+              </div>
+            )}
           <div style={{ fontSize: ".64rem", color: "var(--pb-muted)", lineHeight: 1.45 }}>A map of the spot with a pin, added as a photo — the coordinates print beneath it.</div>
         </div>
       )}

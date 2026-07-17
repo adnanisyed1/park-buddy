@@ -23,48 +23,51 @@
 /* ---- Mobile / tablet: the ported layout is desktop-only inline CSS, so fix
    the two-column steps here (inline styles need !important to override). ---- */
 /* ---- Reserve-your-copy modal ---- */
+/* Theme-aware: these modals (Manage, Reserve) render inside .pb-theme, so they follow
+   the page's light/dark palette via --pb-* tokens instead of hard-coded dark values —
+   otherwise the Manage dialog looked like "a different theme" on a light page. */
 .tbres-overlay{
   position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
-  padding:16px; background:rgba(6,6,5,.72); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
-  font-family:'Inter',system-ui,sans-serif; color:#f4f1ea;
+  padding:16px; background:rgba(6,6,5,.62); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  font-family:var(--pb-sans); color:var(--pb-ink);
   animation:tbres-fade .25s ease both;
 }
 @keyframes tbres-fade{ from{opacity:0} to{opacity:1} }
 .tbres-card{
   width:100%; max-width:440px; max-height:92vh; overflow:auto;
-  background:#15140f; border:1px solid rgba(217,183,121,.28); border-radius:18px;
-  padding:22px; box-shadow:0 50px 120px -40px rgba(0,0,0,.9);
+  background:var(--pb-surface); border:1px solid var(--pb-line); border-radius:18px;
+  padding:22px; box-shadow:var(--pb-shadow, 0 50px 120px -40px rgba(0,0,0,.9)); color:var(--pb-ink);
 }
-.tbres-kicker{ font-family:'Space Mono',monospace; font-size:.54rem; letter-spacing:.2em; text-transform:uppercase; color:#d9b779; }
-.tbres-title{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:1.7rem; line-height:1.05; margin:4px 0 2px; }
-.tbres-sum{ display:flex; flex-wrap:wrap; gap:6px 14px; margin:12px 0 6px; font-family:'Space Mono',monospace; font-size:.56rem; letter-spacing:.08em; text-transform:uppercase; color:#8a8578; }
-.tbres-sum b{ color:#e8cf9a; font-weight:400; }
-.tbres-total{ display:flex; align-items:baseline; justify-content:space-between; margin:12px 0 16px; padding-top:12px; border-top:1px solid rgba(217,183,121,.14); }
-.tbres-total span{ font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:#8a8578; }
-.tbres-total b{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:1.6rem; color:#e8cf9a; }
+.tbres-kicker{ font-family:var(--pb-mono); font-size:.54rem; letter-spacing:.2em; text-transform:uppercase; color:var(--pb-gold-soft); }
+.tbres-title{ font-family:var(--pb-serif); font-weight:600; font-size:1.7rem; line-height:1.05; margin:4px 0 2px; color:var(--pb-ink); }
+.tbres-sum{ display:flex; flex-wrap:wrap; gap:6px 14px; margin:12px 0 6px; font-family:var(--pb-mono); font-size:.56rem; letter-spacing:.08em; text-transform:uppercase; color:var(--pb-muted); }
+.tbres-sum b{ color:var(--pb-gold); font-weight:400; }
+.tbres-total{ display:flex; align-items:baseline; justify-content:space-between; margin:12px 0 16px; padding-top:12px; border-top:1px solid var(--pb-line); }
+.tbres-total span{ font-family:var(--pb-mono); font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--pb-muted); }
+.tbres-total b{ font-family:var(--pb-serif); font-weight:600; font-size:1.6rem; color:var(--pb-gold); }
 .tbres-field{ margin-bottom:11px; }
-.tbres-field label{ display:block; font-family:'Space Mono',monospace; font-size:.5rem; letter-spacing:.14em; text-transform:uppercase; color:#8a8578; margin-bottom:5px; }
+.tbres-field label{ display:block; font-family:var(--pb-mono); font-size:.5rem; letter-spacing:.14em; text-transform:uppercase; color:var(--pb-muted); margin-bottom:5px; }
 .tbres-input, .tbres-ta{
-  width:100%; background:rgba(255,255,255,.04); border:1px solid rgba(217,183,121,.22); border-radius:10px;
-  padding:11px 13px; color:#f4f1ea; font-family:'Inter',system-ui,sans-serif; font-size:.9rem; outline:none;
+  width:100%; background:var(--pb-surface-2); border:1px solid var(--pb-line); border-radius:10px;
+  padding:11px 13px; color:var(--pb-ink); font-family:var(--pb-sans); font-size:.9rem; outline:none;
 }
-.tbres-input:focus, .tbres-ta:focus{ border-color:#c9a35f; box-shadow:0 0 0 3px rgba(217,183,121,.2); }
+.tbres-input:focus, .tbres-ta:focus{ border-color:var(--pb-gold-2); box-shadow:0 0 0 3px rgba(217,183,121,.2); }
 .tbres-ta{ resize:vertical; min-height:64px; }
 .tbres-row{ display:flex; gap:10px; }
 .tbres-row .tbres-field{ flex:1; }
-.tbres-note{ font-size:.72rem; color:#8a8578; line-height:1.5; margin:2px 0 14px; }
+.tbres-note{ font-size:.72rem; color:var(--pb-muted); line-height:1.5; margin:2px 0 14px; }
 .tbres-actions{ display:flex; gap:10px; align-items:center; }
 .tbres-btn{
   cursor:pointer; font-family:'Inter',sans-serif; font-size:.82rem; font-weight:600; border-radius:999px;
   padding:11px 20px; border:none; color:#0e0e0c; background:linear-gradient(120deg,#e8cf9a,#c9a35f);
 }
 .tbres-btn[disabled]{ opacity:.5; cursor:default; }
-.tbres-cancel{ cursor:pointer; background:none; border:1px solid rgba(217,183,121,.3); color:#f4f1ea; border-radius:999px; padding:11px 18px; font-size:.82rem; font-weight:600; font-family:'Inter',sans-serif; }
-.tbres-err{ color:#e0906a; font-size:.78rem; margin-top:10px; }
+.tbres-cancel{ cursor:pointer; background:none; border:1px solid var(--pb-line-strong); color:var(--pb-ink); border-radius:999px; padding:11px 18px; font-size:.82rem; font-weight:600; font-family:var(--pb-sans); }
+.tbres-err{ color:var(--pb-avoid, #e0906a); font-size:.78rem; margin-top:10px; }
 .tbres-done{ text-align:center; padding:14px 6px; }
 .tbres-done .ic{ font-size:2rem; }
-.tbres-done h3{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:1.6rem; margin:8px 0 6px; }
-.tbres-done p{ color:#c8c3b6; font-size:.9rem; line-height:1.5; }
+.tbres-done h3{ font-family:var(--pb-serif); font-weight:600; font-size:1.6rem; margin:8px 0 6px; color:var(--pb-ink); }
+.tbres-done p{ color:var(--pb-ink-2); font-size:.9rem; line-height:1.5; }
 
 @media(max-width:860px){
   /* Step 2 — stack the live preview ABOVE the settings, both full width

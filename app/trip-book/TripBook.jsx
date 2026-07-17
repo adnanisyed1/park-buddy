@@ -243,10 +243,15 @@ function useLayoutTick() {
 const XKEY = "pb_book_extras";
 function readExtras() { try { return JSON.parse(localStorage.getItem(XKEY) || "[]") || []; } catch { return []; } }
 function writeExtras(a) { try { localStorage.setItem(XKEY, JSON.stringify(a)); window.dispatchEvent(new Event("pb:bookextras")); } catch {} }
-function addExtra({ name, story = "", photos = [] }) {
+// `afterName` (optional) makes this a continuation page that renders right after
+// that chapter — how "add another page for this stop" works. Without it, the page
+// is a standalone own-page appended at the end.
+function addExtra({ name, story = "", photos = [], afterName = null }) {
   const a = readExtras();
-  a.push({ id: "x" + Date.now().toString(36), name, story, photos });
+  const id = "x" + Date.now().toString(36);
+  a.push({ id, name, story, photos, afterName });
   writeExtras(a);
+  return id;
 }
 function removeExtra(id) { writeExtras(readExtras().filter((e) => e.id !== id)); }
 function updateExtra(id, patch) { writeExtras(readExtras().map((e) => (e.id === id ? { ...e, ...patch } : e))); }
@@ -337,12 +342,12 @@ function useBook() {
   // Older extras stored bare url strings; normalise them to records so one shape
   // reaches the renderers (they just have no print original behind them).
   const asRec = (p) => (typeof p === "string" ? { url: p, path: null, w: null, h: null } : p);
-  const extraSpreads = extras.map((e, i) => ({
+  const extraSpreads = extras.map((e) => ({
     name: e.name, park: "Your own page", q: [e.name],
     userImg: (asRec((e.photos || [])[0]) || {}).url || null,
     photos: (e.photos || []).map(asRec).filter((p) => p && p.url),
     story: e.story || "", date: "", lat: null, lng: null,
-    chapter: stops.length + i + 1, source: "own", id: e.id,
+    chapter: 0, source: "own", id: e.id, afterName: e.afterName || null,
   }));
 
   const hasTrip = stops.length > 0 || extras.length > 0;
@@ -373,13 +378,22 @@ function useBook() {
       source: "itinerary",
     };
   });
+  // Interleave continuation pages right after the chapter they belong to; free
+  // own-pages fall to the end. Then number chapters by final order.
+  const ordered = [];
+  spreads.forEach((sp) => {
+    ordered.push(sp);
+    extraSpreads.filter((o) => o.afterName === sp.name).forEach((o) => ordered.push(o));
+  });
+  extraSpreads.filter((o) => !o.afterName || !spreads.some((sp) => sp.name === o.afterName)).forEach((o) => ordered.push(o));
+  ordered.forEach((sp, i) => { sp.chapter = i + 1; });
   const states = [...new Set(stops.map((s) => s.state).filter(Boolean))];
   return {
     isDemo: false, tick,
     title: meta.tripName || "Your Trip Book",
     author: "",
     region: states.length ? states.join(" · ") : "A Park Buddy Trip",
-    spreads: [...spreads, ...extraSpreads],
+    spreads: ordered,
   };
 }
 
@@ -513,16 +527,25 @@ function SectionCell({ planned, spread, dense, hero, editable }) {
   return <EmptySlot num={num} />;
 }
 
-// A page (pane) lays its 1–4 sections into a grid: 1 full, 2 stacked, 3 stacked,
-// 4 as a 2×2. Each cell fills its share so the page is the same height either side.
+/* A page (pane) lays its 1–4 sections into a grid:
+     1 → full page          2 → two stacked rows
+     3 → one big cell on top, two side by side below (a hero + two supporters —
+         far kinder to a portrait than three wide, short letterbox strips)
+     4 → a 2×2 grid
+   Each cell fills its share so the page is the same height either side. */
 function Pane({ sections, spread, hero, editable }) {
   const n = sections.length;
-  const grid = n >= 4
-    ? { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr" }
-    : { gridTemplateColumns: "1fr", gridTemplateRows: `repeat(${n}, 1fr)` };
+  let grid, spanFirst = false;
+  if (n >= 4) grid = { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr" };
+  else if (n === 3) { grid = { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1.15fr 1fr" }; spanFirst = true; }
+  else grid = { gridTemplateColumns: "1fr", gridTemplateRows: `repeat(${n}, 1fr)` };
   return (
     <div style={{ display: "grid", ...grid, gap: 6, height: "100%" }}>
-      {sections.map((s, i) => <SectionCell key={i} planned={s} spread={spread} dense={n > 1} hero={hero} editable={editable} />)}
+      {sections.map((s, i) => (
+        <div key={i} style={{ minHeight: 0, minWidth: 0, ...(spanFirst && i === 0 ? { gridColumn: "1 / -1" } : {}) }}>
+          <SectionCell planned={s} spread={spread} dense={n > 1} hero={hero} editable={editable} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -1019,7 +1042,8 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
       </main>
       {author && (onCover
         ? <CoverTools spreads={spreads} layoutKey={layoutKey} setLayoutKey={setLayoutKey} coverImg={coverImg} size={size} onNext={() => setStep("theme")} />
-        : <StopTools spread={cur} size={size} onNext={() => setStep("theme")} />)}
+        : <StopTools spread={cur} size={size} onNext={() => setStep("theme")}
+            onAddPage={() => { addExtra({ name: cur.name + " — more", afterName: cur.name }); setSel(sel + 1); }} />)}
     </div>
   );
 }
@@ -1205,12 +1229,15 @@ function PhotoStrip({ spread, size }) {
   const photos = spread.photos || [];
   const need = photosNeeded(lay);
 
-  // Each photo slot in fill order → which pane it's on and how wide it prints there
-  // (a 2×2 grid cell is half-page width; a stacked cell is full width).
+  // Each photo slot in fill order → which pane it's on and how wide it prints there.
+  // Width by arrangement: 2×2 and the two small cells of a 3-up are half-page; a
+  // stacked cell and the big cell of a 3-up are full width.
+  const wIn = (parseInt(String(size.trim).slice(0, 4), 10) || 850) / 100;
+  const widthFrac = (count, idx) => (count >= 4 ? 0.5 : count === 3 ? (idx === 0 ? 1 : 0.5) : 1);
   const photoSlots = [];
   [["left", "Left"], ["right", "Right"]].forEach(([key, label]) => {
-    const paneCount = lay[key].length;
-    lay[key].forEach((s) => { if (s.type === "photo") photoSlots.push({ page: label, inches: slotInches(size.trim, paneCount === 4 ? 4 : 1, false) }); });
+    const count = lay[key].length;
+    lay[key].forEach((s, idx) => { if (s.type === "photo") photoSlots.push({ page: label, inches: wIn * widthFrac(count, idx) }); });
   });
   const slotOf = (i) => photoSlots[i] || null;
   if (!photos.length) {
@@ -1320,7 +1347,7 @@ function StorySectionEditors({ spread }) {
   );
 }
 
-function StopTools({ spread, onNext, size }) {
+function StopTools({ spread, onNext, size, onAddPage }) {
   useLayoutTick();
   const [dist, setDist] = useState(null);
   const [locating, setLocating] = useState(false);
@@ -1347,15 +1374,17 @@ function StopTools({ spread, onNext, size }) {
   const have = (spread.photos || []).length;
   const stepCap = { fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-gold-soft)", display: "flex", alignItems: "center", gap: 7 };
   const stepDot = { flex: "0 0 auto", width: 16, height: 16, borderRadius: "50%", background: "var(--pb-gold)", color: "#14210f", fontSize: ".58rem", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" };
+  const hint = { fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.5, margin: "5px 0 10px" };
   return (
     <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
       <Eyebrow>Stop Tools</Eyebrow>
-      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>{spread.name}</h3>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 4px" }}>{spread.name}</h3>
+      <p style={{ ...hint, marginTop: 0, marginBottom: 18 }}>Build this chapter in three steps — everything shows on the book as you go.</p>
 
       {/* STEP 1 — the page layout: it decides how many photo slots there are, so it
           comes before the photos that fill them. */}
-      <div style={stepCap}><span style={stepDot}>1</span> Choose this page&rsquo;s layout</div>
-      <div style={{ height: 10 }} />
+      <div style={stepCap}><span style={stepDot}>1</span> Choose the layout</div>
+      <p style={hint}>Split each page into up to 4 sections. Make each one a <b>photo</b> or a bit of <b>writing</b> — mix them however you like.</p>
       <LayoutPicker
         value={getStopLayout(spread.name) || getDefaultLayout()}
         onChange={(p) => setStopLayout(spread.name, p)}
@@ -1364,8 +1393,8 @@ function StopTools({ spread, onNext, size }) {
       />
 
       {/* STEP 2 — the photos for those slots, numbered to match the book, reorderable. */}
-      <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>2</span> Photos {need ? `(${Math.min(have, need)}/${need})` : ""}</div>
-      <div style={{ height: 10 }} />
+      <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>2</span> Add your photos {need ? `(${Math.min(have, need)}/${need})` : ""}</div>
+      <p style={hint}>{need ? `This layout holds ${need} photo${need > 1 ? "s" : ""}. ` : ""}The numbers ① ② match the slots on the book — use the arrows to reorder.</p>
       <button className="bs-btn" style={{ ...btn, width: "100%", opacity: busy ? 0.6 : 1 }} disabled={!!busy} onClick={open}>
         {busy ? `Adding ${busy} photo${busy === 1 ? "" : "s"}…` : need && have < need ? `＋ Add ${need - have} more photo${need - have === 1 ? "" : "s"}` : "＋ Add photos"}
       </button>
@@ -1375,9 +1404,17 @@ function StopTools({ spread, onNext, size }) {
       <PhotoStrip spread={spread} size={size} />
 
       {/* STEP 3 — the words, one editor per writing section, each capped to its space. */}
-      <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>3</span> Story</div>
-      <div style={{ height: 10 }} />
+      <div style={{ ...stepCap, marginTop: 24 }}><span style={stepDot}>3</span> Write the story</div>
+      <p style={hint}>Type here or straight onto the page. A smaller section holds fewer words — the counter shows how many are left.</p>
       <StorySectionEditors spread={spread} />
+
+      {/* More room? A continuation page for extra photos or a longer story, right
+          after this chapter. */}
+      {onAddPage && spread.source && (
+        <button onClick={onAddPage} style={{ cursor: "pointer", width: "100%", marginTop: 18, fontFamily: "inherit", fontSize: ".78rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px dashed var(--pb-line-strong)", borderRadius: 10, padding: "10px" }}>
+          ＋ Add another page for {spread.source === "own" ? "this page" : spread.name}
+        </button>
+      )}
 
       {/* Where this stop was — a quiet footnote, not the headline it used to be. */}
       <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", marginTop: 16 }}>

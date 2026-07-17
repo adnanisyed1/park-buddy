@@ -82,11 +82,13 @@ export function fileToDataUrl(file, maxPx = 1280, quality = 0.82) {
    pixels, so it holds a preview and a pointer. `w`/`h` are the ORIGINAL's dimensions,
    kept so the Studio can state the true print resolution rather than measure the
    thumbnail and lie. */
-export function addPhoto(stop, { url, note = "", lat = null, lng = null, path = null, w = null, h = null } = {}) {
-  if (!stop || !url) return;
+// `stamp` (optional) marks this as a LOCATION STAMP — a map screenshot attached like a
+// photo; it carries {lat,lng,label} and renders with a coordinates caption.
+export function addPhoto(stop, { url, note = "", lat = null, lng = null, path = null, w = null, h = null, stamp = null } = {}) {
+  if (!stop || (!url && !stamp)) return;
   const all = read(PHOTOS, {});
   const list = all[stop] || [];
-  list.push({ id: "p" + list.length + "_" + (typeof performance !== "undefined" ? Math.round(performance.now()) : list.length), url, note, lat, lng, path, w, h, ts: dateNow() });
+  list.push({ id: "p" + list.length + "_" + (typeof performance !== "undefined" ? Math.round(performance.now()) : list.length), url, note, lat, lng, path, w, h, stamp, ts: dateNow() });
   all[stop] = list;
   write(PHOTOS, all);
 }

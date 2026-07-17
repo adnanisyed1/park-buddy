@@ -24,6 +24,40 @@ export async function uploadPublicPdf(path, bytes) {
   return b + "/storage/v1/object/public/" + BOOK_BUCKET + "/" + path;
 }
 
+/* ── Book photos — PRIVATE ────────────────────────────────────────────────────
+   A traveller's book photos are private keepsakes, not a feed, so this bucket is
+   PRIVATE and is only ever read by our own server (service key) when building the
+   proof/print PDF. Nothing client-side reads it: the Studio renders from a small
+   local thumbnail, so there is no signed URL to leak and no public path to guess.
+     Create once in Supabase → Storage → New bucket → name "book-photos",
+     Public = OFF.
+   Objects are keyed by user id (<user.id>/<file>) so a per-user delete is
+   expressible — see app/api/delete-account. */
+export const BOOK_PHOTO_BUCKET = process.env.SUPABASE_BOOK_PHOTO_BUCKET || "book-photos";
+
+export async function uploadPrivateImage(path, bytes, contentType = "image/jpeg") {
+  const b = base(), key = process.env.SUPABASE_SERVICE_KEY;
+  if (!b || !key) throw new Error("Storage not configured");
+  const r = await fetch(b + "/storage/v1/object/" + BOOK_PHOTO_BUCKET + "/" + path, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + key, apikey: key, "Content-Type": contentType, "x-upsert": "true" },
+    body: Buffer.from(bytes),
+  });
+  if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("Photo upload failed (" + r.status + ") " + t.slice(0, 140)); }
+  return path; // a PATH, never a URL — the bucket is private on purpose.
+}
+
+// Server-side read of a private object (the PDF builder's way in).
+export async function downloadPrivateImage(path) {
+  const b = base(), key = process.env.SUPABASE_SERVICE_KEY;
+  if (!b || !key) throw new Error("Storage not configured");
+  const r = await fetch(b + "/storage/v1/object/" + BOOK_PHOTO_BUCKET + "/" + path, {
+    headers: { Authorization: "Bearer " + key, apikey: key },
+  });
+  if (!r.ok) throw new Error("Photo fetch failed (" + r.status + ")");
+  return Buffer.from(await r.arrayBuffer());
+}
+
 // Pines photo uploads. Needs a PUBLIC bucket "pines" (override with SUPABASE_PINES_BUCKET).
 //   Create once in Supabase → Storage → New bucket → name "pines", Public = ON.
 export const PINES_BUCKET = process.env.SUPABASE_PINES_BUCKET || "pines";

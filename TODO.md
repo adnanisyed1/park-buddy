@@ -6,6 +6,50 @@ plan and `DESIGN.md` for the design system.
 
 ---
 
+## 📕 Book Studio — print pipeline (IN PROGRESS)
+
+Shipped:
+- [x] ~~**Book photos go to private storage at print resolution**~~ — new `book-photos`
+      bucket + `/api/book-photo`; uploads are 3400px (every slot in the catalogue clears
+      300 DPI) instead of Trip Mode's 1280px (~151 DPI on a full 8.5" page — half of
+      Lulu's requirement, and the original was discarded). The browser keeps a 480px
+      thumbnail + a path, so quota can't eat photo #5. Per-photo print-DPI verdict and a
+      photo strip in Stop Tools. ✅
+
+**USER ACTION — before photos work in any environment:**
+Supabase → Storage → New bucket → name `book-photos`, **Public = OFF**. Nothing
+client-side reads it; the PDF builder pulls bytes with the service key.
+
+Next, in order:
+- [ ] **PDF builder learns the new compositions** — `lib/interiorPdf.js` still renders
+      the old one-photo-per-stop layout, so "Story on both pages" / grids / per-side
+      counts print as something else. Must land before any proof is shown to a customer.
+- [ ] **PDF builder reads `book-photos`** — checkout currently ships base64 thumbnails in
+      the POST body; it should send paths and let the server fetch the full-res originals.
+- [ ] **Restore the Step 3 "Print-ready PDF" proof button** — `/api/interior-pdf` still
+      exists but nothing calls it; the button was dropped in the c17afed Figma rebuild.
+      Blocked on the two above, or the proof lies.
+- [ ] **Legacy photos**: anything already in a user's localStorage is 1280px with no
+      `path`. The strip says so ("Added before print storage"). Pre-launch this is fine;
+      it's a one-way door once there are real customers.
+
+## 🔒 Storage / privacy (audit findings — see also Pines)
+- [ ] **`book-pdfs` is a PUBLIC bucket with guessable paths** (`orders/<base36-ts>-<price>`)
+      — anyone guessing a stamp reads a stranger's book. No signed URLs, no expiry. Also
+      uploaded BEFORE payment, so abandoned carts leave permanent public artifacts.
+      Lulu is the only reader; signed URLs serve it identically.
+- [ ] **Account deletion doesn't clear `book-pdfs`** — contradicts privacy/page.js:31
+      ("Deleting your account removes your … orders"). Paths aren't user-keyed, so a
+      user-scoped delete isn't even expressible against the current layout.
+- [ ] **Photo-rights attestation is decorative** — `agree` never enters the POST body;
+      the server never sees it and no consent record is kept. A direct POST bypasses it.
+- [ ] **Pines: reject/report hides the row but never deletes the object** — the image
+      stays public at its URL forever. The content moderation exists to remove is exactly
+      what survives. Small fix, highest severity on the board.
+- [ ] No retention policy anywhere; "13 and older" (privacy/page.js:37) is prose only.
+
+---
+
 ## 🛣️ Scenic drives (OSM route + POIs + galleries)
 Shipped:
 - [x] ~~**National Scenic Byways tier (103 drives)**~~ — OSM route + POIs + galleries rolled

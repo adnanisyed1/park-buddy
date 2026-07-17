@@ -16,9 +16,12 @@ import SiteHeader from "../components/SiteHeader";
 import { useTheme } from "../lib/theme";
 import { getStops, getMeta, subscribeTrip, addStop, removeStop, moveStop } from "../lib/trip";
 import {
-  getPhotosFor, getStory, setStory, addPhoto, fileToDataUrl,
+  getPhotosFor, getStory, setStory, addPhoto, removePhoto,
   distMiles, addCrumb, subscribeTripMode,
 } from "../lib/tripmode";
+// Book photos take the PRINT path, not Trip Mode's 1280px snapshot path — see
+// lib/bookPhoto.js for why that distinction matters.
+import { uploadBookPhoto, slotInches, resVerdict } from "../lib/bookPhoto";
 
 const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
 const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
@@ -159,8 +162,14 @@ function clearStopLayout(name) { const o = readLayouts(); if (o.stops) delete o.
    change event. Until it's made we fall back to the first photo in the book —
    a sensible opening image rather than a blank cover — but the moment the
    traveller picks one, that's what prints. */
-function getCoverPick() { return readLayouts().cover || null; }
-function setCoverPick(url) { const o = readLayouts(); o.cover = url; writeLayouts(o); }
+// Stores the whole photo RECORD, not just the thumbnail: the cover has to print the
+// full-resolution original too. Tolerates the older string form.
+function getCoverPick() {
+  const c = readLayouts().cover;
+  if (!c) return null;
+  return typeof c === "string" ? { url: c, path: null, w: null, h: null } : c;
+}
+function setCoverPick(rec) { const o = readLayouts(); o.cover = rec; writeLayouts(o); }
 // Re-render whenever any layout changes. Returns `ready` — false during SSR and the
 // first client render — because these layouts live in localStorage, which the server
 // can't see. Reading it during render made the server and client disagree
@@ -276,9 +285,13 @@ function useBook() {
   const extras = readExtras();
 
   // Your own book-only pages, appended after the itinerary chapters.
+  // Older extras stored bare url strings; normalise them to records so one shape
+  // reaches the renderers (they just have no print original behind them).
+  const asRec = (p) => (typeof p === "string" ? { url: p, path: null, w: null, h: null } : p);
   const extraSpreads = extras.map((e, i) => ({
     name: e.name, park: "Your own page", q: [e.name],
-    userImg: (e.photos || [])[0] || null, photos: e.photos || [],
+    userImg: (asRec((e.photos || [])[0]) || {}).url || null,
+    photos: (e.photos || []).map(asRec).filter((p) => p && p.url),
     story: e.story || "", date: "", lat: null, lng: null,
     chapter: stops.length + i + 1, source: "own", id: e.id,
   }));
@@ -300,7 +313,9 @@ function useBook() {
       park: s.state ? s.name + " · " + s.state : s.name,
       q: [s.name + " National Park", s.name],
       userImg: p0 ? p0.url : null,
-      photos: photos.map((p) => p.url).filter(Boolean),
+      // Records, not bare urls — the thumbnail we draw and the print original's path
+      // have to stay together or the book prints something other than the preview.
+      photos: photos.filter((p) => p && p.url).map((p) => ({ url: p.url, path: p.path || null, w: p.w || null, h: p.h || null })),
       story: stories[s.name] || "",
       date: p0 && p0.ts ? fmtDate(p0.ts) : "",
       lat: s.lat != null ? s.lat : (p0 ? p0.lat : null),
@@ -374,7 +389,7 @@ function PhotoGrid({ photos, count }) {
   const cols = count === 4 ? 2 : 1;
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols},1fr)`, gap: 6, width: "100%", height: "100%" }}>
-      {cells.map((u, i) => (u ? <PhotoSlot key={i} url={u} /> : <EmptySlot key={i} />))}
+      {cells.map((p, i) => (p ? <PhotoSlot key={i} url={p.url} /> : <EmptySlot key={i} />))}
     </div>
   );
 }
@@ -412,7 +427,7 @@ function Page({ cfg, spread, offset }) {
   if (cfg.type === "story") return <div style={{ height: "100%", overflow: "hidden" }}><SpreadStory spread={spread} /></div>;
   const slice = (spread.photos || []).slice(offset, offset + cfg.count);
   if (cfg.count === 1) {
-    return <div style={{ height: "100%" }}>{slice[0] ? <PhotoSlot url={slice[0]} /> : <SpreadPhoto spread={spread} />}</div>;
+    return <div style={{ height: "100%" }}>{slice[0] ? <PhotoSlot url={slice[0].url} /> : <SpreadPhoto spread={spread} />}</div>;
   }
   return <div style={{ height: "100%" }}><PhotoGrid photos={slice} count={cfg.count} /></div>;
 }
@@ -768,13 +783,48 @@ function Desktop(props) {
   );
 }
 
-// Photos go to the right place: an itinerary chapter's photos live in Trip Mode;
-// a book-only page keeps its own.
-function addPhotosTo(spread, urls) {
-  if (!urls.length) return;
-  if (spread.source === "own") updateExtra(spread.id, { photos: [...(spread.photos || []), ...urls] });
-  else urls.forEach((url) => addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }));
+/* Photos go to the right place: an itinerary chapter's photos live in Trip Mode;
+   a book-only page keeps its own. A `rec` is { url, path, w, h } — url is the
+   thumbnail the Studio draws, path is where the print-resolution original lives
+   (lib/bookPhoto.js), w/h are the original's true pixels. */
+function addPhotosTo(spread, recs) {
+  if (!recs.length) return;
+  if (spread.source === "own") updateExtra(spread.id, { photos: [...(spread.photos || []), ...recs] });
+  else recs.forEach((r) => addPhoto(spread.name, { ...r, lat: spread.lat, lng: spread.lng }));
 }
+
+/* One place that knows how to take photos into a chapter, so the stop tile and Stop
+   Tools behave identically: upload at print resolution, report what actually went
+   wrong, and never pretend a failed photo landed. */
+function useAddPhotos(spread) {
+  const [busy, setBusy] = useState(0);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+  const onFile = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ""; // let the same file be re-picked after a failure
+    if (!files.length) return;
+    setError(null);
+    setBusy(files.length);
+    const recs = [];
+    let failed = null;
+    for (const f of files) {
+      try { recs.push(await uploadBookPhoto(f)); }
+      catch (err) { failed = (err && err.message) || "Couldn't add that photo."; }
+      setBusy((n) => Math.max(0, n - 1));
+    }
+    if (recs.length) {
+      try { addPhotosTo(spread, recs); }
+      catch (err) { failed = err && err.name === "QuotaError" ? "Your browser's storage is full — remove a photo and try again." : (err && err.message) || "Couldn't save that photo."; }
+    }
+    setBusy(0);
+    if (failed) setError(failed);
+  };
+  return { fileRef, onFile, busy, error, open: () => fileRef.current && fileRef.current.click() };
+}
+const PhotoInput = ({ fileRef, onFile }) => (
+  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={onFile} style={{ display: "none" }} />
+);
 
 // A stop tile carries its own composition + photo state, and takes photos directly.
 function StopCard({ spread, i, active, onSelect }) {
@@ -782,13 +832,7 @@ function StopCard({ spread, i, active, onSelect }) {
   const lay = layoutOf(spread, ready);
   const need = photosNeeded(lay);
   const have = (spread.photos || []).length;
-  const fileRef = useRef(null);
-  const onFile = async (e) => {
-    const urls = [];
-    for (const f of Array.from(e.target.files || [])) { try { urls.push(await fileToDataUrl(f)); } catch {} }
-    addPhotosTo(spread, urls);
-    e.target.value = "";
-  };
+  const { fileRef, onFile, busy, error, open } = useAddPhotos(spread);
   const full = need === 0 || have >= need;
   return (
     <div className="bs-stopcard" onClick={onSelect} style={{ cursor: "pointer", background: active ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (active ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 12, padding: "11px 13px" }}>
@@ -800,12 +844,24 @@ function StopCard({ spread, i, active, onSelect }) {
       <div style={{ fontSize: ".7rem", color: "var(--pb-muted)" }}>{spread.park}</div>
       {/* the composition + how many photos it still needs, right on the tile */}
       <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".04em", color: "var(--pb-ink-2)", marginTop: 7 }}>{describeLayout(lay)}</div>
+      {/* the photos actually on this chapter, on the tile itself */}
+      {have > 0 && (
+        <div style={{ display: "flex", gap: 4, marginTop: 7 }}>
+          {(spread.photos || []).slice(0, 6).map((p, k) => (
+            <div key={k} aria-hidden style={{ flex: "0 0 26px", height: 34, borderRadius: 3, border: "1px solid var(--pb-line)", background: `center/cover url(${p.url})` }} />
+          ))}
+          {have > 6 && <div style={{ alignSelf: "center", fontFamily: mono, fontSize: ".5rem", color: "var(--pb-muted)" }}>+{have - 6}</div>}
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7 }}>
         <span style={{ fontFamily: mono, fontSize: ".5rem", color: full ? "var(--pb-go)" : "var(--pb-prepare)" }}>{have}/{need || "–"} photos</span>
-        <button onClick={(e) => { e.stopPropagation(); fileRef.current && fileRef.current.click(); }}
-          style={{ marginLeft: "auto", cursor: "pointer", fontFamily: "inherit", fontSize: ".66rem", fontWeight: 600, color: "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "3px 9px" }}>＋ Photos</button>
-        <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFile} onClick={(e) => e.stopPropagation()} style={{ display: "none" }} />
+        <button onClick={(e) => { e.stopPropagation(); open(); }} disabled={!!busy}
+          style={{ marginLeft: "auto", cursor: busy ? "default" : "pointer", fontFamily: "inherit", fontSize: ".66rem", fontWeight: 600, color: busy ? "var(--pb-muted)" : "var(--pb-gold)", background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "3px 9px" }}>
+          {busy ? "Adding…" : "＋ Photos"}
+        </button>
+        <span onClick={(e) => e.stopPropagation()}><PhotoInput fileRef={fileRef} onFile={onFile} /></span>
       </div>
+      {error && <div style={{ fontSize: ".64rem", color: "var(--pb-avoid)", marginTop: 5, lineHeight: 1.4 }}>{error}</div>}
     </div>
   );
 }
@@ -853,8 +909,8 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
         <Pager i={sel + 1} n={n + 1} label={onCover ? "Front cover" : cur.name} onPrev={prev} onNext={next} />
       </main>
       {author && (onCover
-        ? <CoverTools spreads={spreads} layoutKey={layoutKey} setLayoutKey={setLayoutKey} coverImg={coverImg} onNext={() => setStep("theme")} />
-        : <StopTools spread={cur} onNext={() => setStep("theme")} />)}
+        ? <CoverTools spreads={spreads} layoutKey={layoutKey} setLayoutKey={setLayoutKey} coverImg={coverImg} size={size} onNext={() => setStep("theme")} />
+        : <StopTools spread={cur} size={size} onNext={() => setStep("theme")} />)}
     </div>
   );
 }
@@ -931,16 +987,24 @@ function CoverLayoutList({ layoutKey, setLayoutKey }) {
 
 /* Which photo goes on the cover. Every photo already in the book is a candidate —
    you shouldn't have to re-upload a shot that's already on page 12. */
-function CoverPhotoPicker({ spreads, layoutKey, coverImg }) {
+function CoverPhotoPicker({ spreads, layoutKey, coverImg, size }) {
   const fileRef = useRef(null);
-  const usesPhoto = layoutFor(layoutKey).photo !== "none";
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const lay = layoutFor(layoutKey);
+  const usesPhoto = lay.photo !== "none";
   const pool = [];
-  for (const s of spreads || []) for (const u of s.photos || []) if (u && !pool.includes(u)) pool.push(u);
+  const seen = new Set();
+  for (const s of spreads || []) for (const p of s.photos || []) if (p && p.url && !seen.has(p.url)) { seen.add(p.url); pool.push(p); }
 
   const onFile = async (e) => {
     const f = (e.target.files || [])[0];
-    if (f) { try { setCoverPick(await fileToDataUrl(f)); } catch {} }
     e.target.value = "";
+    if (!f) return;
+    setError(null); setBusy(true);
+    try { setCoverPick(await uploadBookPhoto(f)); }
+    catch (err) { setError((err && err.message) || "Couldn't add that photo."); }
+    setBusy(false);
   };
   if (!usesPhoto) {
     return (
@@ -949,17 +1013,22 @@ function CoverPhotoPicker({ spreads, layoutKey, coverImg }) {
       </div>
     );
   }
+  const inches = slotInches(size.trim, 1, lay.photo === "full");
+  const picked = pool.find((p) => p.url === coverImg);
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
-        {pool.map((u) => (
-          <button key={u} onClick={() => setCoverPick(u)} aria-label="Use this photo on the cover"
-            style={{ cursor: "pointer", padding: 0, aspectRatio: "3/4", borderRadius: 6, overflow: "hidden", border: "2px solid " + (u === coverImg ? "var(--pb-gold)" : "var(--pb-line)"), background: `center/cover url(${u})` }} />
+        {pool.map((p) => (
+          <button key={p.url} onClick={() => setCoverPick(p)} aria-label="Use this photo on the cover"
+            style={{ cursor: "pointer", padding: 0, aspectRatio: "3/4", borderRadius: 6, overflow: "hidden", border: "2px solid " + (p.url === coverImg ? "var(--pb-gold)" : "var(--pb-line)"), background: `center/cover url(${p.url})` }} />
         ))}
-        <button onClick={() => fileRef.current && fileRef.current.click()}
-          style={{ cursor: "pointer", aspectRatio: "3/4", borderRadius: 6, border: "1px dashed var(--pb-line-strong)", background: "transparent", color: "var(--pb-muted)", fontFamily: mono, fontSize: ".55rem", lineHeight: 1.3 }}>＋<br />Upload</button>
+        <button onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}
+          style={{ cursor: busy ? "default" : "pointer", aspectRatio: "3/4", borderRadius: 6, border: "1px dashed var(--pb-line-strong)", background: "transparent", color: "var(--pb-muted)", fontFamily: mono, fontSize: ".55rem", lineHeight: 1.3 }}>{busy ? "…" : <>＋<br />Upload</>}</button>
       </div>
-      <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={onFile} style={{ display: "none" }} />
+      {/* The cover is the biggest thing we print, so it's where thin resolution shows first. */}
+      {picked && <div style={{ marginTop: 8 }}><ResBadge rec={picked} inches={inches} /></div>}
+      {error && <div style={{ fontSize: ".66rem", color: "var(--pb-avoid)", marginTop: 8, lineHeight: 1.4 }}>{error}</div>}
       <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 8, lineHeight: 1.5 }}>
         {pool.length === 0
           ? "No photos in the book yet — upload one, or add photos to a stop and they'll show up here."
@@ -969,9 +1038,27 @@ function CoverPhotoPicker({ spreads, layoutKey, coverImg }) {
   );
 }
 
+/* What this photo will actually look like in ink, at the size it's printed.
+   A photo with no `path` predates print storage — we only ever kept a 1280px copy of
+   it, so we say that rather than quietly measuring the thumbnail and calling it fine. */
+function ResBadge({ rec, inches }) {
+  if (!rec) return null;
+  if (!rec.path || !rec.w) {
+    return <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".04em", color: "var(--pb-prepare)" }}>Added before print storage — re-add it to print sharp.</div>;
+  }
+  const v = resVerdict(rec.w, inches);
+  const tone = v.level === "ok" ? "var(--pb-go)" : v.level === "soft" ? "var(--pb-prepare)" : "var(--pb-avoid)";
+  return (
+    <div>
+      <span style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: tone }}>{v.label}</span>
+      <span style={{ fontSize: ".64rem", color: "var(--pb-muted)", marginLeft: 6 }}>{v.note}</span>
+    </div>
+  );
+}
+
 /* Cover tools — the cover is a page of the book, so it's composed in step 1
    alongside every other page, not left to be inferred from the theme. */
-function CoverTools({ spreads, layoutKey, setLayoutKey, coverImg, onNext }) {
+function CoverTools({ spreads, layoutKey, setLayoutKey, coverImg, size, onNext }) {
   useLayoutTick();
   const cap = { fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 7 };
   return (
@@ -981,29 +1068,75 @@ function CoverTools({ spreads, layoutKey, setLayoutKey, coverImg, onNext }) {
       <div style={cap}>Cover layout</div>
       <CoverLayoutList layoutKey={layoutKey} setLayoutKey={setLayoutKey} />
       <div style={{ ...cap, marginTop: 18 }}>Cover photo</div>
-      <CoverPhotoPicker spreads={spreads} layoutKey={layoutKey} coverImg={coverImg} />
+      <CoverPhotoPicker spreads={spreads} layoutKey={layoutKey} coverImg={coverImg} size={size} />
       <button onClick={onNext} style={{ cursor: "pointer", width: "100%", marginTop: 22, fontFamily: "inherit", fontSize: ".85rem", fontWeight: 700, color: "#14210f", background: "var(--pb-gold)", border: "none", borderRadius: 10, padding: "12px" }}>Next: Theme →</button>
     </aside>
   );
 }
 
-function StopTools({ spread, onNext }) {
+/* The photos on this chapter, in the order they fill the spread — so "which photo is
+   on the left page" is something you can see and change, not deduce. */
+function PhotoStrip({ spread, size }) {
+  const ready = useLayoutTick();
+  const lay = layoutOf(spread, ready);
+  const photos = spread.photos || [];
+  const need = photosNeeded(lay);
+  const leftCount = lay.left.type === "photos" ? lay.left.count : 0;
+
+  // Which page a slot lands on, and how wide it prints there.
+  const slotOf = (i) => {
+    if (lay.left.type === "photos" && i < leftCount) return { page: "Left", inches: slotInches(size.trim, lay.left.count, false) };
+    if (lay.right.type === "photos" && i < leftCount + lay.right.count) return { page: "Right", inches: slotInches(size.trim, lay.right.count, false) };
+    return null; // beyond what this composition prints
+  };
+  if (!photos.length) {
+    return <div style={{ fontSize: ".7rem", color: "var(--pb-muted)", lineHeight: 1.5 }}>No photos on this chapter yet.{need ? ` This layout prints ${need}.` : ""}</div>;
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+      {photos.map((p, i) => {
+        const slot = slotOf(i);
+        return (
+          <div key={p.url + i} style={{ display: "flex", gap: 9, alignItems: "flex-start", opacity: slot ? 1 : 0.55 }}>
+            <div aria-hidden style={{ flex: "0 0 38px", height: 48, borderRadius: 4, border: "1px solid var(--pb-line)", background: `center/cover url(${p.url})` }} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".1em", textTransform: "uppercase", color: slot ? "var(--pb-gold-soft)" : "var(--pb-muted)" }}>
+                {slot ? `${slot.page} page` : "Not printed — this layout has no slot for it"}
+              </div>
+              {slot && <div style={{ marginTop: 3 }}><ResBadge rec={p} inches={slot.inches} /></div>}
+            </div>
+            <button onClick={() => removePhotoFrom(spread, i)} aria-label="Remove this photo"
+              style={{ cursor: "pointer", flex: "0 0 auto", fontFamily: "inherit", fontSize: ".7rem", color: "var(--pb-muted)", background: "transparent", border: "1px solid var(--pb-line)", borderRadius: 6, padding: "2px 7px" }}>✕</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Remove by position, so what you click in the strip is what leaves the page.
+function removePhotoFrom(spread, i) {
+  if (spread.source === "own") {
+    const next = (spread.photos || []).filter((_, k) => k !== i);
+    updateExtra(spread.id, { photos: next });
+  } else {
+    const list = getPhotosFor(spread.name) || [];
+    const target = list[i];
+    if (target && target.id) removePhoto(spread.name, target.id);
+  }
+}
+
+function StopTools({ spread, onNext, size }) {
   useLayoutTick();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(spread.story || "");
   const [dist, setDist] = useState(null);
   const [locating, setLocating] = useState(false);
-  const fileRef = useRef(null);
+  // Multiple at once — a spread can want up to 8 photos across both pages.
+  const { fileRef, onFile, busy, error, open } = useAddPhotos(spread);
   useEffect(() => { setDraft(spread.story || ""); setEditing(false); }, [spread.name]);
 
   const saveStory = () => { try { setStory(spread.name, draft); } catch {} setEditing(false); };
-  // Multiple at once — a spread can want up to 8 photos across both pages.
-  const onFile = async (e) => {
-    const urls = [];
-    for (const f of Array.from(e.target.files || [])) { try { urls.push(await fileToDataUrl(f)); } catch {} }
-    addPhotosTo(spread, urls);
-    e.target.value = "";
-  };
   const locate = () => {
     if (!navigator.geolocation) return;
     setLocating(true);
@@ -1046,10 +1179,17 @@ function StopTools({ spread, onNext }) {
       ) : (
         <button className="bs-btn" style={{ ...btn, width: "100%", marginBottom: 10 }} onClick={() => setEditing(true)}>✎ Edit Story Content</button>
       )}
-      <button className="bs-btn" style={{ ...btn, width: "100%" }} onClick={() => fileRef.current && fileRef.current.click()}>＋ Add / swap photo</button>
-      <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFile} style={{ display: "none" }} />
-      <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", marginTop: 6, textAlign: "center" }}>
-        {(spread.photos || []).length} photo{(spread.photos || []).length === 1 ? "" : "s"} on this chapter
+      <button className="bs-btn" style={{ ...btn, width: "100%", opacity: busy ? 0.6 : 1 }} disabled={!!busy} onClick={open}>
+        {busy ? `Adding ${busy} photo${busy === 1 ? "" : "s"}…` : "＋ Add photos"}
+      </button>
+      <PhotoInput fileRef={fileRef} onFile={onFile} />
+      {error && <div style={{ fontSize: ".7rem", color: "var(--pb-avoid)", marginTop: 7, lineHeight: 1.45 }}>{error}</div>}
+
+      {/* The photos on this chapter — which page each lands on, and how it'll print. */}
+      <div style={{ marginTop: 16 }}>
+        <Eyebrow>Photos on this chapter</Eyebrow>
+        <div style={{ height: 10 }} />
+        <PhotoStrip spread={spread} size={size} />
       </div>
 
       {/* Per-chapter page composition — overrides the book default. */}
@@ -1376,7 +1516,7 @@ function MobilePhone(props) {
                         <div style={{ height: 14 }} />
                         <Eyebrow>Cover photo</Eyebrow>
                         <div style={{ height: 8 }} />
-                        <CoverPhotoPicker spreads={spreads} layoutKey={layout.key} coverImg={coverImg} />
+                        <CoverPhotoPicker spreads={spreads} layoutKey={layout.key} coverImg={coverImg} size={size} />
                       </>
                     ) : <MobileStopTools spread={cur} />}
                   </div>
@@ -1442,13 +1582,8 @@ function MobilePhone(props) {
 function MobileStopTools({ spread }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(spread.story || "");
-  const fileRef = useRef(null);
+  const { fileRef, onFile, busy, error, open } = useAddPhotos(spread);
   useEffect(() => { setDraft(spread.story || ""); setEditing(false); }, [spread.name]);
-  const onFile = async (e) => {
-    const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { const url = await fileToDataUrl(f); addPhoto(spread.name, { url, lat: spread.lat, lng: spread.lng }); } catch {}
-    e.target.value = "";
-  };
   const btn = { flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: 600, color: "var(--pb-ink)", background: "var(--pb-surface-2)", border: "1px solid var(--pb-line-strong)", borderRadius: 10, padding: "10px" };
   return editing ? (
     <div>
@@ -1459,11 +1594,14 @@ function MobileStopTools({ spread }) {
       </div>
     </div>
   ) : (
-    <div style={{ display: "flex", gap: 8 }}>
-      <button style={btn} onClick={() => setEditing(true)}>✎ Edit Story</button>
-      <button style={btn} onClick={() => fileRef.current && fileRef.current.click()}>⤢ Swap Photo</button>
-      <input ref={fileRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
-    </div>
+    <>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button style={btn} onClick={() => setEditing(true)}>✎ Edit Story</button>
+        <button style={{ ...btn, opacity: busy ? 0.6 : 1 }} disabled={!!busy} onClick={open}>{busy ? "Adding…" : "＋ Photos"}</button>
+        <PhotoInput fileRef={fileRef} onFile={onFile} />
+      </div>
+      {error && <div style={{ fontSize: ".7rem", color: "var(--pb-avoid)", marginTop: 7, lineHeight: 1.45 }}>{error}</div>}
+    </>
   );
 }
 
@@ -1488,17 +1626,27 @@ function ManageStops({ onClose }) {
   const [pending, setPending] = useState([]);
   const fileRef = useRef(null);
 
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
   const onFile = async (e) => {
     const files = Array.from(e.target.files || []);
-    const urls = [];
-    for (const f of files) { try { urls.push(await fileToDataUrl(f)); } catch {} }
-    setPending((p) => [...p, ...urls]);
     e.target.value = "";
+    if (!files.length) return;
+    setError(null); setBusy(true);
+    const recs = [];
+    let failed = null;
+    for (const f of files) {
+      try { recs.push(await uploadBookPhoto(f)); }
+      catch (err) { failed = (err && err.message) || "Couldn't add that photo."; }
+    }
+    setPending((p) => [...p, ...recs]);
+    setBusy(false);
+    if (failed) setError(failed);
   };
   const add = () => {
     const nm = name.trim(); if (!nm) return;
-    addExtra({ name: nm, photos: pending });
-    setName(""); setPending([]);
+    try { addExtra({ name: nm, photos: pending }); setName(""); setPending([]); setError(null); }
+    catch (err) { setError(err && err.name === "QuotaError" ? "Your browser's storage is full — remove a photo and try again." : "Couldn't add that page."); }
   };
 
   const iconBtn = { cursor: "pointer", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", color: "var(--pb-ink)", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" };
@@ -1546,9 +1694,10 @@ function ManageStops({ onClose }) {
 
           <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
             <input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this page — e.g. “Moab diner”" style={{ flex: 1 }} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
-            <button onClick={() => fileRef.current && fileRef.current.click()} style={{ ...iconBtn, width: "auto", padding: "0 12px" }}>{pending.length ? `✓ ${pending.length}` : "＋ Photos"}</button>
-            <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFile} style={{ display: "none" }} />
+            <button onClick={() => fileRef.current && fileRef.current.click()} disabled={busy} style={{ ...iconBtn, width: "auto", padding: "0 12px" }}>{busy ? "…" : pending.length ? `✓ ${pending.length}` : "＋ Photos"}</button>
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={onFile} style={{ display: "none" }} />
           </div>
+          {error && <div style={{ fontSize: ".76rem", color: "var(--pb-avoid)", marginTop: 8, lineHeight: 1.45 }}>{error}</div>}
           <button onClick={add} disabled={!name.trim()} style={{ cursor: name.trim() ? "pointer" : "not-allowed", width: "100%", marginTop: 10, fontFamily: "inherit", fontWeight: 700, fontSize: ".85rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 10, padding: "11px", opacity: name.trim() ? 1 : .5 }}>Add page to book</button>
         </div>
 

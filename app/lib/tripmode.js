@@ -18,9 +18,25 @@ function read(key, fallback) {
   if (typeof window === "undefined") return fallback;
   try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; } catch { return fallback; }
 }
+/* Throws QuotaError when the browser is full. It used to swallow that ("caller should
+   trim" — no caller ever did), so the write silently didn't happen: you added a photo,
+   saw it appear, and it was gone on reload with nothing said. Losing someone's work
+   quietly is worse than failing loudly, so this reports and lets the caller speak. */
+export class QuotaError extends Error {
+  constructor() { super("Your browser's storage is full."); this.name = "QuotaError"; }
+}
+function isQuota(e) {
+  return e && (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED" || e.code === 22 || e.code === 1014);
+}
 function write(key, val) {
   if (typeof window === "undefined") return;
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* quota — caller should trim */ }
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch (e) {
+    notify(); // the in-memory view still moved on; let subscribers re-read the truth
+    if (isQuota(e)) throw new QuotaError();
+    throw e;
+  }
   notify();
 }
 function notify() {
@@ -60,11 +76,17 @@ export function fileToDataUrl(file, maxPx = 1280, quality = 0.82) {
   });
 }
 
-export function addPhoto(stop, { url, note = "", lat = null, lng = null } = {}) {
+/* `url` is what gets rendered. For a Trip Mode snapshot that's the whole photo; for a
+   Book Studio photo it's a small thumbnail and `path` points at the full-resolution
+   original in private storage (see lib/bookPhoto.js) — the browser can't hold print
+   pixels, so it holds a preview and a pointer. `w`/`h` are the ORIGINAL's dimensions,
+   kept so the Studio can state the true print resolution rather than measure the
+   thumbnail and lie. */
+export function addPhoto(stop, { url, note = "", lat = null, lng = null, path = null, w = null, h = null } = {}) {
   if (!stop || !url) return;
   const all = read(PHOTOS, {});
   const list = all[stop] || [];
-  list.push({ id: "p" + list.length + "_" + (typeof performance !== "undefined" ? Math.round(performance.now()) : list.length), url, note, lat, lng, ts: dateNow() });
+  list.push({ id: "p" + list.length + "_" + (typeof performance !== "undefined" ? Math.round(performance.now()) : list.length), url, note, lat, lng, path, w, h, ts: dateNow() });
   all[stop] = list;
   write(PHOTOS, all);
 }

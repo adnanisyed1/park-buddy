@@ -7,6 +7,7 @@
 //   Add the endpoint in Stripe → Developers → Webhooks → checkout.session.completed.
 import Stripe from "stripe";
 import { luluConfigured, createPrintJob, LULU_PRODUCT } from "../../lib/lulu";
+import { sendMail, orderConfirmation, mailConfigured } from "../../lib/mail";
 
 export const runtime = "nodejs";
 
@@ -70,6 +71,28 @@ async function fulfill(session) {
 
   const job = await createPrintJob(payload);
   await recordJob(session, m, job).catch(() => {});
+
+  // Tell the customer their book is being made. Until now they paid and heard nothing
+  // at all until a parcel turned up. Never let this fail the order — the book is already
+  // at the press, so an email problem must not surface as a fulfillment error.
+  try {
+    const to = (session.customer_details && session.customer_details.email) || session.customer_email;
+    const amount = typeof session.amount_total === "number"
+      ? "$" + (session.amount_total / 100).toFixed(2)
+      : "";
+    const msg = orderConfirmation({
+      name: (session.shipping_details && session.shipping_details.name) || (session.customer_details && session.customer_details.name),
+      title: m.trip_title || "Trip Book",
+      pages: m.page_count || "",
+      binding: m.binding || "",
+      size: m.size || "",
+      total: amount,
+    });
+    const res = await sendMail({ to, ...msg });
+    if (!res.sent) console.warn("[order] confirmation not sent:", res.reason, "— order", session.id);
+  } catch (e) {
+    console.warn("[order] confirmation threw:", e && e.message);
+  }
 }
 
 // Best-effort fulfillment log into the existing book_orders table (no schema change

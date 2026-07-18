@@ -198,7 +198,7 @@ export async function POST(request) {
       }],
       shipping_address_collection: { allowed_countries: ["US", "CA"] },
       phone_number_collection: { enabled: true },
-      metadata: { trip_title: title, theme, size, quantity: String(qty), price_basis: priceBasis, ...fulfillMeta },
+      metadata: { trip_title: title, theme, size, quantity: String(qty), price_basis: priceBasis, binding: conf.cover, ...fulfillMeta },
       success_url: origin + "/trip-book?order=success",
       cancel_url: origin + "/trip-book?order=cancel",
     });

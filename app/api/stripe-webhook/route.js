@@ -23,7 +23,13 @@ export async function POST(request) {
   catch (e) { return Response.json({ error: "Invalid signature" }, { status: 400 }); }
 
   if (event.type === "checkout.session.completed") {
-    try { await fulfill(event.data.object); }
+    // Re-fetch with the shipping rate expanded: the event payload carries only the rate's
+    // id, and we need its metadata to know WHICH speed the customer paid for.
+    let session = event.data.object;
+    try {
+      session = await stripe.checkout.sessions.retrieve(session.id, { expand: ["shipping_cost.shipping_rate"] });
+    } catch { /* fall back to the unexpanded object; fulfillment still works at base speed */ }
+    try { await fulfill(session); }
     catch (e) {
       // 500 so Stripe retries the delivery; log for diagnosis.
       console.error("Trip Book fulfillment failed:", e);
@@ -31,6 +37,18 @@ export async function POST(request) {
     }
   }
   return Response.json({ received: true });
+}
+
+// Which shipping speed did they pay for? Read it off the expanded Stripe shipping rate.
+// Falls back to the base level rather than throwing — a missing rate must not block a
+// paid order from being printed.
+function chosenLevel(session) {
+  try {
+    const rate = session.shipping_cost && session.shipping_cost.shipping_rate;
+    const level = rate && rate.metadata && rate.metadata.lulu_level;
+    if (level) return level;
+  } catch { /* fall through */ }
+  return LULU_PRODUCT.shipping;
 }
 
 async function fulfill(session) {
@@ -66,7 +84,9 @@ async function fulfill(session) {
       country_code: addr.country || "US",
       phone_number: cust.phone || "+10000000000",
     },
-    shipping_level: LULU_PRODUCT.shipping,
+    // Ship at the speed the customer actually paid for. This was hardcoded, so someone
+    // could buy overnight delivery and still wait 10–12 days.
+    shipping_level: chosenLevel(session),
   };
 
   const job = await createPrintJob(payload);

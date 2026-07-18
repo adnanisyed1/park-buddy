@@ -256,10 +256,17 @@ export function priceFromLanded({ landed, shipping, profit }) {
 // Utah. total_days covers PRINTING PLUS TRANSIT — door to door, not just the courier.
 // Reference values for display; the live endpoint is authoritative per destination.
 export const SHIP_LEVELS = [
-  { level: "MAIL",          name: "Standard",  days: [10, 12], refCost: 5.69,  note: "The everyday option." },
-  { level: "GROUND_HD",     name: "Faster",    days: [8, 10],  refCost: 13.74, note: "A couple of days sooner." },
-  { level: "EXPEDITED",     name: "Express",   days: [5, 7],   refCost: 20.74, note: "For a date you can't miss." },
+  { level: "MAIL",          name: "Standard",       days: [10, 12], refCost: 5.69,  carrier: "DHL Bound Printed Matter" },
+  { level: "PRIORITY_MAIL", name: "Priority",       days: [8, 10],  refCost: 14.74, carrier: "USPS Priority Mail" },
+  { level: "GROUND_HD",     name: "Ground",         days: [8, 10],  refCost: 13.74, carrier: "FedEx Home" },
+  { level: "EXPEDITED",     name: "Express",        days: [5, 7],   refCost: 20.74, carrier: "FedEx 2 Day" },
+  { level: "EXPRESS",       name: "Overnight",      days: [4, 6],   refCost: 35.74, carrier: "FedEx Standard Overnight" },
 ];
+
+// The level the book price is calculated against. Everything else is offered at its own
+// real cost, so switching speed changes what the customer pays, not what we earn — except
+// for Stripe's 2.9% on the extra, which costs us ~$0.44 on the dearest tier. Accepted.
+export const BASE_SHIP_LEVEL = "MAIL";
 
 export function shipLevel(level) {
   return SHIP_LEVELS.find((s) => s.level === level) || SHIP_LEVELS[0];

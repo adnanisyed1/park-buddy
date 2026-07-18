@@ -6,7 +6,7 @@
 // Degrades honestly (503) with no Stripe key; refuses live keys unless STRIPE_LIVE_OK=1.
 import Stripe from "stripe";
 import { luluConfigured, coverDimensions, costCalc } from "../../lib/lulu";
-import { quote as bookQuote, skuFor, unavailableReason, trimInches, priceFromLanded, PROFIT_RANGE } from "../../lib/bookPricing";
+import { quote as bookQuote, skuFor, unavailableReason, trimInches, priceFromLanded, PROFIT_RANGE, SHIP_LEVELS, BASE_SHIP_LEVEL } from "../../lib/bookPricing";
 import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
@@ -122,7 +122,7 @@ export async function POST(request) {
   // finding out. So: quote live, and if the quote fails, refuse the order in production
   // rather than guessing with someone's money.
   let priceBasis = "measured-model";
-  let finalPrice = priced.bookPrice + priced.shipping;
+  let finalPrice = priced.bookPrice;   // book only — shipping is a Stripe option below
   if (luluConfigured()) {
     try {
       const c = await costCalc({
@@ -132,8 +132,12 @@ export async function POST(request) {
       });
       const landed = +c.total_cost_incl_tax;
       const ship = +c.shipping_cost.total_cost_excl_tax;
+      // BOOK ONLY. Shipping used to be folded into this single amount; it is now a real
+      // Stripe shipping option the customer picks, so adding it here too would charge it
+      // twice. priceFromLanded already subtracts shipping from the total it solves for,
+      // so bookPrice + the chosen shipping still lands on the right total.
       const live = priceFromLanded({ landed, shipping: ship });
-      finalPrice = live.bookPrice + live.shipping;
+      finalPrice = live.bookPrice;
       priceBasis = "lulu";
     } catch (e) {
       if (IS_LULU_PRODUCTION) {
@@ -209,6 +213,25 @@ export async function POST(request) {
       // instead of ~$10 (measured Toronto/Vancouver/Halifax/Whitehorse — all $10.90+).
       // Re-opening Canada means charging its real shipping, not just adding "CA" back.
       shipping_address_collection: { allowed_countries: ["US"] },
+      // Every speed the printer offers, at its real cost and its real delivery window.
+      // Nobody could choose before: MAIL was hardcoded, so every customer silently got
+      // the slowest option (10–12 days) whether they were buying a keepsake or a gift.
+      //
+      // The chosen level is carried in the rate's metadata so the webhook can tell the
+      // printer which speed was paid for — a customer paying for overnight and then
+      // waiting two weeks would be worse than never offering the choice.
+      shipping_options: SHIP_LEVELS.map((s) => ({
+        shipping_rate_data: {
+          type: "fixed_amount",
+          fixed_amount: { amount: Math.round(s.refCost * 100), currency: "usd" },
+          display_name: `${s.name} — ${s.days[0]}–${s.days[1]} days`,
+          delivery_estimate: {
+            minimum: { unit: "business_day", value: s.days[0] },
+            maximum: { unit: "business_day", value: s.days[1] },
+          },
+          metadata: { lulu_level: s.level },
+        },
+      })),
       phone_number_collection: { enabled: true },
       metadata: { trip_title: title, theme, size, quantity: String(qty), price_basis: priceBasis, binding: conf.cover, ...fulfillMeta },
       success_url: origin + "/trip-book?order=success",

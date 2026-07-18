@@ -43,7 +43,7 @@ async function orderProbe(origin, cfg) {
   const dims = await coverDimensions(pageCount, sku);
   const coverImg = await resolveEntryImage(entries[0], origin);
   const coverBytes = await buildCoverPdf({ title: "Sandbox Test Book", dates: "May 2026", coverImage: coverImg, dims, origin,
-    palette: look.palette, layout: look.layout, bw: look.bw });
+    palette: look.palette, layout: look.layout, bw: look.bw, trimW: trim.w, trimH: trim.h });
   const cover_url = await uploadSignedPdf(stamp + "-cover.pdf", coverBytes);
   const job = await createPrintJob({
     contact_email: process.env.LULU_CONTACT_EMAIL || "orders@theparkbuddy.com",

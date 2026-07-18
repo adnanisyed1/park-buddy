@@ -121,7 +121,7 @@ export async function POST(request) {
         entries[0];
       const coverImage = await resolveEntryImage(coverEntry);
       const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims, origin,
-        palette: look.palette, layout: look.layout, bw: look.bw });
+        palette: look.palette, layout: look.layout, bw: look.bw, trimW: trim.w, trimH: trim.h });
       const cover_url = await uploadSignedPdf(stamp + "-cover.pdf", coverBytes);
       // pod_package_id travels with the order so the webhook prints the book the
       // customer actually configured, not a default product.

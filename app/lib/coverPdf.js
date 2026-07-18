@@ -9,7 +9,32 @@ import { PDFDocument, rgb, degrees } from "pdf-lib";
 import { embedFonts } from "./pdfFonts";
 import { paletteByKey, hexToRgb01, toGray01, isLightPalette } from "./bookThemes";
 
-export async function buildCoverPdf({ title, dates, edition, coverImage, dims, origin, palette, layout, bw }) {
+// Where the back panel, spine and front panel actually sit on the wraparound.
+//
+// Derived from Lulu's own cover dimensions rather than estimated. The sheet is
+// [wrap][back = trim][spine][front = trim][wrap], and the vertical allowance is the same
+// wrap on every edge — so the wrap falls out of the height, and the spine is whatever
+// width is left over:
+//     wrap  = (coverH - trimH) / 2
+//     spine = coverW - 2*trimW - 2*wrap
+// Verified against two real Lulu quotes (7.5" square and 11×8.5" landscape): both give a
+// 0.875in wrap and a 0.25in spine at 32 pages, and the right-hand margin comes out equal
+// to the wrap, which is the check that the model is right.
+//
+// The previous code assumed the front panel was "the right 42%", which put the title
+// 1.2–1.8in too far right — visible as an off-centre title in Lulu's cover thumbnail.
+function coverPanels(coverW, coverH, trimW, trimH) {
+  const tW = trimW * 72, tH = trimH * 72;
+  const wrap = (coverH - tH) / 2;
+  const spine = coverW - 2 * tW - 2 * wrap;
+  // If the numbers don't agree (unexpected SKU geometry), fall back to centring on the
+  // right half rather than drawing type in a wrong place with false confidence.
+  const sane = wrap > 0 && spine > 0 && wrap < coverH / 2;
+  if (!sane) return { frontX: coverW / 2, frontW: coverW / 2, spine: 0, wrap: 0, exact: false };
+  return { frontX: wrap + tW + spine, frontW: tW, spine, wrap, exact: true };
+}
+
+export async function buildCoverPdf({ title, dates, edition, coverImage, dims, origin, palette, layout, bw, trimW, trimH }) {
   const W = Number(dims.width), H = Number(dims.height);
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([W, H]);
@@ -27,8 +52,8 @@ export async function buildCoverPdf({ title, dates, edition, coverImage, dims, o
   page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: paper });
 
   const PT = 72;
-  // Front panel ≈ the right ~42% of the wraparound (back | spine | front).
-  const frontX = W * 0.58, frontW = W * 0.42;
+  const panels = coverPanels(W, H, trimW || (W / 2 - 18) / 72, trimH || (H - 126) / 72);
+  const { frontX, frontW } = panels;
   const cx = frontX + frontW / 2;
 
   // "full" runs the photo across the whole wraparound; every other layout keeps the
@@ -96,16 +121,27 @@ export async function buildCoverPdf({ title, dates, edition, coverImage, dims, o
   if (dates) centerFront(sans, String(dates).toUpperCase(), 8, y - 12, metaColor);
   if (edition) centerFront(sans, String(edition).toUpperCase(), 7, 0.6 * PT, accent);
 
-  // Spine title, in ink on paper (or paper on a full-bleed photo).
+  // Spine title, centred in the REAL spine rather than at the sheet's midpoint. Only
+  // set it if the spine is wide enough to carry type without touching the hinge — a
+  // 0.25in spine on a 32-page book can't, and cramming text there is how spines end up
+  // printed onto the front cover.
   const spineTxt = String(title || "").slice(0, 40);
-  page.drawText(spineTxt, {
-    x: W / 2 + 4, y: H / 2 - serif.widthOfTextAtSize(spineTxt, 10) / 2,
-    size: 10, font: serif, color: onPhoto ? paper : ink, rotate: degrees(90),
-  });
+  const SPINE_MIN_PT = 0.35 * PT;
+  if (panels.exact && panels.spine >= SPINE_MIN_PT) {
+    const size = Math.min(10, panels.spine * 0.55);
+    page.drawText(spineTxt, {
+      x: panels.frontX - panels.spine / 2 + size / 2.6,
+      y: H / 2 - serif.widthOfTextAtSize(spineTxt, size) / 2,
+      size, font: serif, color: onPhoto ? paper : ink, rotate: degrees(90),
+    });
+  }
 
-  // Back colophon.
+  // Back colophon, inset from the trim edge of the BACK panel (which starts after the
+  // wrap), so it isn't trimmed off or folded into the case.
   page.drawText("A Park Buddy keepsake — printed on demand.", {
-    x: 0.6 * PT, y: 0.6 * PT, size: 8, font: sans, color: onPhoto ? paper : ink, opacity: 0.75,
+    x: (panels.exact ? panels.wrap : 0) + 0.5 * PT,
+    y: (panels.exact ? panels.wrap : 0) + 0.5 * PT,
+    size: 8, font: sans, color: onPhoto ? paper : ink, opacity: 0.75,
   });
 
   return await pdf.save();

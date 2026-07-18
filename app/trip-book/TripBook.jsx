@@ -1864,8 +1864,9 @@ function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, fini
   if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} startPage={(starts || [])[pv - 2] || 3} size={size} palette={palette} />;
   return (
     <BookLeaf palette={palette}>
-      {/* The Park Buddy emblem closes every book. */}
-      <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" style={{ width: 104, height: "auto", display: "block", margin: "0 auto 24px" }} />
+      {/* The Park Buddy emblem closes every book, set off by a hairline rule. */}
+      <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" style={{ width: 104, height: "auto", display: "block", margin: "0 auto 20px" }} />
+      <div style={{ width: 56, height: 1, background: accentOf(palette), opacity: .55, margin: "0 auto 20px" }} />
       <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.5rem", color: inkOf(palette) }}>Adventure&rsquo;s better with a Buddy.</div>
       <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: inkOf(palette), opacity: .6, marginTop: 20 }}>The Park Buddy · parkbuddy.app</div>
     </BookLeaf>

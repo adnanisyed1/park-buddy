@@ -72,13 +72,38 @@ const layoutFor = (key) => LAYOUTS.find((l) => l.key === key) || LAYOUTS[0];
    ink/base pair here measures ≥11:1 and every accent ≥4.5:1 on its base, checked
    for full-colour print on 80# coated stock (screen contrast flatters — reflective
    ink needs more headroom than the WCAG web minimum). 5 dark / 5 light. */
+/* ── Book palette library ─────────────────────────────────────────────────────
+   Curated print palettes, grouped into three shelves: Signature (the exclusive
+   Park Buddy editions), Dark, and Light. Each palette is {base (paper), ink
+   (type), accent (foil/rule), silhouette (the cover layout it was designed for),
+   mood (when to reach for it), desc (one-line character)}. base/ink are chosen
+   to clear print contrast; accent is the metallic or saturated grace note.
+   To add a theme: append an object here — nothing else needs to change (the
+   picker, ALL_THEMES and the light/dark auto-detection all read this list). */
 const PALETTES = {
+  // The house shelf — the ones we'd hand a customer who says "just make it beautiful."
+  signature: [
+    { key: "parchment-royal", name: "Parchment Royal", base: "#EDE3CC", ink: "#22301F", accent: "#9A7B2E", silhouette: "manuscript", mood: "The Park Buddy house edition — any park.", desc: "Our parchment with pine ink and struck brass." },
+    { key: "midnight-brass", name: "Midnight Brass", base: "#0B1410", ink: "#EFE6D0", accent: "#C9A24A", silhouette: "editorial", mood: "The flagship dark edition — heirloom gift.", desc: "Old-growth black stamped in foil brass." },
+    { key: "golden-hour", name: "Golden Hour", base: "#241205", ink: "#F6E6CE", accent: "#E9A23B", silhouette: "full", mood: "The last light before dark — sweeping vistas.", desc: "Campfire amber over deep umber." },
+    { key: "moss-agate", name: "Moss Agate", base: "#10201A", ink: "#E8F0E6", accent: "#86C7A0", silhouette: "centered", mood: "Deep forest, luminous and jewel-like.", desc: "Polished moss-agate green." },
+    { key: "sierra-topaz", name: "Sierra Topaz", base: "#0D1826", ink: "#E9F1FA", accent: "#E0B24E", silhouette: "centered", mood: "Big skies crowned by gold peaks.", desc: "Sierra night blue set with topaz." },
+    { key: "rose-quartz", name: "Rose Quartz", base: "#F0E6E4", ink: "#2E2422", accent: "#A65A6E", silhouette: "split", mood: "Anniversaries, honeymoons, soft light.", desc: "Blush quartz with a dusk-rose seal." },
+    { key: "blackthorn", name: "Blackthorn", base: "#131614", ink: "#ECEFEA", accent: "#A9B89E", silhouette: "minimal", mood: "Understated modern luxury.", desc: "Blackthorn charcoal with sage silver." },
+    { key: "ivory-foil", name: "Ivory Foil", base: "#F4EEE1", ink: "#2A2318", accent: "#B08D2E", silhouette: "manuscript", mood: "The heirloom edition, in light.", desc: "Ivory laid paper and antique gold foil." },
+  ],
   dark: [
     { key: "black-pine", name: "Black Pine", base: "#0C1512", ink: "#E9EFE7", accent: "#C9A24A", silhouette: "manuscript", mood: "Misty forest, redwoods, the Pacific Northwest.", desc: "Old-growth dark with a struck-brass title." },
     { key: "canyon-dusk", name: "Canyon Dusk", base: "#2B1410", ink: "#F3E7DB", accent: "#D9743C", silhouette: "split", mood: "Desert reds — Utah, Sedona, the Colorado Plateau.", desc: "Deep red rock at last light." },
     { key: "cobalt-meridian", name: "Cobalt Meridian", base: "#101E38", ink: "#EAF0FA", accent: "#D8B15C", silhouette: "centered", mood: "Night skies, coastlines, big water.", desc: "Royal blue and pale gold — an atlas, not a scrapbook." },
     { key: "ash-ember", name: "Ash & Ember", base: "#1A1B1D", ink: "#EFEEEB", accent: "#C56B3E", silhouette: "editorial", mood: "Lava fields — Lassen, Volcanoes, the Cascades.", desc: "Volcanic charcoal with a copper spark." },
     { key: "alpenglow", name: "Alpenglow", base: "#241830", ink: "#F1E9F2", accent: "#F2A07C", silhouette: "centered", mood: "Alpine dusk — the Tetons, Rainier.", desc: "Twilight violet warmed by peach on the peaks." },
+    { key: "midnight-fern", name: "Midnight Fern", base: "#0A1A1A", ink: "#E4EFE9", accent: "#7FB89A", silhouette: "manuscript", mood: "Rainforest, moss, the Olympic coast.", desc: "Wet-stone teal with a fern glow." },
+    { key: "obsidian-gold", name: "Obsidian & Gold", base: "#121013", ink: "#F2ECDF", accent: "#D4AF37", silhouette: "editorial", mood: "Black-tie, formal, any park.", desc: "Obsidian black struck with pure gold." },
+    { key: "deep-sequoia", name: "Deep Sequoia", base: "#1C120C", ink: "#F0E4D4", accent: "#B87333", silhouette: "split", mood: "Redwoods, giant sequoia, autumn.", desc: "Fallen-needle brown lit by copper." },
+    { key: "tidewater", name: "Tidewater", base: "#0E1A24", ink: "#E6EEF2", accent: "#6FB0C4", silhouette: "centered", mood: "Coastlines, fjords, Acadia at dawn.", desc: "Slate-harbor blue with sea-glass." },
+    { key: "aurora-slate", name: "Aurora Slate", base: "#14181A", ink: "#EAEEEC", accent: "#58C08B", silhouette: "minimal", mood: "Northern nights — Glacier, Denali.", desc: "Graphite sky with an aurora flare." },
+    { key: "vin-rouge", name: "Vin Rouge", base: "#201018", ink: "#F2E4EA", accent: "#C77B92", silhouette: "split", mood: "Vineyards, sunset ridges, Shenandoah.", desc: "Aged-wine plum warmed by rosé." },
   ],
   light: [
     { key: "cirrus", name: "Cirrus", base: "#F7F8F8", ink: "#22272A", accent: "#3D6DA8", silhouette: "minimal", mood: "Modernist, gift-ready, any park.", desc: "Near-white and quiet — the photographs do the talking." },
@@ -86,9 +111,15 @@ const PALETTES = {
     { key: "lichen-field", name: "Lichen Field", base: "#E7EBE1", ink: "#232E1E", accent: "#8A5A34", silhouette: "manuscript", mood: "Meadows, the Appalachians, spring.", desc: "Soft sage paper, moss ink, bark copper." },
     { key: "sunbleached", name: "Sunbleached", base: "#EBE6DA", ink: "#2A2621", accent: "#2F4A6B", silhouette: "editorial", mood: "Desert, coast, dunes, high summer.", desc: "Sun-faded sand cooled by indigo." },
     { key: "serigraph", name: "Serigraph", base: "#E6E2D6", ink: "#1A2E22", accent: "#AE3A24", silhouette: "editorial", mood: "WPA heritage — Yellowstone, the classics.", desc: "Flat poster inks, straight out of the 1930s park shop." },
+    { key: "desert-varnish", name: "Desert Varnish", base: "#EFE7D9", ink: "#3A2A1E", accent: "#A6592C", silhouette: "editorial", mood: "Slot canyons, Zion, the Southwest.", desc: "Sun-warmed sandstone and rust." },
+    { key: "sea-oats", name: "Sea Oats", base: "#F1ECE0", ink: "#2B3324", accent: "#4E7C59", silhouette: "minimal", mood: "Dunes, barrier islands, salt marsh.", desc: "Dune-grass cream with a green tide." },
+    { key: "morning-fog", name: "Morning Fog", base: "#EBEEEE", ink: "#232B2E", accent: "#547089", silhouette: "split", mood: "Coastal fog, redwoods, Muir Woods.", desc: "Soft fog grey and slate blue." },
+    { key: "wildrose", name: "Wildrose", base: "#F3EEE6", ink: "#33261F", accent: "#B4506B", silhouette: "split", mood: "Alpine meadows, summer bloom.", desc: "Warm ivory with a wild-rose accent." },
+    { key: "blueprint", name: "Blueprint", base: "#EDF0F2", ink: "#1B2733", accent: "#2C5F8A", silhouette: "minimal", mood: "Modern, architectural, gift-ready.", desc: "Drafting-paper white and ink blue." },
+    { key: "gilded-cream", name: "Gilded Cream", base: "#F2EAD8", ink: "#2A2416", accent: "#9C7A28", silhouette: "manuscript", mood: "Heritage, classic, any park.", desc: "Warm cream with an antique-gold rule." },
   ],
 };
-const ALL_THEMES = [...PALETTES.dark, ...PALETTES.light];
+const ALL_THEMES = [...PALETTES.signature, ...PALETTES.dark, ...PALETTES.light];
 
 // ── Physical print options (real Lulu SKUs) ──────────────────────────────────
 // The pod_package_id is TRIM.COLOR.QUALITY.BIND.PAPER.FINISH(+linen+foil). All
@@ -859,7 +890,10 @@ export default function TripBook() {
   const palette = pal === "custom"
     ? { key: "custom", name: "Custom " + normHex(customBase).toUpperCase(), base: normHex(customBase), ink: custom.ink || INK_LIGHT, accent: "#C9A24A" }
     : (ALL_THEMES.find((p) => p.key === pal) || PALETTES.dark[0]);
-  const isLightPal = pal === "custom" ? lum(customBase) > 0.35 : PALETTES.light.some((p) => p.key === pal);
+  // Detect light/dark by the paper's actual luminance, not by which shelf it sits on
+  // (the Signature shelf mixes light and dark editions), so the studio chrome always
+  // reads the palette correctly.
+  const isLightPal = lum(palette.base) > 0.35;
   // A theme is a preset — picking one also sets the cover silhouette it was designed for.
   const pickTheme = (key) => {
     setPal(key);
@@ -1668,30 +1702,44 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
 // real base/ink/accent and says when to use it; choosing one also sets the cover
 // silhouette it was designed for.
 function ThemeCards({ pal, pickTheme }) {
+  const Card = ({ t, sig }) => {
+    const on = t.key === pal;
+    return (
+      <button key={t.key} className="bs-stopcard" onClick={() => pickTheme(t.key)} title={t.mood}
+        style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : sig ? "var(--pb-gold-soft)" : "var(--pb-line)"), borderRadius: 10, padding: "8px 10px" }}>
+        {/* real colours, square chips — no shrink, so no ovals */}
+        <span aria-hidden style={{ display: "flex", flex: "0 0 auto", borderRadius: 5, overflow: "hidden", border: "1px solid var(--pb-line-strong)" }}>
+          {[t.base, t.ink, t.accent].map((c, i) => <span key={i} style={{ width: 12, height: 26, background: c, display: "block" }} />)}
+        </span>
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span style={{ display: "block", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{t.name}</span>
+          <span style={{ display: "block", fontSize: ".66rem", color: "var(--pb-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.desc}</span>
+        </span>
+        {sig && <span aria-hidden style={{ flex: "0 0 auto", color: "var(--pb-gold)", fontSize: ".7rem" }}>✦</span>}
+      </button>
+    );
+  };
   return (
     <>
       <Eyebrow>Themes</Eyebrow>
-      <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 10px" }}>Curated for print — pick one and your book is designed.</div>
+      <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 12px" }}>Curated for print — pick one and your book is designed.</div>
+
+      {/* Signature shelf — the exclusive Park Buddy editions, featured up top. */}
+      <div style={{ marginBottom: 14, border: "1px solid var(--pb-gold-soft)", borderRadius: 12, padding: "10px 10px 12px", background: "var(--pb-glass)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <span aria-hidden style={{ color: "var(--pb-gold)", fontSize: ".72rem" }}>✦</span>
+          <span style={{ fontFamily: mono, fontSize: ".48rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-gold)" }}>Park Buddy Signature</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {PALETTES.signature.map((t) => <Card key={t.key} t={t} sig />)}
+        </div>
+      </div>
+
       {[["Dark", PALETTES.dark], ["Light", PALETTES.light]].map(([label, list]) => (
         <div key={label} style={{ marginBottom: 12 }}>
           <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 6 }}>{label}</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {list.map((t) => {
-              const on = t.key === pal;
-              return (
-                <button key={t.key} className="bs-stopcard" onClick={() => pickTheme(t.key)} title={t.mood}
-                  style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 10, background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "8px 10px" }}>
-                  {/* real colours, square chips — no shrink, so no ovals */}
-                  <span aria-hidden style={{ display: "flex", flex: "0 0 auto", borderRadius: 5, overflow: "hidden", border: "1px solid var(--pb-line-strong)" }}>
-                    {[t.base, t.ink, t.accent].map((c, i) => <span key={i} style={{ width: 12, height: 26, background: c, display: "block" }} />)}
-                  </span>
-                  <span style={{ minWidth: 0 }}>
-                    <span style={{ display: "block", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{t.name}</span>
-                    <span style={{ display: "block", fontSize: ".66rem", color: "var(--pb-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.desc}</span>
-                  </span>
-                </button>
-              );
-            })}
+            {list.map((t) => <Card key={t.key} t={t} />)}
           </div>
         </div>
       ))}

@@ -13,6 +13,27 @@ export const runtime = "nodejs";
 
 function err(msg, status = 400) { return Response.json({ error: msg }, { status }); }
 
+// GET → can this environment take real money, and is fulfillment actually ready?
+// Reports the key's MODE only (test/live) — never the key, never any part of it. Exists
+// because "a Stripe key is set" is not the question that matters; "would a card be
+// charged for a book we can't print correctly yet" is.
+export function GET() {
+  const key = process.env.STRIPE_SECRET_KEY || "";
+  const mode = !key ? "unset" : /^sk_live_/.test(key) ? "live" : /^sk_test_/.test(key) ? "test" : "unrecognized";
+  const liveOk = process.env.STRIPE_LIVE_OK === "1";
+  return Response.json({
+    stripeMode: mode,
+    stripeLiveOk: liveOk,
+    // The only combination that can move real money.
+    canChargeRealMoney: mode === "live" && liveOk,
+    luluConfigured: luluConfigured(),
+    storageConfigured: storageConfigured(),
+    // Honest flag: the interior PDF is still square-only and the SKU is hardcoded, so a
+    // paid order today would not print what the customer designed.
+    printPipelineMatchesStudio: false,
+  });
+}
+
 export async function POST(request) {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return err("Payments aren't live yet — check back soon.", 503);

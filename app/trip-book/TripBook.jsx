@@ -131,23 +131,45 @@ const ALL_THEMES = [...PALETTES.signature, ...PALETTES.dark, ...PALETTES.light];
 // short book lands near a Mixbook-style entry price and the customer decides how much
 // they spend by how much they add. `base` is the SOFTCOVER price; the cover choice
 // (softcover $0 → hardcover → linen) adds on top, so there's a genuine cheap option.
-const SIZES = [
-  { key: "square", name: 'Square · 8.5 × 8.5"', trim: "0850X0850", base: 15, perStop: 3, minPages: 20, note: "Classic keepsake — sits beautifully on a shelf." },
-  { key: "landscape", name: 'Landscape · 11 × 8.5"', trim: "1100X0850", base: 20, perStop: 4, minPages: 20, note: "Wider pages — best for sweeping scenery shots." },
+// A "Book Type" chooser (like the one customers know from Mixbook): orientation →
+// size, plus the binding tier and a starting page count. `base` is the SOFTCOVER
+// price for that size; the binding adds on top, so there's always a genuine cheap
+// option and the customer decides how much they spend.
+const ORIENTS = [
+  { key: "landscape", name: "Landscape", note: "Best for sweeping scenery." },
+  { key: "square", name: "Square", note: "A classic, shelf-ready keepsake." },
+  { key: "portrait", name: "Portrait", note: "Tall pages for standout shots." },
 ];
+const SIZES = [
+  { key: "land-s", orient: "landscape", tag: "S", dim: '8 × 6"', name: 'Landscape · 8 × 6"', trim: "0800X0600", base: 14, perStop: 2 },
+  { key: "land-m", orient: "landscape", tag: "M", dim: '11 × 8.5"', name: 'Landscape · 11 × 8.5"', trim: "1100X0850", base: 22, perStop: 4 },
+  { key: "land-l", orient: "landscape", tag: "L", dim: '14 × 11"', name: 'Landscape · 14 × 11"', trim: "1400X1100", base: 36, perStop: 6 },
+  { key: "sq-s", orient: "square", tag: "S", dim: '8.5 × 8.5"', name: 'Square · 8.5 × 8.5"', trim: "0850X0850", base: 15, perStop: 3 },
+  { key: "sq-m", orient: "square", tag: "M", dim: '10 × 10"', name: 'Square · 10 × 10"', trim: "1000X1000", base: 26, perStop: 4 },
+  { key: "sq-l", orient: "square", tag: "L", dim: '12 × 12"', name: 'Square · 12 × 12"', trim: "1200X1200", base: 34, perStop: 6 },
+  { key: "port-l", orient: "portrait", tag: "L", dim: '8.5 × 11"', name: 'Portrait · 8.5 × 11"', trim: "0850X1100", base: 22, perStop: 4 },
+];
+const sizesForOrient = (o) => SIZES.filter((s) => s.orient === o);
 const COVERS = [
-  { key: "softcover", name: "Softcover", bind: "PB", add: 0, note: "Flexible photo-printed cover — our most affordable.", guide: "Best value" },
-  { key: "casewrap", name: "Photo Hardcover", bind: "CW", add: 14, note: "Rigid cover, your photo printed edge-to-edge.", guide: "Most popular" },
-  { key: "linen", name: "Linen + Gold Foil", bind: "LW", add: 28, note: "Forest linen wrap with a gold-foil-stamped spine.", guide: "Heirloom" },
+  { key: "softcover", name: "Softcover", bind: "PB", add: 0, note: "Flexible photo-printed cover — our most affordable.", guide: "Economy" },
+  { key: "casewrap", name: "Hardcover", bind: "CW", add: 14, note: "Rigid cover, your photo printed edge-to-edge.", guide: "Most popular" },
+  { key: "layflat", name: "Lay-Flat", bind: "LF", add: 24, note: "Pages open dead-flat so a photo spans the spread with no gutter.", guide: "Most loved" },
+  { key: "linen", name: "Album · Linen + Foil", bind: "LW", add: 28, note: "Forest linen wrap with a gold-foil-stamped spine.", guide: "Luxe" },
 ];
 const FINISHES = [
   { key: "matte", name: "Matte", code: "M", add: 0, note: "Soft, glare-free — our default." },
   { key: "gloss", name: "Gloss", code: "G", add: 0, note: "Punchy, high-shine color." },
 ];
-// Hardcover bindings have a real 24-page floor at Lulu; softcover prints thinner, so a
-// short trip needn't be padded out. The quote reflects the pages actually built, only
-// nudged up to the binding's true minimum.
+const START_PAGES = [20, 30, 40, 60];
+// Hardcover/album/lay-flat have a real 24-page floor at Lulu; softcover prints thinner.
+// The quote reflects the pages actually built, only nudged up to that floor — or to the
+// starting page count the customer picked, whichever is larger.
 const bindMinPages = (coverKey) => (coverKey === "softcover" ? 20 : 24);
+// Real trim (inches) → the aspect of a single page and of the open two-page spread, so
+// the whole preview honestly reflects the orientation the customer chose.
+const dimsOf = (trim) => { const w = parseInt(String(trim).slice(0, 4), 10) / 100 || 8.5; const h = parseInt(String(trim).slice(5, 9), 10) / 100 || 8.5; return { w, h }; };
+const coverAspectOf = (size) => { const { w, h } = dimsOf(size && size.trim); return `${w} / ${h}`; };
+const spreadAspectOf = (size) => { const { w, h } = dimsOf(size && size.trim); return `${(2 * w).toFixed(2)} / ${h}`; };
 /* ── Page composition ────────────────────────────────────────────────────────
    How each chapter's spread is laid out. A book-wide DEFAULT applies to every
    stop; any stop can override it. Persisted in localStorage `pb_book_layouts`
@@ -724,7 +746,7 @@ function Spread({ spread, startPage = 3, editable = false, size, palette }) {
   const trimIn = ((size && parseInt(String(size.trim).slice(0, 4), 10)) || 850) / 100;
   const marginPct = ready ? (marginOf(getBookMargin()).in / trimIn) * 100 : 0;
   const card = { background: paperOf(palette), border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
-  const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "14px", aspectRatio: SPREAD_ASPECT };
+  const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "14px", aspectRatio: spreadAspectOf(size) };
   const pad = { height: "100%", boxSizing: "border-box", ...(marginPct ? { padding: `${marginPct}%` } : {}) };
   return (
     <div style={card}>
@@ -741,11 +763,11 @@ function Spread({ spread, startPage = 3, editable = false, size, palette }) {
    and open-book aspect as a chapter spread — so it never renders "half" beside the
    stops — and paints in the selected book palette so the cover's design carries all
    the way through. Content sits centred across the leaf. */
-function BookLeaf({ palette, children }) {
+function BookLeaf({ palette, size, children }) {
   const card = { background: paperOf(palette), border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
   return (
     <div style={card}>
-      <div style={{ aspectRatio: SPREAD_ASPECT, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 10%" }}>
+      <div style={{ aspectRatio: spreadAspectOf(size), display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 10%" }}>
         <div style={{ maxWidth: 420 }}>{children}</div>
       </div>
     </div>
@@ -867,11 +889,12 @@ function CoverPreview({ title, author, region, layout, palette, dateLabel, cover
   // Woven linen texture (fine warp/weft) so the linen edition looks like cloth.
   const linenTexture = "repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 1px, transparent 1px 3px)";
   const bg = isLinen ? `${linenTexture}, ${base}` : base;
-  const ratio = size && size.key === "landscape" ? "22/17" : "17/22";
+  const ratio = coverAspectOf(size);
+  const wide = (size && size.orient) === "landscape";
   const label = [cover ? cover.name : null, isLinen ? "Matte linen" : finish ? finish.name : null, size ? size.name.replace("·", "").replace(/\s+/g, " ").trim() : null].filter(Boolean).join(" · ");
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, maxWidth: "100%" }}>
-      <div style={{ width: ratio === "22/17" ? 420 : 340, maxWidth: "86%", aspectRatio: ratio, background: bg, color: ink, border: "1px solid " + (isLinen ? "rgba(217,183,121,.3)" : "var(--pb-line)"), boxShadow: isLinen ? "0 40px 90px -50px rgba(0,0,0,.9), inset 0 0 60px rgba(0,0,0,.35)" : "0 40px 90px -50px rgba(0,0,0,.8)", borderRadius: 4, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ width: wide ? 430 : 330, maxWidth: "86%", aspectRatio: ratio, background: bg, color: ink, border: "1px solid " + (isLinen ? "rgba(217,183,121,.3)" : "var(--pb-line)"), boxShadow: isLinen ? "0 40px 90px -50px rgba(0,0,0,.9), inset 0 0 60px rgba(0,0,0,.35)" : "0 40px 90px -50px rgba(0,0,0,.8)", borderRadius: 4, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {framed && <div aria-hidden style={{ position: "absolute", inset: 16, border: "1px solid " + goldLine, borderRadius: 2, pointerEvents: "none" }} />}
         {inner}
         {/* gold-foil spine hint on linen editions */}
@@ -888,7 +911,7 @@ function CoverPreview({ title, author, region, layout, palette, dateLabel, cover
 export default function TripBook() {
   useTheme(); // re-render on theme change so tokens flip
   const book = useBook();
-  const [step, setStep] = useState("diary"); // diary | theme | preview
+  const [step, setStep] = useState("type"); // type | diary | theme | preview
   const [role, setRole] = useState("author"); // author | reader
   const [sel, setSel] = useState(0);
   const [layoutKey, setLayoutKey] = useState("split");
@@ -903,9 +926,10 @@ export default function TripBook() {
   // emit server HTML that the client immediately contradicts.
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-  const [sizeKey, setSizeKey] = useState("square");
+  const [sizeKey, setSizeKey] = useState("sq-s");
   const [coverKey, setCoverKey] = useState("softcover"); // lead with the affordable option
   const [finishKey, setFinishKey] = useState("matte");
+  const [startPages, setStartPages] = useState(20); // the customer's chosen starting length
   const [manageOpen, setManageOpen] = useState(false);
 
   useEffect(() => {
@@ -946,7 +970,7 @@ export default function TripBook() {
   const sku = skuFor(sizeKey, coverKey, finishKey);
   // Real page count + per-chapter start pages, from the actual compositions, padded
   // only up to the chosen binding's true minimum (softcover prints thinner).
-  const { starts, total: pages } = paginate(spreads, mounted, bindMinPages(coverKey));
+  const { starts, total: pages } = paginate(spreads, mounted, Math.max(bindMinPages(coverKey), startPages));
   const priceNum = size.base + n * size.perStop + cover.add;
   const price = "$" + priceNum;
 
@@ -960,7 +984,7 @@ export default function TripBook() {
     entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
   });
 
-  const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, priceNum, customBase, setCustomBase, pickTheme };
+  const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, priceNum, customBase, setCustomBase, pickTheme, startPages, setStartPages };
   const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, starts, coverImg, layoutKey, openManage: () => setManageOpen(true) };
 
   if (!mounted) {
@@ -1004,7 +1028,7 @@ export default function TripBook() {
 
 /* ---------------- top bar (desktop) ---------------- */
 function TopBar({ step, setStep, role, setRole, price, pages }) {
-  const steps = [["diary", "Diary"], ["theme", "Theme"], ["preview", "Preview"]];
+  const steps = [["type", "Book Type"], ["diary", "Diary"], ["theme", "Theme"], ["preview", "Preview"]];
   /* NOT sticky. The workspace is a fixed-height, non-scrolling column, which makes
      it a scroll container — so `top: 90` would be measured from the workspace
      rather than the viewport and shunt this bar 90px down over the rails. It's a
@@ -1063,6 +1087,7 @@ function Desktop(props) {
         </div>
       )}
       <div style={{ maxWidth: 1440, margin: "0 auto", width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        {step === "type" && <BookTypeStep {...props} />}
         {step === "diary" && <DiaryDesktop {...props} />}
         {step === "theme" && <ThemeDesktop {...props} />}
         {step === "preview" && <PreviewDesktop {...props} />}
@@ -1689,6 +1714,137 @@ function StopTools({ spread, onNext, size, onAddPage }) {
   );
 }
 
+// The Book Type selectors (orientation → size, binding tier, starting pages, finish),
+// shared by the desktop step rail and the mobile step so both stay in lock-step.
+function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, startPages, setStartPages, n }) {
+  const orient = size.orient;
+  const pickOrient = (o) => { const list = sizesForOrient(o); const same = list.find((s) => s.tag === size.tag); setSizeKey((same || list[0]).key); };
+  const priceOf = (sz) => sz.base + n * sz.perStop + cover.add;
+  const Eb = ({ children }) => <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "0 0 8px" }}>{children}</div>;
+  return (
+    <>
+      <Eb>Book type</Eb>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
+        {COVERS.map((c) => {
+          const on = c.key === coverKey;
+          return (
+            <button key={c.key} className="bs-stopcard" onClick={() => setCoverKey(c.key)}
+              style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: ".84rem", color: "var(--pb-ink)" }}>{c.name}</span>
+                <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-gold)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "2px 7px" }}>{c.guide}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginTop: 3 }}>
+                <span style={{ fontSize: ".68rem", color: "var(--pb-muted)", lineHeight: 1.4 }}>{c.note}</span>
+                <span style={{ fontFamily: mono, fontSize: ".62rem", color: "var(--pb-gold-soft)", whiteSpace: "nowrap" }}>{c.add ? "+$" + c.add : "included"}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <Eb>Orientation</Eb>
+      <div style={{ display: "flex", gap: 7, marginBottom: 20 }}>
+        {ORIENTS.map((o) => {
+          const on = o.key === orient;
+          return (
+            <button key={o.key} onClick={() => pickOrient(o.key)} title={o.note}
+              style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".74rem", fontWeight: on ? 700 : 500, color: on ? "var(--pb-ink)" : "var(--pb-ink-2)", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 6px" }}>
+              {o.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <Eb>Size</Eb>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
+        {sizesForOrient(orient).map((s) => {
+          const on = s.key === sizeKey;
+          return (
+            <button key={s.key} className="bs-stopcard" onClick={() => setSizeKey(s.key)}
+              style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 11, background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 12px" }}>
+              <span aria-hidden style={{ flex: "0 0 26px", width: 26, height: 26, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontWeight: 700, fontSize: ".7rem", color: on ? "#0a1712" : "var(--pb-ink-2)", background: on ? GOLD : "var(--pb-tint)", border: "1px solid var(--pb-line-strong)" }}>{s.tag}</span>
+              <span style={{ flex: 1 }}>
+                <span style={{ display: "block", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{s.dim}</span>
+                <span style={{ display: "block", fontSize: ".64rem", color: "var(--pb-muted)" }}>from ${priceOf(s)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <Eb>Starting pages</Eb>
+      <div style={{ display: "flex", gap: 7, marginBottom: 6 }}>
+        {START_PAGES.map((p) => {
+          const on = p === startPages;
+          return (
+            <button key={p} onClick={() => setStartPages(p)}
+              style={{ flex: 1, cursor: "pointer", fontFamily: mono, fontSize: ".8rem", fontWeight: on ? 700 : 500, color: on ? "#0a1712" : "var(--pb-ink-2)", background: on ? GOLD : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 4px" }}>
+              {p}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: ".64rem", color: "var(--pb-muted)", lineHeight: 1.5, marginBottom: 20 }}>Add or remove pages any time in the Diary — you only print what you build.</div>
+
+      {cover.key !== "linen" && (
+        <>
+          <Eb>Photo finish</Eb>
+          <div style={{ display: "flex", gap: 7 }}>
+            {FINISHES.map((f) => {
+              const on = f.key === finishKey;
+              return (
+                <button key={f.key} onClick={() => setFinishKey(f.key)} title={f.note}
+                  style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".74rem", fontWeight: on ? 700 : 500, color: on ? "var(--pb-ink)" : "var(--pb-ink-2)", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 6px" }}>
+                  {f.name}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* Step 1 — Select Book Type. Orientation → size, the binding tier, a starting page
+   count and finish — the choices customers know from a photo-book product page. Every
+   pick drives the live cover preview and the running price, and "Start your book" moves
+   on to the Diary. */
+function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, startPages, setStartPages, palette, layout, coverImg, price, setStep, role, n }) {
+  const reader = role === "reader";
+  const orient = size.orient;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "340px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      {!reader && (
+        <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
+          <Eyebrow>Select Book Type</Eyebrow>
+          <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Pick the shape and binding — you can change it any time before you order.</div>
+          <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} startPages={startPages} setStartPages={setStartPages} n={n} />
+        </aside>
+      )}
+
+      <main style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
+        <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
+      </main>
+
+      {!reader && (
+        <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+          <Eyebrow>Your Edition</Eyebrow>
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>{cover.name}</h3>
+          <SummaryRows rows={[["Type", cover.name], ["Orientation", ORIENTS.find((o) => o.key === orient).name], ["Size", size.dim], ["Starts at", startPages + " pages"], ["Finish", cover.key === "linen" ? "Matte linen" : finish.name]]} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
+            <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>From</span>
+            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}.00</span>
+          </div>
+          <button onClick={() => setStep("diary")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Start your book →</button>
+          <div style={{ textAlign: "center", fontFamily: mono, fontSize: ".56rem", letterSpacing: ".04em", color: "var(--pb-muted)", marginTop: 10 }}>Final total is confirmed at checkout</div>
+        </aside>
+      )}
+    </div>
+  );
+}
+
 function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palette, price, priceNum, pages, setStep, role, setRole, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme, coverImg }) {
   useLayoutTick();
   const reader = role === "reader";
@@ -1703,11 +1859,8 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
             <ThemeCards pal={pal} pickTheme={pickTheme} />
             <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />
           </div>
-          <div style={{ marginTop: 24 }}>
-            <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
-          </div>
-          {/* Page layout AND margins are chosen per chapter in Diary → Stop Tools.
-              This step is the book's look and materials. */}
+          {/* Size, binding & finish are chosen in step 1 (Book Type); page layout and
+              margins are per-chapter in Diary → Stop Tools. This step is the palette. */}
         </aside>
       )}
       <main style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
@@ -1864,7 +2017,7 @@ const SummaryRows = ({ rows }) => (
 function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, finish, size, starts }) {
   if (pv === 0) return <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} coverImg={coverImg} cover={cover} finish={finish} size={size} />;
   if (pv === 1) return (
-    <BookLeaf palette={palette}>
+    <BookLeaf palette={palette} size={size}>
       <Eyebrow style={{ color: accentOf(palette) }}>Introduction</Eyebrow>
       <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.9rem", color: inkOf(palette), margin: "14px 0 0" }}>{book.title}</h3>
       {book.region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1rem", color: inkOf(palette), opacity: .78, marginTop: 8 }}>A journey through {book.region}</div>}
@@ -1874,7 +2027,7 @@ function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, fini
   );
   if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} startPage={(starts || [])[pv - 2] || 3} size={size} palette={palette} />;
   return (
-    <BookLeaf palette={palette}>
+    <BookLeaf palette={palette} size={size}>
       {/* The Park Buddy emblem closes every book, set off by a hairline rule. */}
       <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" style={{ width: 104, height: "auto", display: "block", margin: "0 auto 20px" }} />
       <div style={{ width: 56, height: 1, background: accentOf(palette), opacity: .55, margin: "0 auto 20px" }} />
@@ -1972,7 +2125,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
 
 /* ---------------- mobile ---------------- */
 function MobilePhone(props) {
-  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, customBase, setCustomBase, pickTheme, coverImg } = props;
+  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, startPages, setStartPages, customBase, setCustomBase, pickTheme, coverImg } = props;
   const BAR = 64;
   return (
     <div style={{ paddingBottom: BAR + 10 }}>
@@ -1984,6 +2137,22 @@ function MobilePhone(props) {
       </div>
 
       <div style={{ padding: "16px" }}>
+        {step === "type" && (
+          <>
+            <Eyebrow>Select Book Type</Eyebrow>
+            <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Pick the shape and binding — change it any time before you order.</div>
+            <div style={{ display: "flex", justifyContent: "center", padding: "4px 0 20px" }}>
+              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
+            </div>
+            {role === "author" && <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} startPages={startPages} setStartPages={setStartPages} n={n} />}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
+              <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>From</span>
+              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}.00</span>
+            </div>
+            <button onClick={() => setStep("diary")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Start your book →</button>
+          </>
+        )}
+
         {step === "diary" && (
           <>
             {role === "author" && (
@@ -2057,8 +2226,6 @@ function MobilePhone(props) {
             </div>
             <ThemeCards pal={pal} pickTheme={pickTheme} />
             <CustomColor pal={pal} setPal={setPal} customBase={customBase} setCustomBase={setCustomBase} />
-            <div style={{ height: 22 }} />
-            <FormatPicker size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} />
             <div style={{ height: 22 }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
               <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>Est. total</span>

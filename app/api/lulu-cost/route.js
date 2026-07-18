@@ -1,7 +1,7 @@
 // POST /api/lulu-cost — get Lulu's print + shipping + tax quote for a Trip Book to a
 // shipping address. Used to (a) show shipping/tax in checkout and (b) make sure the
 // Stripe charge always covers fulfillment. Honest 503 when Lulu isn't configured.
-import { luluConfigured, costCalc, LULU_SKU, LULU_PRODUCT, luluDiag, costCalcProbe, coverDimensions, createPrintJob, getPrintJob } from "../../lib/lulu";
+import { luluConfigured, costCalc, LULU_SKU, LULU_PRODUCT, luluDiag, costCalcProbe, coverDimensions, createPrintJob, getPrintJob, shippingOptions } from "../../lib/lulu";
 import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { skuFor, unavailableReason, trimInches } from "../../lib/bookPricing";
@@ -78,6 +78,24 @@ export async function GET(request) {
       if (full) return Response.json(j);
       return Response.json({ id: j.id, status: j.status, line_items: (j.line_items || []).map((l) => ({ status: l.status })) });
     } catch (e) { return err("job probe failed: " + (e && e.message), 502); }
+  }
+  if (probe === "ship") {
+    // What Lulu will actually quote for delivery: levels, cost and day counts.
+    const sku = u.searchParams.get("sku") || LULU_SKU;
+    const pages = parseInt(u.searchParams.get("pages"), 10) || 32;
+    const state = u.searchParams.get("state") || "UT";
+    const postcode = u.searchParams.get("postcode") || "84532";
+    const city = u.searchParams.get("city") || "Moab";
+    const country = u.searchParams.get("country") || "US";
+    try {
+      const opts = await shippingOptions({
+        line_items: [{ page_count: pages, pod_package_id: sku, quantity: 1 }],
+        shipping_address: { city, state_code: state, postcode, country_code: country, street1: "1 N Main St", phone_number: "+13035550100" },
+      });
+      return Response.json(opts);
+    } catch (e) {
+      return err("shipping probe failed: " + (e && e.message) + " " + JSON.stringify((e && e.data) || {}).slice(0, 300), 502);
+    }
   }
   if (probe === "order") {
     const cfg = {

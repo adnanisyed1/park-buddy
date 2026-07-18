@@ -66,6 +66,18 @@ export function costCalc({ line_items, shipping_address, shipping_option = "GROU
   return api("/print-job-cost-calculations/", { method: "POST", body: JSON.stringify({ line_items, shipping_address, shipping_option }) });
 }
 
+// Shipping levels for a specific book + destination, with Lulu's own delivery estimates.
+// Returns entries carrying: level (MAIL/GROUND/EXPEDITED/EXPRESS), cost, and the day
+// counts — `printable_shipping_days` (time at the press) plus `min/max_delivery_date`
+// or transit days. This is the ONLY honest source for "when will it arrive"; never
+// invent a delivery window.
+export function shippingOptions({ line_items, shipping_address, currency = "USD" }) {
+  return api("/shipping-options/", {
+    method: "POST",
+    body: JSON.stringify({ currency, line_items, shipping_address }),
+  });
+}
+
 // Create a print job. Interior + cover PDFs are supplied as publicly-fetchable
 // source_url inside printable_normalization. Job lands UNPAID (does not auto-print).
 export function createPrintJob(payload) {

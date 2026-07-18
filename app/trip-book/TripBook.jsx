@@ -2116,7 +2116,7 @@ function CoverLeaf({ ctx }) {
 // One printed leaf. `data-density="hard"` tells StPageFlip to treat covers as board.
 const LeafPage = forwardRef(function LeafPage({ leaf, ctx }, ref) {
   const { palette, book, n } = ctx;
-  const hard = leaf.type === "cover" || leaf.type === "back";
+  const hard = leaf.type === "cover" || leaf.type === "back" || leaf.type === "final";
   let inner = null;
   if (leaf.type === "cover") inner = <CoverLeaf ctx={ctx} />;
   else if (leaf.type === "back") inner = (
@@ -2163,14 +2163,13 @@ const leafToSection = (p, n) => p <= 0 ? 0 : p <= 2 ? 1 : p >= 3 + 2 * n ? n + 2
 function RealFlipBook({ n, spreads, ctx, jumpTo, onSection }) {
   const flipRef = useRef(null);
   const lastNav = useRef(-1);
-  // Build the single-page sequence: cover · intro · blank · [stopL,stopR]* · final ·
-  // inside-back · back. The count must be EVEN so the hard back cover lands as a lone
-  // closing page (odd totals leave it paired with content and it never shuts).
+  // Single-page sequence: cover · intro · blank · [stopL,stopR]* · final(back cover).
+  // The final "Adventure's better with a Buddy" page IS the hard end cover, so turning
+  // the last stop closes the book straight onto it — no separate blank/back leaf. Count
+  // is 2n+4 (even) so both covers land as lone closing pages.
   const leaves = [{ type: "cover" }, { type: "intro" }, { type: "blank" }];
   spreads.forEach((_, i) => { leaves.push({ type: "stopL", i }); leaves.push({ type: "stopR", i }); });
   leaves.push({ type: "final" });
-  leaves.push({ type: "blank" });  // inside back cover
-  leaves.push({ type: "back" });
   if (leaves.length % 2 === 1) leaves.splice(leaves.length - 1, 0, { type: "blank" }); // keep even
   const { w, h } = dimsOf(ctx.size.trim);
   let H = 430, W = Math.round(H * w / h);

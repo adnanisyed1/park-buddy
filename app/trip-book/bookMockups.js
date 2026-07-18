@@ -10,22 +10,24 @@
 // Until an entry has BOTH a file on disk AND a quad here, the studio falls back to the
 // built-in CSS mockup — so shipping this empty changes nothing.
 
-export const MOCKUP_CANVAS = 1600; // the renders' native square canvas (px)
+export const MOCKUP_CANVAS = 480; // the renders' native square canvas (px)
 
 // our binding key → the designer's file-name stem
 const FILE = { paperback: "paperback", saddle: "saddle", coil: "coil", casewrap: "hardcover", linen: "linen" };
 const ORIENTS = ["square", "landscape", "portrait"];
 
-// ── COORDINATES (Figma node 11-2) ────────────────────────────────────────────
-// [TL, TR, BR, BL] in 1600×1600 space. Square set below is the designer's ESTIMATE
-// — the 3D artist will hand over exact values; swap them in when they do. Landscape
-// & portrait still pending (those bindings stay on the CSS fallback until added).
+// ── COORDINATES ──────────────────────────────────────────────────────────────
+// [TL, TR, BR, BL] in the 480×480 render space. These are MEASURED, not estimated:
+// the Figma production renders (nodes 8:9/8:19/8:29/8:39/8:49) ship the cover as a
+// flat magenta "LIVE ARTWORK ZONE", so we keyed that magenta out to transparency and
+// read the hole's four extreme corners straight off the pixels.
+// Landscape & portrait renders don't exist yet — those stay on the CSS fallback.
 export const QUADS = {
-  "mockup-paperback-square": [[435, 280], [1165, 310], [1165, 1290], [435, 1260]],
-  "mockup-hardcover-square": [[420, 270], [1180, 300], [1180, 1310], [420, 1280]],
-  "mockup-coil-square": [[470, 280], [1170, 300], [1170, 1290], [470, 1270]],
-  "mockup-saddle-square": [[440, 290], [1160, 310], [1160, 1280], [440, 1260]],
-  "mockup-linen-square": [[425, 275], [1175, 305], [1175, 1305], [425, 1275]],
+  "mockup-paperback-square": [[143, 111], [338, 106], [333, 348], [158, 374]],
+  "mockup-hardcover-square": [[145, 125], [339, 118], [333, 347], [160, 375]],
+  "mockup-coil-square": [[105, 163], [296, 122], [402, 309], [185, 354]],
+  "mockup-saddle-square": [[153, 121], [329, 121], [327, 364], [155, 355]],
+  "mockup-linen-square": [[197, 142], [304, 147], [304, 330], [197, 337]],
 };
 // ─────────────────────────────────────────────────────────────────────────────
 

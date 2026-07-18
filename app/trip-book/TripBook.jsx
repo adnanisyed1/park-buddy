@@ -2768,8 +2768,16 @@ function ReserveModal({ data, onClose }) {
       const Stripe = await loadStripeJs();
       const stripe = Stripe(STRIPE_PK);
       const checkout = await stripe.initEmbeddedCheckout({ clientSecret });
-      // The node only exists once React has rendered the panel below.
-      setTimeout(() => { if (embedRef.current) checkout.mount(embedRef.current); }, 0);
+      // The node only exists once React has rendered the panel above.
+      setTimeout(() => {
+        if (!embedRef.current) return;
+        checkout.mount(embedRef.current);
+        // Put payment where they're looking. The modal scrolls, so mounting alone can
+        // leave the card form below the fold and the button appears to have done nothing.
+        const card = embedRef.current.closest(".tbres-card");
+        if (card) card.scrollTop = 0;
+        embedRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 0);
     } catch (e) {
       // Couldn't paint it — don't strand them mid-purchase, send them to the hosted page.
       setEmbedSecret("");
@@ -2846,17 +2854,11 @@ function ReserveModal({ data, onClose }) {
               <span>{data.pages} pages <b>{data.price}</b></span>
             </div>
             <div className="tbres-total"><span>Est. total</span><b>{total}</b></div>
-            <div className="tbres-field"><label>Your name</label><input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Rivera" /></div>
-            <div className="tbres-field"><label>Email *</label><input className="tbres-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" /></div>
-            <div className="tbres-row">
-              <div className="tbres-field" style={{ flex: "0 0 92px" }}><label>Copies</label><input className="tbres-input" type="number" min="1" max="20" value={qty} onChange={(e) => setQty(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))} /></div>
-              <div className="tbres-field"><label>Ship to (optional)</label><input className="tbres-input" value={ship} onChange={(e) => setShip(e.target.value)} placeholder="City, State" /></div>
-            </div>
-            <div className="tbres-field"><label>Note (optional)</label><textarea className="tbres-ta" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything you'd like us to know" /></div>
-            <p className="tbres-note">Only your own photos are printed — any stop you didn&rsquo;t photograph becomes a clean, designed page (we don&rsquo;t print stock photos in your book).</p>
-            <p className="tbres-note">Made to order: misprinted or damaged books are replaced or refunded. Because each is custom-printed, change-of-mind returns aren&rsquo;t possible once printing starts. See our <a href="/terms" target="_blank" rel="noopener" style={{ color: "var(--pb-gold,#c9a35f)", textDecoration: "underline" }}>full terms</a>.</p>
+            {/* Once Stripe is mounted the form is done with — collapse it so the modal
+                shows one thing: paying. The summary above stays, because knowing what
+                you're buying is useful while you type a card number. */}
             {embedSecret ? (
-              <div>
+              <div style={{ marginTop: 4 }}>
                 <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", margin: "0 0 10px" }}>
                   Secure payment — you&rsquo;re still on Park Buddy.
                 </div>
@@ -2864,6 +2866,14 @@ function ReserveModal({ data, onClose }) {
               </div>
             ) : null}
             <div style={{ display: embedSecret ? "none" : "block" }}>
+            <div className="tbres-field"><label>Your name</label><input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Rivera" /></div>
+            <div className="tbres-field"><label>Email *</label><input className="tbres-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" /></div>
+            <div className="tbres-row">
+              <div className="tbres-field" style={{ flex: "0 0 92px" }}><label>Copies</label><input className="tbres-input" type="number" min="1" max="20" value={qty} onChange={(e) => setQty(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))} /></div>
+            </div>
+            <div className="tbres-field"><label>Note (optional)</label><textarea className="tbres-ta" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything you'd like us to know" /></div>
+            <p className="tbres-note">Only your own photos are printed — any stop you didn&rsquo;t photograph becomes a clean, designed page (we don&rsquo;t print stock photos in your book).</p>
+            <p className="tbres-note">Made to order: misprinted or damaged books are replaced or refunded. Because each is custom-printed, change-of-mind returns aren&rsquo;t possible once printing starts. See our <a href="/terms" target="_blank" rel="noopener" style={{ color: "var(--pb-gold,#c9a35f)", textDecoration: "underline" }}>full terms</a>.</p>
             <ProofStep data={data} onViewed={() => setProofSeen(true)} seen={proofSeen} />
             <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "6px 0 2px", cursor: "pointer", fontSize: ".82rem", lineHeight: 1.45 }}>
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2, flex: "none", accentColor: "#c9a35f", width: 16, height: 16 }} />

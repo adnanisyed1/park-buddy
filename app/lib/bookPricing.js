@@ -232,4 +232,25 @@ export function priceFromLanded({ landed, shipping, profit }) {
   };
 }
 
+// Delivery windows measured from Lulu's /shipping-options/ for an 8.5" hardcover to
+// Utah. total_days covers PRINTING PLUS TRANSIT — door to door, not just the courier.
+// Reference values for display; the live endpoint is authoritative per destination.
+export const SHIP_LEVELS = [
+  { level: "MAIL",          name: "Standard",  days: [10, 12], refCost: 5.69,  note: "The everyday option." },
+  { level: "GROUND_HD",     name: "Faster",    days: [8, 10],  refCost: 13.74, note: "A couple of days sooner." },
+  { level: "EXPEDITED",     name: "Express",   days: [5, 7],   refCost: 20.74, note: "For a date you can't miss." },
+];
+
+export function shipLevel(level) {
+  return SHIP_LEVELS.find((s) => s.level === level) || SHIP_LEVELS[0];
+}
+
+// "10–12 days" / "arrives 5–7 days after you order". Printing is most of the wait, so
+// never describe these as shipping times — a customer reads "12 days" as courier delay
+// and thinks something is wrong on day three.
+export function deliveryText(level, prefix = "Arrives in") {
+  const s = shipLevel(level);
+  return `${prefix} ${s.days[0]}–${s.days[1]} days`;
+}
+
 function round2(n) { return Math.round(n * 100) / 100; }

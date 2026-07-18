@@ -82,12 +82,12 @@ export function orderConfirmation({ name, title, pages, binding, size, total, et
   <tr><td style="color:#6C6452;padding:3px 0;border-top:1px solid #E7DCC4;padding-top:9px;">Total</td>
       <td align="right" style="color:#22301F;font-weight:700;border-top:1px solid #E7DCC4;padding-top:9px;">${esc(total)}</td></tr>
 </table>
-<p style="margin:0 0 14px;">${etaText ? esc(etaText) : "Each book is printed and bound to order, so it takes a little while. We'll email you a tracking link the moment it ships."}</p>
+<p style="margin:0 0 14px;">${etaText ? esc(etaText) : "Each book is printed and bound to order, so most of the wait is the making. Expect it in about 10&ndash;12 days. We'll email a tracking link the moment it ships."}</p>
 <p style="margin:0;color:#6C6452;font-size:14px;">Because every book is made just for you, we can't take change-of-mind returns once printing starts — but if it arrives damaged or misprinted we'll replace or refund it.</p>`;
   return {
     subject: `Your Trip Book is being printed — ${title}`,
     html: shell("Your book is being made", body),
-    text: `Thanks ${who} — your book is off to the press.\n\n${title}\n${size} · ${binding}\n${pages} pages\nTotal ${total}\n\nEach book is printed and bound to order. We'll email a tracking link as soon as it ships.\n\nQuestions? Just reply to this message.`,
+    text: `Thanks ${who} — your book is off to the press.\n\n${title}\n${size} · ${binding}\n${pages} pages\nTotal ${total}\n\nEach book is printed and bound to order, so most of the wait is the making. Expect it in about 10-12 days. We'll email a tracking link as soon as it ships.\n\nQuestions? Just reply to this message.`,
   };
 }
 

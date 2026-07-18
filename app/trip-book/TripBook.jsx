@@ -26,7 +26,7 @@ import {
 // Book photos take the PRINT path, not Trip Mode's 1280px snapshot path — see
 // lib/bookPhoto.js for why that distinction matters.
 import { uploadBookPhoto, slotInches, resVerdict } from "../lib/bookPhoto";
-import { quote as quoteBook, unavailableReason } from "../lib/bookPricing";
+import { quote as quoteBook, unavailableReason, deliveryText } from "../lib/bookPricing";
 import { PALETTES, ALL_THEMES } from "../lib/bookThemes";
 
 const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
@@ -1048,7 +1048,12 @@ export default function TripBook() {
   const price = priceNum == null ? "—" : "$" + priceNum + ".00";
   // Shipping is quoted on top rather than folded into the sticker — it keeps the entry
   // book near $16 instead of $22, and the customer pays the same either way.
-  const shipNote = priceQuote.available ? `+ $${(priceQuote.shipping || 0).toFixed(2)} shipping` : (priceQuote.reason || "");
+  // Printing is most of the wait, so lead with the arrival window rather than the
+  // shipping fee — "10–12 days" is the thing a gift buyer actually needs to know, and
+  // burying it until after payment is how you get "where is my book" emails.
+  const shipNote = priceQuote.available
+    ? `+ $${(priceQuote.shipping || 0).toFixed(2)} shipping · ${deliveryText("MAIL", "arrives in")}`
+    : (priceQuote.reason || "");
 
   // -1 is the cover, so the pager runs cover → chapter 01 → … and wraps.
   const prev = () => setSel((s) => ((s + 1 - 1 + (n + 1)) % (n + 1)) - 1);

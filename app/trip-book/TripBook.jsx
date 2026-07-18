@@ -16,9 +16,6 @@ import "./studio.css"; // .tbres-* styles for the reservation modal
 // Realistic page-turn (curl + drag) — StPageFlip via react-pageflip. Browser-only, so
 // it's dynamically imported with ssr:false through the client wrapper.
 const RealFlip = dynamic(() => import("./RealFlip.client"), { ssr: false });
-// Figma-designed Lulu book renders (drop-in when assets + coords land; falls back to
-// the CSS mockup until then). See bookMockups.js.
-import { BOOK_MOCKUPS, MOCKUP_CANVAS, RENDERED_ORIENTS, quadMatrix3d } from "./bookMockups";
 import SiteHeader from "../components/SiteHeader";
 import { useTheme } from "../lib/theme";
 import { getStops, getMeta, subscribeTrip, addStop, removeStop, moveStop } from "../lib/trip";
@@ -1776,74 +1773,6 @@ function StopTools({ spread, onNext, size, onAddPage }) {
    third-party product photos), so it's legally clean AND shows the customer's real
    cover on the real binding. Thickness follows the page count; the spine changes with
    the binding (linen cloth + foil, coil rings, thin saddle, board hardcover). */
-// Chooses the Figma-designed render (with the customer's live cover warped into it)
-// when that binding+orientation asset exists, else the built-in CSS product shot.
-function BookMockup(props) {
-  const key = `${props.cover.key}-${props.size.orient}`;
-  const entry = BOOK_MOCKUPS[key];
-  const [failed, setFailed] = useState(false);
-  useEffect(() => { setFailed(false); }, [key]);
-  if (entry && entry.quad && !failed) return <FigmaBookMockup {...props} entry={entry} onFail={() => setFailed(true)} />;
-  return <CssBookMockup {...props} />;
-}
-
-// The Figma render (transparent cover cut-out) laid over the customer's live cover,
-// which is perspective-warped into the render's cover hole via a homography matrix3d.
-function FigmaBookMockup({ entry, size, palette, coverImg, layout, book, onFail }) {
-  const DISP = 300;                     // on-screen size of the square render
-  const s = DISP / MOCKUP_CANVAS;
-  const quad = entry.quad.map(([x, y]) => [x * s, y * s]);
-  const { w, h } = dimsOf(size.trim);
-  const srcW = 640, srcH = Math.round(640 * h / w); // cover source at the real aspect
-  const m = quadMatrix3d(srcW, srcH, quad);
-  const ctx = { book, palette, coverImg, layout };
-  return (
-    <div style={{ display: "flex", justifyContent: "center", padding: "6px 0 20px" }}>
-      <div style={{ position: "relative", width: DISP, height: DISP }}>
-        <div style={{ position: "absolute", top: 0, left: 0, width: srcW, height: srcH, transform: `matrix3d(${m.join(",")})`, transformOrigin: "0 0", overflow: "hidden" }}>
-          <CoverLeaf ctx={ctx} />
-        </div>
-        <img src={entry.img} alt="" onError={onFail} style={{ position: "absolute", inset: 0, width: DISP, height: DISP, pointerEvents: "none" }} />
-      </div>
-    </div>
-  );
-}
-
-function CssBookMockup({ size, cover, palette, coverImg, layout, book, pages, linenColor, foil }) {
-  const { w, h } = dimsOf(size.trim);
-  let H = 320, W = Math.round(H * w / h);
-  const CAP = 260; if (W > CAP) { W = CAP; H = Math.round(CAP * h / w); }
-  const isLinen = cover.key === "linen", isCoil = cover.key === "coil", isSaddle = cover.key === "saddle";
-  const isHard = cover.key === "casewrap" || isLinen;
-  const ctx = { book, palette, coverImg, layout };
-  const foilHex = (foil && foil.hex) || "#d9b779";
-  const spineHex = isLinen ? ((linenColor && linenColor.hex) || "#1b2a20") : (isHard ? "rgba(0,0,0,.35)" : accentOf(palette));
-  // Thickness from page count → how far the page-stack peeks out on the right.
-  let d = Math.max(3, Math.min(16, Math.round((pages || 32) * 0.14)));
-  if (isSaddle) d = Math.min(d, 4);
-  if (isHard) d += 2;
-  // An upright product shot: the real cover, a stack of page edges peeking on the
-  // right, a spine on the left, and a soft ground shadow. No skew — reads as a book.
-  const stack = [];
-  for (let i = 1; i <= d; i++) stack.push(`${i * 1.2}px ${i * 0.6}px 0 -0.5px ${i % 2 ? "#efe7d6" : "#dcd2bd"}`);
-  const shadow = stack.join(",") + `, ${d + 3}px ${d + 10}px 34px -6px rgba(0,0,0,.34)`;
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 22px 26px 6px" }}>
-      <div style={{ position: "relative", width: W, height: H, borderRadius: isHard ? "2px 6px 6px 2px" : "1px 3px 3px 1px", boxShadow: shadow }}>
-        {/* cover art */}
-        <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", overflow: "hidden", border: isHard ? "1px solid rgba(0,0,0,.16)" : "none" }}>
-          <CoverLeaf ctx={ctx} />
-        </div>
-        {/* spine on the left — binding-specific */}
-        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: isHard ? 9 : 5, borderRadius: "2px 0 0 2px", overflow: "hidden", background: spineHex, boxShadow: "inset -3px 0 6px rgba(0,0,0,.35)", zIndex: 2 }}>
-          {isCoil && <div className="bm-coil" style={{ opacity: .8 }} />}
-          {isLinen && <div style={{ position: "absolute", top: "18%", bottom: "18%", left: "50%", transform: "translateX(-50%)", width: 2, background: foilHex, opacity: .9 }} />}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // The Book Type selectors (orientation → size, binding tier, starting pages, finish),
 // shared by the desktop step rail and the mobile step so both stay in lock-step.
 function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, n }) {
@@ -1893,7 +1822,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
 
       <Eb>Orientation</Eb>
       <div style={{ display: "flex", gap: 7, marginBottom: 20 }}>
-        {ORIENTS.filter((o) => RENDERED_ORIENTS.includes(o.key)).map((o) => {
+        {ORIENTS.map((o) => {
           const on = o.key === orient;
           return (
             <button key={o.key} onClick={() => pickOrient(o.key)} title={o.note}
@@ -2020,13 +1949,15 @@ function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCov
         </aside>
       )}
 
+      {/* The cover itself, flat and true to the trim — no 3D product render. A
+          photoreal mockup read as stock/AI; the designed cover is the honest thing to
+          show, and the spec sits under it in type. */}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px", gap: 6 }}>
-        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 4 }}>How it prints</div>
-        <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} linenColor={linenColor} foil={foil} />
-        <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 10, textAlign: "center" }}>
+        <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
+        <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 16, textAlign: "center" }}>
           {size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages
         </div>
-        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", textAlign: "center" }}>Printed to order by Lulu · shown to scale</div>
+        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", textAlign: "center" }}>Printed to order by Lulu</div>
       </main>
 
       {!reader && (
@@ -2463,7 +2394,7 @@ function MobilePhone(props) {
             <Eyebrow>Select Book Type</Eyebrow>
             <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option Lulu prints. Change it any time before you order.</div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "4px 0 16px" }}>
-              <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} linenColor={linenColor} foil={foil} />
+              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
               <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 10 }}>{size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages</div>
             </div>
             {role === "author" && <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} linenColor={linenColor} linenKey={linenKey} setLinenKey={setLinenKey} foil={foil} foilKey={foilKey} setFoilKey={setFoilKey} startPages={startPages} setStartPages={setStartPages} n={n} />}

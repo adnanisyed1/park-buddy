@@ -8,6 +8,7 @@ import { PDFDocument, rgb } from "pdf-lib";
 import { embedFonts } from "./pdfFonts";
 import { BIND_PAGES } from "./bookPricing";
 import { paletteByKey, hexToRgb01, toGray01 } from "./bookThemes";
+import { preflightInterior } from "./printPreflight";
 
 const PT = 72;
 const SAFE = 0.625 * PT;            // bleed + 0.5in safe ≈ 45pt
@@ -92,7 +93,7 @@ export async function buildInteriorPdf({
   const ceiling = range ? range.max : 800;
 
   const pdf = await PDFDocument.create();
-  const { serif, serifIt, sans } = await embedFonts(pdf, origin);
+  const { serif, serifIt, sans, fontBytes } = await embedFonts(pdf, origin);
 
   const blank = () => { const p = pdf.addPage([W, H]); p.drawRectangle({ x: 0, y: 0, width: W, height: H, color: CREAM }); return p; };
   const center = (p, font, text, size, y, color) => {
@@ -158,5 +159,13 @@ export async function buildInteriorPdf({
   while ((pdf.getPageCount() < floor || pdf.getPageCount() % 2 !== 0) && pdf.getPageCount() < ceiling) blank();
 
   const bytes = await pdf.save();
+  // Never hand a file to the printer without checking it is structurally the book we
+  // said it was. Throws with a specific reason rather than shipping something wrong.
+  await preflightInterior(bytes, {
+    trimW: inW, trimH: inH,
+    minPages: range ? range.min : undefined,
+    maxPages: range ? range.max : undefined,
+    fontBytes,
+  });
   return { bytes, pageCount: pdf.getPageCount() };
 }

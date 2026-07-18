@@ -8,6 +8,7 @@
 import { PDFDocument, rgb, degrees } from "pdf-lib";
 import { embedFonts } from "./pdfFonts";
 import { paletteByKey, hexToRgb01, toGray01, isLightPalette } from "./bookThemes";
+import { preflightCover } from "./printPreflight";
 
 // Where the back panel, spine and front panel actually sit on the wraparound.
 //
@@ -38,7 +39,7 @@ export async function buildCoverPdf({ title, dates, edition, coverImage, dims, o
   const W = Number(dims.width), H = Number(dims.height);
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([W, H]);
-  const { serif, sans } = await embedFonts(pdf, origin);
+  const { serif, sans, fontBytes } = await embedFonts(pdf, origin);
 
   const pal = paletteByKey(palette);
   const conv = bw ? toGray01 : hexToRgb01;
@@ -144,5 +145,7 @@ export async function buildCoverPdf({ title, dates, edition, coverImage, dims, o
     size: 8, font: sans, color: onPhoto ? paper : ink, opacity: 0.75,
   });
 
-  return await pdf.save();
+  const bytes = await pdf.save();
+  await preflightCover(bytes, { coverW: W, coverH: H, fontBytes });
+  return bytes;
 }

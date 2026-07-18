@@ -16,7 +16,7 @@ async function fontBytes(origin, name) {
 
 // Returns { serif, serifIt, sans } fully embedded into the given PDFDocument.
 //
-// SUBSETTING IS DELIBERATELY OFF. With { subset: true } pdf-lib's fontkit subsetter
+// SUBSETTING IS DELIBERATELY OFF. With { subset: false } pdf-lib's fontkit subsetter
 // silently dropped glyphs from these EB Garamond faces: "The Great Valley Journey"
 // printed as "T rat a or". The advance widths survived, so the line was correctly
 // spaced with letters simply missing — it looked like a rendering artefact, not a
@@ -40,5 +40,9 @@ export async function embedFonts(pdf, origin) {
     serif: await pdf.embedFont(s, { subset: false }),
     serifIt: await pdf.embedFont(si, { subset: false }),
     sans: await pdf.embedFont(sa, { subset: false }),
+    // Total typeface bytes we just embedded. Preflight compares the finished PDF against
+    // this: if the file is far smaller than the fonts it claims to carry, subsetting is
+    // back on and glyphs are being dropped. See app/lib/printPreflight.js.
+    fontBytes: s.length + si.length + sa.length,
   };
 }

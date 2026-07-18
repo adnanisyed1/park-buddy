@@ -18,11 +18,22 @@ export async function POST(request) {
   const cfg = body.config || {};
   const trim = trimInches(String(cfg.size || "")) || { w: 8.5, h: 8.5 };
 
-  const { bytes } = await buildInteriorPdf({
-    title: body.title, dates: body.dates, dedication: body.dedication, entries, origin,
-    trimW: trim.w, trimH: trim.h, cover: String(cfg.cover || ""), minPages: parseInt(cfg.pages, 10) || 0,
-    palette: String(cfg.palette || ""), bw: cfg.ink === "bwpre" || cfg.ink === "bwstd",
-  });
+  let bytes;
+  try {
+    ({ bytes } = await buildInteriorPdf({
+      title: body.title, dates: body.dates, dedication: body.dedication, entries, origin,
+      trimW: trim.w, trimH: trim.h, cover: String(cfg.cover || ""), minPages: parseInt(cfg.pages, 10) || 0,
+      palette: String(cfg.palette || ""), bw: cfg.ink === "bwpre" || cfg.ink === "bwstd",
+    }));
+  } catch (e) {
+    // Preflight failures carry the specific reasons — say them out loud rather than
+    // returning a bare 500, so a broken build is diagnosable from the response.
+    const problems = (e && e.details && e.details.problems) || null;
+    return Response.json({
+      error: problems ? "This book didn't pass print preflight." : "Couldn't build the print PDF.",
+      problems, detail: !problems && e && e.message ? e.message : undefined,
+    }, { status: 500 });
+  }
   return new Response(Buffer.from(bytes), {
     headers: { "Content-Type": "application/pdf", "Content-Disposition": 'inline; filename="trip-book-interior.pdf"' },
   });

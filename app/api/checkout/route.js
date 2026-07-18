@@ -59,6 +59,24 @@ export function GET() {
     // Not a flat $10 — destination tax varies. See PROFIT_RANGE in bookPricing.js.
     profitPerBook: PROFIT_RANGE,
     pricesQuotedLiveAtCheckout: luluConfigured(),
+    // Is the BROWSER half of Stripe present? Reports the key's mode only, never its
+    // value. Needed because NEXT_PUBLIC_ vars are inlined at BUILD time: if this is
+    // absent when the site builds, the embedded-checkout branch is stripped as dead code
+    // and checkout silently falls back to the hosted redirect. Absence here explains
+    // that, instead of leaving it to be guessed from bundle contents.
+    publishableKey: (() => {
+      const k = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+      if (!k) return "missing";
+      if (/^pk_test_/.test(k)) return "test";
+      if (/^pk_live_/.test(k)) return "live";
+      return "unrecognized";
+    })(),
+    // Both halves must be the same mode or Stripe rejects the session.
+    keysMatch: (() => {
+      const sk = process.env.STRIPE_SECRET_KEY || "", pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+      if (!sk || !pk) return false;
+      return (/^sk_test_/.test(sk) && /^pk_test_/.test(pk)) || (/^sk_live_/.test(sk) && /^pk_live_/.test(pk));
+    })(),
     // The order path now carries the customer's real trim, binding, SKU, palette and
     // cover layout through to print. Composition parity with the on-screen spreads is
     // close but not pixel-exact, so this stays a claim we can point at a proof for.

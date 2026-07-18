@@ -161,28 +161,42 @@ const sizesForOrient = (o) => SIZES.filter((s) => s.orient === o);
 // Bindings — Lulu's real set, with each binding's true page range. `base` is the
 // per-book retail base; the running price adds the per-page rate × page count.
 const COVERS = [
-  { key: "paperback", name: "Paperback", bind: "PB", base: 7, min: 32, max: 800, guide: "Economy", note: "Perfect-bound softcover — the most affordable." },
-  { key: "saddle", name: "Saddle Stitch", bind: "SS", base: 6, min: 8, max: 48, guide: "Slim", note: "Folded & stapled — best for short books." },
-  { key: "coil", name: "Coil Bound", bind: "CO", base: 11, min: 8, max: 470, guide: "Lay-flat", note: "Spiral coil — opens completely flat." },
-  { key: "casewrap", name: "Hardcover", bind: "CW", base: 17, min: 24, max: 800, guide: "Most popular", note: "Rigid cover, your photo printed edge-to-edge." },
-  { key: "linen", name: "Linen + Foil", bind: "LW", base: 32, min: 24, max: 800, guide: "Luxe", note: "Cloth-wrapped hardcover with a foil-stamped spine." },
+  { key: "paperback", name: "Paperback", bind: "PB", base: 7, min: 32, max: 800, guide: "Economy", note: "Perfect-bound softcover — the most affordable.", detail: "Perfect binding: the pages are glued into a wraparound softcover with a matte or gloss laminate. Lulu's most economical option. Prints 32–800 pages." },
+  { key: "saddle", name: "Saddle Stitch", bind: "SS", base: 6, min: 4, max: 48, guide: "Slim", note: "Folded & stapled — best for short books.", detail: "Sheets are folded and stapled through the spine, like a magazine. Ideal for slim books. Prints 4–48 pages." },
+  { key: "coil", name: "Coil Bound", bind: "CO", base: 11, min: 3, max: 470, guide: "Lay-flat", note: "Spiral coil — opens completely flat.", detail: "A durable plastic spiral coil binds the pages, so the book lies completely flat when open. Prints 3–470 pages." },
+  { key: "casewrap", name: "Hardcover", bind: "CW", base: 17, min: 24, max: 800, guide: "Most popular", note: "Rigid cover, your photo printed edge-to-edge.", detail: "Casewrap: your artwork is printed edge-to-edge and laminated onto rigid boards — a classic photo hardcover. Prints 24–800 pages." },
+  { key: "linen", name: "Linen + Foil", bind: "LW", base: 32, min: 24, max: 800, guide: "Luxe", note: "Cloth-wrapped hardcover with a foil-stamped spine.", detail: "A cloth-wrapped hardcover with a foil-stamped spine and a printed dust jacket. Choose the linen colour and foil below. Prints 24–800 pages." },
+];
+// Lulu's linen-wrap cloth colours (hardcover linen edition) + foil-stamp colours.
+const LINEN_COLORS = [
+  { key: "forest", name: "Forest", code: "F", hex: "#1b2a20" },
+  { key: "navy", name: "Navy", code: "N", hex: "#1f2a44" },
+  { key: "black", name: "Black", code: "B", hex: "#17181a" },
+  { key: "gray", name: "Gray", code: "A", hex: "#55585c" },
+  { key: "red", name: "Red", code: "R", hex: "#6e2422" },
+  { key: "tan", name: "Tan", code: "T", hex: "#9a8358" },
+];
+const FOILS = [
+  { key: "gold", name: "Gold foil", code: "G", hex: "#d9b779" },
+  { key: "silver", name: "Silver foil", code: "S", hex: "#c9ccd1" },
+  { key: "white", name: "White foil", code: "W", hex: "#f2efe6" },
 ];
 // Interior ink — Lulu's four options; perPage is the retail per-leaf rate.
 const INKS = [
-  { key: "fcpre", name: "Premium Color", code: "FC.PRE", perPage: 0.34, note: "Richest color — for photography." },
-  { key: "fcstd", name: "Standard Color", code: "FC.STD", perPage: 0.18, note: "Everyday full color." },
-  { key: "bwpre", name: "Premium B&W", code: "BW.PRE", perPage: 0.06, note: "Crisp black & white." },
-  { key: "bwstd", name: "Standard B&W", code: "BW.STD", perPage: 0.04, note: "Economical black & white." },
+  { key: "fcpre", name: "Premium Color", code: "FC.PRE", perPage: 0.34, note: "Richest color — for photography.", detail: "Premium full colour on Lulu's brightest process — the richest, most accurate tones. The right choice for photography." },
+  { key: "fcstd", name: "Standard Color", code: "FC.STD", perPage: 0.18, note: "Everyday full color.", detail: "Standard full colour — vivid, everyday colour at a lower cost than Premium." },
+  { key: "bwpre", name: "Premium B&W", code: "BW.PRE", perPage: 0.06, note: "Crisp black & white.", detail: "Premium black & white — deep, crisp greys on the higher-quality press." },
+  { key: "bwstd", name: "Standard B&W", code: "BW.STD", perPage: 0.04, note: "Economical black & white.", detail: "Standard black & white — the most economical interior, ideal for text-led books." },
 ];
 // Interior paper — Lulu's stocks; `add` is a small per-page premium for coated stock.
 const PAPERS = [
-  { key: "coated", name: "80# Coated White", code: "080CW444", add: 0.03, note: "Bright, smooth photo stock — our default." },
-  { key: "white", name: "60# White", code: "060UW444", add: 0, note: "Versatile uncoated white." },
-  { key: "cream", name: "60# Cream", code: "060UC444", add: 0, note: "Warm uncoated — classic for text." },
+  { key: "coated", name: "80# Coated White", code: "080CW444", add: 0.03, note: "Bright, smooth photo stock — our default.", detail: "80# (118 gsm) coated white — a bright, smooth, ultra-opaque photo stock. Best for full-colour photography." },
+  { key: "white", name: "60# White", code: "060UW444", add: 0, note: "Versatile uncoated white.", detail: "60# (90 gsm) uncoated white — a versatile everyday sheet used in most books." },
+  { key: "cream", name: "60# Cream", code: "060UC444", add: 0, note: "Warm uncoated — classic for text.", detail: "60# (90 gsm) uncoated cream — a warm, low-glare sheet, the classic choice for novels and text." },
 ];
 const FINISHES = [
-  { key: "matte", name: "Matte", code: "M", add: 0, note: "Soft, glare-free — our default." },
-  { key: "gloss", name: "Gloss", code: "G", add: 0, note: "Punchy, high-shine color." },
+  { key: "matte", name: "Matte", code: "M", add: 0, note: "Soft, glare-free — our default.", detail: "A soft, glare-free laminate over the cover — subtle and natural." },
+  { key: "gloss", name: "Gloss", code: "G", add: 0, note: "Punchy, high-shine color.", detail: "A high-shine laminate that makes cover colours pop." },
 ];
 const START_PAGES = [20, 32, 48, 60, 80];
 // The retail per-page rate = (ink + paper) scaled by trim area.
@@ -433,14 +447,17 @@ function customCheck(hex) {
 
 // Compose the Lulu pod_package_id from the current selection. (Validate each combo
 // in the Lulu sandbox before go-live — see /api/lulu-cost.)
-function skuFor(sizeKey, coverKey, finishKey, inkKey, paperKey) {
+function skuFor(sizeKey, coverKey, finishKey, inkKey, paperKey, linenKey, foilKey) {
   const sz = SIZES.find((s) => s.key === sizeKey) || SIZES[0];
   const cv = COVERS.find((c) => c.key === coverKey) || COVERS[0];
   const fin = FINISHES.find((f) => f.key === finishKey) || FINISHES[0];
   const ink = INKS.find((i) => i.key === inkKey) || INKS[0];
   const paper = PAPERS.find((p) => p.key === paperKey) || PAPERS[0];
-  // linen wrap → forest linen (F) + gold foil (G); other covers → finish + no linen/foil
-  const suffix = cv.key === "linen" ? "M" + "FG" : fin.code + "XX";
+  const linen = LINEN_COLORS.find((l) => l.key === linenKey) || LINEN_COLORS[0];
+  const foil = FOILS.find((f) => f.key === foilKey) || FOILS[0];
+  // Cover finish / linen colour / foil colour: linen wrap is always matte, then its
+  // cloth-colour code + foil-colour code; other covers → laminate finish + no linen/foil.
+  const suffix = cv.key === "linen" ? "M" + linen.code + foil.code : fin.code + "XX";
   return `${sz.trim}.${ink.code}.${cv.bind}.${paper.code}.${suffix}`;
 }
 
@@ -960,6 +977,8 @@ export default function TripBook() {
   const [finishKey, setFinishKey] = useState("matte");
   const [inkKey, setInkKey] = useState("fcpre");        // Premium color — for photography
   const [paperKey, setPaperKey] = useState("coated");   // 80# coated photo stock
+  const [linenKey, setLinenKey] = useState("forest");   // linen cloth colour (linen edition)
+  const [foilKey, setFoilKey] = useState("gold");       // foil-stamp colour (linen edition)
   const [startPages, setStartPages] = useState(32);     // the customer's chosen starting length
   const [manageOpen, setManageOpen] = useState(false);
 
@@ -999,8 +1018,10 @@ export default function TripBook() {
   const finish = FINISHES.find((f) => f.key === finishKey) || FINISHES[0];
   const ink = INKS.find((i) => i.key === inkKey) || INKS[0];
   const paper = PAPERS.find((p) => p.key === paperKey) || PAPERS[0];
+  const linenColor = LINEN_COLORS.find((l) => l.key === linenKey) || LINEN_COLORS[0];
+  const foil = FOILS.find((f) => f.key === foilKey) || FOILS[0];
   const sizeName = size.name.replace(/·/, "").replace(/\s+/g, " ").trim() + " " + cover.name;
-  const sku = skuFor(sizeKey, coverKey, finishKey, inkKey, paperKey);
+  const sku = skuFor(sizeKey, coverKey, finishKey, inkKey, paperKey, linenKey, foilKey);
   // Real page count, clamped to the chosen binding's true Lulu page range and to the
   // customer's chosen starting length (whichever is larger).
   const { starts, total: rawPages } = paginate(spreads, mounted, Math.max(bindMinPages(coverKey), startPages));
@@ -1014,11 +1035,11 @@ export default function TripBook() {
 
   const openReserve = () => setReserve({
     theme: palette.name, size: sizeName, price, title: book.title, dates: "", dedication: "",
-    pages, stops: n, cover: cover.name, finish: finish.name, color: ink.name, paper: paper.name, sku,
+    pages, stops: n, cover: cover.name + (cover.key === "linen" ? ` (${linenColor.name} · ${foil.name})` : ""), finish: finish.name, color: ink.name, paper: paper.name, sku,
     entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
   });
 
-  const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, priceNum, customBase, setCustomBase, pickTheme, startPages, setStartPages };
+  const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, priceNum, customBase, setCustomBase, pickTheme, startPages, setStartPages };
   const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, starts, coverImg, layoutKey, openManage: () => setManageOpen(true) };
 
   if (!mounted) {
@@ -1752,7 +1773,7 @@ function StopTools({ spread, onNext, size, onAddPage }) {
    third-party product photos), so it's legally clean AND shows the customer's real
    cover on the real binding. Thickness follows the page count; the spine changes with
    the binding (linen cloth + foil, coil rings, thin saddle, board hardcover). */
-function BookMockup({ size, cover, palette, coverImg, layout, book, pages }) {
+function BookMockup({ size, cover, palette, coverImg, layout, book, pages, linenColor, foil }) {
   const { w, h } = dimsOf(size.trim);
   let H = 300, W = Math.round(H * w / h);
   const CAP = 250; if (W > CAP) { W = CAP; H = Math.round(CAP * h / w); }
@@ -1762,9 +1783,10 @@ function BookMockup({ size, cover, palette, coverImg, layout, book, pages }) {
   if (isSaddle) d = Math.max(4, Math.min(10, d));
   if (isHard) d += 3;                              // boards add bulk
   const ctx = { book, palette, coverImg, layout };
+  const foilHex = (foil && foil.hex) || "#d9b779";
   const paperEdge = "repeating-linear-gradient(0deg,#efe9dc 0 2px,#d8d0bf 2px 3px)";
   const topEdge = "repeating-linear-gradient(90deg,#efe9dc 0 2px,#d8d0bf 2px 3px)";
-  const spineBg = isLinen ? "#1b2a20" : paperOf(palette);
+  const spineBg = isLinen ? ((linenColor && linenColor.hex) || "#1b2a20") : paperOf(palette);
   const face = { position: "absolute", left: "50%", top: "50%" };
   return (
     <div style={{ perspective: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: "8px 0" }}>
@@ -1773,7 +1795,9 @@ function BookMockup({ size, cover, palette, coverImg, layout, book, pages }) {
         <div style={{ ...face, width: d, height: H, background: paperEdge, transform: `translate(-50%,-50%) rotateY(90deg) translateZ(${W / 2}px)` }} />
         <div style={{ ...face, width: d, height: H, background: spineBg, overflow: "hidden", transform: `translate(-50%,-50%) rotateY(-90deg) translateZ(${W / 2}px)` }}>
           {isCoil && <div className="bm-coil" />}
-          {isLinen && <div style={{ width: "100%", height: "100%", background: "linear-gradient(90deg,rgba(217,183,121,.55),rgba(217,183,121,.08))" }} />}
+          {isLinen && <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "60%", height: 2, background: foilHex, opacity: .9, boxShadow: `0 8px 0 ${foilHex}, 0 -8px 0 ${foilHex}` }} />
+          </div>}
         </div>
         <div style={{ ...face, width: W, height: H, overflow: "hidden", borderRadius: isHard ? 3 : 1, boxShadow: isHard ? "0 0 0 1px rgba(0,0,0,.18)" : "none", transform: `translate(-50%,-50%) translateZ(${d / 2}px)` }}>
           <CoverLeaf ctx={ctx} />
@@ -1785,47 +1809,49 @@ function BookMockup({ size, cover, palette, coverImg, layout, book, pages }) {
 
 // The Book Type selectors (orientation → size, binding tier, starting pages, finish),
 // shared by the desktop step rail and the mobile step so both stay in lock-step.
-function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, startPages, setStartPages, n }) {
+function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, n }) {
   const orient = size.orient;
   const pickOrient = (o) => { const list = sizesForOrient(o); const same = list.find((s) => s.tag === size.tag); setSizeKey((same || list[0]).key); };
   const quotePages = Math.max(cover.min, startPages);            // pages the "from" quote assumes
   const priceOf = (sz) => bookPrice(sz, cover, ink, paper, quotePages);
   const perPage = perPageRate(size, ink, paper);                 // shown so pricing is "per page"
+  // VALIDATION — the content the itinerary needs (cover + intro + 2/stop + close, even),
+  // used to disable any binding whose Lulu page-range can't hold it.
+  const contentPages = (() => { let t = 3 + n * 2 + 1; if (t % 2) t++; return t; })();
+  const fits = (c) => contentPages <= c.max;
+  const [info, setInfo] = useState("");
   const Eb = ({ children }) => <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "0 0 8px" }}>{children}</div>;
-  const Chips = ({ items, sel, onPick }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
-      {items.map((it) => {
-        const on = it.key === sel;
-        return (
-          <button key={it.key} className="bs-stopcard" onClick={() => onPick(it.key)} title={it.note}
-            style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 12px" }}>
-            <span style={{ fontWeight: 600, fontSize: ".8rem", color: "var(--pb-ink)" }}>{it.name}</span>
-            <span style={{ fontSize: ".62rem", color: "var(--pb-muted)", textAlign: "right", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.note}</span>
-          </button>
-        );
-      })}
+  const InfoBtn = ({ k }) => (
+    <button className="bs-info" aria-label="More info" aria-expanded={info === k} onClick={(e) => { e.stopPropagation(); setInfo(info === k ? "" : k); }}>i</button>
+  );
+  const InfoBox = ({ k, text }) => info === k ? <div className="bs-infobox">{text}</div> : null;
+  // A card with a name, an ⓘ that reveals the Lulu detail, and optional right-side meta.
+  const OptCard = ({ id, active, disabled, onPick, name, meta, detail, guide }) => (
+    <div>
+      <div className="bs-stopcard" onClick={disabled ? undefined : onPick}
+        style={{ cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .45 : 1, display: "flex", alignItems: "center", gap: 8, background: active ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (active ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 12px" }}>
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{name}</span>
+            {guide && <span style={{ fontFamily: mono, fontSize: ".44rem", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-gold)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "2px 6px" }}>{guide}</span>}
+          </span>
+          {meta && <span style={{ display: "block", fontSize: ".62rem", color: "var(--pb-muted)", marginTop: 2 }}>{meta}</span>}
+        </span>
+        <InfoBtn k={id} />
+      </div>
+      <InfoBox k={id} text={detail} />
     </div>
   );
   return (
     <>
       <Eb>Book type</Eb>
       <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
-        {COVERS.map((c) => {
-          const on = c.key === coverKey;
-          return (
-            <button key={c.key} className="bs-stopcard" onClick={() => setCoverKey(c.key)}
-              style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "10px 12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span style={{ fontWeight: 600, fontSize: ".84rem", color: "var(--pb-ink)" }}>{c.name}</span>
-                <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--pb-gold)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "2px 7px" }}>{c.guide}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginTop: 3 }}>
-                <span style={{ fontSize: ".68rem", color: "var(--pb-muted)", lineHeight: 1.4 }}>{c.note}</span>
-                <span style={{ fontFamily: mono, fontSize: ".62rem", color: "var(--pb-gold-soft)", whiteSpace: "nowrap" }}>from ${bookPrice(size, c, ink, paper, Math.max(c.min, startPages))}</span>
-              </div>
-            </button>
-          );
-        })}
+        {COVERS.map((c) => (
+          <OptCard key={c.key} id={"bind:" + c.key} active={c.key === coverKey} disabled={!fits(c)}
+            onPick={() => setCoverKey(c.key)} name={c.name} guide={c.guide}
+            meta={fits(c) ? `from $${bookPrice(size, c, ink, paper, Math.max(c.min, startPages))} · ${c.min}–${c.max} pages` : `max ${c.max} pages — book too long`}
+            detail={c.detail} />
+        ))}
       </div>
 
       <Eb>Orientation</Eb>
@@ -1858,19 +1884,59 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
         })}
       </div>
 
+      {/* Linen edition — cloth colour + foil (only when the linen binding is chosen) */}
+      {cover.key === "linen" && (
+        <>
+          <Eb>Linen colour</Eb>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            {LINEN_COLORS.map((l) => {
+              const on = l.key === linenKey;
+              return (
+                <button key={l.key} onClick={() => setLinenKey(l.key)} title={l.name}
+                  style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: "none", border: "none", fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", textTransform: "uppercase", color: on ? "var(--pb-ink)" : "var(--pb-muted)" }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, background: l.hex, border: "2px solid " + (on ? "var(--pb-gold)" : "var(--pb-line-strong)"), boxShadow: on ? "0 0 0 2px var(--pb-gold-soft)" : "none" }} />
+                  {l.name}
+                </button>
+              );
+            })}
+          </div>
+          <Eb>Foil</Eb>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {FOILS.map((f) => {
+              const on = f.key === foilKey;
+              return (
+                <button key={f.key} onClick={() => setFoilKey(f.key)}
+                  style={{ flex: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit", fontSize: ".72rem", fontWeight: on ? 700 : 500, color: on ? "var(--pb-ink)" : "var(--pb-ink-2)", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "8px 6px" }}>
+                  <span style={{ width: 12, height: 12, borderRadius: "50%", background: f.hex, border: "1px solid var(--pb-line-strong)" }} />{f.name.replace(" foil", "")}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       <Eb>Interior color</Eb>
-      <Chips items={INKS} sel={inkKey} onPick={setInkKey} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
+        {INKS.map((it) => (
+          <OptCard key={it.key} id={"ink:" + it.key} active={it.key === inkKey} onPick={() => setInkKey(it.key)} name={it.name} meta={it.note} detail={it.detail} />
+        ))}
+      </div>
 
       <Eb>Paper</Eb>
-      <Chips items={PAPERS} sel={paperKey} onPick={setPaperKey} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
+        {PAPERS.map((it) => (
+          <OptCard key={it.key} id={"paper:" + it.key} active={it.key === paperKey} onPick={() => setPaperKey(it.key)} name={it.name} meta={it.note} detail={it.detail} />
+        ))}
+      </div>
 
       <Eb>Starting pages</Eb>
       <div style={{ display: "flex", gap: 7, marginBottom: 6 }}>
         {START_PAGES.map((p) => {
           const on = p === startPages;
+          const disabled = p > cover.max;                      // can't exceed the binding's max
           return (
-            <button key={p} onClick={() => setStartPages(p)}
-              style={{ flex: 1, cursor: "pointer", fontFamily: mono, fontSize: ".8rem", fontWeight: on ? 700 : 500, color: on ? "#0a1712" : "var(--pb-ink-2)", background: on ? GOLD : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 4px" }}>
+            <button key={p} onClick={() => !disabled && setStartPages(p)} disabled={disabled}
+              style={{ flex: 1, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .4 : 1, fontFamily: mono, fontSize: ".8rem", fontWeight: on ? 700 : 500, color: on ? "#0a1712" : "var(--pb-ink-2)", background: on ? GOLD : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 4px" }}>
               {p}
             </button>
           );
@@ -1882,12 +1948,12 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
 
       {cover.key !== "linen" && (
         <>
-          <Eb>Photo finish</Eb>
+          <Eb>Cover finish</Eb>
           <div style={{ display: "flex", gap: 7 }}>
             {FINISHES.map((f) => {
               const on = f.key === finishKey;
               return (
-                <button key={f.key} onClick={() => setFinishKey(f.key)} title={f.note}
+                <button key={f.key} onClick={() => setFinishKey(f.key)} title={f.detail}
                   style={{ flex: 1, cursor: "pointer", fontFamily: "inherit", fontSize: ".74rem", fontWeight: on ? 700 : 500, color: on ? "var(--pb-ink)" : "var(--pb-ink-2)", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 6px" }}>
                   {f.name}
                 </button>
@@ -1904,7 +1970,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
    count and finish — the choices customers know from a photo-book product page. Every
    pick drives the live cover preview and the running price, and "Start your book" moves
    on to the Diary. */
-function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, startPages, setStartPages, palette, layout, coverImg, price, setStep, role, n }) {
+function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, palette, layout, coverImg, price, setStep, role, n }) {
   const reader = role === "reader";
   const orient = size.orient;
   return (
@@ -1913,13 +1979,13 @@ function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCov
         <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Select Book Type</Eyebrow>
           <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option Lulu prints — shape, binding, paper &amp; color. Change it any time before you order.</div>
-          <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} startPages={startPages} setStartPages={setStartPages} n={n} />
+          <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} linenColor={linenColor} linenKey={linenKey} setLinenKey={setLinenKey} foil={foil} foilKey={foilKey} setFoilKey={setFoilKey} startPages={startPages} setStartPages={setStartPages} n={n} />
         </aside>
       )}
 
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px", gap: 6 }}>
         <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 4 }}>How it prints</div>
-        <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} />
+        <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} linenColor={linenColor} foil={foil} />
         <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 10, textAlign: "center" }}>
           {size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages
         </div>
@@ -2340,7 +2406,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
 
 /* ---------------- mobile ---------------- */
 function MobilePhone(props) {
-  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, startPages, setStartPages, customBase, setCustomBase, pickTheme, coverImg } = props;
+  const { step, setStep, role, setRole, spreads, sel, setSel, cur, n, prev, next, book, layout, setLayoutKey, pal, setPal, palette, pages, price, openReserve, mobilePage, setMobilePage, toolsOpen, setToolsOpen, openManage, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, customBase, setCustomBase, pickTheme, coverImg } = props;
   const BAR = 64;
   return (
     <div style={{ paddingBottom: BAR + 10 }}>
@@ -2357,10 +2423,10 @@ function MobilePhone(props) {
             <Eyebrow>Select Book Type</Eyebrow>
             <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option Lulu prints. Change it any time before you order.</div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "4px 0 16px" }}>
-              <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} />
+              <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} linenColor={linenColor} foil={foil} />
               <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 10 }}>{size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages</div>
             </div>
-            {role === "author" && <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} startPages={startPages} setStartPages={setStartPages} n={n} />}
+            {role === "author" && <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} linenColor={linenColor} linenKey={linenKey} setLinenKey={setLinenKey} foil={foil} foilKey={foilKey} setFoilKey={setFoilKey} startPages={startPages} setStartPages={setStartPages} n={n} />}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
               <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>From</span>
               <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}.00</span>

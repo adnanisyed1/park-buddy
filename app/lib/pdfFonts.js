@@ -14,7 +14,21 @@ async function fontBytes(origin, name) {
   return b;
 }
 
-// Returns { serif, serifIt, sans } embedded (subset) into the given PDFDocument.
+// Returns { serif, serifIt, sans } fully embedded into the given PDFDocument.
+//
+// SUBSETTING IS DELIBERATELY OFF. With { subset: true } pdf-lib's fontkit subsetter
+// silently dropped glyphs from these EB Garamond faces: "The Great Valley Journey"
+// printed as "T rat a or". The advance widths survived, so the line was correctly
+// spaced with letters simply missing — it looked like a rendering artefact, not a
+// broken file.
+//
+// Nothing catches this on its own. Lulu ACCEPTED the file, because it validates trim,
+// bleed and page count, not whether words still have all their letters. A book would
+// have printed and shipped with holes in the words. The only reason it was caught is
+// that someone rendered a page and looked at it.
+//
+// Full embedding costs ~600KB per PDF instead of ~20KB. That is a fine price for a file
+// that is printed once, and it is the only version verified to actually render.
 export async function embedFonts(pdf, origin) {
   pdf.registerFontkit(fontkit);
   const [s, si, sa] = await Promise.all([
@@ -23,8 +37,8 @@ export async function embedFonts(pdf, origin) {
     fontBytes(origin, "sans.ttf"),         // Inter Medium
   ]);
   return {
-    serif: await pdf.embedFont(s, { subset: true }),
-    serifIt: await pdf.embedFont(si, { subset: true }),
-    sans: await pdf.embedFont(sa, { subset: true }),
+    serif: await pdf.embedFont(s, { subset: false }),
+    serifIt: await pdf.embedFont(si, { subset: false }),
+    sans: await pdf.embedFont(sa, { subset: false }),
   };
 }

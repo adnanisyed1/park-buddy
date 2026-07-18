@@ -486,6 +486,15 @@ const Eyebrow = ({ children, style }) => (
   <div style={{ fontFamily: mono, fontSize: ".55rem", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--pb-gold-soft)", ...style }}>{children}</div>
 );
 
+/* When a book palette is chosen it paints the WHOLE book — cover, intro, every stop,
+   and the closing page — so the design the customer picks "follows until the end".
+   Interior colours come from the palette (not the platform UI tokens) so a dark book
+   theme stays legible even while the site itself is in light mode, and vice-versa.
+   With no palette these fall back to the UI tokens. */
+const paperOf = (p) => (p && p.base) || "var(--pb-surface)";
+const inkOf = (p) => (p && p.ink) || "var(--pb-ink)";
+const accentOf = (p) => (p && p.accent) || "var(--pb-gold-soft)";
+
 // The photo half of a spread — user's own photo, else a licensed park photo.
 function SpreadPhoto({ spread, rounded = true, showBadge = true }) {
   const fetched = usePhoto(spread.userImg ? null : spread.q);
@@ -507,16 +516,17 @@ function SpreadPhoto({ spread, rounded = true, showBadge = true }) {
 }
 
 // The story half of a spread.
-function SpreadStory({ spread }) {
+function SpreadStory({ spread, palette }) {
+  const ink = inkOf(palette);
   return (
     <div style={{ padding: "10px 6px" }}>
-      <Eyebrow>Chapter {spread.chapter}</Eyebrow>
-      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "var(--pb-ink)", margin: "8px 0 0", lineHeight: 1.1 }}>{spread.name}</h3>
-      <div style={{ width: 40, height: 1, background: "var(--pb-line-strong)", margin: "12px 0 14px" }} />
-      <p style={{ fontFamily: serif, fontSize: "1rem", lineHeight: 1.7, color: "var(--pb-ink-2)" }}>
-        {spread.story || <span style={{ color: "var(--pb-muted)", fontStyle: "italic" }}>No story yet — add one in Stop Tools, or this becomes a clean typographic page in print.</span>}
+      <Eyebrow style={palette ? { color: accentOf(palette) } : undefined}>Chapter {spread.chapter}</Eyebrow>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: ink, margin: "8px 0 0", lineHeight: 1.1 }}>{spread.name}</h3>
+      <div style={{ width: 40, height: 1, background: accentOf(palette), opacity: palette ? .5 : 1, margin: "12px 0 14px" }} />
+      <p style={{ fontFamily: serif, fontSize: "1rem", lineHeight: 1.7, color: ink, opacity: palette ? .82 : 1 }}>
+        {spread.story || <span style={{ color: ink, opacity: .5, fontStyle: "italic" }}>No story yet — add one in Stop Tools, or this becomes a clean typographic page in print.</span>}
       </p>
-      {spread.date && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", color: "var(--pb-muted)", marginTop: 16 }}>{spread.date}</div>}
+      {spread.date && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", color: ink, opacity: .55, marginTop: 16 }}>{spread.date}</div>}
     </div>
   );
 }
@@ -543,31 +553,35 @@ const PhotoSlot = ({ url, num }) => (
 );
 // An un-filled slot stays honest: it prints as a designed page, never stock art. It
 // still carries its number, so an empty slot is a place you can see needs a photo.
-const EmptySlot = ({ num }) => (
-  <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: "1px dashed var(--pb-line-strong)", color: "var(--pb-muted)", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".08em", textAlign: "center", padding: 8 }}>
-    <SlotNum n={num} />＋ Add a photo
-  </div>
-);
+const EmptySlot = ({ num, palette }) => {
+  const ink = inkOf(palette);
+  return (
+    <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: palette ? `1px dashed ${ink}55` : "1px dashed var(--pb-line-strong)", color: palette ? ink : "var(--pb-muted)", opacity: palette ? .6 : 1, fontFamily: mono, fontSize: ".5rem", letterSpacing: ".08em", textAlign: "center", padding: 8 }}>
+      <SlotNum n={num} />＋ Add a photo
+    </div>
+  );
+};
 // One story SECTION on a page. Compact — it may be a quarter of a page — so type
 // scales down when it shares the page. The chapter title rides the first writing
 // block of the chapter only, so a book always has one somewhere. When `editable`,
 // the body is a textarea styled as the page's own prose, so you write straight onto
 // the book — capped to the space the section prints in.
-function StorySection({ spread, planned, dense, editable }) {
+function StorySection({ spread, planned, dense, editable, palette }) {
   const text = planned.text != null ? planned.text : (planned.storyIndex === 0 ? spread.story : "");
   const isFirst = planned.storyIndex === 0;
   const bodyFont = dense ? ".82rem" : "1rem";
+  const ink = inkOf(palette);
   return (
     <div style={{ height: "100%", overflow: "hidden", padding: dense ? "8px 8px" : "10px 6px", display: "flex", flexDirection: "column" }}>
       {isFirst && <>
-        <Eyebrow>Chapter {spread.chapter}</Eyebrow>
-        <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: dense ? "1.05rem" : "1.5rem", color: "var(--pb-ink)", margin: "6px 0 0", lineHeight: 1.1 }}>{spread.name}</h3>
-        <div style={{ width: 36, height: 1, background: "var(--pb-line-strong)", margin: dense ? "9px 0 10px" : "12px 0 14px" }} />
+        <Eyebrow style={palette ? { color: accentOf(palette) } : undefined}>Chapter {spread.chapter}</Eyebrow>
+        <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: dense ? "1.05rem" : "1.5rem", color: ink, margin: "6px 0 0", lineHeight: 1.1 }}>{spread.name}</h3>
+        <div style={{ width: 36, height: 1, background: accentOf(palette), opacity: palette ? .5 : 1, margin: dense ? "9px 0 10px" : "12px 0 14px" }} />
       </>}
       {editable
-        ? <InlineStory spread={spread} planned={planned} font={bodyFont} />
-        : <p style={{ fontFamily: serif, fontSize: bodyFont, lineHeight: 1.6, color: "var(--pb-ink-2)", margin: 0 }}>
-            {text || <span style={{ color: "var(--pb-muted)", fontStyle: "italic" }}>Write this section in Stop Tools — or it prints as a clean blank page.</span>}
+        ? <InlineStory spread={spread} planned={planned} font={bodyFont} palette={palette} />
+        : <p style={{ fontFamily: serif, fontSize: bodyFont, lineHeight: 1.6, color: ink, opacity: palette ? .82 : 1, margin: 0 }}>
+            {text || <span style={{ color: ink, opacity: .5, fontStyle: "italic" }}>Write this section in Stop Tools — or it prints as a clean blank page.</span>}
           </p>}
     </div>
   );
@@ -577,7 +591,7 @@ function StorySection({ spread, planned, dense, editable }) {
 // no chrome) and shares everything with the Stop Tools editor: same cap for the
 // section's size, same store, first block still mirrors the trip story. Saves when
 // you click away, so typing doesn't thrash localStorage.
-function InlineStory({ spread, planned, font }) {
+function InlineStory({ spread, planned, font, palette }) {
   const cap = storyCap(planned.paneCount);
   const seed = () => (planned.text != null ? planned.text : (planned.storyIndex === 0 ? (spread.story || "") : ""));
   const [val, setVal] = useState(seed);
@@ -593,8 +607,8 @@ function InlineStory({ spread, planned, font }) {
         value={val} maxLength={cap} onChange={(e) => setVal(e.target.value)} onBlur={save}
         placeholder="Write here…"
         style={{ flex: 1, minHeight: 0, width: "100%", resize: "none", border: "none", outline: "none", background: "transparent",
-          fontFamily: serif, fontSize: font, lineHeight: 1.6, color: "var(--pb-ink-2)", padding: 0 }} />
-      <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", color: left <= 20 ? "var(--pb-prepare)" : "var(--pb-muted)", textAlign: "right", marginTop: 2 }}>{left}</div>
+          fontFamily: serif, fontSize: font, lineHeight: 1.6, color: inkOf(palette), opacity: palette ? .85 : 1, padding: 0 }} />
+      <div style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".06em", color: left <= 20 ? "var(--pb-prepare)" : (palette ? inkOf(palette) : "var(--pb-muted)"), opacity: palette && left > 20 ? .5 : 1, textAlign: "right", marginTop: 2 }}>{left}</div>
     </div>
   );
 }
@@ -626,14 +640,14 @@ function StampPhoto({ rec, num, dense }) {
 // One cell of a page — a photo (numbered slot, own orientation), a location-stamp
 // photo, or a story block. A lone empty photo cell falls back to the licensed hero
 // image; empty cells in a grid stay honest "add a photo" tiles.
-function SectionCell({ planned, spread, dense, hero, editable }) {
-  if (planned.type === "story") return <StorySection spread={spread} planned={planned} dense={dense} editable={editable} />;
+function SectionCell({ planned, spread, dense, hero, editable, palette }) {
+  if (planned.type === "story") return <StorySection spread={spread} planned={planned} dense={dense} editable={editable} palette={palette} />;
   const p = (spread.photos || [])[planned.photoIndex];
   const num = planned.photoIndex + 1;
   if (p && p.stamp) return <StampPhoto rec={p} num={num} dense={dense} />;
   if (p) return <PhotoSlot url={p.url} num={num} />;
   if (hero) return <div style={{ height: "100%", position: "relative" }}><SpreadPhoto spread={spread} /><SlotNum n={num} /></div>;
-  return <EmptySlot num={num} />;
+  return <EmptySlot num={num} palette={palette} />;
 }
 
 /* A page (pane) lays its 1–4 sections into a grid:
@@ -642,7 +656,7 @@ function SectionCell({ planned, spread, dense, hero, editable }) {
          far kinder to a portrait than three wide, short letterbox strips)
      4 → a 2×2 grid
    Each cell fills its share so the page is the same height either side. */
-function Pane({ sections, spread, hero, editable }) {
+function Pane({ sections, spread, hero, editable, palette }) {
   const n = sections.length;
   let grid, spanFirst = false;
   if (n >= 4) grid = { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr" };
@@ -652,7 +666,7 @@ function Pane({ sections, spread, hero, editable }) {
     <div style={{ display: "grid", ...grid, gap: 6, height: "100%" }}>
       {sections.map((s, i) => (
         <div key={i} style={{ minHeight: 0, minWidth: 0, ...(spanFirst && i === 0 ? { gridColumn: "1 / -1" } : {}) }}>
-          <SectionCell planned={s} spread={spread} dense={n > 1} hero={hero} editable={editable} />
+          <SectionCell planned={s} spread={spread} dense={n > 1} hero={hero} editable={editable} palette={palette} />
         </div>
       ))}
     </div>
@@ -677,10 +691,10 @@ function paginate(spreads, ready) {
   if (total % 2) total += 1;
   return { starts, total };
 }
-const PageNums = ({ start, single }) => {
+const PageNums = ({ start, single, palette }) => {
   const pad = (x) => String(x).padStart(2, "0");
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", color: "var(--pb-muted)", padding: "8px 4px 0", gridColumn: "1 / -1" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", color: palette ? inkOf(palette) : "var(--pb-muted)", opacity: palette ? .5 : 1, padding: "8px 4px 0", gridColumn: "1 / -1" }}>
       <span>{pad(start)}</span>{!single && <span>{pad(start + 1)}</span>}
     </div>
   );
@@ -691,7 +705,7 @@ const PageNums = ({ start, single }) => {
    whatever mix of photos and text the pages hold. */
 const SPREAD_ASPECT = "1.53 / 1";
 
-function Spread({ spread, startPage = 3, editable = false, size }) {
+function Spread({ spread, startPage = 3, editable = false, size, palette }) {
   const ready = useLayoutTick();
   const lay = layoutOf(spread, ready);
   const plan = planSpread(lay);
@@ -699,16 +713,31 @@ function Spread({ spread, startPage = 3, editable = false, size }) {
   // Book-wide margin, inset as a fraction of the trim so the preview matches print.
   const trimIn = ((size && parseInt(String(size.trim).slice(0, 4), 10)) || 850) / 100;
   const marginPct = ready ? (marginOf(getBookMargin()).in / trimIn) * 100 : 0;
-  const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
+  const card = { background: paperOf(palette), border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
   const pages = { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "14px", aspectRatio: SPREAD_ASPECT };
   const pad = { height: "100%", boxSizing: "border-box", ...(marginPct ? { padding: `${marginPct}%` } : {}) };
   return (
     <div style={card}>
       <div style={pages}>
-        <div style={pad}><Pane sections={plan.left} spread={spread} hero={totalPhotos === 1} editable={editable} /></div>
-        <div style={pad}><Pane sections={plan.right} spread={spread} hero={totalPhotos === 1} editable={editable} /></div>
+        <div style={pad}><Pane sections={plan.left} spread={spread} hero={totalPhotos === 1} editable={editable} palette={palette} /></div>
+        <div style={pad}><Pane sections={plan.right} spread={spread} hero={totalPhotos === 1} editable={editable} palette={palette} /></div>
       </div>
-      <PageNums start={startPage} />
+      <PageNums start={startPage} palette={palette} />
+    </div>
+  );
+}
+
+/* A front/back-matter leaf (introduction, closing page). It wears the SAME footprint
+   and open-book aspect as a chapter spread — so it never renders "half" beside the
+   stops — and paints in the selected book palette so the cover's design carries all
+   the way through. Content sits centred across the leaf. */
+function BookLeaf({ palette, children }) {
+  const card = { background: paperOf(palette), border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: 14, maxWidth: 720, width: "100%" };
+  return (
+    <div style={card}>
+      <div style={{ aspectRatio: SPREAD_ASPECT, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 10%" }}>
+        <div style={{ maxWidth: 420 }}>{children}</div>
+      </div>
     </div>
   );
 }
@@ -1171,7 +1200,7 @@ function DiaryDesktop({ spreads, sel, setSel, cur, n, prev, next, role, book, op
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "24px 30px", overflowY: "auto" }}>
         {onCover
           ? <CoverPreview title={book.title} author={book.author} region={book.region} layout={layoutFor(layoutKey)} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
-          : <Spread spread={cur} startPage={(starts || [])[sel] || 3} editable={author} size={size} />}
+          : <Spread spread={cur} startPage={(starts || [])[sel] || 3} editable={author} size={size} palette={palette} />}
         <Pager i={sel + 1} n={n + 1} label={onCover ? "Front cover" : cur.name} onPrev={prev} onNext={next} />
       </main>
       {author && (onCover
@@ -1824,21 +1853,22 @@ const SummaryRows = ({ rows }) => (
 function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, finish, size, starts }) {
   if (pv === 0) return <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} coverImg={coverImg} cover={cover} finish={finish} size={size} />;
   if (pv === 1) return (
-    <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "48px 40px", textAlign: "center" }}>
-      <Eyebrow>Introduction</Eyebrow>
-      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.9rem", color: "var(--pb-ink)", margin: "14px 0 0" }}>{book.title}</h3>
-      {book.region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1rem", color: "var(--pb-ink-2)", marginTop: 8 }}>A journey through {book.region}</div>}
-      <div style={{ width: 44, height: 1, background: "var(--pb-line-strong)", margin: "22px auto" }} />
-      <p style={{ fontFamily: serif, fontSize: ".98rem", lineHeight: 1.7, color: "var(--pb-ink-2)", maxWidth: 340, margin: "0 auto" }}>{n} chapters, gathered from the road — the places we stood, the light we caught, and the stories worth keeping.</p>
-    </div>
+    <BookLeaf palette={palette}>
+      <Eyebrow style={{ color: accentOf(palette) }}>Introduction</Eyebrow>
+      <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.9rem", color: inkOf(palette), margin: "14px 0 0" }}>{book.title}</h3>
+      {book.region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1rem", color: inkOf(palette), opacity: .78, marginTop: 8 }}>A journey through {book.region}</div>}
+      <div style={{ width: 44, height: 1, background: accentOf(palette), opacity: .55, margin: "22px auto" }} />
+      <p style={{ fontFamily: serif, fontSize: ".98rem", lineHeight: 1.7, color: inkOf(palette), opacity: .82, maxWidth: 340, margin: "0 auto" }}>{n} chapters, gathered from the road — the places we stood, the light we caught, and the stories worth keeping.</p>
+    </BookLeaf>
   );
-  if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} startPage={(starts || [])[pv - 2] || 3} size={size} />;
+  if (pv >= 2 && pv - 2 < n) return <Spread spread={spreads[pv - 2]} startPage={(starts || [])[pv - 2] || 3} size={size} palette={palette} />;
   return (
-    <div style={{ width: 460, maxWidth: "100%", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 10, boxShadow: "var(--pb-shadow)", padding: "56px 40px", textAlign: "center" }}>
-      <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.5rem", color: "var(--pb-ink)" }}>Adventure&rsquo;s better with a Buddy.</div>
-      <div style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", color: "var(--pb-gold)", display: "flex", alignItems: "center", justifyContent: "center", margin: "22px auto 0" }}>✦</div>
-      <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 22 }}>The Park Buddy · parkbuddy.app</div>
-    </div>
+    <BookLeaf palette={palette}>
+      {/* The Park Buddy emblem closes every book. */}
+      <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" style={{ width: 104, height: "auto", display: "block", margin: "0 auto 24px" }} />
+      <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.5rem", color: inkOf(palette) }}>Adventure&rsquo;s better with a Buddy.</div>
+      <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", textTransform: "uppercase", color: inkOf(palette), opacity: .6, marginTop: 20 }}>The Park Buddy · parkbuddy.app</div>
+    </BookLeaf>
   );
 }
 
@@ -1938,7 +1968,7 @@ function MobilePhone(props) {
                 ? <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
                 : mobilePage === "photo" || role === "reader"
                   ? <div style={{ aspectRatio: "3/4", borderRadius: 12, overflow: "hidden", border: "1px solid var(--pb-line)" }}><SpreadPhoto spread={cur} rounded={false} /></div>
-                  : <div style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: 18 }}><SpreadStory spread={cur} /></div>}
+                  : <div style={{ background: paperOf(palette), border: "1px solid var(--pb-line)", borderRadius: 12, padding: 18 }}><SpreadStory spread={cur} palette={palette} /></div>}
             </div>
             {role === "author" && (
               <div style={{ maxWidth: 460, margin: "14px auto 0", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, overflow: "hidden" }}>

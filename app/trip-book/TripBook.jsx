@@ -961,7 +961,9 @@ export default function TripBook() {
   const [role, setRole] = useState("author"); // author | reader
   const [sel, setSel] = useState(0);
   const [layoutKey, setLayoutKey] = useState("split");
-  const [pal, setPal] = useState("black-pine");
+  // Default to a LIGHT edition — a dark book is a heavy first impression, and the
+  // cover reads better on the page until the customer picks a theme themselves.
+  const [pal, setPal] = useState("parchment-royal");
   const [isPhone, setIsPhone] = useState(false);
   const [reserve, setReserve] = useState(null);
   const [mobilePage, setMobilePage] = useState("photo"); // photo | story
@@ -1840,7 +1842,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
           return (
             <button key={s.key} className="bs-stopcard" onClick={() => setSizeKey(s.key)}
               style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 11, background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 12px" }}>
-              <span aria-hidden style={{ flex: "0 0 26px", width: 26, height: 26, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontWeight: 700, fontSize: ".7rem", color: on ? "#0a1712" : "var(--pb-ink-2)", background: on ? GOLD : "var(--pb-tint)", border: "1px solid var(--pb-line-strong)" }}>{s.tag}</span>
+              <span aria-hidden style={{ flex: "0 0 26px", width: 26, height: 26, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontWeight: 700, fontSize: ".7rem", color: on ? "var(--pb-gold)" : "var(--pb-ink-2)", background: "var(--pb-tint)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line-strong)") }}>{s.tag}</span>
               <span style={{ flex: 1 }}>
                 <span style={{ display: "block", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{s.dim}</span>
                 <span style={{ display: "block", fontSize: ".64rem", color: "var(--pb-muted)" }}>from ${priceOf(s)}</span>
@@ -1902,7 +1904,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
           const disabled = p > cover.max;                      // can't exceed the binding's max
           return (
             <button key={p} onClick={() => !disabled && setStartPages(p)} disabled={disabled}
-              style={{ flex: 1, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .4 : 1, fontFamily: mono, fontSize: ".8rem", fontWeight: on ? 700 : 500, color: on ? "#0a1712" : "var(--pb-ink-2)", background: on ? GOLD : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 4px" }}>
+              style={{ flex: 1, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .4 : 1, fontFamily: mono, fontSize: ".8rem", fontWeight: on ? 700 : 500, color: on ? "var(--pb-ink)" : "var(--pb-ink-2)", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 4px" }}>
               {p}
             </button>
           );

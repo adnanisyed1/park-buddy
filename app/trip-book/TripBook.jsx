@@ -9,9 +9,13 @@
 // from the user's REAL trip (trip.js stops + Trip Mode photos/stories), falling back
 // to a Yosemite sample when there's no trip yet. Follows the platform light/dark theme.
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, forwardRef } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import "./studio.css"; // .tbres-* styles for the reservation modal
+// Realistic page-turn (curl + drag) — StPageFlip via react-pageflip. Browser-only, so
+// it's dynamically imported with ssr:false through the client wrapper.
+const RealFlip = dynamic(() => import("./RealFlip.client"), { ssr: false });
 import SiteHeader from "../components/SiteHeader";
 import { useTheme } from "../lib/theme";
 import { getStops, getMeta, subscribeTrip, addStop, removeStop, moveStop } from "../lib/trip";
@@ -2077,11 +2081,126 @@ function FlipBook({ pv, total, onChange, renderPage }) {
   );
 }
 
+/* ── Realistic page-turn (StPageFlip) ─────────────────────────────────────────
+   The book is decomposed into SINGLE pages so the library can curl one page at a
+   time — a stop's two-page spread becomes a left leaf + a right leaf that sit as an
+   open spread, exactly as in print. Section (cover/intro/stop/final) ↔ leaf-index
+   maths lets the Contents rail jump and keeps the rail highlight in sync. */
+// Single page of a stop spread (one Pane), with the book margin and a page number.
+function StopSide({ sp, side, ctx }) {
+  const lay = layoutOf(sp, true);
+  const plan = planSpread(lay);
+  const total = photoCount(lay.left) + photoCount(lay.right);
+  const sections = side === "L" ? plan.left : plan.right;
+  const { w } = dimsOf(ctx.size.trim);
+  const marginPct = (marginOf(getBookMargin()).in / w) * 100;
+  return <div style={{ height: "100%", boxSizing: "border-box", padding: `${marginPct}%` }}><Pane sections={sections} spread={sp} hero={total === 1} palette={ctx.palette} /></div>;
+}
+// A hard cover leaf — full-bleed photo (if the cover layout uses one) else the palette.
+function CoverLeaf({ ctx }) {
+  const { book, palette, coverImg, layout } = ctx;
+  const withPhoto = layout && layout.photo !== "none" && coverImg;
+  const ink = withPhoto ? "#fff" : inkOf(palette);
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", background: withPhoto ? `center/cover url(${coverImg})` : paperOf(palette), display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "11% 9%", boxSizing: "border-box" }}>
+      {withPhoto && <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.62))" }} />}
+      <div style={{ position: "relative" }}>
+        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".3em", textTransform: "uppercase", color: withPhoto ? "rgba(255,255,255,.85)" : accentOf(palette) }}>Vol. I</div>
+        <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.6rem", lineHeight: 1.08, margin: "8px 0 6px", color: ink }}>{book.title}</h3>
+        {book.region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", color: ink, opacity: .85 }}>A journey through {book.region}</div>}
+        {book.author && <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".14em", textTransform: "uppercase", color: ink, opacity: .8, marginTop: 12 }}>{book.author}</div>}
+      </div>
+    </div>
+  );
+}
+// One printed leaf. `data-density="hard"` tells StPageFlip to treat covers as board.
+const LeafPage = forwardRef(function LeafPage({ leaf, ctx }, ref) {
+  const { palette, book, n } = ctx;
+  const hard = leaf.type === "cover" || leaf.type === "back";
+  let inner = null;
+  if (leaf.type === "cover") inner = <CoverLeaf ctx={ctx} />;
+  else if (leaf.type === "back") inner = (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: paperOf(palette), padding: "12%", textAlign: "center", boxSizing: "border-box" }}>
+      <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" style={{ width: 78, height: "auto", opacity: .95 }} />
+    </div>
+  );
+  else if (leaf.type === "intro") inner = (
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "12%", boxSizing: "border-box" }}>
+      <div>
+        <div style={{ fontFamily: mono, fontSize: ".52rem", letterSpacing: ".22em", textTransform: "uppercase", color: accentOf(palette) }}>Introduction</div>
+        <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: inkOf(palette), margin: "12px 0 0" }}>{book.title}</h3>
+        {book.region && <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".92rem", color: inkOf(palette), opacity: .78, marginTop: 6 }}>A journey through {book.region}</div>}
+        <div style={{ width: 40, height: 1, background: accentOf(palette), opacity: .55, margin: "18px auto" }} />
+        <p style={{ fontFamily: serif, fontSize: ".9rem", lineHeight: 1.7, color: inkOf(palette), opacity: .82 }}>{n} chapters, gathered from the road.</p>
+      </div>
+    </div>
+  );
+  else if (leaf.type === "final") inner = (
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "12%", boxSizing: "border-box" }}>
+      <div>
+        <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" style={{ width: 86, height: "auto", display: "block", margin: "0 auto 16px" }} />
+        <div style={{ width: 52, height: 1, background: accentOf(palette), opacity: .55, margin: "0 auto 16px" }} />
+        <div style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.25rem", color: inkOf(palette) }}>Adventure&rsquo;s better with a Buddy.</div>
+        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".16em", textTransform: "uppercase", color: inkOf(palette), opacity: .6, marginTop: 16 }}>The Park Buddy · parkbuddy.app</div>
+      </div>
+    </div>
+  );
+  else if (leaf.type === "stopL" || leaf.type === "stopR") inner = <StopSide sp={ctx.spreads[leaf.i]} side={leaf.type === "stopL" ? "L" : "R"} ctx={ctx} />;
+  else inner = null; // blank
+  // StPageFlip overwrites the leaf element's inline `style` with its own positioning,
+  // so the palette paper + content live on an inner wrapper it never touches.
+  return (
+    <div ref={ref} className="pf-leaf" data-density={hard ? "hard" : "soft"}>
+      <div className="pf-inner" style={{ background: paperOf(palette) }}>{inner}</div>
+    </div>
+  );
+});
+
+// section index (0 cover · 1 intro · 2..n+1 stops · n+2 final) → leaf page index
+const sectionToLeaf = (s, n) => s <= 0 ? 0 : s === 1 ? 1 : s <= n + 1 ? 3 + 2 * (s - 2) : 3 + 2 * n;
+const leafToSection = (p, n) => p <= 0 ? 0 : p <= 2 ? 1 : p >= 3 + 2 * n ? n + 2 : 2 + Math.floor((p - 3) / 2);
+
+function RealFlipBook({ n, spreads, ctx, jumpTo, onSection }) {
+  const flipRef = useRef(null);
+  const lastNav = useRef(-1);
+  // Build the single-page sequence: cover · intro · blank · [stopL,stopR]* · final · back.
+  const leaves = [{ type: "cover" }, { type: "intro" }, { type: "blank" }];
+  spreads.forEach((_, i) => { leaves.push({ type: "stopL", i }); leaves.push({ type: "stopR", i }); });
+  leaves.push({ type: "final" });
+  leaves.push({ type: "back" });
+  const { w, h } = dimsOf(ctx.size.trim);
+  let H = 430, W = Math.round(H * w / h);
+  const MAXW = 270; if (W > MAXW) { W = MAXW; H = Math.round(MAXW * h / w); }
+  // Jump when the Contents rail changes the section.
+  useEffect(() => {
+    const api = flipRef.current && flipRef.current.pageFlip && flipRef.current.pageFlip();
+    if (!api) return;
+    const target = sectionToLeaf(jumpTo, n);
+    if (api.getCurrentPageIndex() !== target) { lastNav.current = target; try { api.turnToPage(target); } catch {} }
+  }, [jumpTo, n]);
+  const onFlip = (e) => { const s = leafToSection(e.data, n); if (s !== jumpTo) onSection(s); };
+  return (
+    <div className="bs-flip-real">
+      <RealFlip flipRef={flipRef} width={W} height={H} size="fixed" minWidth={W} maxWidth={W} minHeight={H} maxHeight={H}
+        showCover drawShadow maxShadowOpacity={0.5} flippingTime={800} usePortrait={false} mobileScrollSupport useMouseEvents clickEventForward
+        startPage={sectionToLeaf(jumpTo, n)} onFlip={onFlip} className="pf-book" style={{}}>
+        {leaves.map((lf, i) => <LeafPage key={i} leaf={lf} ctx={ctx} />)}
+      </RealFlip>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 18 }}>
+        <button onClick={() => { const a = flipRef.current && flipRef.current.pageFlip(); a && a.flipPrev(); }} aria-label="Previous page"
+          style={{ cursor: "pointer", width: 36, height: 36, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "transparent", color: "var(--pb-ink)", fontFamily: "inherit" }}>‹</button>
+        <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Drag a corner, or tap the edge</span>
+        <button onClick={() => { const a = flipRef.current && flipRef.current.pageFlip(); a && a.flipNext(); }} aria-label="Next page"
+          style={{ cursor: "pointer", width: 36, height: 36, borderRadius: "50%", border: "1px solid var(--pb-line-strong)", background: "transparent", color: "var(--pb-ink)", fontFamily: "inherit" }}>›</button>
+      </div>
+    </div>
+  );
+}
+
 function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish, starts, coverImg }) {
   const reader = role === "reader";
   const [pv, setPv] = useState(0); // 0 cover · 1 intro · 2..n+1 stops · n+2 final
-  const total = n + 3;
-  const renderPage = (i) => <BookPage pv={i} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} cover={cover} finish={finish} size={size} starts={starts} />;
+  const flipCtx = { palette, size, spreads, book, coverImg, cover, finish, layout, starts, n };
   const toc = [["Cover", "—"], ["Introduction", "02"], ...spreads.map((s, i) => [s.name, String((starts || [])[i] || 3).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -2102,8 +2221,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
         </aside>
       )}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "40px 30px", overflowY: "auto" }}>
-        <FlipBook pv={pv} total={total} onChange={setPv} renderPage={renderPage} />
-        <Pager i={pv} n={total} onPrev={() => setPv((p) => Math.max(0, p - 1))} onNext={() => setPv((p) => Math.min(total - 1, p + 1))} dots />
+        <RealFlipBook n={n} spreads={spreads} ctx={flipCtx} jumpTo={pv} onSection={setPv} />
       </main>
       {!reader && (
         <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>

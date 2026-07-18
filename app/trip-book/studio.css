@@ -135,3 +135,16 @@
 @media (prefers-reduced-motion: reduce){
   .bs-leaf-out-fwd,.bs-leaf-in-fwd,.bs-leaf-out-back,.bs-leaf-in-back{ animation-duration:.001s; }
 }
+
+/* ── Realistic page-turn (StPageFlip / react-pageflip) ────────────────────────
+   The library draws the curl + shadows itself; we just centre the book and give
+   each leaf a hairline edge so the paper reads as a real page. */
+.bs-flip-real{ display:flex; flex-direction:column; align-items:center; }
+.pf-book{ margin:0 auto; }
+.pf-leaf{ box-sizing:border-box; overflow:hidden; }
+.pf-inner{ position:relative; width:100%; height:100%; overflow:hidden; }
+.pf-inner::after{ /* faint inner edge for depth */
+  content:""; position:absolute; inset:0; pointer-events:none;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+}
+.stpageflip-wrapper, .stf__wrapper{ margin:0 auto; }

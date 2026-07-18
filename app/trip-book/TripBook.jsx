@@ -1000,7 +1000,12 @@ export default function TripBook() {
   // URL string (url(${coverImg})), so extract .url. Passing the object printed
   // url([object Object]) and the cover showed nothing.
   const coverPick = mounted ? getCoverPick() : null;
-  const coverImg = (coverPick && coverPick.url) || (spreads.find((s) => s.userImg) || {}).userImg || null;
+  const userCover = (coverPick && coverPick.url) || (spreads.find((s) => s.userImg) || {}).userImg || null;
+  // With no photo of their own yet, the cover fell back to a flat green gradient, which
+  // made the book look empty. Pull a real licensed park photo for the first stop instead
+  // — the same fallback the interior pages already use (see SpreadPhoto).
+  const stockCover = usePhoto(userCover ? null : ((spreads[0] || {}).q || null));
+  const coverImg = userCover || stockCover || null;
   const custom = customCheck(customBase);
   const palette = pal === "custom"
     ? { key: "custom", name: "Custom " + normHex(customBase).toUpperCase(), base: normHex(customBase), ink: custom.ink || INK_LIGHT, accent: "#C9A24A" }

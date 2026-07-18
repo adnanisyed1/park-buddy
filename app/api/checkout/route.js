@@ -240,7 +240,10 @@ export async function POST(request) {
         // customer away mid-purchase. Stripe's hosted page CANNOT simply be iframed —
         // it detects framing and refuses to render (verified: the frame loads but never
         // paints). This is their supported way to do the same thing.
-        ? { ui_mode: "embedded", return_url: origin + "/trip-book?order=success&session={CHECKOUT_SESSION_ID}" }
+        //
+        // NOTE: the mode is `embedded_page`. Stripe retired the older `embedded` value and
+        // rejects it outright — the API error is the only place that says so.
+        ? { ui_mode: "embedded_page", return_url: origin + "/trip-book?order=success&session={CHECKOUT_SESSION_ID}" }
         : { success_url: origin + "/trip-book?order=success", cancel_url: origin + "/trip-book?order=cancel" }),
     });
     // Embedded gets a client secret to mount with; hosted gets a URL to send them to.

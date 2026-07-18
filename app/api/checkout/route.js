@@ -79,6 +79,7 @@ export async function POST(request) {
   const email = String(body.email || "").trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err("Enter a valid email address.");
   const qty = Math.max(1, Math.min(20, parseInt(body.quantity, 10) || 1));
+  const embedded = body.embedded === true;
 
   // SERVER-AUTHORITATIVE PRICING — the client's `price` is display only and is never
   // read here, so a spoofed body can't buy a hardcover for cents. Price is re-derived
@@ -234,10 +235,16 @@ export async function POST(request) {
       })),
       phone_number_collection: { enabled: true },
       metadata: { trip_title: title, theme, size, quantity: String(qty), price_basis: priceBasis, binding: conf.cover, ...fulfillMeta },
-      success_url: origin + "/trip-book?order=success",
-      cancel_url: origin + "/trip-book?order=cancel",
+      ...(embedded
+        // Embedded mode keeps Stripe inside our own modal instead of navigating the
+        // customer away mid-purchase. Stripe's hosted page CANNOT simply be iframed —
+        // it detects framing and refuses to render (verified: the frame loads but never
+        // paints). This is their supported way to do the same thing.
+        ? { ui_mode: "embedded", return_url: origin + "/trip-book?order=success&session={CHECKOUT_SESSION_ID}" }
+        : { success_url: origin + "/trip-book?order=success", cancel_url: origin + "/trip-book?order=cancel" }),
     });
-    return Response.json({ url: session.url });
+    // Embedded gets a client secret to mount with; hosted gets a URL to send them to.
+    return Response.json(embedded ? { clientSecret: session.client_secret } : { url: session.url });
   } catch (e) {
     return err("Couldn't start checkout" + (e && e.message ? ": " + e.message : "."), 502);
   }

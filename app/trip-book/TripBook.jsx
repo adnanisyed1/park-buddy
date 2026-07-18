@@ -2748,6 +2748,8 @@ function ReserveModal({ data, onClose }) {
   const [note, setNote] = useState("");
   const [agree, setAgree] = useState(false);
   const [proofSeen, setProofSeen] = useState(false);
+  const [embedSecret, setEmbedSecret] = useState("");   // set → Stripe renders in-modal
+  const embedRef = useRef(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const priceNum = parseFloat(String(data.price).replace(/[^0-9.]/g, "")) || 0;
@@ -2758,6 +2760,28 @@ function ReserveModal({ data, onClose }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Hand the client secret to Stripe and let it paint inside our modal.
+  const onEmbed = async (clientSecret) => {
+    setEmbedSecret(clientSecret);
+    try {
+      const Stripe = await loadStripeJs();
+      const stripe = Stripe(STRIPE_PK);
+      const checkout = await stripe.initEmbeddedCheckout({ clientSecret });
+      // The node only exists once React has rendered the panel below.
+      setTimeout(() => { if (embedRef.current) checkout.mount(embedRef.current); }, 0);
+    } catch (e) {
+      // Couldn't paint it — don't strand them mid-purchase, send them to the hosted page.
+      setEmbedSecret("");
+      setStatus("idle");
+      setError("Opening secure checkout…");
+      try {
+        const r = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, email, quantity: qty }) });
+        const d = await r.json();
+        if (d.url) window.location.href = d.url;
+      } catch { setError("Couldn't open checkout — please try again."); }
+    }
+  };
 
   const submit = async () => {
     setError("");
@@ -2776,6 +2800,21 @@ function ReserveModal({ data, onClose }) {
     });
     let reserved = false;
     try { const r = await fetch("/api/book-order", { method: "POST", headers, body: payload }); const d = await r.json().catch(() => ({})); reserved = r.ok && d.ok; } catch {}
+    // Prefer keeping the customer here: Stripe renders inside our own modal rather than
+    // navigating away at the moment of buying. Falls back to the hosted page whenever
+    // that isn't possible (no publishable key, Stripe.js blocked), because a working
+    // redirect beats a broken embed.
+    if (STRIPE_PK) {
+      try {
+        const r = await fetch("/api/checkout", {
+          method: "POST", headers,
+          body: JSON.stringify({ ...JSON.parse(payload), embedded: true }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d.clientSecret) { onEmbed(d.clientSecret); return; }
+        if (!r.ok && d.error) { setStatus("idle"); setError(d.error); return; }
+      } catch { /* fall through to the hosted page */ }
+    }
     try {
       const r = await fetch("/api/checkout", { method: "POST", headers, body: payload });
       const d = await r.json().catch(() => ({}));
@@ -2816,6 +2855,15 @@ function ReserveModal({ data, onClose }) {
             <div className="tbres-field"><label>Note (optional)</label><textarea className="tbres-ta" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything you'd like us to know" /></div>
             <p className="tbres-note">Only your own photos are printed — any stop you didn&rsquo;t photograph becomes a clean, designed page (we don&rsquo;t print stock photos in your book).</p>
             <p className="tbres-note">Made to order: misprinted or damaged books are replaced or refunded. Because each is custom-printed, change-of-mind returns aren&rsquo;t possible once printing starts. See our <a href="/terms" target="_blank" rel="noopener" style={{ color: "var(--pb-gold,#c9a35f)", textDecoration: "underline" }}>full terms</a>.</p>
+            {embedSecret ? (
+              <div>
+                <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", margin: "0 0 10px" }}>
+                  Secure payment — you&rsquo;re still on Park Buddy.
+                </div>
+                <div ref={embedRef} style={{ minHeight: 420 }} />
+              </div>
+            ) : null}
+            <div style={{ display: embedSecret ? "none" : "block" }}>
             <ProofStep data={data} onViewed={() => setProofSeen(true)} seen={proofSeen} />
             <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "6px 0 2px", cursor: "pointer", fontSize: ".82rem", lineHeight: 1.45 }}>
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2, flex: "none", accentColor: "#c9a35f", width: 16, height: 16 }} />
@@ -2825,6 +2873,7 @@ function ReserveModal({ data, onClose }) {
             <div className="tbres-actions">
               <button className="tbres-btn" disabled={status === "sending" || !agree} onClick={submit}>{status === "sending" ? "Working…" : "Checkout"}</button>
               <button className="tbres-cancel" onClick={onClose}>Cancel</button>
+            </div>
             </div>
           </>
         )}
@@ -2843,6 +2892,25 @@ function ReserveModal({ data, onClose }) {
    letters missing — the printer validates trim and bleed, not whether words are
    intact. A person looking at the real file is the only check that catches that,
    and the person who cares most is the customer. */
+// Stripe.js must be loaded from Stripe's own domain — that requirement is what makes the
+// embedded checkout PCI-safe, and it's why there's no npm package doing the real work.
+let _stripeJs = null;
+function loadStripeJs() {
+  if (_stripeJs) return _stripeJs;
+  _stripeJs = new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return reject(new Error("no window"));
+    if (window.Stripe) return resolve(window.Stripe);
+    const s = document.createElement("script");
+    s.src = "https://js.stripe.com/v3/";
+    s.async = true;
+    s.onload = () => (window.Stripe ? resolve(window.Stripe) : reject(new Error("Stripe.js didn't initialise")));
+    s.onerror = () => reject(new Error("Couldn't load Stripe.js"));
+    document.head.appendChild(s);
+  });
+  return _stripeJs;
+}
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+
 function ProofStep({ data, onViewed, seen }) {
   const [state, setState] = useState("idle");   // idle | building | ready | error
   const [err, setErr] = useState("");

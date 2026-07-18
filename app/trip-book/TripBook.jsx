@@ -26,6 +26,7 @@ import {
 // Book photos take the PRINT path, not Trip Mode's 1280px snapshot path — see
 // lib/bookPhoto.js for why that distinction matters.
 import { uploadBookPhoto, slotInches, resVerdict } from "../lib/bookPhoto";
+import { quote as quoteBook, unavailableReason } from "../lib/bookPricing";
 
 const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
 const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
@@ -137,35 +138,37 @@ const ORIENTS = [
   { key: "square", name: "Square", note: "A classic, shelf-ready keepsake." },
   { key: "portrait", name: "Portrait", note: "Tall pages, books & references." },
 ];
-// `mult` scales the per-page rate by trim area (bigger paper costs more per leaf).
+// Trim sizes. Pricing lives in app/lib/bookPricing.js — deliberately no per-size
+// multiplier here: measurement showed all 14 trims collapse into just two Lulu rate tiers.
 const SIZES = [
   // Square
-  { key: "sq-s", orient: "square", tag: "S", dim: '7.5 × 7.5"', name: 'Small Square · 7.5 × 7.5"', trim: "0750X0750", mult: 0.95 },
-  { key: "sq", orient: "square", tag: "M", dim: '8.5 × 8.5"', name: 'Square · 8.5 × 8.5"', trim: "0850X0850", mult: 1.1 },
+  { key: "sq-s", orient: "square", tag: "S", dim: '7.5 × 7.5"', name: 'Small Square · 7.5 × 7.5"', trim: "0750X0750" },
+  { key: "sq", orient: "square", tag: "M", dim: '8.5 × 8.5"', name: 'Square · 8.5 × 8.5"', trim: "0850X0850" },
   // Landscape
-  { key: "land-s", orient: "landscape", tag: "S", dim: '9 × 7"', name: 'Small Landscape · 9 × 7"', trim: "0900X0700", mult: 1.0 },
-  { key: "land-l", orient: "landscape", tag: "L", dim: '11 × 8.5"', name: 'US Letter Landscape · 11 × 8.5"', trim: "1100X0850", mult: 1.3 },
+  { key: "land-s", orient: "landscape", tag: "S", dim: '9 × 7"', name: 'Small Landscape · 9 × 7"', trim: "0900X0700" },
+  { key: "land-l", orient: "landscape", tag: "L", dim: '11 × 8.5"', name: 'US Letter Landscape · 11 × 8.5"', trim: "1100X0850" },
   // Portrait — Lulu's full standard set
-  { key: "pocket", orient: "portrait", tag: "XS", dim: '4.25 × 6.87"', name: 'Pocket Book · 4.25 × 6.87"', trim: "0425X0687", mult: 0.7 },
-  { key: "digest", orient: "portrait", tag: "S", dim: '5.5 × 8.5"', name: 'Digest · 5.5 × 8.5"', trim: "0550X0850", mult: 0.82 },
-  { key: "a5", orient: "portrait", tag: "S", dim: '5.83 × 8.27"', name: 'A5 · 5.83 × 8.27"', trim: "0583X0827", mult: 0.84 },
-  { key: "trade", orient: "portrait", tag: "M", dim: '6 × 9"', name: 'US Trade · 6 × 9"', trim: "0600X0900", mult: 0.9 },
-  { key: "royal", orient: "portrait", tag: "M", dim: '6.14 × 9.21"', name: 'Royal · 6.14 × 9.21"', trim: "0614X0921", mult: 0.95 },
-  { key: "exec", orient: "portrait", tag: "M", dim: '7 × 10"', name: 'Executive · 7 × 10"', trim: "0700X1000", mult: 1.0 },
-  { key: "crown", orient: "portrait", tag: "M", dim: '7.44 × 9.68"', name: 'Crown Quarto · 7.44 × 9.68"', trim: "0744X0968", mult: 1.05 },
-  { key: "comic", orient: "portrait", tag: "M", dim: '6.63 × 10.25"', name: 'Comic · 6.63 × 10.25"', trim: "0663X1025", mult: 1.0 },
-  { key: "a4", orient: "portrait", tag: "L", dim: '8.27 × 11.69"', name: 'A4 · 8.27 × 11.69"', trim: "0827X1169", mult: 1.3 },
-  { key: "letter", orient: "portrait", tag: "L", dim: '8.5 × 11"', name: 'US Letter · 8.5 × 11"', trim: "0850X1100", mult: 1.3 },
+  { key: "pocket", orient: "portrait", tag: "XS", dim: '4.25 × 6.87"', name: 'Pocket Book · 4.25 × 6.87"', trim: "0425X0687" },
+  { key: "digest", orient: "portrait", tag: "S", dim: '5.5 × 8.5"', name: 'Digest · 5.5 × 8.5"', trim: "0550X0850" },
+  { key: "a5", orient: "portrait", tag: "S", dim: '5.83 × 8.27"', name: 'A5 · 5.83 × 8.27"', trim: "0583X0827" },
+  { key: "trade", orient: "portrait", tag: "M", dim: '6 × 9"', name: 'US Trade · 6 × 9"', trim: "0600X0900" },
+  { key: "royal", orient: "portrait", tag: "M", dim: '6.14 × 9.21"', name: 'Royal · 6.14 × 9.21"', trim: "0614X0921" },
+  { key: "exec", orient: "portrait", tag: "M", dim: '7 × 10"', name: 'Executive · 7 × 10"', trim: "0700X1000" },
+  { key: "crown", orient: "portrait", tag: "M", dim: '7.44 × 9.68"', name: 'Crown Quarto · 7.44 × 9.68"', trim: "0744X0968" },
+  { key: "comic", orient: "portrait", tag: "M", dim: '6.63 × 10.25"', name: 'Comic · 6.63 × 10.25"', trim: "0663X1025" },
+  { key: "a4", orient: "portrait", tag: "L", dim: '8.27 × 11.69"', name: 'A4 · 8.27 × 11.69"', trim: "0827X1169" },
+  { key: "letter", orient: "portrait", tag: "L", dim: '8.5 × 11"', name: 'US Letter · 8.5 × 11"', trim: "0850X1100" },
 ];
 const sizesForOrient = (o) => SIZES.filter((s) => s.orient === o);
-// Bindings — Lulu's real set, with each binding's true page range. `base` is the
-// per-book retail base; the running price adds the per-page rate × page count.
+// Bindings — Lulu's real set, with each binding's true page range. Cost lives in
+// app/lib/bookPricing.js (binding is a pure fixed cost; the per-page rate is identical
+// across all four).
 const COVERS = [
-  { key: "paperback", name: "Paperback", bind: "PB", base: 7, min: 32, max: 800, guide: "Economy", note: "Perfect-bound softcover — the most affordable.", detail: "Perfect binding: the pages are glued into a wraparound softcover with a matte or gloss laminate. Lulu's most economical option. Prints 32–800 pages." },
-  { key: "saddle", name: "Saddle Stitch", bind: "SS", base: 6, min: 4, max: 48, guide: "Slim", note: "Folded & stapled — best for short books.", detail: "Sheets are folded and stapled through the spine, like a magazine. Ideal for slim books. Prints 4–48 pages." },
-  { key: "coil", name: "Coil Bound", bind: "CO", base: 11, min: 3, max: 470, guide: "Lay-flat", note: "Spiral coil — opens completely flat.", detail: "A durable plastic spiral coil binds the pages, so the book lies completely flat when open. Prints 3–470 pages." },
-  { key: "casewrap", name: "Hardcover", bind: "CW", base: 17, min: 24, max: 800, guide: "Most popular", note: "Rigid cover, your photo printed edge-to-edge.", detail: "Casewrap: your artwork is printed edge-to-edge and laminated onto rigid boards — a classic photo hardcover. Prints 24–800 pages." },
-  { key: "linen", name: "Linen + Foil", bind: "LW", base: 32, min: 24, max: 800, guide: "Luxe", note: "Cloth-wrapped hardcover with a foil-stamped spine.", detail: "A cloth-wrapped hardcover with a foil-stamped spine and a printed dust jacket. Choose the linen colour and foil below. Prints 24–800 pages." },
+  { key: "paperback", name: "Paperback", bind: "PB", min: 32, max: 800, guide: "Economy", note: "Perfect-bound softcover — the most affordable.", detail: "Perfect binding: the pages are glued into a wraparound softcover with a matte or gloss laminate. Lulu's most economical option. Prints 32–800 pages." },
+  { key: "saddle", name: "Saddle Stitch", bind: "SS", min: 4, max: 48, guide: "Slim", note: "Folded & stapled — best for short books.", detail: "Sheets are folded and stapled through the spine, like a magazine. Ideal for slim books. Prints 4–48 pages." },
+  { key: "coil", name: "Coil Bound", bind: "CO", min: 3, max: 470, guide: "Lay-flat", note: "Spiral coil — opens completely flat.", detail: "A durable plastic spiral coil binds the pages, so the book lies completely flat when open. Prints 3–470 pages." },
+  { key: "casewrap", name: "Hardcover", bind: "CW", min: 24, max: 800, guide: "Most popular", note: "Rigid cover, your photo printed edge-to-edge.", detail: "Casewrap: your artwork is printed edge-to-edge and laminated onto rigid boards — a classic photo hardcover. Prints 24–800 pages." },
+  { key: "linen", name: "Linen + Foil", bind: "LW", min: 24, max: 800, guide: "Luxe", note: "Cloth-wrapped hardcover with a foil-stamped spine.", detail: "A cloth-wrapped hardcover with a foil-stamped spine and a printed dust jacket. Choose the linen colour and foil below. Prints 24–800 pages." },
 ];
 // Lulu's linen-wrap cloth colours (hardcover linen edition) + foil-stamp colours.
 const LINEN_COLORS = [
@@ -181,28 +184,63 @@ const FOILS = [
   { key: "silver", name: "Silver foil", code: "S", hex: "#c9ccd1" },
   { key: "white", name: "White foil", code: "W", hex: "#f2efe6" },
 ];
-// Interior ink — Lulu's four options; perPage is the retail per-leaf rate.
+// Interior ink — Lulu's four options. This is the biggest price lever by far:
+// premium colour costs about 5x standard B&W per page (see app/lib/bookPricing.js).
 const INKS = [
-  { key: "fcpre", name: "Premium Color", code: "FC.PRE", perPage: 0.34, note: "Richest color — for photography.", detail: "Premium full colour on Lulu's brightest process — the richest, most accurate tones. The right choice for photography." },
-  { key: "fcstd", name: "Standard Color", code: "FC.STD", perPage: 0.18, note: "Everyday full color.", detail: "Standard full colour — vivid, everyday colour at a lower cost than Premium." },
-  { key: "bwpre", name: "Premium B&W", code: "BW.PRE", perPage: 0.06, note: "Crisp black & white.", detail: "Premium black & white — deep, crisp greys on the higher-quality press." },
-  { key: "bwstd", name: "Standard B&W", code: "BW.STD", perPage: 0.04, note: "Economical black & white.", detail: "Standard black & white — the most economical interior, ideal for text-led books." },
+  { key: "fcpre", name: "Premium Color", code: "FC.PRE", note: "Richest color — for photography.", detail: "Premium full colour on Lulu's brightest process — the richest, most accurate tones. The right choice for photography." },
+  { key: "fcstd", name: "Standard Color", code: "FC.STD", note: "Everyday full color.", detail: "Standard full colour — vivid, everyday colour at a lower cost than Premium." },
+  { key: "bwpre", name: "Premium B&W", code: "BW.PRE", note: "Crisp black & white.", detail: "Premium black & white — deep, crisp greys on the higher-quality press." },
+  { key: "bwstd", name: "Standard B&W", code: "BW.STD", note: "Economical black & white.", detail: "Standard black & white — the most economical interior, ideal for text-led books." },
 ];
-// Interior paper — Lulu's stocks; `add` is a small per-page premium for coated stock.
+// Interior paper — Lulu's stocks. Cream is black-&-white only; Lulu rejects it with
+// any colour ink.
 const PAPERS = [
-  { key: "coated", name: "80# Coated White", code: "080CW444", add: 0.03, note: "Bright, smooth photo stock — our default.", detail: "80# (118 gsm) coated white — a bright, smooth, ultra-opaque photo stock. Best for full-colour photography." },
-  { key: "white", name: "60# White", code: "060UW444", add: 0, note: "Versatile uncoated white.", detail: "60# (90 gsm) uncoated white — a versatile everyday sheet used in most books." },
-  { key: "cream", name: "60# Cream", code: "060UC444", add: 0, note: "Warm uncoated — classic for text.", detail: "60# (90 gsm) uncoated cream — a warm, low-glare sheet, the classic choice for novels and text." },
+  { key: "coated", name: "80# Coated White", code: "080CW444", note: "Bright, smooth photo stock — our default.", detail: "80# (118 gsm) coated white — a bright, smooth, ultra-opaque photo stock. Best for full-colour photography." },
+  { key: "white", name: "60# White", code: "060UW444", note: "Versatile uncoated white.", detail: "60# (90 gsm) uncoated white — a versatile everyday sheet used in most books." },
+  { key: "cream", name: "60# Cream", code: "060UC444", note: "Warm uncoated — classic for text.", detail: "60# (90 gsm) uncoated cream — a warm, low-glare sheet, the classic choice for novels and text." },
 ];
 const FINISHES = [
-  { key: "matte", name: "Matte", code: "M", add: 0, note: "Soft, glare-free — our default.", detail: "A soft, glare-free laminate over the cover — subtle and natural." },
-  { key: "gloss", name: "Gloss", code: "G", add: 0, note: "Punchy, high-shine color.", detail: "A high-shine laminate that makes cover colours pop." },
+  { key: "matte", name: "Matte", code: "M", note: "Soft, glare-free — our default.", detail: "A soft, glare-free laminate over the cover — subtle and natural." },
+  { key: "gloss", name: "Gloss", code: "G", note: "Punchy, high-shine color.", detail: "A high-shine laminate that makes cover colours pop." },
 ];
 const START_PAGES = [20, 32, 48, 60, 80];
-// The retail per-page rate = (ink + paper) scaled by trim area.
-const perPageRate = (size, ink, paper) => ((ink ? ink.perPage : 0.34) + (paper ? paper.add : 0)) * ((size && size.mult) || 1);
-// Full running price: binding base + pages × per-page rate.
-const bookPrice = (size, cover, ink, paper, pages) => Math.round((cover ? cover.base : 0) + pages * perPageRate(size, ink, paper));
+// Pricing comes from app/lib/bookPricing.js, whose every constant was measured against
+// Lulu's live cost API. The numbers that used to live here (a binding "base", a per-page
+// ink rate and a per-size multiplier) were invented, and they were wrong in ways that
+// mattered — they priced saddle stitch below what Lulu charges, so every one of those
+// books lost money. Don't reintroduce a local price formula.
+const priceCfg = (size, cover, ink, paper, finish, pages) => ({
+  size: size && size.key, cover: cover && cover.key, ink: ink && ink.key,
+  paper: paper && paper.key, finish: finish && finish.key, pages,
+});
+const bookQuote = (size, cover, ink, paper, finish, pages) => quoteBook(priceCfg(size, cover, ink, paper, finish, pages));
+const bookPrice = (size, cover, ink, paper, finish, pages) => {
+  const q = bookQuote(size, cover, ink, paper, finish, pages);
+  return q.available ? q.bookPrice : null;
+};
+// Ask the server for Lulu's real quote for this exact configuration. The measured model
+// already renders instantly, so this only ever refines a number that's on screen — which is
+// why it debounces rather than blocking, and why a failure just leaves the model's price up.
+function useLiveQuote(cfg) {
+  const [live, setLive] = useState(null);
+  const key = JSON.stringify(cfg);
+  useEffect(() => {
+    let cancelled = false;
+    setLive(null);                       // don't show the last config's price against this one
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch("/api/book-price", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: key,
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!cancelled && d && (d.available || d.reason)) setLive(d);
+      } catch { /* offline or rate-limited — the measured model's price stands */ }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [key]);
+  return live;
+}
 // Each binding has a real Lulu page floor; the quote pads only up to it (or the
 // customer's chosen starting length, whichever is larger).
 const bindMinPages = (coverKey) => { const c = COVERS.find((x) => x.key === coverKey); return c ? c.min : 24; };
@@ -1033,8 +1071,15 @@ export default function TripBook() {
   // customer's chosen starting length (whichever is larger).
   const { starts, total: rawPages } = paginate(spreads, mounted, Math.max(bindMinPages(coverKey), startPages));
   const pages = Math.min(rawPages, cover.max);
-  const priceNum = bookPrice(size, cover, ink, paper, pages);
-  const price = "$" + priceNum;
+  // Instant price from the measured model, then refined by a live Lulu quote once it lands.
+  const localQuote = bookQuote(size, cover, ink, paper, finish, pages);
+  const liveQuote = useLiveQuote(priceCfg(size, cover, ink, paper, finish, pages));
+  const priceQuote = liveQuote || localQuote;
+  const priceNum = priceQuote.available ? priceQuote.bookPrice : null;
+  const price = priceNum == null ? "—" : "$" + priceNum + ".00";
+  // Shipping is quoted on top rather than folded into the sticker — it keeps the entry
+  // book near $16 instead of $22, and the customer pays the same either way.
+  const shipNote = priceQuote.available ? `+ $${(priceQuote.shipping || 0).toFixed(2)} shipping` : (priceQuote.reason || "");
 
   // -1 is the cover, so the pager runs cover → chapter 01 → … and wraps.
   const prev = () => setSel((s) => ((s + 1 - 1 + (n + 1)) % (n + 1)) - 1);
@@ -1074,8 +1119,8 @@ export default function TripBook() {
       <div style={{ background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: sans, paddingTop: 90,
         ...(isPhone ? { minHeight: "100vh" } : { height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }) }}>
         {isPhone
-          ? <MobilePhone {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
-          : <Desktop {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} openReserve={openReserve} />}
+          ? <MobilePhone {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} shipNote={shipNote} priceQuote={priceQuote} openReserve={openReserve} mobilePage={mobilePage} setMobilePage={setMobilePage} toolsOpen={toolsOpen} setToolsOpen={setToolsOpen} />
+          : <Desktop {...commonProps} {...fmtProps} step={step} setStep={setStep} setRole={setRole} layout={layout} setLayoutKey={setLayoutKey} pal={pal} setPal={setPal} palette={palette} isLightPal={isLightPal} pages={pages} price={price} shipNote={shipNote} priceQuote={priceQuote} openReserve={openReserve} />}
       </div>
       {reserve && <ReserveModal data={reserve} onClose={() => setReserve(null)} />}
       {manageOpen && <ManageStops spreads={spreads} onClose={() => setManageOpen(false)} />}
@@ -1114,7 +1159,7 @@ function TopBar({ step, setStep, role, setRole, price, pages }) {
         {price && (
           <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
             <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" }}>{pages} pages</span>
-            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1rem", color: "var(--pb-gold)" }}>{price}.00</span>
+            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1rem", color: "var(--pb-gold)" }}>{price}</span>
           </div>
         )}
         <RoleToggle role={role} setRole={setRole} />
@@ -1786,12 +1831,23 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
   const orient = size.orient;
   const pickOrient = (o) => { const list = sizesForOrient(o); const same = list.find((s) => s.tag === size.tag); setSizeKey((same || list[0]).key); };
   const quotePages = Math.max(cover.min, startPages);            // pages the "from" quote assumes
-  const priceOf = (sz) => bookPrice(sz, cover, ink, paper, quotePages);
-  const perPage = perPageRate(size, ink, paper);                 // shown so pricing is "per page"
+  const priceOf = (sz) => bookPrice(sz, cover, ink, paper, finish, quotePages);
+  // Cost of one more leaf, straight from the measured model — two page counts, one apart.
+  const perPage = (() => {
+    const a = quoteBook(priceCfg(size, cover, ink, paper, finish, quotePages));
+    const b = quoteBook(priceCfg(size, cover, ink, paper, finish, quotePages + 1));
+    return a.available && b.available ? b.print - a.print : 0;
+  })();
   // VALIDATION — the content the itinerary needs (cover + intro + 2/stop + close, even),
   // used to disable any binding whose Lulu page-range can't hold it.
   const contentPages = (() => { let t = 3 + n * 2 + 1; if (t % 2) t++; return t; })();
-  const fits = (c) => contentPages <= c.max;
+  // A binding is offerable only if Lulu will actually print it with the chosen ink and
+  // paper — page range alone isn't enough. Saddle stitch refuses standard colour, and
+  // cream paper refuses any colour ink; both were 400s from Lulu's catalogue.
+  const blockedReason = (c) =>
+    unavailableReason({ size: size.key, cover: c.key, ink: ink.key, paper: paper.key, pages: Math.max(c.min, Math.min(contentPages, c.max)) })
+    || (contentPages > c.max ? `Your book is ${contentPages} pages — this binding tops out at ${c.max}.` : null);
+  const fits = (c) => !blockedReason(c);
   const [info, setInfo] = useState("");
   const Eb = ({ children }) => <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "0 0 8px" }}>{children}</div>;
   const InfoBtn = ({ k }) => (
@@ -1819,12 +1875,16 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
     <>
       <Eb>Book type</Eb>
       <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
-        {COVERS.map((c) => (
-          <OptCard key={c.key} id={"bind:" + c.key} active={c.key === coverKey} disabled={!fits(c)}
-            onPick={() => setCoverKey(c.key)} name={c.name} guide={c.guide}
-            meta={fits(c) ? `from $${bookPrice(size, c, ink, paper, Math.max(c.min, startPages))} · ${c.min}–${c.max} pages` : `max ${c.max} pages — book too long`}
-            detail={c.detail} />
-        ))}
+        {COVERS.map((c) => {
+          const blocked = blockedReason(c);
+          const from = blocked ? null : bookPrice(size, c, ink, paper, finish, Math.max(c.min, startPages));
+          return (
+            <OptCard key={c.key} id={"bind:" + c.key} active={c.key === coverKey} disabled={!!blocked}
+              onPick={() => setCoverKey(c.key)} name={c.name} guide={c.guide}
+              meta={blocked || (from == null ? `${c.min}–${c.max} pages` : `from $${from} · ${c.min}–${c.max} pages`)}
+              detail={c.detail} />
+          );
+        })}
       </div>
 
       <Eb>Orientation</Eb>
@@ -1844,13 +1904,14 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
       <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
         {sizesForOrient(orient).map((s) => {
           const on = s.key === sizeKey;
+          const p = priceOf(s);
           return (
             <button key={s.key} className="bs-stopcard" onClick={() => setSizeKey(s.key)}
               style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 11, background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 12px" }}>
               <span aria-hidden style={{ flex: "0 0 26px", width: 26, height: 26, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontWeight: 700, fontSize: ".7rem", color: on ? "var(--pb-gold)" : "var(--pb-ink-2)", background: "var(--pb-tint)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line-strong)") }}>{s.tag}</span>
               <span style={{ flex: 1 }}>
                 <span style={{ display: "block", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)" }}>{s.dim}</span>
-                <span style={{ display: "block", fontSize: ".64rem", color: "var(--pb-muted)" }}>from ${priceOf(s)}</span>
+                <span style={{ display: "block", fontSize: ".64rem", color: "var(--pb-muted)" }}>{p == null ? "not available in this combination" : `from $${p}`}</span>
               </span>
             </button>
           );
@@ -1916,7 +1977,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
         })}
       </div>
       <div style={{ fontSize: ".64rem", color: "var(--pb-muted)", lineHeight: 1.5, marginBottom: 20 }}>
-        <b style={{ color: "var(--pb-ink-2)" }}>${perPage.toFixed(2)}/page</b> at this size &amp; paper. {cover.name} prints {cover.min}–{cover.max} pages — add or remove pages any time in the Diary.
+        Each extra page costs <b style={{ color: "var(--pb-ink-2)" }}>{perPage < 0.01 ? "under a cent" : "$" + perPage.toFixed(2)}</b> to print on {paper.name.toLowerCase()} in {ink.name.toLowerCase()}. {cover.name} prints {cover.min}–{cover.max} pages — add or remove pages any time in the Diary.
       </div>
 
       {cover.key !== "linen" && (
@@ -1943,7 +2004,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
    count and finish — the choices customers know from a photo-book product page. Every
    pick drives the live cover preview and the running price, and "Start your book" moves
    on to the Diary. */
-function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, palette, layout, coverImg, price, setStep, role, n }) {
+function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, palette, layout, coverImg, price, shipNote, priceQuote, setStep, role, n }) {
   const reader = role === "reader";
   const orient = size.orient;
   return (
@@ -1972,12 +2033,16 @@ function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCov
           <Eyebrow>Your Edition</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", margin: "6px 0 18px" }}>{cover.name}</h3>
           <SummaryRows rows={[["Type", cover.name], ["Size", size.dim], ["Color", ink.name], ["Paper", paper.name.replace(/#/, "# ")], ["Starts at", Math.max(cover.min, startPages) + " pages"], ["Finish", cover.key === "linen" ? "Matte linen" : finish.name]]} />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
-            <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>From</span>
-            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}.00</span>
+          <div style={{ borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>From</span>
+              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}</span>
+            </div>
+            {shipNote && <div style={{ textAlign: "right", fontSize: ".64rem", color: "var(--pb-muted)", marginTop: 2 }}>{shipNote}</div>}
           </div>
-          <button onClick={() => setStep("diary")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Start your book →</button>
-          <div style={{ textAlign: "center", fontFamily: mono, fontSize: ".56rem", letterSpacing: ".04em", color: "var(--pb-muted)", marginTop: 10 }}>Final total is confirmed at checkout</div>
+          <button onClick={() => setStep("diary")} disabled={!priceQuote || !priceQuote.available}
+            style={{ cursor: priceQuote && priceQuote.available ? "pointer" : "not-allowed", opacity: priceQuote && priceQuote.available ? 1 : .5, width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Start your book →</button>
+          <div style={{ textAlign: "center", fontFamily: mono, fontSize: ".56rem", letterSpacing: ".04em", color: "var(--pb-muted)", marginTop: 10 }}>Shipping &amp; tax confirmed at checkout</div>
         </aside>
       )}
     </div>
@@ -2012,7 +2077,7 @@ function ThemeDesktop({ book, spreads, layout, setLayoutKey, pal, setPal, palett
           <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Finish", cover.key === "linen" ? "Matte linen" : finish.name], ["Theme", palette.name], ["Cover art", layout.name]]} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
             <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Est. total</span>
-            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: "var(--pb-gold)" }}>{price}.00</span>
+            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: "var(--pb-gold)" }}>{price}</span>
           </div>
           {cover.key === "linen" && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
@@ -2371,7 +2436,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
           <SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Pages", pages + " Pages"], ["Theme", palette.name], ["Stops Included", n + " Stops"]]} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", margin: "16px 0", paddingTop: 14 }}>
             <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Total Price</span>
-            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}.00</span>
+            <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}</span>
           </div>
           <button onClick={openReserve} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Order Book</button>
           <div style={{ textAlign: "center", fontFamily: mono, fontSize: ".56rem", letterSpacing: ".04em", color: "var(--pb-muted)", marginTop: 10 }}>Secured by Stripe · Lulu Print-on-Demand</div>
@@ -2407,7 +2472,7 @@ function MobilePhone(props) {
             {role === "author" && <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} linenColor={linenColor} linenKey={linenKey} setLinenKey={setLinenKey} foil={foil} foilKey={foilKey} setFoilKey={setFoilKey} startPages={startPages} setStartPages={setStartPages} n={n} />}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
               <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>From</span>
-              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}.00</span>
+              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}</span>
             </div>
             <button onClick={() => setStep("diary")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Start your book →</button>
           </>
@@ -2489,7 +2554,7 @@ function MobilePhone(props) {
             <div style={{ height: 22 }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
               <span style={{ fontSize: ".85rem", color: "var(--pb-ink)" }}>Est. total</span>
-              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}.00</span>
+              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.3rem", color: "var(--pb-gold)" }}>{price}</span>
             </div>
             <button onClick={() => setStep("preview")} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Preview Book →</button>
           </>
@@ -2506,7 +2571,7 @@ function MobilePhone(props) {
               <div style={{ margin: "12px 0" }}><SummaryRows rows={[["Size", size.name.replace("·", "").replace(/\s+/g, " ").trim()], ["Cover", cover.name], ["Pages", pages + " Pages"], ["Stops", n + " Stops"]]} /></div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid var(--pb-line)", paddingTop: 12 }}>
                 <span style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>Total</span>
-                <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: "var(--pb-gold)" }}>{price}.00</span>
+                <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.4rem", color: "var(--pb-gold)" }}>{price}</span>
               </div>
             </div>
             <button onClick={openReserve} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "14px", marginTop: 14 }}>Order Book</button>

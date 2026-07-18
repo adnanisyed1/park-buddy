@@ -1014,7 +1014,7 @@ export default function TripBook() {
 
   const openReserve = () => setReserve({
     theme: palette.name, size: sizeName, price, title: book.title, dates: "", dedication: "",
-    pages, stops: n, cover: cover.name, finish: finish.name, sku,
+    pages, stops: n, cover: cover.name, finish: finish.name, color: ink.name, paper: paper.name, sku,
     entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
   });
 
@@ -1748,6 +1748,41 @@ function StopTools({ spread, onNext, size, onAddPage }) {
   );
 }
 
+/* A 3D mockup of how the physical book will actually print — our OWN render (no
+   third-party product photos), so it's legally clean AND shows the customer's real
+   cover on the real binding. Thickness follows the page count; the spine changes with
+   the binding (linen cloth + foil, coil rings, thin saddle, board hardcover). */
+function BookMockup({ size, cover, palette, coverImg, layout, book, pages }) {
+  const { w, h } = dimsOf(size.trim);
+  let H = 300, W = Math.round(H * w / h);
+  const CAP = 250; if (W > CAP) { W = CAP; H = Math.round(CAP * h / w); }
+  const isLinen = cover.key === "linen", isCoil = cover.key === "coil", isSaddle = cover.key === "saddle";
+  const isHard = cover.key === "casewrap" || isLinen;
+  let d = Math.max(6, Math.min(40, Math.round((pages || 32) * 0.3)));
+  if (isSaddle) d = Math.max(4, Math.min(10, d));
+  if (isHard) d += 3;                              // boards add bulk
+  const ctx = { book, palette, coverImg, layout };
+  const paperEdge = "repeating-linear-gradient(0deg,#efe9dc 0 2px,#d8d0bf 2px 3px)";
+  const topEdge = "repeating-linear-gradient(90deg,#efe9dc 0 2px,#d8d0bf 2px 3px)";
+  const spineBg = isLinen ? "#1b2a20" : paperOf(palette);
+  const face = { position: "absolute", left: "50%", top: "50%" };
+  return (
+    <div style={{ perspective: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: "8px 0" }}>
+      <div style={{ position: "relative", width: W, height: H, transformStyle: "preserve-3d", transform: "rotateX(6deg) rotateY(-27deg)", filter: "drop-shadow(0 36px 42px rgba(0,0,0,.42))" }}>
+        <div style={{ ...face, width: W, height: d, background: topEdge, transform: `translate(-50%,-50%) rotateX(90deg) translateZ(${H / 2}px)` }} />
+        <div style={{ ...face, width: d, height: H, background: paperEdge, transform: `translate(-50%,-50%) rotateY(90deg) translateZ(${W / 2}px)` }} />
+        <div style={{ ...face, width: d, height: H, background: spineBg, overflow: "hidden", transform: `translate(-50%,-50%) rotateY(-90deg) translateZ(${W / 2}px)` }}>
+          {isCoil && <div className="bm-coil" />}
+          {isLinen && <div style={{ width: "100%", height: "100%", background: "linear-gradient(90deg,rgba(217,183,121,.55),rgba(217,183,121,.08))" }} />}
+        </div>
+        <div style={{ ...face, width: W, height: H, overflow: "hidden", borderRadius: isHard ? 3 : 1, boxShadow: isHard ? "0 0 0 1px rgba(0,0,0,.18)" : "none", transform: `translate(-50%,-50%) translateZ(${d / 2}px)` }}>
+          <CoverLeaf ctx={ctx} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // The Book Type selectors (orientation → size, binding tier, starting pages, finish),
 // shared by the desktop step rail and the mobile step so both stay in lock-step.
 function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, startPages, setStartPages, n }) {
@@ -1882,8 +1917,13 @@ function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCov
         </aside>
       )}
 
-      <main style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 30px" }}>
-        <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 30px", gap: 6 }}>
+        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-muted)", marginBottom: 4 }}>How it prints</div>
+        <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} />
+        <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 10, textAlign: "center" }}>
+          {size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages
+        </div>
+        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", textAlign: "center" }}>Printed to order by Lulu · shown to scale</div>
       </main>
 
       {!reader && (
@@ -2315,9 +2355,10 @@ function MobilePhone(props) {
         {step === "type" && (
           <>
             <Eyebrow>Select Book Type</Eyebrow>
-            <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Pick the shape and binding — change it any time before you order.</div>
-            <div style={{ display: "flex", justifyContent: "center", padding: "4px 0 20px" }}>
-              <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
+            <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option Lulu prints. Change it any time before you order.</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "4px 0 16px" }}>
+              <BookMockup size={size} cover={cover} palette={palette} coverImg={coverImg} layout={layout} book={book} pages={Math.max(cover.min, startPages)} />
+              <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 10 }}>{size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages</div>
             </div>
             {role === "author" && <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} startPages={startPages} setStartPages={setStartPages} n={n} />}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "8px 0 14px" }}>
@@ -2633,7 +2674,9 @@ function ReserveModal({ data, onClose }) {
             <div className="tbres-sum">
               <span>Theme <b>{data.theme}</b></span>
               <span>Size <b>{data.size}</b></span>
-              <span>{data.cover || "Cover"} <b>{data.price}</b></span>
+              {data.color && <span>Color <b>{data.color}</b></span>}
+              {data.paper && <span>Paper <b>{data.paper}</b></span>}
+              <span>{data.pages} pages <b>{data.price}</b></span>
             </div>
             <div className="tbres-total"><span>Est. total</span><b>{total}</b></div>
             <div className="tbres-field"><label>Your name</label><input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Rivera" /></div>

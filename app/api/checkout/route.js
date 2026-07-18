@@ -204,7 +204,11 @@ export async function POST(request) {
           product_data: { name: "Trip Book — " + title, description: [size, theme, conf.pages + " pages"].filter(Boolean).join(" · ") },
         },
       }],
-      shipping_address_collection: { allowed_countries: ["US", "CA"] },
+      // US ONLY. Canada was accepted here and quietly lost money: Lulu bills $10.92 to
+      // ship there against the $5.69 we collect, so a Canadian order earned ~$3.30
+      // instead of ~$10 (measured Toronto/Vancouver/Halifax/Whitehorse — all $10.90+).
+      // Re-opening Canada means charging its real shipping, not just adding "CA" back.
+      shipping_address_collection: { allowed_countries: ["US"] },
       phone_number_collection: { enabled: true },
       metadata: { trip_title: title, theme, size, quantity: String(qty), price_basis: priceBasis, binding: conf.cover, ...fulfillMeta },
       success_url: origin + "/trip-book?order=success",

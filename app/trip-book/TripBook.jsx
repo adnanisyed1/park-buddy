@@ -2163,11 +2163,15 @@ const leafToSection = (p, n) => p <= 0 ? 0 : p <= 2 ? 1 : p >= 3 + 2 * n ? n + 2
 function RealFlipBook({ n, spreads, ctx, jumpTo, onSection }) {
   const flipRef = useRef(null);
   const lastNav = useRef(-1);
-  // Build the single-page sequence: cover · intro · blank · [stopL,stopR]* · final · back.
+  // Build the single-page sequence: cover · intro · blank · [stopL,stopR]* · final ·
+  // inside-back · back. The count must be EVEN so the hard back cover lands as a lone
+  // closing page (odd totals leave it paired with content and it never shuts).
   const leaves = [{ type: "cover" }, { type: "intro" }, { type: "blank" }];
   spreads.forEach((_, i) => { leaves.push({ type: "stopL", i }); leaves.push({ type: "stopR", i }); });
   leaves.push({ type: "final" });
+  leaves.push({ type: "blank" });  // inside back cover
   leaves.push({ type: "back" });
+  if (leaves.length % 2 === 1) leaves.splice(leaves.length - 1, 0, { type: "blank" }); // keep even
   const { w, h } = dimsOf(ctx.size.trim);
   let H = 430, W = Math.round(H * w / h);
   const MAXW = 270; if (W > MAXW) { W = MAXW; H = Math.round(MAXW * h / w); }
@@ -2182,7 +2186,7 @@ function RealFlipBook({ n, spreads, ctx, jumpTo, onSection }) {
   return (
     <div className="bs-flip-real">
       <RealFlip flipRef={flipRef} width={W} height={H} size="fixed" minWidth={W} maxWidth={W} minHeight={H} maxHeight={H}
-        showCover drawShadow maxShadowOpacity={0.5} flippingTime={800} usePortrait={false} mobileScrollSupport useMouseEvents clickEventForward
+        showCover drawShadow maxShadowOpacity={0.28} flippingTime={800} usePortrait={false} mobileScrollSupport useMouseEvents clickEventForward
         startPage={sectionToLeaf(jumpTo, n)} onFlip={onFlip} className="pf-book" style={{}}>
         {leaves.map((lf, i) => <LeafPage key={i} leaf={lf} ctx={ctx} />)}
       </RealFlip>

@@ -143,7 +143,9 @@
 .pf-book{ margin:0 auto; }
 .pf-leaf{ box-sizing:border-box; overflow:hidden; }
 .pf-inner{ position:relative; width:100%; height:100%; overflow:hidden; }
-.pf-inner::after{ /* faint inner edge for depth */
+/* faint inner edge for depth — soft interior pages only, never the hard covers
+   (the covers get their own shadow from StPageFlip; doubling it looked wrong). */
+.pf-leaf[data-density="soft"] .pf-inner::after{
   content:""; position:absolute; inset:0; pointer-events:none;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
 }

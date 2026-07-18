@@ -16,6 +16,9 @@ import "./studio.css"; // .tbres-* styles for the reservation modal
 // Realistic page-turn (curl + drag) — StPageFlip via react-pageflip. Browser-only, so
 // it's dynamically imported with ssr:false through the client wrapper.
 const RealFlip = dynamic(() => import("./RealFlip.client"), { ssr: false });
+// Figma-designed Lulu book renders (drop-in when assets + coords land; falls back to
+// the CSS mockup until then). See bookMockups.js.
+import { BOOK_MOCKUPS, MOCKUP_CANVAS, quadMatrix3d } from "./bookMockups";
 import SiteHeader from "../components/SiteHeader";
 import { useTheme } from "../lib/theme";
 import { getStops, getMeta, subscribeTrip, addStop, removeStop, moveStop } from "../lib/trip";
@@ -1773,7 +1776,40 @@ function StopTools({ spread, onNext, size, onAddPage }) {
    third-party product photos), so it's legally clean AND shows the customer's real
    cover on the real binding. Thickness follows the page count; the spine changes with
    the binding (linen cloth + foil, coil rings, thin saddle, board hardcover). */
-function BookMockup({ size, cover, palette, coverImg, layout, book, pages, linenColor, foil }) {
+// Chooses the Figma-designed render (with the customer's live cover warped into it)
+// when that binding+orientation asset exists, else the built-in CSS product shot.
+function BookMockup(props) {
+  const key = `${props.cover.key}-${props.size.orient}`;
+  const entry = BOOK_MOCKUPS[key];
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [key]);
+  if (entry && entry.quad && !failed) return <FigmaBookMockup {...props} entry={entry} onFail={() => setFailed(true)} />;
+  return <CssBookMockup {...props} />;
+}
+
+// The Figma render (transparent cover cut-out) laid over the customer's live cover,
+// which is perspective-warped into the render's cover hole via a homography matrix3d.
+function FigmaBookMockup({ entry, size, palette, coverImg, layout, book, onFail }) {
+  const DISP = 300;                     // on-screen size of the square render
+  const s = DISP / MOCKUP_CANVAS;
+  const quad = entry.quad.map(([x, y]) => [x * s, y * s]);
+  const { w, h } = dimsOf(size.trim);
+  const srcW = 640, srcH = Math.round(640 * h / w); // cover source at the real aspect
+  const m = quadMatrix3d(srcW, srcH, quad);
+  const ctx = { book, palette, coverImg, layout };
+  return (
+    <div style={{ display: "flex", justifyContent: "center", padding: "6px 0 20px" }}>
+      <div style={{ position: "relative", width: DISP, height: DISP }}>
+        <div style={{ position: "absolute", top: 0, left: 0, width: srcW, height: srcH, transform: `matrix3d(${m.join(",")})`, transformOrigin: "0 0", overflow: "hidden" }}>
+          <CoverLeaf ctx={ctx} />
+        </div>
+        <img src={entry.img} alt="" onError={onFail} style={{ position: "absolute", inset: 0, width: DISP, height: DISP, pointerEvents: "none" }} />
+      </div>
+    </div>
+  );
+}
+
+function CssBookMockup({ size, cover, palette, coverImg, layout, book, pages, linenColor, foil }) {
   const { w, h } = dimsOf(size.trim);
   let H = 320, W = Math.round(H * w / h);
   const CAP = 260; if (W > CAP) { W = CAP; H = Math.round(CAP * h / w); }

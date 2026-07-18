@@ -2309,9 +2309,11 @@ const LeafPage = forwardRef(function LeafPage({ leaf, ctx }, ref) {
   else inner = null; // blank
   // StPageFlip overwrites the leaf element's inline `style` with its own positioning,
   // so the palette paper + content live on an inner wrapper it never touches.
+  // A B&W interior prints the inside pages in grayscale; the cover stays colour.
+  const gray = ctx.bw && !hard;
   return (
     <div ref={ref} className="pf-leaf" data-density={hard ? "hard" : "soft"}>
-      <div className="pf-inner" style={{ background: paperOf(palette) }}>{inner}</div>
+      <div className="pf-inner" style={{ background: paperOf(palette), filter: gray ? "grayscale(1)" : "none" }}>{inner}</div>
     </div>
   );
 });
@@ -2360,10 +2362,11 @@ function RealFlipBook({ n, spreads, ctx, jumpTo, onSection }) {
   );
 }
 
-function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish, starts, coverImg }) {
+function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish, ink, starts, coverImg }) {
   const reader = role === "reader";
   const [pv, setPv] = useState(0); // 0 cover · 1 intro · 2..n+1 stops · n+2 final
-  const flipCtx = { palette, size, spreads, book, coverImg, cover, finish, layout, starts, n };
+  const bw = !!(ink && String(ink.key).startsWith("bw")); // B&W interior → grayscale the pages
+  const flipCtx = { palette, size, spreads, book, coverImg, cover, finish, layout, starts, n, bw };
   const toc = [["Cover", "—"], ["Introduction", "02"], ...spreads.map((s, i) => [s.name, String((starts || [])[i] || 3).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>

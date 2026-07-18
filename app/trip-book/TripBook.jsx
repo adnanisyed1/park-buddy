@@ -1884,10 +1884,51 @@ function BookPage({ pv, n, spreads, book, palette, layout, coverImg, cover, fini
   );
 }
 
+/* Tap-to-turn page flip. `pv` is the source of truth (also set by the Contents rail);
+   whenever it changes, a leaf swings to edge-on at the spine, we swap in the new page,
+   then swing it back — two clean single-axis phases, so it reads as a real page turn
+   with no clipping or flicker. Controls disable mid-turn so it can't be interrupted. */
+function FlipBook({ pv, total, onChange, renderPage }) {
+  const [disp, setDisp] = useState(pv);
+  const [turn, setTurn] = useState(null); // { dir, to, phase }
+  const timers = useRef([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(() => {
+    if (pv === disp || turn) return;
+    const dir = pv > disp ? 1 : -1;
+    setTurn({ dir, to: pv, phase: 1 });
+    timers.current.push(setTimeout(() => {
+      setDisp(pv);
+      setTurn({ dir, to: pv, phase: 2 });
+      timers.current.push(setTimeout(() => setTurn(null), 380));
+    }, 340));
+  }, [pv, disp, turn]);
+  const go = (d) => { if (turn) return; const nx = disp + d; if (nx < 0 || nx >= total) return; onChange(nx); };
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+  const basePv = turn ? turn.to : disp;
+  const leafPv = turn ? (turn.phase === 1 ? disp : turn.to) : disp;
+  const leafCls = turn ? (turn.dir > 0
+    ? (turn.phase === 1 ? "bs-leaf-out-fwd" : "bs-leaf-in-fwd")
+    : (turn.phase === 1 ? "bs-leaf-out-back" : "bs-leaf-in-back")) : "";
+  return (
+    <div className="bs-flip">
+      <div className="bs-flip-base">{renderPage(basePv)}</div>
+      {turn && <div className={"bs-leaf " + leafCls}>{renderPage(leafPv)}<div className="bs-leaf-shade" /></div>}
+      <button className="bs-tap bs-tap-prev" disabled={!!turn || disp <= 0} onClick={() => go(-1)} aria-label="Previous page"><span className="bs-chev" aria-hidden>‹</span></button>
+      <button className="bs-tap bs-tap-next" disabled={!!turn || disp >= total - 1} onClick={() => go(1)} aria-label="Next page"><span className="bs-chev" aria-hidden>›</span></button>
+    </div>
+  );
+}
+
 function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palette, layout, pages, price, openReserve, role, size, cover, finish, starts, coverImg }) {
   const reader = role === "reader";
   const [pv, setPv] = useState(0); // 0 cover · 1 intro · 2..n+1 stops · n+2 final
   const total = n + 3;
+  const renderPage = (i) => <BookPage pv={i} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} cover={cover} finish={finish} size={size} starts={starts} />;
   const toc = [["Cover", "—"], ["Introduction", "02"], ...spreads.map((s, i) => [s.name, String((starts || [])[i] || 3).padStart(2, "0")]), ["Final Page", String(pages).padStart(2, "0")]];
   return (
     <div style={{ display: "grid", gridTemplateColumns: reader ? "1fr" : "300px 1fr 320px", flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -1908,8 +1949,8 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
         </aside>
       )}
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", padding: "40px 30px", overflowY: "auto" }}>
-        <BookPage pv={pv} n={n} spreads={spreads} book={book} palette={palette} layout={layout} coverImg={coverImg} cover={cover} finish={finish} size={size} starts={starts} />
-        <Pager i={pv} n={total} onPrev={() => setPv((p) => (p - 1 + total) % total)} onNext={() => setPv((p) => (p + 1) % total)} dots />
+        <FlipBook pv={pv} total={total} onChange={setPv} renderPage={renderPage} />
+        <Pager i={pv} n={total} onPrev={() => setPv((p) => Math.max(0, p - 1))} onNext={() => setPv((p) => Math.min(total - 1, p + 1))} dots />
       </main>
       {!reader && (
         <aside className="bs-rail" style={{ borderLeft: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>

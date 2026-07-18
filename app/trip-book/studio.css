@@ -93,3 +93,45 @@
 }
 .bs-rail::-webkit-scrollbar-thumb:hover{ background: var(--pb-muted); background-clip: content-box; }
 .bs-rail::-webkit-scrollbar-track{ background: transparent; }
+
+/* ── Page-turn (Preview flip-through) ─────────────────────────────────────────
+   A tap-to-turn like a real book: the current leaf swings to edge-on at the
+   spine, then the next leaf swings in. Two clean single-axis phases, so it
+   reads as a page turning with no clipping or flicker. Respects reduced motion. */
+.bs-flip{ position:relative; width:100%; display:flex; justify-content:center; perspective:2400px; perspective-origin:50% 42%; }
+.bs-flip-base{ width:100%; display:flex; justify-content:center; }
+.bs-leaf{
+  position:absolute; inset:0; display:flex; justify-content:center;
+  transform-origin:center center; backface-visibility:hidden; will-change:transform;
+  box-shadow:0 22px 50px rgba(0,0,0,.28);
+}
+.bs-leaf-out-fwd{ animation:bsOutFwd .34s cubic-bezier(.4,0,.85,.45) forwards; }
+.bs-leaf-in-fwd { animation:bsInFwd .36s cubic-bezier(.18,.7,.35,1) forwards; }
+.bs-leaf-out-back{ animation:bsOutBack .34s cubic-bezier(.4,0,.85,.45) forwards; }
+.bs-leaf-in-back { animation:bsInBack .36s cubic-bezier(.18,.7,.35,1) forwards; }
+@keyframes bsOutFwd { from{ transform:rotateY(0deg) } to{ transform:rotateY(-92deg) } }
+@keyframes bsInFwd  { from{ transform:rotateY(92deg) } to{ transform:rotateY(0deg) } }
+@keyframes bsOutBack{ from{ transform:rotateY(0deg) } to{ transform:rotateY(92deg) } }
+@keyframes bsInBack { from{ transform:rotateY(-92deg) } to{ transform:rotateY(0deg) } }
+/* A shade that deepens toward the spine as the leaf turns, for depth. */
+.bs-leaf-shade{ position:absolute; inset:0; pointer-events:none; border-radius:10px;
+  background:linear-gradient(90deg, rgba(0,0,0,.32), rgba(0,0,0,0) 32%); opacity:0; }
+.bs-leaf-out-fwd .bs-leaf-shade, .bs-leaf-out-back .bs-leaf-shade{ animation:bsShade .34s ease-in forwards; }
+.bs-leaf-in-fwd .bs-leaf-shade, .bs-leaf-in-back .bs-leaf-shade{ animation:bsShade .36s ease-out reverse forwards; }
+@keyframes bsShade { from{ opacity:0 } to{ opacity:1 } }
+/* Tap zones over the book — invisible, with a chevron hint on hover. */
+.bs-tap{ position:absolute; top:0; bottom:0; width:38%; background:none; border:none; cursor:pointer;
+  display:flex; align-items:center; z-index:5; color:var(--pb-ink); }
+.bs-tap-prev{ left:0; justify-content:flex-start; padding-left:6px; }
+.bs-tap-next{ right:0; width:62%; justify-content:flex-end; padding-right:6px; }
+.bs-tap .bs-chev{ opacity:0; transition:opacity .18s, transform .18s; width:36px; height:36px; border-radius:50%;
+  background:var(--pb-glass-strong); border:1px solid var(--pb-line-strong); display:flex; align-items:center;
+  justify-content:center; font-size:1.1rem; box-shadow:var(--pb-shadow); }
+.bs-tap:hover .bs-chev{ opacity:1; }
+.bs-tap-prev:hover .bs-chev{ transform:translateX(3px); }
+.bs-tap-next:hover .bs-chev{ transform:translateX(-3px); }
+.bs-tap:disabled{ cursor:default; }
+.bs-tap:disabled .bs-chev{ opacity:0 !important; }
+@media (prefers-reduced-motion: reduce){
+  .bs-leaf-out-fwd,.bs-leaf-in-fwd,.bs-leaf-out-back,.bs-leaf-in-back{ animation-duration:.001s; }
+}

@@ -126,18 +126,28 @@ const ALL_THEMES = [...PALETTES.signature, ...PALETTES.dark, ...PALETTES.light];
 // options are premium full color on 80# coated white (photo stock). Retail prices
 // are guided tiers (Lulu print cost + margin + shipping); wire live /api/lulu-cost
 // before charging real money. base + perStop drive the running total.
+//
+// Pricing rebuilt to be affordable — a low base plus a small per-stop charge, so a
+// short book lands near a Mixbook-style entry price and the customer decides how much
+// they spend by how much they add. `base` is the SOFTCOVER price; the cover choice
+// (softcover $0 → hardcover → linen) adds on top, so there's a genuine cheap option.
 const SIZES = [
-  { key: "square", name: 'Square · 8.5 × 8.5"', trim: "0850X0850", base: 44, perStop: 5, note: "Classic keepsake — sits beautifully on a shelf." },
-  { key: "landscape", name: 'Landscape · 11 × 8.5"', trim: "1100X0850", base: 54, perStop: 6, note: "Wider pages — best for sweeping scenery shots." },
+  { key: "square", name: 'Square · 8.5 × 8.5"', trim: "0850X0850", base: 15, perStop: 3, minPages: 20, note: "Classic keepsake — sits beautifully on a shelf." },
+  { key: "landscape", name: 'Landscape · 11 × 8.5"', trim: "1100X0850", base: 20, perStop: 4, minPages: 20, note: "Wider pages — best for sweeping scenery shots." },
 ];
 const COVERS = [
-  { key: "casewrap", name: "Photo Hardcover", bind: "CW", add: 0, note: "Your cover photo printed edge-to-edge.", guide: "Most popular" },
-  { key: "linen", name: "Linen + Gold Foil", bind: "LW", add: 20, note: "Forest linen wrap with a gold-foil-stamped spine.", guide: "Heirloom" },
+  { key: "softcover", name: "Softcover", bind: "PB", add: 0, note: "Flexible photo-printed cover — our most affordable.", guide: "Best value" },
+  { key: "casewrap", name: "Photo Hardcover", bind: "CW", add: 14, note: "Rigid cover, your photo printed edge-to-edge.", guide: "Most popular" },
+  { key: "linen", name: "Linen + Gold Foil", bind: "LW", add: 28, note: "Forest linen wrap with a gold-foil-stamped spine.", guide: "Heirloom" },
 ];
 const FINISHES = [
   { key: "matte", name: "Matte", code: "M", add: 0, note: "Soft, glare-free — our default." },
   { key: "gloss", name: "Gloss", code: "G", add: 0, note: "Punchy, high-shine color." },
 ];
+// Hardcover bindings have a real 24-page floor at Lulu; softcover prints thinner, so a
+// short trip needn't be padded out. The quote reflects the pages actually built, only
+// nudged up to the binding's true minimum.
+const bindMinPages = (coverKey) => (coverKey === "softcover" ? 20 : 24);
 /* ── Page composition ────────────────────────────────────────────────────────
    How each chapter's spread is laid out. A book-wide DEFAULT applies to every
    stop; any stop can override it. Persisted in localStorage `pb_book_layouts`
@@ -684,10 +694,10 @@ function Pane({ sections, spread, hero, editable, palette }) {
    do signature arithmetic. */
 const layoutOf = (spread, ready) => normLayout(ready ? (getStopLayout(spread.name) || getDefaultLayout()) : DEFAULT_LAYOUT);
 // Every chapter is a two-page spread, so page maths is simply positional.
-function paginate(spreads, ready) {
+function paginate(spreads, ready, minPages = 24) {
   const starts = spreads.map((_, i) => 3 + i * 2); // 1-2 = cover + introduction
   let total = 3 + spreads.length * 2; // + the closing page
-  total = Math.max(24, total);
+  total = Math.max(minPages, total);
   if (total % 2) total += 1;
   return { starts, total };
 }
@@ -894,7 +904,7 @@ export default function TripBook() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [sizeKey, setSizeKey] = useState("square");
-  const [coverKey, setCoverKey] = useState("casewrap");
+  const [coverKey, setCoverKey] = useState("softcover"); // lead with the affordable option
   const [finishKey, setFinishKey] = useState("matte");
   const [manageOpen, setManageOpen] = useState(false);
 
@@ -932,10 +942,11 @@ export default function TripBook() {
   const size = SIZES.find((s) => s.key === sizeKey) || SIZES[0];
   const cover = COVERS.find((c) => c.key === coverKey) || COVERS[0];
   const finish = FINISHES.find((f) => f.key === finishKey) || FINISHES[0];
-  const sizeName = size.name.replace(/·/, "").replace(/\s+/g, " ").trim() + " Hardcover";
+  const sizeName = size.name.replace(/·/, "").replace(/\s+/g, " ").trim() + " " + cover.name;
   const sku = skuFor(sizeKey, coverKey, finishKey);
-  // Real page count + per-chapter start pages, from the actual compositions.
-  const { starts, total: pages } = paginate(spreads, mounted);
+  // Real page count + per-chapter start pages, from the actual compositions, padded
+  // only up to the chosen binding's true minimum (softcover prints thinner).
+  const { starts, total: pages } = paginate(spreads, mounted, bindMinPages(coverKey));
   const priceNum = size.base + n * size.perStop + cover.add;
   const price = "$" + priceNum;
 
@@ -2239,7 +2250,7 @@ function ReserveModal({ data, onClose }) {
             <div className="tbres-sum">
               <span>Theme <b>{data.theme}</b></span>
               <span>Size <b>{data.size}</b></span>
-              <span>Hardcover <b>{data.price}</b></span>
+              <span>{data.cover || "Cover"} <b>{data.price}</b></span>
             </div>
             <div className="tbres-total"><span>Est. total</span><b>{total}</b></div>
             <div className="tbres-field"><label>Your name</label><input className="tbres-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Rivera" /></div>

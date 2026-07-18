@@ -1,12 +1,13 @@
 // POST /api/checkout — create a Stripe Checkout Session for a printed Trip Book.
-// When fulfillment is configured (Lulu creds + a public storage bucket), it first
-// generates + hosts the interior & cover PDFs and passes their URLs in the session
-// metadata, so /api/stripe-webhook can create the Lulu print job on payment.
+// When fulfillment is configured (Lulu creds + storage), it first generates the interior
+// & cover PDFs, uploads them under unguessable keys, and passes TIME-LIMITED SIGNED URLs
+// in the session metadata, so /api/stripe-webhook can create the Lulu print job on
+// payment. The files are a customer's finished book and are never publicly readable.
 // Degrades honestly (503) with no Stripe key; refuses live keys unless STRIPE_LIVE_OK=1.
 import Stripe from "stripe";
 import { luluConfigured, coverDimensions } from "../../lib/lulu";
 import { quote as bookQuote, skuFor, unavailableReason, trimInches } from "../../lib/bookPricing";
-import { storageConfigured, uploadPublicPdf } from "../../lib/storage";
+import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
 
@@ -104,8 +105,10 @@ export async function POST(request) {
         trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
         palette: look.palette, bw: look.bw,
       });
-      const stamp = Date.now().toString(36) + "-" + Math.round(price);
-      const interior_url = await uploadPublicPdf("orders/" + stamp + "-interior.pdf", interiorBytes);
+      // Random, unguessable key — the old timestamp+price path was enumerable, and
+      // these files are a customer's finished book.
+      const stamp = orderKey("orders");
+      const interior_url = await uploadSignedPdf(stamp + "-interior.pdf", interiorBytes);
       // Spine width depends on this SKU's paper and page count — always ask Lulu.
       const dims = await coverDimensions(pageCount, podSku);
       // Prefer a stop the traveler actually photographed for the cover (no third-party
@@ -119,7 +122,7 @@ export async function POST(request) {
       const coverImage = await resolveEntryImage(coverEntry);
       const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims, origin,
         palette: look.palette, layout: look.layout, bw: look.bw });
-      const cover_url = await uploadPublicPdf("orders/" + stamp + "-cover.pdf", coverBytes);
+      const cover_url = await uploadSignedPdf(stamp + "-cover.pdf", coverBytes);
       // pod_package_id travels with the order so the webhook prints the book the
       // customer actually configured, not a default product.
       fulfillMeta = { interior_url, cover_url, page_count: String(pageCount), pod_package_id: podSku };

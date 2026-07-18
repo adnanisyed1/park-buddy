@@ -2,7 +2,7 @@
 // shipping address. Used to (a) show shipping/tax in checkout and (b) make sure the
 // Stripe charge always covers fulfillment. Honest 503 when Lulu isn't configured.
 import { luluConfigured, costCalc, LULU_SKU, LULU_PRODUCT, luluDiag, costCalcProbe, coverDimensions, createPrintJob, getPrintJob } from "../../lib/lulu";
-import { storageConfigured, uploadPublicPdf } from "../../lib/storage";
+import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { skuFor, unavailableReason, trimInches } from "../../lib/bookPricing";
 import { buildCoverPdf } from "../../lib/coverPdf";
@@ -38,16 +38,16 @@ async function orderProbe(origin, cfg) {
     trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
     palette: look.palette, bw: look.bw,
   });
-  const stamp = Date.now().toString(36);
-  const interior_url = await uploadPublicPdf("test/" + stamp + "-interior.pdf", bytes);
+  const stamp = orderKey("test");
+  const interior_url = await uploadSignedPdf(stamp + "-interior.pdf", bytes);
   const dims = await coverDimensions(pageCount, sku);
   const coverImg = await resolveEntryImage(entries[0], origin);
   const coverBytes = await buildCoverPdf({ title: "Sandbox Test Book", dates: "May 2026", coverImage: coverImg, dims, origin,
     palette: look.palette, layout: look.layout, bw: look.bw });
-  const cover_url = await uploadPublicPdf("test/" + stamp + "-cover.pdf", coverBytes);
+  const cover_url = await uploadSignedPdf(stamp + "-cover.pdf", coverBytes);
   const job = await createPrintJob({
     contact_email: process.env.LULU_CONTACT_EMAIL || "orders@theparkbuddy.com",
-    external_id: "sandbox-test-" + stamp,
+    external_id: "sandbox-test-" + stamp.replace("test/", ""),
     line_items: [{ title: "Sandbox Test Book", quantity: 1, printable_normalization: { pod_package_id: sku, cover: { source_url: cover_url }, interior: { source_url: interior_url } } }],
     shipping_address: { name: "Test User", street1: "1 N Main St", city: "Moab", state_code: "UT", postcode: "84532", country_code: "US", phone_number: "+13035550100" },
     shipping_level: "MAIL",

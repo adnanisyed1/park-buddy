@@ -90,7 +90,9 @@ export async function GET(request) {
     try {
       const opts = await shippingOptions({
         line_items: [{ page_count: pages, pod_package_id: sku, quantity: 1 }],
-        shipping_address: { city, state_code: state, postcode, country_code: country, street1: "1 N Main St", phone_number: "+13035550100" },
+        // NOTE: /shipping-options/ wants `country`, while /print-job-cost-calculations/
+        // wants `country_code`. Send both so either endpoint is satisfied.
+        shipping_address: { city, state_code: state, state, postcode, country, country_code: country, street1: "1 N Main St", phone_number: "+13035550100" },
       });
       return Response.json(opts);
     } catch (e) {

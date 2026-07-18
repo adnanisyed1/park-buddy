@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "../components/PhotoThumb";
 import SiteHeader from "../components/SiteHeader";
-import useDarkBody from "../lib/useDarkBody";
+import { useThemedBody } from "../lib/theme";
 
 // /scenic-drives index — scroll-animated grid of America's Byways tiles with
 // designation + region filter chips. Ported 1:1 from the Claude-design spec;
@@ -64,7 +64,8 @@ function DriveTile({ d }) {
 }
 
 export default function ScenicIndex({ drives }) {
-  useDarkBody();
+  const themeRef = useRef(null);
+  useThemedBody(themeRef);
   const [fTier, setFTier] = useState("all");
   const [fRegion, setFRegion] = useState("all");
   const regions = useMemo(() => {
@@ -86,7 +87,7 @@ export default function ScenicIndex({ drives }) {
   );
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: 64, background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+    <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", paddingTop: 64, background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <SiteHeader active="drives" />
 
       <section style={{ position: "relative", overflow: "hidden", padding: "clamp(118px,14vh,140px) clamp(16px,4vw,40px) clamp(28px,5vh,52px)", background: "radial-gradient(1100px 420px at 72% -12%,rgba(228,190,120,.14),transparent 62%)" }}>
@@ -101,7 +102,7 @@ export default function ScenicIndex({ drives }) {
         </div>
       </section>
 
-      <div style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(15,32,23,.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: "1px solid rgba(217,183,121,.12)", borderBottom: "1px solid rgba(217,183,121,.12)" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 40, background: "var(--pb-glass-strong)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: "1px solid rgba(217,183,121,.12)", borderBottom: "1px solid rgba(217,183,121,.12)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", padding: "12px clamp(16px,4vw,40px)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".18em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Designation</span>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

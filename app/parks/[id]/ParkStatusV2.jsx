@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
-import useDarkBody from "../../lib/useDarkBody";
+import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
@@ -67,7 +67,8 @@ const ALERT_DEFS = [
 ];
 
 export default function ParkStatusV2({ id, kind = "park" }) {
-  useDarkBody();
+  const themeRef = useRef(null);
+  useThemedBody(themeRef);
   const isForest = kind === "forest";
   const isStatePark = kind === "state_park";
   const isNP = !isForest && !isStatePark; // national park (NPS) mode
@@ -200,7 +201,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
 
   if (park === null) {
     return (
-      <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+      <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
         <SiteHeader acctSlot />
         <div style={{ maxWidth: 640, margin: "0 auto", padding: "140px 20px", textAlign: "center" }}>
           <h1 style={{ fontFamily: serif, fontSize: "2.4rem", fontWeight: 600 }}>{KIND_LABEL} not found</h1>
@@ -221,7 +222,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const areaQ = park ? (isNP ? park.name + " National Park|" + park.name : park.name) : "";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+    <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <style>{`
         @keyframes ps-pulse { 0% { box-shadow: 0 0 0 0 rgba(79,217,138,.5);} 70% { box-shadow: 0 0 0 8px rgba(79,217,138,0);} 100% { box-shadow: 0 0 0 0 rgba(79,217,138,0);} }
         @keyframes ps-ken { 0% { transform: scale(1.04);} 100% { transform: scale(1.12);} }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { usePhoto } from "./PhotoThumb";
 import SiteHeader from "./SiteHeader";
-import useDarkBody from "../lib/useDarkBody";
+import { useThemedBody } from "../lib/theme";
 import { Button, Tag } from "./ui";
 
 // Reusable category landing for filter choices that don't have a global dataset
@@ -20,7 +20,8 @@ const serif = "var(--pb-serif)";
 const mono = "var(--pb-mono)";
 
 export default function CategoryPage({ eyebrow, title, emphasis, blurb, photoQ, mode = "soon", mapHref = "/explore", features = [], navActive = "explore" }) {
-  useDarkBody();
+  const themeRef = useRef(null);
+  useThemedBody(themeRef);
   const hero = usePhoto(photoQ, null, null);
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
@@ -41,7 +42,7 @@ export default function CategoryPage({ eyebrow, title, emphasis, blurb, photoQ, 
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+    <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <SiteHeader active={navActive} />
 
       <section style={{ position: "relative", minHeight: "min(84vh,720px)", display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden", padding: "120px clamp(16px,4vw,54px) 64px" }}>

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePhoto } from "../components/PhotoThumb";
 import SiteHeader from "../components/SiteHeader";
-import useDarkBody from "../lib/useDarkBody";
+import { useThemedBody } from "../lib/theme";
 import { Chip } from "../components/ui";
 
 // /parks index — grid of all 63 national parks on the design system (tokens + UI
@@ -43,7 +43,8 @@ function ParkTile({ p }) {
 }
 
 export default function ParksIndex({ parks }) {
-  useDarkBody();
+  const themeRef = useRef(null);
+  useThemedBody(themeRef);
   const [region, setRegion] = useState("all");
 
   const regions = useMemo(() => {
@@ -56,7 +57,7 @@ export default function ParksIndex({ parks }) {
   const sorted = [...list].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: 64, background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+    <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", paddingTop: 64, background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <SiteHeader active="explore" />
 
       <section style={{ position: "relative", overflow: "hidden", padding: "clamp(118px,14vh,140px) clamp(16px,4vw,40px) clamp(28px,5vh,52px)", background: "radial-gradient(1100px 420px at 72% -12%,rgba(228,190,120,.14),transparent 62%)" }}>

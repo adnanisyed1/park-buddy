@@ -7,7 +7,7 @@ import { getMapPrefs, mapOptionsFor } from "../../lib/mapPrefs";
 import { computeRoute } from "../../lib/googleRoutes";
 import { usePhoto } from "../../components/PhotoThumb";
 import SiteHeader from "../../components/SiteHeader";
-import useDarkBody from "../../lib/useDarkBody";
+import { useThemedBody } from "../../lib/theme";
 import RouteItinerary from "./RouteItinerary";
 import RouteAttractions from "./RouteAttractions";
 import RoutePhotos from "./RoutePhotos";
@@ -110,7 +110,8 @@ function CrossTile({ c }) {
 }
 
 export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
-  useDarkBody();
+  const themeRef = useRef(null);
+  useThemedBody(themeRef);
   // Wikipedia-derived record (traveler itinerary, history, references, CC BY-SA
   // attribution) when this drive has been enriched; null otherwise (page renders
   // its baseline). Route line + highlights prefer curated data, then the record.
@@ -357,7 +358,7 @@ export default function ScenicDrive({ drive, detail, cross, heroFallback }) {
   const roadDot = road && road.state === "closed" ? "#d0563a" : road && road.state === "caution" ? "#e0a53a" : road && road.state === "unknown" ? "#8a9a90" : "#46d97f";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
+    <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
       <style>{KEYFRAMES}</style>
       <SiteHeader active="drives" />
 

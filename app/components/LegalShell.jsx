@@ -3,12 +3,16 @@
 // Shared shell for the legal / policy pages — the standard platform header, a
 // readable centered prose column on the design system, and a footer that cross-links
 // the policies. Content is passed as children (plain elements).
+import { useRef } from "react";
 import SiteHeader from "./SiteHeader";
 import Link from "next/link";
+import { useThemedBody } from "../lib/theme";
 
 export default function LegalShell({ title, updated, children }) {
+  const themeRef = useRef(null);
+  useThemedBody(themeRef);
   return (
-    <>
+    <div ref={themeRef} className="pb-theme">
       <SiteHeader solid />
       <main style={{ background: "var(--pb-bg)", minHeight: "100vh", paddingTop: 118 }}>
         <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 clamp(18px,4vw,28px) 40px", fontFamily: "var(--pb-sans)" }}>
@@ -26,6 +30,6 @@ export default function LegalShell({ title, updated, children }) {
         </div>
       </main>
       <style>{`.pb-legal h2{font-family:var(--pb-serif);font-weight:600;font-size:1.35rem;color:var(--pb-ink);margin:28px 0 8px}.pb-legal p{margin:0 0 12px}.pb-legal ul{margin:0 0 12px;padding-left:20px}.pb-legal li{margin:0 0 6px}.pb-legal a{color:var(--pb-gold)}.pb-legal b{color:var(--pb-ink)}`}</style>
-    </>
+    </div>
   );
 }

@@ -2537,8 +2537,8 @@ function MobilePhone(props) {
       </div>
 
       {/* bottom bar */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40, height: BAR, display: "grid", gridTemplateColumns: "repeat(4,1fr)", background: "var(--pb-glass-strong)", borderTop: "1px solid var(--pb-line)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-        {[["diary", "Diary", "📖"], ["theme", "Theme", "✦"], ["preview", "Preview", "▤"], ["order", "Order", "🛍"]].map(([k, label, ic]) => {
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40, height: BAR, display: "grid", gridTemplateColumns: "repeat(5,1fr)", background: "var(--pb-glass-strong)", borderTop: "1px solid var(--pb-line)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {[["type", "Book", "📕"], ["diary", "Diary", "📖"], ["theme", "Theme", "✦"], ["preview", "Preview", "▤"], ["order", "Order", "🛍"]].map(([k, label, ic]) => {
           const active = k === "order" ? false : step === k;
           return (
             <button key={k} onClick={() => k === "order" ? openReserve() : setStep(k)} style={{ cursor: "pointer", fontFamily: "inherit", background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, color: active ? "var(--pb-gold)" : "var(--pb-muted)" }}>

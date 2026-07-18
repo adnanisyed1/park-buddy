@@ -6,7 +6,7 @@
 // Degrades honestly (503) with no Stripe key; refuses live keys unless STRIPE_LIVE_OK=1.
 import Stripe from "stripe";
 import { luluConfigured, coverDimensions, costCalc } from "../../lib/lulu";
-import { quote as bookQuote, skuFor, unavailableReason, trimInches, priceFromLanded } from "../../lib/bookPricing";
+import { quote as bookQuote, skuFor, unavailableReason, trimInches, priceFromLanded, PROFIT_RANGE } from "../../lib/bookPricing";
 import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
@@ -17,8 +17,14 @@ function err(msg, status = 400) { return Response.json({ error: msg }, { status 
 
 // Reference address for the authoritative quote. Stripe collects the real destination
 // AFTER the session is created, so at pricing time we quote the same reference the studio
-// showed. The tax allowance in bookPricing.js is the highest rate observed, so a
-// higher-tax destination is covered rather than eating into margin.
+// showed — display and charge therefore always agree.
+//
+// This does NOT cover every destination. Sales tax is destination-based and Lulu bills us
+// the real rate, so a Seattle or Honolulu order costs more to fulfill than we collected
+// (measured: ~$8.17 earned on Honolulu vs ~$10 on the reference). That is a deliberate,
+// documented trade-off — see PROFIT_RANGE in bookPricing.js — taken because quoting the
+// worst case would add ~$1.80 to every order. Shipping is nearly flat nationwide; the
+// variance is almost entirely tax. Moving this address means moving the display rate too.
 const REF_ADDRESS = {
   city: "Moab", state_code: "UT", postcode: "84532",
   country_code: "US", street1: "1 N Main St", phone_number: "+13035550100",
@@ -50,6 +56,8 @@ export function GET() {
     // Checkout quotes Lulu live and refuses to fall back to the measured model in
     // production, which makes this a disclosure rather than a risk.
     productionPricesVerified: false,
+    // Not a flat $10 — destination tax varies. See PROFIT_RANGE in bookPricing.js.
+    profitPerBook: PROFIT_RANGE,
     pricesQuotedLiveAtCheckout: luluConfigured(),
     // The order path now carries the customer's real trim, binding, SKU, palette and
     // cover layout through to print. Composition parity with the on-screen spreads is

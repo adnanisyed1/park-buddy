@@ -21,6 +21,23 @@
 // the same as a $21 paperback.
 export const TARGET_PROFIT = 10;
 
+// What we ACTUALLY earn, which is not the same number. Both the displayed price and the
+// charge are computed against a Utah reference address, but sales tax is destination-based
+// and Lulu bills us the destination's rate. So a high-tax or remote address costs more to
+// fulfill than we collected.
+//
+// Measured across real US destinations for an 8.5" 32pp hardcover:
+//     Birmingham AL   $24.29 landed  ->  ~$11.30 earned
+//     Moab UT         $25.63 landed  ->  ~$10.00 earned   (the reference)
+//     Seattle WA      $26.85 landed  ->  ~$ 8.78 earned
+//     Honolulu HI     $27.46 landed  ->  ~$ 8.17 earned
+//
+// So the honest figure is roughly $8–11 per book, averaging near $9.50 — NOT a flat $10.
+// This was an explicit trade-off: quoting the worst case would guarantee $10 but add
+// about $1.80 to every order. Shipping itself is nearly flat ($5.69 in the lower 48,
+// $7.69 to AK/HI), so almost all of the variance is tax.
+export const PROFIT_RANGE = { min: 8.1, max: 11.4, typical: 9.5 };
+
 export const STRIPE_PCT = 0.029;
 export const STRIPE_FLAT = 0.3;
 
@@ -31,19 +48,22 @@ export const FULFILLMENT_FEE = 0.75;
 // a reference figure for display only; checkout quotes the customer's actual address.
 export const REFERENCE_SHIPPING = 5.69;
 
-// Sales tax allowance, deliberately set to the HIGHEST rate observed (Utah, 9.35%).
+// Sales tax used for the DISPLAYED price. This is a Utah-reference rate, and it is
+// deliberately NOT the worst case.
 //
-// Tax cannot be modelled properly here for two reasons. It legally depends on the
-// destination address, which is unknown while someone is still designing their book. And
-// Lulu's sandbox tax output is not deterministic: 27 of 30 SKU families quoted at ~9.34%
-// of print while 3 quoted ~7.45%, with no structure explaining it — premium-colour
-// hardcover came back at 7.45% in one sweep and 9.41% in another for the same product.
-// Fitting a curve to that is fitting noise.
+// An earlier version of this comment claimed 9.35% was "the highest rate observed". That
+// was wrong: it was only the highest observed *in Utah*. Measured against real US
+// destinations, tax runs from 0% (Birmingham AL) to 14.34% of print (Seattle), with
+// Chicago 14.01%, Memphis 13.22% and New York 11.99% also above this figure.
 //
-// So this is an allowance, not a prediction: taking the top of the observed range means
-// the reference price always covers the tax we'll owe rather than quietly eating it, and
-// low-tax destinations simply land as extra margin. The live quote at checkout is
-// authoritative for the real figure.
+// It stays at the Utah rate on purpose, for two reasons. Checkout re-quotes Lulu live
+// against the same Utah reference, so display and charge agree — raising this number
+// alone would show a price we don't charge. And covering the worst case would add ~$1.80
+// to every order, turning the $16 entry book into $18, which is the opposite of the
+// deliberately-low price point (see TARGET_PROFIT).
+//
+// The accepted consequence is documented in PROFIT_RANGE below. Don't "fix" this constant
+// without also moving checkout's REF_ADDRESS, or the two will disagree.
 export const REFERENCE_TAX_RATE = 0.0935;
 
 // ---------------------------------------------------------------------------

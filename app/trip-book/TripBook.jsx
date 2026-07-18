@@ -119,7 +119,7 @@ const sizesForOrient = (o) => SIZES.filter((s) => s.orient === o);
 // app/lib/bookPricing.js (binding is a pure fixed cost; the per-page rate is identical
 // across all four).
 const COVERS = [
-  { key: "paperback", name: "Paperback", bind: "PB", min: 32, max: 800, guide: "Economy", note: "Perfect-bound softcover — the most affordable.", detail: "Perfect binding: the pages are glued into a wraparound softcover with a matte or gloss laminate. Lulu's most economical option. Prints 32–800 pages." },
+  { key: "paperback", name: "Paperback", bind: "PB", min: 32, max: 800, guide: "Economy", note: "Perfect-bound softcover — the most affordable.", detail: "Perfect binding: the pages are glued into a wraparound softcover with a matte or gloss laminate. Our most economical option. Prints 32–800 pages." },
   { key: "saddle", name: "Saddle Stitch", bind: "SS", min: 4, max: 48, guide: "Slim", note: "Folded & stapled — best for short books.", detail: "Sheets are folded and stapled through the spine, like a magazine. Ideal for slim books. Prints 4–48 pages." },
   { key: "coil", name: "Coil Bound", bind: "CO", min: 3, max: 470, guide: "Lay-flat", note: "Spiral coil — opens completely flat.", detail: "A durable plastic spiral coil binds the pages, so the book lies completely flat when open. Prints 3–470 pages." },
   { key: "casewrap", name: "Hardcover", bind: "CW", min: 24, max: 800, guide: "Most popular", note: "Rigid cover, your photo printed edge-to-edge.", detail: "Casewrap: your artwork is printed edge-to-edge and laminated onto rigid boards — a classic photo hardcover. Prints 24–800 pages." },
@@ -142,7 +142,7 @@ const FOILS = [
 // Interior ink — Lulu's four options. This is the biggest price lever by far:
 // premium colour costs about 5x standard B&W per page (see app/lib/bookPricing.js).
 const INKS = [
-  { key: "fcpre", name: "Premium Color", code: "FC.PRE", note: "Richest color — for photography.", detail: "Premium full colour on Lulu's brightest process — the richest, most accurate tones. The right choice for photography." },
+  { key: "fcpre", name: "Premium Color", code: "FC.PRE", note: "Richest color — for photography.", detail: "Premium full colour on our brightest press — the richest, most accurate tones. The right choice for photography." },
   { key: "fcstd", name: "Standard Color", code: "FC.STD", note: "Everyday full color.", detail: "Standard full colour — vivid, everyday colour at a lower cost than Premium." },
   { key: "bwpre", name: "Premium B&W", code: "BW.PRE", note: "Crisp black & white.", detail: "Premium black & white — deep, crisp greys on the higher-quality press." },
   { key: "bwstd", name: "Standard B&W", code: "BW.STD", note: "Economical black & white.", detail: "Standard black & white — the most economical interior, ideal for text-led books." },
@@ -163,6 +163,9 @@ const FINISHES = [
 // or a thicker spine), which the customer pays for, so they are opt-in rather than the
 // default. This used to default to 32, which silently padded a finished 24-page book
 // with 8 blanks and charged for them.
+// NOTE: the print partner is deliberately not named anywhere a customer can see. Keep
+// it out of UI copy, emails and order pages — the book is a Park Buddy product. (Their
+// name is fine in code comments and server-side identifiers.)
 const START_PAGES = [0, 32, 48, 60, 80];
 // Pricing comes from app/lib/bookPricing.js, whose every constant was measured against
 // Lulu's live cost API. The numbers that used to live here (a binding "base", a per-page
@@ -2011,7 +2014,7 @@ function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCov
       {!reader && (
         <aside className="bs-rail" style={{ borderRight: "1px solid var(--pb-line)", padding: "22px 18px", overflowY: "auto" }}>
           <Eyebrow>Select Book Type</Eyebrow>
-          <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option Lulu prints — shape, binding, paper &amp; color. Change it any time before you order.</div>
+          <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option we print — shape, binding, paper &amp; color. Change it any time before you order.</div>
           <BookTypeControls size={size} sizeKey={sizeKey} setSizeKey={setSizeKey} cover={cover} coverKey={coverKey} setCoverKey={setCoverKey} finish={finish} finishKey={finishKey} setFinishKey={setFinishKey} ink={ink} inkKey={inkKey} setInkKey={setInkKey} paper={paper} paperKey={paperKey} setPaperKey={setPaperKey} linenColor={linenColor} linenKey={linenKey} setLinenKey={setLinenKey} foil={foil} foilKey={foilKey} setFoilKey={setFoilKey} startPages={startPages} setStartPages={setStartPages} n={n} />
         </aside>
       )}
@@ -2030,7 +2033,7 @@ function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCov
                upload — but the PRINTED cover only ever uses the customer's own photos,
                so showing it unlabelled would promise a book we can't make. */
             ? "Sample cover photo — your own photo prints here"
-            : "Printed to order by Lulu"}
+            : "Printed to order, just for you"}
         </div>
       </main>
 
@@ -2445,7 +2448,7 @@ function PreviewDesktop({ book, spreads, sel, setSel, cur, n, prev, next, palett
             <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "1.5rem", color: "var(--pb-gold)" }}>{price}</span>
           </div>
           <button onClick={openReserve} style={{ cursor: "pointer", width: "100%", fontFamily: "inherit", fontWeight: 700, fontSize: ".9rem", color: "#0a1712", background: GOLD, border: "none", borderRadius: 12, padding: "13px" }}>Order Book</button>
-          <div style={{ textAlign: "center", fontFamily: mono, fontSize: ".56rem", letterSpacing: ".04em", color: "var(--pb-muted)", marginTop: 10 }}>Secured by Stripe · Lulu Print-on-Demand</div>
+          <div style={{ textAlign: "center", fontFamily: mono, fontSize: ".56rem", letterSpacing: ".04em", color: "var(--pb-muted)", marginTop: 10 }}>Secured by Stripe · Printed &amp; shipped to order</div>
           <p style={{ fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.5, marginTop: 14 }}>Only your own photos are printed. Stops without a photo get a beautiful typographic page.</p>
         </aside>
       )}
@@ -2470,7 +2473,7 @@ function MobilePhone(props) {
         {step === "type" && (
           <>
             <Eyebrow>Select Book Type</Eyebrow>
-            <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option Lulu prints. Change it any time before you order.</div>
+            <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", margin: "6px 0 16px" }}>Every option we print. Change it any time before you order.</div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "4px 0 16px" }}>
               <CoverPreview title={book.title} author={book.author} region={book.region} layout={layout} palette={palette} dateLabel="" coverImg={coverImg} cover={cover} finish={finish} size={size} />
               <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 10 }}>{size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages</div>

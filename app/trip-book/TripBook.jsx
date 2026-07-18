@@ -2694,6 +2694,7 @@ function ReserveModal({ data, onClose }) {
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
   const [agree, setAgree] = useState(false);
+  const [proofSeen, setProofSeen] = useState(false);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const priceNum = parseFloat(String(data.price).replace(/[^0-9.]/g, "")) || 0;
@@ -2708,6 +2709,7 @@ function ReserveModal({ data, onClose }) {
   const submit = async () => {
     setError("");
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setError("Enter a valid email address."); return; }
+    if (!proofSeen) { setError("Please open your print proof first — it's the only way to see exactly what will be printed."); return; }
     if (!agree) { setError("Please confirm you have the rights to the photos in your book."); return; }
     setStatus("sending");
     const headers = { "Content-Type": "application/json" };
@@ -2761,6 +2763,7 @@ function ReserveModal({ data, onClose }) {
             <div className="tbres-field"><label>Note (optional)</label><textarea className="tbres-ta" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything you'd like us to know" /></div>
             <p className="tbres-note">Only your own photos are printed — any stop you didn&rsquo;t photograph becomes a clean, designed page (we don&rsquo;t print stock photos in your book).</p>
             <p className="tbres-note">Made to order: misprinted or damaged books are replaced or refunded. Because each is custom-printed, change-of-mind returns aren&rsquo;t possible once printing starts. See our <a href="/terms" target="_blank" rel="noopener" style={{ color: "var(--pb-gold,#c9a35f)", textDecoration: "underline" }}>full terms</a>.</p>
+            <ProofStep data={data} onViewed={() => setProofSeen(true)} seen={proofSeen} />
             <label style={{ display: "flex", alignItems: "flex-start", gap: 9, margin: "6px 0 2px", cursor: "pointer", fontSize: ".82rem", lineHeight: 1.45 }}>
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} style={{ marginTop: 2, flex: "none", accentColor: "#c9a35f", width: 16, height: 16 }} />
               <span>I own or have the rights to use the photos in this book.</span>
@@ -2773,6 +2776,76 @@ function ReserveModal({ data, onClose }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── Print proof ──────────────────────────────────────────────────────────────
+   The last thing before paying: the ACTUAL print PDF, opened in the browser's own
+   PDF viewer. Not a mock-up and not the on-screen studio preview — the same bytes
+   that get sent to the printer.
+
+   This exists because structural checks are not enough. A book once passed every
+   automated check we had, and Lulu marked it ACCEPTED, while its title printed with
+   letters missing — the printer validates trim and bleed, not whether words are
+   intact. A person looking at the real file is the only check that catches that,
+   and the person who cares most is the customer. */
+function ProofStep({ data, onViewed, seen }) {
+  const [state, setState] = useState("idle");   // idle | building | ready | error
+  const [err, setErr] = useState("");
+  const urlRef = useRef(null);
+
+  // Revoke the blob when this modal goes away, so the proof isn't left in memory.
+  useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
+
+  const openProof = async () => {
+    setErr(""); setState("building");
+    try {
+      const r = await fetch("/api/interior-pdf", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: data.title, dates: data.dates, dedication: data.dedication,
+          config: data.config, entries: data.entries,
+        }),
+      });
+      if (!r.ok) {
+        // Preflight failures come back with specific reasons — show them rather than
+        // a generic "something went wrong", because they say what's actually wrong.
+        const d = await r.json().catch(() => null);
+        const why = d && d.problems && d.problems.length ? d.problems[0] : (d && d.error) || "Couldn't build your proof.";
+        setErr(why); setState("error"); return;
+      }
+      const blob = await r.blob();
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = URL.createObjectURL(blob);
+      window.open(urlRef.current, "_blank", "noopener");
+      setState("ready");
+      onViewed();
+    } catch {
+      setErr("Couldn't build your proof — check your connection and try again.");
+      setState("error");
+    }
+  };
+
+  return (
+    <div style={{ border: "1px solid " + (seen ? "var(--pb-gold-2,#c9a35f)" : "var(--pb-line,#e5ded0)"), borderRadius: 10, padding: "12px 14px", margin: "10px 0 4px", background: "var(--pb-surface,#fffdf8)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: ".84rem", color: "var(--pb-ink,#22301f)" }}>
+            {seen ? "✓ Proof opened" : "See your print proof"}
+          </div>
+          <div style={{ fontSize: ".72rem", color: "var(--pb-muted,#6b6350)", marginTop: 2, lineHeight: 1.45 }}>
+            {seen
+              ? "That's the exact file we send to the printer. Reopen it any time before ordering."
+              : "Opens the real print file — the same pages, size and colours that get printed."}
+          </div>
+        </div>
+        <button type="button" onClick={openProof} disabled={state === "building"}
+          style={{ cursor: state === "building" ? "wait" : "pointer", flex: "none", fontFamily: "inherit", fontWeight: 700, fontSize: ".76rem", color: "#0a1712", background: "var(--pb-gold,#c9a35f)", border: "none", borderRadius: 8, padding: "9px 14px" }}>
+          {state === "building" ? "Building…" : seen ? "Open again" : "Open proof"}
+        </button>
+      </div>
+      {err && <div style={{ marginTop: 8, fontSize: ".72rem", color: "#a6592c", lineHeight: 1.45 }}>{err}</div>}
     </div>
   );
 }

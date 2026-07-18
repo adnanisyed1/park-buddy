@@ -22,6 +22,7 @@ async function orderProbe(origin, cfg) {
     size: cfg.size || "sq-s", cover: cfg.cover || "casewrap", ink: cfg.ink || "fcpre",
     paper: cfg.paper || "coated", finish: cfg.finish || "matte", pages: cfg.pages || 32,
   };
+  const look = { palette: cfg.palette || "parchment-royal", layout: cfg.layout || "", bw: conf.ink === "bwpre" || conf.ink === "bwstd" };
   const blocked = unavailableReason(conf);
   if (blocked) throw new Error("config rejected: " + blocked);
   const sku = skuFor(conf);
@@ -35,12 +36,14 @@ async function orderProbe(origin, cfg) {
   const { bytes, pageCount } = await buildInteriorPdf({
     title: "Sandbox Test Book", dates: "May 2026", dedication: "For the detour.", entries, origin,
     trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
+    palette: look.palette, bw: look.bw,
   });
   const stamp = Date.now().toString(36);
   const interior_url = await uploadPublicPdf("test/" + stamp + "-interior.pdf", bytes);
   const dims = await coverDimensions(pageCount, sku);
   const coverImg = await resolveEntryImage(entries[0], origin);
-  const coverBytes = await buildCoverPdf({ title: "Sandbox Test Book", dates: "May 2026", coverImage: coverImg, dims, origin });
+  const coverBytes = await buildCoverPdf({ title: "Sandbox Test Book", dates: "May 2026", coverImage: coverImg, dims, origin,
+    palette: look.palette, layout: look.layout, bw: look.bw });
   const cover_url = await uploadPublicPdf("test/" + stamp + "-cover.pdf", coverBytes);
   const job = await createPrintJob({
     contact_email: process.env.LULU_CONTACT_EMAIL || "orders@theparkbuddy.com",
@@ -81,6 +84,7 @@ export async function GET(request) {
       size: u.searchParams.get("size"), cover: u.searchParams.get("cover"),
       ink: u.searchParams.get("ink"), paper: u.searchParams.get("paper"),
       finish: u.searchParams.get("finish"), pages: parseInt(u.searchParams.get("pages"), 10) || 0,
+      palette: u.searchParams.get("palette"), layout: u.searchParams.get("layout"),
     };
     try { return Response.json(await orderProbe(u.origin, cfg)); }
     catch (e) { return err("order probe failed: " + (e && e.message ? e.message : "unknown"), 502); }

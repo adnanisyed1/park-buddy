@@ -7,15 +7,28 @@
 import { PDFDocument, rgb } from "pdf-lib";
 import { embedFonts } from "./pdfFonts";
 import { BIND_PAGES } from "./bookPricing";
+import { paletteByKey, hexToRgb01, toGray01 } from "./bookThemes";
 
 const PT = 72;
 const SAFE = 0.625 * PT;            // bleed + 0.5in safe ≈ 45pt
 export const MIN_PAGES = 24;        // casewrap hardcover minimum (default when unknown)
 
-const CREAM = rgb(0.965, 0.937, 0.89);
-const INK = rgb(0.2, 0.16, 0.12);
-const MUTED = rgb(0.54, 0.49, 0.42);
-const GOLD = rgb(0.79, 0.64, 0.37);
+// Colours come from the customer's chosen palette, not from constants. The book they
+// designed on screen and the book that arrives should be the same object.
+function paletteColors(palKey, bw) {
+  const pal = paletteByKey(palKey);
+  const conv = bw ? toGray01 : hexToRgb01;   // B&W interiors print grey, as previewed
+  const paper = rgb(...conv(pal.base));
+  const ink = rgb(...conv(pal.ink));
+  const accent = rgb(...conv(pal.accent));
+  // Muted = ink softened toward the paper, so it stays legible on any palette rather
+  // than being a fixed grey that vanishes on dark stock.
+  const [ir, ig, ib] = conv(pal.ink);
+  const [pr, pg, pb] = conv(pal.base);
+  const mix = (a, b) => a + (b - a) * 0.42;
+  const muted = rgb(mix(ir, pr), mix(ig, pg), mix(ib, pb));
+  return { pal, paper, ink, accent, muted };
+}
 
 function dataUrlToImg(u) {
   const m = /^data:(image\/\w+);base64,(.*)$/s.exec(u || "");
@@ -62,7 +75,9 @@ function wrap(font, text, size, maxW) {
 export async function buildInteriorPdf({
   title, dates, dedication, entries, origin,
   trimW, trimH, trimIn, cover, minPages,
+  palette, bw,
 }) {
+  const { paper: CREAM, ink: INK, accent: GOLD, muted: MUTED } = paletteColors(palette, bw);
   // trimIn is the legacy square form, still accepted so /api/interior-pdf and the older
   // sandbox probes keep working; trimW/trimH is the real one.
   const inW = trimW || trimIn || 8.5;
@@ -109,8 +124,10 @@ export async function buildInteriorPdf({
       const s = Math.max(W / emb.width, H / emb.height);
       const w = emb.width * s, h = emb.height * s;
       photo.drawImage(emb, { x: (W - w) / 2, y: (H - h) / 2, width: w, height: h });
-      photo.drawRectangle({ x: 0, y: 0, width: W, height: 54, color: rgb(0.04, 0.05, 0.05), opacity: 0.62 });
-      photo.drawText(String(e.place || "").toUpperCase(), { x: SAFE, y: 22, size: 10, font: sans, color: rgb(1, 1, 1) });
+      // Caption bar in the palette's own ink, with the place name in its paper colour —
+      // so the band reads as part of the book's design rather than a generic black bar.
+      photo.drawRectangle({ x: 0, y: 0, width: W, height: 54, color: INK, opacity: 0.72 });
+      photo.drawText(String(e.place || "").toUpperCase(), { x: SAFE, y: 22, size: 10, font: sans, color: CREAM });
     } else {
       // Designed "no photo" chapter page: type eyebrow · place · gold rule · time.
       if (e.type) center(photo, sans, String(e.type).toUpperCase(), 9, H / 2 + 58, GOLD);

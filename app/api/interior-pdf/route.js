@@ -21,6 +21,7 @@ export async function POST(request) {
   const { bytes } = await buildInteriorPdf({
     title: body.title, dates: body.dates, dedication: body.dedication, entries, origin,
     trimW: trim.w, trimH: trim.h, cover: String(cfg.cover || ""), minPages: parseInt(cfg.pages, 10) || 0,
+    palette: String(cfg.palette || ""), bw: cfg.ink === "bwpre" || cfg.ink === "bwstd",
   });
   return new Response(Buffer.from(bytes), {
     headers: { "Content-Type": "application/pdf", "Content-Disposition": 'inline; filename="trip-book-interior.pdf"' },

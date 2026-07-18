@@ -29,9 +29,10 @@ export function GET() {
     canChargeRealMoney: mode === "live" && liveOk,
     luluConfigured: luluConfigured(),
     storageConfigured: storageConfigured(),
-    // Honest flag: the interior PDF is still square-only and the SKU is hardcoded, so a
-    // paid order today would not print what the customer designed.
-    printPipelineMatchesStudio: false,
+    // The order path now carries the customer's real trim, binding, SKU, palette and
+    // cover layout through to print. Composition parity with the on-screen spreads is
+    // close but not pixel-exact, so this stays a claim we can point at a proof for.
+    printPipelineMatchesStudio: true,
   });
 }
 
@@ -62,6 +63,11 @@ export async function POST(request) {
     size: String(cfg.size || ""), cover: String(cfg.cover || ""), ink: String(cfg.ink || ""),
     paper: String(cfg.paper || ""), finish: String(cfg.finish || "matte"),
     pages: Math.max(1, Math.min(800, parseInt(cfg.pages, 10) || 0)),
+  };
+  // Look: palette + cover layout, and whether the interior prints in black & white.
+  const look = {
+    palette: String(cfg.palette || ""), layout: String(cfg.layout || ""),
+    bw: conf.ink === "bwpre" || conf.ink === "bwstd",
   };
   if (!conf.pages) return err("That book is missing its page count.");
 
@@ -96,6 +102,7 @@ export async function POST(request) {
       const { bytes: interiorBytes, pageCount } = await buildInteriorPdf({
         title, dates: body.dates, dedication: body.dedication, entries, origin,
         trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
+        palette: look.palette, bw: look.bw,
       });
       const stamp = Date.now().toString(36) + "-" + Math.round(price);
       const interior_url = await uploadPublicPdf("orders/" + stamp + "-interior.pdf", interiorBytes);
@@ -110,7 +117,8 @@ export async function POST(request) {
         entries.find((e) => e.type === "Remember this") ||
         entries[0];
       const coverImage = await resolveEntryImage(coverEntry);
-      const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims, origin });
+      const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims, origin,
+        palette: look.palette, layout: look.layout, bw: look.bw });
       const cover_url = await uploadPublicPdf("orders/" + stamp + "-cover.pdf", coverBytes);
       // pod_package_id travels with the order so the webhook prints the book the
       // customer actually configured, not a default product.

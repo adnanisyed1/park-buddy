@@ -1775,32 +1775,33 @@ function StopTools({ spread, onNext, size, onAddPage }) {
    the binding (linen cloth + foil, coil rings, thin saddle, board hardcover). */
 function BookMockup({ size, cover, palette, coverImg, layout, book, pages, linenColor, foil }) {
   const { w, h } = dimsOf(size.trim);
-  let H = 300, W = Math.round(H * w / h);
-  const CAP = 250; if (W > CAP) { W = CAP; H = Math.round(CAP * h / w); }
+  let H = 320, W = Math.round(H * w / h);
+  const CAP = 260; if (W > CAP) { W = CAP; H = Math.round(CAP * h / w); }
   const isLinen = cover.key === "linen", isCoil = cover.key === "coil", isSaddle = cover.key === "saddle";
   const isHard = cover.key === "casewrap" || isLinen;
-  let d = Math.max(6, Math.min(40, Math.round((pages || 32) * 0.3)));
-  if (isSaddle) d = Math.max(4, Math.min(10, d));
-  if (isHard) d += 3;                              // boards add bulk
   const ctx = { book, palette, coverImg, layout };
   const foilHex = (foil && foil.hex) || "#d9b779";
-  const paperEdge = "repeating-linear-gradient(0deg,#efe9dc 0 2px,#d8d0bf 2px 3px)";
-  const topEdge = "repeating-linear-gradient(90deg,#efe9dc 0 2px,#d8d0bf 2px 3px)";
-  const spineBg = isLinen ? ((linenColor && linenColor.hex) || "#1b2a20") : paperOf(palette);
-  const face = { position: "absolute", left: "50%", top: "50%" };
+  const spineHex = isLinen ? ((linenColor && linenColor.hex) || "#1b2a20") : (isHard ? "rgba(0,0,0,.35)" : accentOf(palette));
+  // Thickness from page count → how far the page-stack peeks out on the right.
+  let d = Math.max(3, Math.min(16, Math.round((pages || 32) * 0.14)));
+  if (isSaddle) d = Math.min(d, 4);
+  if (isHard) d += 2;
+  // An upright product shot: the real cover, a stack of page edges peeking on the
+  // right, a spine on the left, and a soft ground shadow. No skew — reads as a book.
+  const stack = [];
+  for (let i = 1; i <= d; i++) stack.push(`${i * 1.2}px ${i * 0.6}px 0 -0.5px ${i % 2 ? "#efe7d6" : "#dcd2bd"}`);
+  const shadow = stack.join(",") + `, ${d + 3}px ${d + 10}px 34px -6px rgba(0,0,0,.34)`;
   return (
-    <div style={{ perspective: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: "8px 0" }}>
-      <div style={{ position: "relative", width: W, height: H, transformStyle: "preserve-3d", transform: "rotateX(6deg) rotateY(-27deg)", filter: "drop-shadow(0 36px 42px rgba(0,0,0,.42))" }}>
-        <div style={{ ...face, width: W, height: d, background: topEdge, transform: `translate(-50%,-50%) rotateX(90deg) translateZ(${H / 2}px)` }} />
-        <div style={{ ...face, width: d, height: H, background: paperEdge, transform: `translate(-50%,-50%) rotateY(90deg) translateZ(${W / 2}px)` }} />
-        <div style={{ ...face, width: d, height: H, background: spineBg, overflow: "hidden", transform: `translate(-50%,-50%) rotateY(-90deg) translateZ(${W / 2}px)` }}>
-          {isCoil && <div className="bm-coil" />}
-          {isLinen && <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: "60%", height: 2, background: foilHex, opacity: .9, boxShadow: `0 8px 0 ${foilHex}, 0 -8px 0 ${foilHex}` }} />
-          </div>}
-        </div>
-        <div style={{ ...face, width: W, height: H, overflow: "hidden", borderRadius: isHard ? 3 : 1, boxShadow: isHard ? "0 0 0 1px rgba(0,0,0,.18)" : "none", transform: `translate(-50%,-50%) translateZ(${d / 2}px)` }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 22px 26px 6px" }}>
+      <div style={{ position: "relative", width: W, height: H, borderRadius: isHard ? "2px 6px 6px 2px" : "1px 3px 3px 1px", boxShadow: shadow }}>
+        {/* cover art */}
+        <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", overflow: "hidden", border: isHard ? "1px solid rgba(0,0,0,.16)" : "none" }}>
           <CoverLeaf ctx={ctx} />
+        </div>
+        {/* spine on the left — binding-specific */}
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: isHard ? 9 : 5, borderRadius: "2px 0 0 2px", overflow: "hidden", background: spineHex, boxShadow: "inset -3px 0 6px rgba(0,0,0,.35)", zIndex: 2 }}>
+          {isCoil && <div className="bm-coil" style={{ opacity: .8 }} />}
+          {isLinen && <div style={{ position: "absolute", top: "18%", bottom: "18%", left: "50%", transform: "translateX(-50%)", width: 2, background: foilHex, opacity: .9 }} />}
         </div>
       </div>
     </div>

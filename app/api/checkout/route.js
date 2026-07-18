@@ -5,8 +5,8 @@
 // payment. The files are a customer's finished book and are never publicly readable.
 // Degrades honestly (503) with no Stripe key; refuses live keys unless STRIPE_LIVE_OK=1.
 import Stripe from "stripe";
-import { luluConfigured, coverDimensions } from "../../lib/lulu";
-import { quote as bookQuote, skuFor, unavailableReason, trimInches } from "../../lib/bookPricing";
+import { luluConfigured, coverDimensions, costCalc } from "../../lib/lulu";
+import { quote as bookQuote, skuFor, unavailableReason, trimInches, priceFromLanded } from "../../lib/bookPricing";
 import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
@@ -14,6 +14,20 @@ import { buildCoverPdf } from "../../lib/coverPdf";
 export const runtime = "nodejs";
 
 function err(msg, status = 400) { return Response.json({ error: msg }, { status }); }
+
+// Reference address for the authoritative quote. Stripe collects the real destination
+// AFTER the session is created, so at pricing time we quote the same reference the studio
+// showed. The tax allowance in bookPricing.js is the highest rate observed, so a
+// higher-tax destination is covered rather than eating into margin.
+const REF_ADDRESS = {
+  city: "Moab", state_code: "UT", postcode: "84532",
+  country_code: "US", street1: "1 N Main St", phone_number: "+13035550100",
+};
+
+// Sandbox prices are measured; production prices are NOT confirmed to match (the two use
+// separate credentials — production auth 401s with a sandbox key). In production we
+// therefore refuse to price from the measured model at all.
+const IS_LULU_PRODUCTION = (process.env.LULU_ENV || "").toLowerCase() === "production";
 
 // GET → can this environment take real money, and is fulfillment actually ready?
 // Reports the key's MODE only (test/live) — never the key, never any part of it. Exists
@@ -30,6 +44,13 @@ export function GET() {
     canChargeRealMoney: mode === "live" && liveOk,
     luluConfigured: luluConfigured(),
     storageConfigured: storageConfigured(),
+    luluEnv: process.env.LULU_ENV || "(unset → sandbox)",
+    // Every price we've measured came from Lulu's SANDBOX. Production uses separate
+    // credentials (the sandbox key 401s against api.lulu.com), so parity is unverified.
+    // Checkout quotes Lulu live and refuses to fall back to the measured model in
+    // production, which makes this a disclosure rather than a risk.
+    productionPricesVerified: false,
+    pricesQuotedLiveAtCheckout: luluConfigured(),
     // The order path now carries the customer's real trim, binding, SKU, palette and
     // cover layout through to print. Composition parity with the on-screen spreads is
     // close but not pixel-exact, so this stays a claim we can point at a proof for.
@@ -83,8 +104,39 @@ export async function POST(request) {
   const trim = trimInches(conf.size);
   if (!trim) return err("Unrecognized trim size.");
 
-  // Charge the book price plus shipping, matching what the studio showed.
-  const price = priced.bookPrice + priced.shipping;
+  // AUTHORITATIVE PRICE — ask Lulu what this exact book costs right now, and price from
+  // that. The measured model in bookPricing.js is fast enough to quote while someone is
+  // still designing, but its constants were measured against Lulu's SANDBOX. Sandbox and
+  // production credentials are separate accounts (production auth returns 401 with the
+  // sandbox key), so sandbox prices are NOT confirmed to match production.
+  //
+  // Charging from unconfirmed constants is how you sell a book below cost without ever
+  // finding out. So: quote live, and if the quote fails, refuse the order in production
+  // rather than guessing with someone's money.
+  let priceBasis = "measured-model";
+  let finalPrice = priced.bookPrice + priced.shipping;
+  if (luluConfigured()) {
+    try {
+      const c = await costCalc({
+        line_items: [{ page_count: conf.pages, pod_package_id: podSku, quantity: 1 }],
+        shipping_address: REF_ADDRESS,
+        shipping_option: "MAIL",
+      });
+      const landed = +c.total_cost_incl_tax;
+      const ship = +c.shipping_cost.total_cost_excl_tax;
+      const live = priceFromLanded({ landed, shipping: ship });
+      finalPrice = live.bookPrice + live.shipping;
+      priceBasis = "lulu";
+    } catch (e) {
+      if (IS_LULU_PRODUCTION) {
+        return err("We couldn't confirm the print price for this book just now. Please try again in a moment — we won't charge you from an estimate.", 503);
+      }
+      // Sandbox/dev: the measured model is fine to fall through on.
+    }
+  } else if (IS_LULU_PRODUCTION) {
+    return err("Print fulfillment isn't configured, so we can't price this book.", 503);
+  }
+  const price = finalPrice;
 
   const title = String(body.title || "Trip Book").slice(0, 120);
   const theme = String(body.theme || "").slice(0, 60);
@@ -146,7 +198,7 @@ export async function POST(request) {
       }],
       shipping_address_collection: { allowed_countries: ["US", "CA"] },
       phone_number_collection: { enabled: true },
-      metadata: { trip_title: title, theme, size, quantity: String(qty), ...fulfillMeta },
+      metadata: { trip_title: title, theme, size, quantity: String(qty), price_basis: priceBasis, ...fulfillMeta },
       success_url: origin + "/trip-book?order=success",
       cancel_url: origin + "/trip-book?order=cancel",
     });

@@ -158,7 +158,12 @@ const FINISHES = [
   { key: "matte", name: "Matte", code: "M", note: "Soft, glare-free — our default.", detail: "A soft, glare-free laminate over the cover — subtle and natural." },
   { key: "gloss", name: "Gloss", code: "G", note: "Punchy, high-shine color.", detail: "A high-shine laminate that makes cover colours pop." },
 ];
-const START_PAGES = [20, 32, 48, 60, 80];
+// 0 = "Fit my book" — the length follows the content and is padded only up to the
+// binding's own minimum. The other values ADD blank pages on purpose (room to write in,
+// or a thicker spine), which the customer pays for, so they are opt-in rather than the
+// default. This used to default to 32, which silently padded a finished 24-page book
+// with 8 blanks and charged for them.
+const START_PAGES = [0, 32, 48, 60, 80];
 // Pricing comes from app/lib/bookPricing.js, whose every constant was measured against
 // Lulu's live cost API. The numbers that used to live here (a binding "base", a per-page
 // ink rate and a per-size multiplier) were invented, and they were wrong in ways that
@@ -974,7 +979,7 @@ export default function TripBook() {
   const [paperKey, setPaperKey] = useState("coated");   // 80# coated photo stock
   const [linenKey, setLinenKey] = useState("forest");   // linen cloth colour (linen edition)
   const [foilKey, setFoilKey] = useState("gold");       // foil-stamp colour (linen edition)
-  const [startPages, setStartPages] = useState(32);     // the customer's chosen starting length
+  const [startPages, setStartPages] = useState(0);      // 0 = fit the content (see START_PAGES)
   const [manageOpen, setManageOpen] = useState(false);
 
   useEffect(() => {
@@ -1825,6 +1830,14 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
     unavailableReason({ size: size.key, cover: c.key, ink: ink.key, paper: paper.key, pages: Math.max(c.min, Math.min(contentPages, c.max)) })
     || (contentPages > c.max ? `Your book is ${contentPages} pages — this binding tops out at ${c.max}.` : null);
   const fits = (c) => !blockedReason(c);
+  // What the customer will actually be charged for but never see: pages padded purely to
+  // reach the binding's minimum, or to reach a length they explicitly asked for.
+  const targetPages = Math.max(cover.min, startPages || 0, contentPages);
+  const blanks = Math.max(0, targetPages - contentPages);
+  // A binding with a lower floor that would hold this book with no padding at all.
+  const shorterBinding = blanks > 0
+    ? COVERS.find((c) => c.key !== cover.key && !blockedReason(c) && c.min <= contentPages && contentPages <= c.max)
+    : null;
   const [info, setInfo] = useState("");
   const Eb = ({ children }) => <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "0 0 8px" }}>{children}</div>;
   const InfoBtn = ({ k }) => (
@@ -1946,15 +1959,24 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
           const on = p === startPages;
           const disabled = p > cover.max;                      // can't exceed the binding's max
           return (
-            <button key={p} onClick={() => !disabled && setStartPages(p)} disabled={disabled}
+            <button key={p} onClick={() => !disabled && setStartPages(p)} disabled={disabled} title={p === 0 ? "Only as long as your book needs" : `Pad the book out to ${p} pages`}
               style={{ flex: 1, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? .4 : 1, fontFamily: mono, fontSize: ".8rem", fontWeight: on ? 700 : 500, color: on ? "var(--pb-ink)" : "var(--pb-ink-2)", background: on ? "var(--pb-surface-2)" : "var(--pb-surface)", border: "1px solid " + (on ? "var(--pb-gold-2)" : "var(--pb-line)"), borderRadius: 10, padding: "9px 4px" }}>
-              {p}
+              {p === 0 ? "Fit" : p}
             </button>
           );
         })}
       </div>
       <div style={{ fontSize: ".64rem", color: "var(--pb-muted)", lineHeight: 1.5, marginBottom: 20 }}>
         Each extra page costs <b style={{ color: "var(--pb-ink-2)" }}>{perPage < 0.01 ? "under a cent" : "$" + perPage.toFixed(2)}</b> to print on {paper.name.toLowerCase()} in {ink.name.toLowerCase()}. {cover.name} prints {cover.min}–{cover.max} pages — add or remove pages any time in the Diary.
+        {/* Blank pages are the one thing a customer pays for and gets nothing from, so say
+            exactly how many there are and why, and point at the binding that avoids them. */}
+        {blanks > 0 && (
+          <span style={{ display: "block", marginTop: 7, color: "var(--pb-ink-2)" }}>
+            Your book fills {contentPages} pages. {cover.name} can&rsquo;t be bound under {cover.min},
+            so <b>{blanks} page{blanks === 1 ? "" : "s"} will be blank</b>
+            {shorterBinding ? <> — {shorterBinding.name} starts at {shorterBinding.min} and would leave none.</> : "."}
+          </span>
+        )}
       </div>
 
       {cover.key !== "linen" && (

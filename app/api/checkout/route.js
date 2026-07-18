@@ -4,7 +4,8 @@
 // metadata, so /api/stripe-webhook can create the Lulu print job on payment.
 // Degrades honestly (503) with no Stripe key; refuses live keys unless STRIPE_LIVE_OK=1.
 import Stripe from "stripe";
-import { luluConfigured, coverDimensions, LULU_PRODUCT } from "../../lib/lulu";
+import { luluConfigured, coverDimensions } from "../../lib/lulu";
+import { quote as bookQuote, skuFor, unavailableReason, trimInches } from "../../lib/bookPricing";
 import { storageConfigured, uploadPublicPdf } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
@@ -47,15 +48,40 @@ export async function POST(request) {
   const email = String(body.email || "").trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err("Enter a valid email address.");
   const qty = Math.max(1, Math.min(20, parseInt(body.quantity, 10) || 1));
-  // SERVER-AUTHORITATIVE PRICING — never trust the client's price (a spoofed body
-  // could otherwise buy a hardcover for cents). Derive price from the book size.
-  // Keep this table in sync with studioSource.js PRINTS.
-  const PRICE_BY_DIM = { 8: 45, 10: 65, 12: 89 };
-  const price = PRICE_BY_DIM[parseInt(String(body.size), 10)];
-  if (!price) return err("Unrecognized book size.");
+
+  // SERVER-AUTHORITATIVE PRICING — the client's `price` is display only and is never
+  // read here, so a spoofed body can't buy a hardcover for cents. Price is re-derived
+  // from the configuration using the same measured model the studio quoted from.
+  //
+  // This used to be a hardcoded { 8: 45, 10: 65, 12: 89 } keyed by parsing inches out of
+  // body.size — but the studio sends size as a display name ("Square 8.5 × 8.5\"
+  // Hardcover"), so parseInt returned NaN and every order was refused as "Unrecognized
+  // book size". Price now comes from the config, and the trim/SKU come with it.
+  const cfg = body.config || {};
+  const conf = {
+    size: String(cfg.size || ""), cover: String(cfg.cover || ""), ink: String(cfg.ink || ""),
+    paper: String(cfg.paper || ""), finish: String(cfg.finish || "matte"),
+    pages: Math.max(1, Math.min(800, parseInt(cfg.pages, 10) || 0)),
+  };
+  if (!conf.pages) return err("That book is missing its page count.");
+
+  const blocked = unavailableReason(conf);
+  if (blocked) return err(blocked);
+
+  const priced = bookQuote(conf);
+  if (!priced.available) return err(priced.reason || "That book configuration isn't available.");
+
+  const podSku = skuFor(conf);
+  if (!podSku) return err("Unrecognized book configuration.");
+  const trim = trimInches(conf.size);
+  if (!trim) return err("Unrecognized trim size.");
+
+  // Charge the book price plus shipping, matching what the studio showed.
+  const price = priced.bookPrice + priced.shipping;
+
   const title = String(body.title || "Trip Book").slice(0, 120);
   const theme = String(body.theme || "").slice(0, 60);
-  const size = String(body.size || "").slice(0, 20);
+  const size = String(body.size || "").slice(0, 40);
   const origin = request.headers.get("origin") || new URL(request.url).origin;
 
   // Fulfillment prep: generate + host the print PDFs so the webhook can order them.
@@ -65,12 +91,16 @@ export async function POST(request) {
   const entries = Array.isArray(body.entries) ? body.entries.slice(0, 60) : [];
   if (luluConfigured() && storageConfigured() && entries.length) {
     try {
+      // The customer's real trim, binding and page count — not a fixed product. A
+      // landscape book must print landscape.
       const { bytes: interiorBytes, pageCount } = await buildInteriorPdf({
-        title, dates: body.dates, dedication: body.dedication, entries, origin, trimIn: LULU_PRODUCT.trimIn,
+        title, dates: body.dates, dedication: body.dedication, entries, origin,
+        trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
       });
       const stamp = Date.now().toString(36) + "-" + Math.round(price);
       const interior_url = await uploadPublicPdf("orders/" + stamp + "-interior.pdf", interiorBytes);
-      const dims = await coverDimensions(pageCount, LULU_PRODUCT.sku);
+      // Spine width depends on this SKU's paper and page count — always ask Lulu.
+      const dims = await coverDimensions(pageCount, podSku);
       // Prefer a stop the traveler actually photographed for the cover (no third-party
       // stock on a sold cover); fall back to a designed text/emblem cover otherwise.
       const hasUserPhoto = (e) => e && e.userImg && (e.userImg.startsWith("data:") || /^https?:/.test(e.userImg));
@@ -82,7 +112,9 @@ export async function POST(request) {
       const coverImage = await resolveEntryImage(coverEntry);
       const coverBytes = await buildCoverPdf({ title, dates: body.dates, edition: "", coverImage, dims, origin });
       const cover_url = await uploadPublicPdf("orders/" + stamp + "-cover.pdf", coverBytes);
-      fulfillMeta = { interior_url, cover_url, page_count: String(pageCount) };
+      // pod_package_id travels with the order so the webhook prints the book the
+      // customer actually configured, not a default product.
+      fulfillMeta = { interior_url, cover_url, page_count: String(pageCount), pod_package_id: podSku };
     } catch (e) {
       return err("Couldn't prepare your book for print: " + (e && e.message ? e.message : "unknown"), 502);
     }
@@ -98,7 +130,7 @@ export async function POST(request) {
         price_data: {
           currency: "usd",
           unit_amount: Math.round(price * 100),
-          product_data: { name: "Trip Book — " + title, description: [size, theme, "hardcover"].filter(Boolean).join(" · ") },
+          product_data: { name: "Trip Book — " + title, description: [size, theme, conf.pages + " pages"].filter(Boolean).join(" · ") },
         },
       }],
       shipping_address_collection: { allowed_countries: ["US", "CA"] },

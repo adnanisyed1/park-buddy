@@ -47,7 +47,10 @@ async function fulfill(session) {
       title: m.trip_title || "Trip Book",
       quantity: Math.max(1, parseInt(m.quantity, 10) || 1),
       printable_normalization: {
-        pod_package_id: LULU_PRODUCT.sku,
+        // The SKU the customer actually configured, carried through checkout's metadata.
+        // Falling back to the default product would print a different book than the one
+        // they paid for, so only fall back when metadata is genuinely absent.
+        pod_package_id: m.pod_package_id || LULU_PRODUCT.sku,
         cover: { source_url: m.cover_url },
         interior: { source_url: m.interior_url },
       },

@@ -4,6 +4,7 @@
 import { luluConfigured, costCalc, LULU_SKU, LULU_PRODUCT, luluDiag, costCalcProbe, coverDimensions, createPrintJob, getPrintJob } from "../../lib/lulu";
 import { storageConfigured, uploadPublicPdf } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
+import { skuFor, unavailableReason, trimInches } from "../../lib/bookPricing";
 import { buildCoverPdf } from "../../lib/coverPdf";
 
 export const runtime = "nodejs";
@@ -13,27 +14,46 @@ function err(msg, status = 400) { return Response.json({ error: msg }, { status 
 // Full end-to-end sandbox fulfillment test: build+host interior & cover PDFs, then
 // create a real (sandbox) Lulu print job — returns Lulu's response so we can verify
 // PDF acceptance without a Stripe payment. Sandbox jobs never charge or print.
-async function orderProbe(origin) {
+// Takes the same configuration shape checkout does, so the probe exercises the REAL
+// order path (customer's trim, binding and SKU) rather than a fixed default product.
+async function orderProbe(origin, cfg) {
   if (!luluConfigured() || !storageConfigured()) throw new Error("Lulu or storage not configured");
+  const conf = {
+    size: cfg.size || "sq-s", cover: cfg.cover || "casewrap", ink: cfg.ink || "fcpre",
+    paper: cfg.paper || "coated", finish: cfg.finish || "matte", pages: cfg.pages || 32,
+  };
+  const blocked = unavailableReason(conf);
+  if (blocked) throw new Error("config rejected: " + blocked);
+  const sku = skuFor(conf);
+  const trim = trimInches(conf.size);
+  if (!sku || !trim) throw new Error("unknown configuration");
+
   const entries = [
     { type: "Remember this", place: "Yosemite National Park", cap: "We hit the trail before the light did.", q: ["Yosemite National Park"] },
     { type: "On the road", place: "Sequoia National Park", cap: "Big trees, small us.", q: ["Sequoia National Park"] },
   ];
-  const { bytes, pageCount } = await buildInteriorPdf({ title: "Sandbox Test Book", dates: "May 2026", dedication: "For the detour.", entries, origin, trimIn: LULU_PRODUCT.trimIn });
+  const { bytes, pageCount } = await buildInteriorPdf({
+    title: "Sandbox Test Book", dates: "May 2026", dedication: "For the detour.", entries, origin,
+    trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
+  });
   const stamp = Date.now().toString(36);
   const interior_url = await uploadPublicPdf("test/" + stamp + "-interior.pdf", bytes);
-  const dims = await coverDimensions(pageCount, LULU_PRODUCT.sku);
+  const dims = await coverDimensions(pageCount, sku);
   const coverImg = await resolveEntryImage(entries[0], origin);
   const coverBytes = await buildCoverPdf({ title: "Sandbox Test Book", dates: "May 2026", coverImage: coverImg, dims, origin });
   const cover_url = await uploadPublicPdf("test/" + stamp + "-cover.pdf", coverBytes);
   const job = await createPrintJob({
     contact_email: process.env.LULU_CONTACT_EMAIL || "orders@theparkbuddy.com",
     external_id: "sandbox-test-" + stamp,
-    line_items: [{ title: "Sandbox Test Book", quantity: 1, printable_normalization: { pod_package_id: LULU_PRODUCT.sku, cover: { source_url: cover_url }, interior: { source_url: interior_url } } }],
-    shipping_address: { name: "Test User", street1: "1 Main St", city: "Moab", state_code: "UT", postcode: "84532", country_code: "US", phone_number: "+13035550100" },
-    shipping_level: LULU_PRODUCT.shipping,
+    line_items: [{ title: "Sandbox Test Book", quantity: 1, printable_normalization: { pod_package_id: sku, cover: { source_url: cover_url }, interior: { source_url: interior_url } } }],
+    shipping_address: { name: "Test User", street1: "1 N Main St", city: "Moab", state_code: "UT", postcode: "84532", country_code: "US", phone_number: "+13035550100" },
+    shipping_level: "MAIL",
   });
-  return { ok: true, pageCount, sku: LULU_PRODUCT.sku, interior_url, cover_url, job_id: job && job.id, job_status: job && job.status };
+  return {
+    ok: true, config: conf, sku, trimIn: trim, pageCount,
+    coverDims: dims && { width: dims.width, height: dims.height, unit: dims.unit },
+    interior_url, cover_url, job_id: job && job.id, job_status: job && job.status,
+  };
 }
 
 // GET → environment/auth diagnostic. With ?probe=sandbox|production&sku=... it runs
@@ -51,7 +71,12 @@ export async function GET(request) {
     catch (e) { return err("job probe failed: " + (e && e.message), 502); }
   }
   if (probe === "order") {
-    try { return Response.json(await orderProbe(u.origin)); }
+    const cfg = {
+      size: u.searchParams.get("size"), cover: u.searchParams.get("cover"),
+      ink: u.searchParams.get("ink"), paper: u.searchParams.get("paper"),
+      finish: u.searchParams.get("finish"), pages: parseInt(u.searchParams.get("pages"), 10) || 0,
+    };
+    try { return Response.json(await orderProbe(u.origin, cfg)); }
     catch (e) { return err("order probe failed: " + (e && e.message ? e.message : "unknown"), 502); }
   }
   if (probe) {

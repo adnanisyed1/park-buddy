@@ -142,6 +142,16 @@ const INK_CODE = { fcpre: "FC.PRE", fcstd: "FC.STD", bwpre: "BW.PRE", bwstd: "BW
 const BIND_CODE = { paperback: "PB", saddle: "SS", coil: "CO", casewrap: "CW", linen: "LW" };
 const PAPER_CODE = { coated: "080CW444", white: "060UW444", cream: "060UC444" };
 
+// Real trim in inches, parsed from the SKU's own trim code (0850X1100 → 8.5 × 11").
+// The print PDF must use these — a book is only square when the customer chose a square.
+export function trimInches(size) {
+  const code = TRIM_CODE[size];
+  if (!code) return null;
+  const w = parseInt(code.slice(0, 4), 10) / 100;
+  const h = parseInt(code.slice(5, 9), 10) / 100;
+  return w > 0 && h > 0 ? { w, h } : null;
+}
+
 export function skuFor({ size, cover, ink, paper, finish }) {
   const trim = TRIM_CODE[size], ic = INK_CODE[ink], bc = BIND_CODE[cover], pc = PAPER_CODE[paper];
   if (!trim || !ic || !bc || !pc) return null;

@@ -1087,6 +1087,10 @@ export default function TripBook() {
 
   const openReserve = () => setReserve({
     theme: palette.name, size: sizeName, price, title: book.title, dates: "", dedication: "",
+    // The raw configuration, so the server can re-quote and build the right SKU itself.
+    // `size` above is a display name ("Square 8.5 × 8.5\" Hardcover") and must never be
+    // parsed for price or trim — that's what silently broke checkout before.
+    config: { size: sizeKey, cover: coverKey, ink: inkKey, paper: paperKey, finish: finishKey, pages },
     pages, stops: n, cover: cover.name + (cover.key === "linen" ? ` (${linenColor.name} · ${foil.name})` : ""), finish: finish.name, color: ink.name, paper: paper.name, sku,
     entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
   });
@@ -2753,6 +2757,9 @@ function ReserveModal({ data, onClose }) {
     const payload = JSON.stringify({
       email: email.trim(), name, shipping: ship, quantity: qty, note,
       title: data.title, theme: data.theme, size: data.size, price: data.price,
+      // `config` is what the server prices from; `price` is display only and is ignored
+      // server-side, so a tampered body can't buy a hardcover for cents.
+      config: data.config,
       dates: data.dates, dedication: data.dedication, entries: data.entries,
     });
     let reserved = false;

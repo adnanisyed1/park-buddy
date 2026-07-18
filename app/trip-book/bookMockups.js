@@ -16,9 +16,17 @@ export const MOCKUP_CANVAS = 1600; // the renders' native square canvas (px)
 const FILE = { paperback: "paperback", saddle: "saddle", coil: "coil", casewrap: "hardcover", linen: "linen" };
 const ORIENTS = ["square", "landscape", "portrait"];
 
-// ── PASTE COORDINATES HERE ───────────────────────────────────────────────────
-// e.g. "mockup-hardcover-square": [[420,300],[1180,340],[1180,1300],[420,1260]]
-export const QUADS = {};
+// ── COORDINATES (Figma node 11-2) ────────────────────────────────────────────
+// [TL, TR, BR, BL] in 1600×1600 space. Square set below is the designer's ESTIMATE
+// — the 3D artist will hand over exact values; swap them in when they do. Landscape
+// & portrait still pending (those bindings stay on the CSS fallback until added).
+export const QUADS = {
+  "mockup-paperback-square": [[435, 280], [1165, 310], [1165, 1290], [435, 1260]],
+  "mockup-hardcover-square": [[420, 270], [1180, 300], [1180, 1310], [420, 1280]],
+  "mockup-coil-square": [[470, 280], [1170, 300], [1170, 1290], [470, 1270]],
+  "mockup-saddle-square": [[440, 290], [1160, 310], [1160, 1280], [440, 1260]],
+  "mockup-linen-square": [[425, 275], [1175, 305], [1175, 1305], [425, 1275]],
+};
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const BOOK_MOCKUPS = {};

@@ -67,8 +67,14 @@ export async function GET(request) {
   }
   if (probe === "job") {
     const id = u.searchParams.get("id");
-    try { const j = await getPrintJob(id); return Response.json({ id: j.id, status: j.status, line_items: (j.line_items || []).map((l) => ({ status: l.status })) }); }
-    catch (e) { return err("job probe failed: " + (e && e.message), 502); }
+    // full=1 returns Lulu's whole job payload — including whatever normalized/preview
+    // artefacts it produced from our PDFs, which is how we see the book as Lulu sees it.
+    const full = u.searchParams.get("full") === "1";
+    try {
+      const j = await getPrintJob(id);
+      if (full) return Response.json(j);
+      return Response.json({ id: j.id, status: j.status, line_items: (j.line_items || []).map((l) => ({ status: l.status })) });
+    } catch (e) { return err("job probe failed: " + (e && e.message), 502); }
   }
   if (probe === "order") {
     const cfg = {

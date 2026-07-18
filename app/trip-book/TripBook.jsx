@@ -18,7 +18,7 @@ import "./studio.css"; // .tbres-* styles for the reservation modal
 const RealFlip = dynamic(() => import("./RealFlip.client"), { ssr: false });
 // Figma-designed Lulu book renders (drop-in when assets + coords land; falls back to
 // the CSS mockup until then). See bookMockups.js.
-import { BOOK_MOCKUPS, MOCKUP_CANVAS, quadMatrix3d } from "./bookMockups";
+import { BOOK_MOCKUPS, MOCKUP_CANVAS, RENDERED_ORIENTS, quadMatrix3d } from "./bookMockups";
 import SiteHeader from "../components/SiteHeader";
 import { useTheme } from "../lib/theme";
 import { getStops, getMeta, subscribeTrip, addStop, removeStop, moveStop } from "../lib/trip";
@@ -1893,7 +1893,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
 
       <Eb>Orientation</Eb>
       <div style={{ display: "flex", gap: 7, marginBottom: 20 }}>
-        {ORIENTS.map((o) => {
+        {ORIENTS.filter((o) => RENDERED_ORIENTS.includes(o.key)).map((o) => {
           const on = o.key === orient;
           return (
             <button key={o.key} onClick={() => pickOrient(o.key)} title={o.note}

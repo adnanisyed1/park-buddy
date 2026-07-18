@@ -10,7 +10,7 @@
 // Until an entry has BOTH a file on disk AND a quad here, the studio falls back to the
 // built-in CSS mockup — so shipping this empty changes nothing.
 
-export const MOCKUP_CANVAS = 480; // the renders' native square canvas (px)
+export const MOCKUP_CANVAS = 1024; // the renders' native square canvas (px)
 
 // our binding key → the designer's file-name stem
 const FILE = { paperback: "paperback", saddle: "saddle", coil: "coil", casewrap: "hardcover", linen: "linen" };
@@ -23,12 +23,17 @@ const ORIENTS = ["square", "landscape", "portrait"];
 // read the hole's four extreme corners straight off the pixels.
 // Landscape & portrait renders don't exist yet — those stay on the CSS fallback.
 export const QUADS = {
-  "mockup-paperback-square": [[143, 111], [338, 106], [333, 348], [158, 374]],
-  "mockup-hardcover-square": [[145, 125], [339, 118], [333, 347], [160, 375]],
-  "mockup-coil-square": [[105, 163], [296, 122], [402, 309], [185, 354]],
-  "mockup-saddle-square": [[153, 121], [329, 121], [327, 364], [155, 355]],
-  "mockup-linen-square": [[197, 142], [304, 147], [304, 330], [197, 337]],
+  "mockup-paperback-square": [[305, 237], [723, 226], [711, 745], [338, 800]],
+  "mockup-hardcover-square": [[310, 267], [724, 250], [711, 742], [340, 802]],
+  "mockup-coil-square": [[223, 349], [632, 259], [860, 660], [403, 772]],
+  "mockup-saddle-square": [[326, 258], [703, 258], [698, 780], [329, 757]],
+  "mockup-linen-square": [[420, 303], [651, 315], [650, 704], [421, 720]],
 };
+// Which orientations we actually have photoreal renders for. The Book Type step only
+// offers these, so the mockup never falls back mid-flow to a different visual language
+// (a photoreal book turning into a flat CSS box read as broken). Add "landscape" /
+// "portrait" here the moment those renders + quads land.
+export const RENDERED_ORIENTS = ["square"];
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const BOOK_MOCKUPS = {};

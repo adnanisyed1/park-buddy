@@ -36,7 +36,7 @@ async function orderProbe(origin, cfg) {
   const { bytes, pageCount } = await buildInteriorPdf({
     title: "Sandbox Test Book", dates: "May 2026", dedication: "For the detour.", entries, origin,
     trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
-    palette: look.palette, bw: look.bw,
+    palette: look.palette, bw: look.bw, marginIn: Number(cfg.marginIn) || 0,
   });
   const stamp = orderKey("test");
   const interior_url = await uploadSignedPdf(stamp + "-interior.pdf", bytes);
@@ -85,6 +85,7 @@ export async function GET(request) {
       ink: u.searchParams.get("ink"), paper: u.searchParams.get("paper"),
       finish: u.searchParams.get("finish"), pages: parseInt(u.searchParams.get("pages"), 10) || 0,
       palette: u.searchParams.get("palette"), layout: u.searchParams.get("layout"),
+      marginIn: parseFloat(u.searchParams.get("margin")) || 0,
     };
     try { return Response.json(await orderProbe(u.origin, cfg)); }
     catch (e) { return err("order probe failed: " + (e && e.message ? e.message : "unknown"), 502); }

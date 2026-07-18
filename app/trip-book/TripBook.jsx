@@ -999,6 +999,12 @@ export default function TripBook() {
   // — the same fallback the interior pages already use (see SpreadPhoto).
   const stockCover = usePhoto(userCover ? null : ((spreads[0] || {}).q || null));
   const coverImg = userCover || stockCover || null;
+  // A licensed park photo stands in so the studio doesn't look empty before anyone has
+  // uploaded anything — but it is NOT what gets printed. The printed cover only ever
+  // uses the customer's own photographs (third-party imagery can't be embedded in a
+  // product we sell), so this has to be labelled as a placeholder or it's a promise we
+  // don't keep. See CoverPreview's placeholder note.
+  const coverIsPlaceholder = !userCover && !!stockCover;
   const custom = customCheck(customBase);
   const palette = pal === "custom"
     ? { key: "custom", name: "Custom " + normHex(customBase).toUpperCase(), base: normHex(customBase), ink: custom.ink || INK_LIGHT, accent: "#C9A24A" }
@@ -1049,11 +1055,21 @@ export default function TripBook() {
       // The look, so the printed book is the one they designed — not a default.
       palette: pal, layout: layoutKey, bw: inkKey === "bwpre" || inkKey === "bwstd" },
     pages, stops: n, cover: cover.name + (cover.key === "linen" ? ` (${linenColor.name} · ${foil.name})` : ""), finish: finish.name, color: ink.name, paper: paper.name, sku,
-    entries: spreads.map((s) => ({ type: "Chapter", place: s.name, cap: s.story, userImg: s.userImg, q: s.q })),
+    // Everything the customer arranged — not just the first photo. This used to send
+    // `userImg` alone, so photos 2..n and every location stamp were silently dropped
+    // between the studio and the printed book.
+    entries: spreads.map((s) => ({
+      type: "Chapter", place: s.name, cap: s.story, q: s.q,
+      userImg: s.userImg,                       // kept for older callers
+      photos: (s.photos || []).map((ph) => ({ url: ph.url || null, stamp: ph.stamp || null })),
+      lat: s.lat, lng: s.lng,
+    })),
+    // The page frame the customer chose (full bleed / 0.5in / 0.75in).
+    marginIn: marginOf(getBookMargin()).in,
   });
 
   const fmtProps = { size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, priceNum, customBase, setCustomBase, pickTheme, startPages, setStartPages };
-  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, starts, coverImg, layoutKey, openManage: () => setManageOpen(true) };
+  const commonProps = { book, spreads, sel, setSel, cur, n, prev, next, role, starts, coverImg, coverIsPlaceholder, layoutKey, openManage: () => setManageOpen(true) };
 
   if (!mounted) {
     return (
@@ -1965,7 +1981,7 @@ function BookTypeControls({ size, sizeKey, setSizeKey, cover, coverKey, setCover
    count and finish — the choices customers know from a photo-book product page. Every
    pick drives the live cover preview and the running price, and "Start your book" moves
    on to the Diary. */
-function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, palette, layout, coverImg, price, shipNote, priceQuote, setStep, role, n }) {
+function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCoverKey, finish, finishKey, setFinishKey, ink, inkKey, setInkKey, paper, paperKey, setPaperKey, linenColor, linenKey, setLinenKey, foil, foilKey, setFoilKey, startPages, setStartPages, palette, layout, coverImg, coverIsPlaceholder, price, shipNote, priceQuote, setStep, role, n }) {
   const reader = role === "reader";
   const orient = size.orient;
   return (
@@ -1986,7 +2002,14 @@ function BookTypeStep({ book, size, sizeKey, setSizeKey, cover, coverKey, setCov
         <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".08em", color: "var(--pb-ink-2)", marginTop: 16, textAlign: "center" }}>
           {size.dim} · {cover.name} · {Math.max(cover.min, startPages)} pages
         </div>
-        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", textAlign: "center" }}>Printed to order by Lulu</div>
+        <div style={{ fontFamily: mono, fontSize: ".5rem", letterSpacing: ".06em", color: "var(--pb-muted)", textAlign: "center" }}>
+          {coverIsPlaceholder
+            /* The stand-in is a licensed park photo so the studio isn't empty before an
+               upload — but the PRINTED cover only ever uses the customer's own photos,
+               so showing it unlabelled would promise a book we can't make. */
+            ? "Sample cover photo — your own photo prints here"
+            : "Printed to order by Lulu"}
+        </div>
       </main>
 
       {!reader && (

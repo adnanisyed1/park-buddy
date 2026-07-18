@@ -155,7 +155,7 @@ export async function POST(request) {
       const { bytes: interiorBytes, pageCount } = await buildInteriorPdf({
         title, dates: body.dates, dedication: body.dedication, entries, origin,
         trimW: trim.w, trimH: trim.h, cover: conf.cover, minPages: conf.pages,
-        palette: look.palette, bw: look.bw,
+        palette: look.palette, bw: look.bw, marginIn: Number(body.marginIn) || 0,
       });
       // Random, unguessable key — the old timestamp+price path was enumerable, and
       // these files are a customer's finished book.

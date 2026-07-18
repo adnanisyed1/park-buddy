@@ -24,6 +24,7 @@ export async function POST(request) {
       title: body.title, dates: body.dates, dedication: body.dedication, entries, origin,
       trimW: trim.w, trimH: trim.h, cover: String(cfg.cover || ""), minPages: parseInt(cfg.pages, 10) || 0,
       palette: String(cfg.palette || ""), bw: cfg.ink === "bwpre" || cfg.ink === "bwstd",
+    marginIn: Number(body.marginIn) || 0,
     }));
   } catch (e) {
     // Preflight failures carry the specific reasons — say them out loud rather than

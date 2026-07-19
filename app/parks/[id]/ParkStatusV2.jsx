@@ -23,7 +23,11 @@ const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const VC = { go: "#4fd98a", prepare: "#e8cf9a", hold: "#e0906a", loading: "#b3ab97" };
 const VHEAD = { go: "Great day to go", prepare: "Go prepared", hold: "Hold off today", loading: "Checking today's call…" };
 const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 18, padding: 18 };
-const microLabel = { fontFamily: mono, fontSize: ".56rem", letterSpacing: ".14em", textTransform: "uppercase", color: "#9aa7a0" };
+// Small caps label. Two variants, because the same style was being used on the
+// hero photograph AND on the page surface, which need opposite inks: #9aa7a0 is
+// legible on a dark photo and about 2.5:1 on white.
+const microLabel = { fontFamily: mono, fontSize: ".56rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" };
+const microOnPhoto = { ...microLabel, color: "rgba(244,241,234,.82)" };
 const hatch = "repeating-linear-gradient(135deg,#16321f 0 12px,#12291a 12px 24px)";
 
 function milesBetween(a, b) {
@@ -52,7 +56,7 @@ function fmtDateTime(iso) {
 
 const TABS = [
   ["overview", "Overview"],
-  ["conditions", "Conditions 🔔"],
+  ["conditions", "Conditions"],
   ["trails", "Trails & permits"],
   ["plan", "Plan"],
   ["nearby", "Nearby"],
@@ -236,13 +240,21 @@ export default function ParkStatusV2({ id, kind = "park" }) {
       <SiteHeader acctSlot />
 
       {/* HERO + VERDICT */}
-      <section className="ps-hero" style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,700px)", display: "flex", alignItems: "flex-end", padding: "clamp(96px,13vh,150px) clamp(16px,4vw,40px) clamp(30px,5vh,54px)" }}>
+      {/* The hero is the one region that is NOT on the page surface — it's on a
+          full-bleed photograph, which is dark whatever the theme is. Inheriting
+          --pb-ink meant the park's own name rendered dark forest green on a dark
+          photo in light theme. Pinned to a literal light ink here, which is also
+          why every colour inside this section stays literal rather than tokenised. */}
+      <section className="ps-hero" style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,700px)", display: "flex", alignItems: "flex-end", color: "#f4f1ea", padding: "clamp(96px,13vh,150px) clamp(16px,4vw,40px) clamp(30px,5vh,54px)" }}>
         {park && hero && hero.url && <img alt="" src={hero.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", animation: "ps-ken 24s ease-out both" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,19,13,.4) 0%,rgba(8,19,13,.12) 38%,rgba(8,19,13,.85) 100%)" }} />
         <div className="ps-grid" style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", width: "100%", display: "grid", gap: "clamp(20px,4vw,44px)", alignItems: "end" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontFamily: mono, fontSize: ".64rem", letterSpacing: ".24em", textTransform: "uppercase", color: "var(--pb-gold)" }}>{KIND_LABEL} · {park ? park.state : ""}</span>
+              {/* Champagne, literal. The light theme's --pb-gold is #a37c3f, a
+                  deep gold chosen to be legible as text on cream — on this dark
+                  photograph it reads as mud. */}
+              <span style={{ fontFamily: mono, fontSize: ".64rem", letterSpacing: ".24em", textTransform: "uppercase", color: "#e8cf9a" }}>{KIND_LABEL} · {park ? park.state : ""}</span>
             </div>
             <h1 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(3rem,8vw,6rem)", lineHeight: 0.92, letterSpacing: "-.02em", textShadow: "0 6px 40px rgba(0,0,0,.5)", marginTop: 10 }}>{park ? park.name : "…"}</h1>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
@@ -263,13 +275,21 @@ export default function ParkStatusV2({ id, kind = "park" }) {
                 />
               )}
               <a href="/#ask" style={{ textDecoration: "none", cursor: "pointer", fontSize: ".86rem", fontWeight: 600, color: "#f4f1ea", background: "rgba(10,23,18,.5)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "12px 22px" }}>✦ Ask Park Buddy</a>
+              {/* Where the alerts band went. It sits with the other things you can
+                  DO with this park rather than interrupting the way into it, and
+                  still lands on the same card in Conditions. These hero colours
+                  stay literal on purpose — this row sits on a photograph, not on
+                  the page surface, so it can't follow the light/dark tokens. */}
+              <button onClick={goAlerts} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".86rem", fontWeight: 600, color: "#f4f1ea", background: "rgba(10,23,18,.5)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "12px 22px" }}>
+                <span aria-hidden="true">🔔</span> Alerts
+              </button>
             </div>
           </div>
           {/* verdict card */}
           <div style={{ background: "rgba(10,23,18,.62)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid " + vColor + "66", borderRadius: 22, padding: 22, boxShadow: "0 30px 80px -50px rgba(0,0,0,.9)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 12, height: 12, borderRadius: "50%", background: vColor, boxShadow: "0 0 10px " + vColor, animation: "ps-pulse 2.4s infinite" }} />
-              <span style={{ ...microLabel, letterSpacing: ".16em" }}>Today&apos;s call{verdict ? "" : " · loading"}</span>
+              <span style={{ ...microOnPhoto, letterSpacing: ".16em" }}>Today&apos;s call{verdict ? "" : " · loading"}</span>
             </div>
             <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 2, marginTop: 10 }}>
               <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(2.4rem,5vw,3.4rem)", lineHeight: 1.05, color: vColor }}>{verdict ? (verdict.word || bucket.toUpperCase()) : "…"}</span>
@@ -285,26 +305,45 @@ export default function ParkStatusV2({ id, kind = "park" }) {
         </div>
       </section>
 
-      {/* ALERTS NUDGE */}
-      <div style={{ padding: "14px clamp(16px,4vw,40px) 0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", background: "linear-gradient(120deg,rgba(217,183,121,.16),rgba(31,94,70,.14))", border: "1px solid var(--pb-line-strong)", borderRadius: 16, padding: "14px 18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-            <span style={{ width: 38, height: 38, flex: "none", borderRadius: 11, background: "rgba(10,23,18,.4)", border: "1px solid var(--pb-line-strong)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.15rem" }}>🔔</span>
-            <div>
-              <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", lineHeight: 1.1 }}>Planning a trip? Turn on {park ? park.name : ""} alerts.</div>
-              <div style={{ fontSize: ".84rem", color: "#c3c8d0", fontWeight: 300, marginTop: 1 }}>Know the moment the verdict flips, a permit drops, or a flash-flood watch is issued.</div>
-            </div>
-          </div>
-          <button onClick={goAlerts} style={{ cursor: "pointer", flex: "none", fontFamily: "inherit", fontSize: ".84rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "11px 20px", boxShadow: "0 10px 30px -14px rgba(217,183,121,.6)" }}>Set up alerts →</button>
-        </div>
-      </div>
+      {/* The alerts nudge used to sit here, as a full-width band between the hero
+          and the tabs — an interstitial across the one path everyone takes into
+          the page. It was also a duplicate: it did nothing but scroll to
+          SubscribeCard, which already lives inside the Conditions tab where
+          alerts belong. The card stays; the promo band is gone, and the way in
+          is now a quiet action in the hero beside Add to trip. */}
 
       {/* STICKY TABS */}
-      <div id="ps-tabnav" style={{ position: "sticky", top: 56, zIndex: 50, background: "rgba(10,23,18,.85)", WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)", borderBottom: "1px solid var(--pb-line)", marginTop: 14 }}>
-        <div role="tablist" aria-label="Park sections" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, padding: "0 clamp(16px,4vw,40px)", overflowX: "auto" }}>
+      <div id="ps-tabnav" style={{ position: "sticky", top: 56, zIndex: 50,
+        // --pb-glass-strong is the token the design system already defines for a
+        // sheet/bar that floats over content, and it exists in both themes. The
+        // old value was a hardcoded dark rgba, which put a dark band across the
+        // middle of the light theme.
+        background: "var(--pb-glass-strong)",
+        WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)",
+        borderBottom: "1px solid var(--pb-line)", marginTop: 14 }}>
+        <div role="tablist" aria-label="Park sections" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 2, padding: "0 clamp(16px,4vw,40px)", overflowX: "auto" }}>
           {TABS.map(([k, label]) => {
             const on = tab === k;
-            return <button key={k} role="tab" aria-selected={on} onClick={() => { setTab(k); scrollToTabs(); }} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".84rem", fontWeight: 600, color: on ? "#f4f1ea" : "#8a938b", background: "transparent", border: "none", borderBottom: "2px solid " + (on ? "#e8cf9a" : "transparent"), padding: "15px 16px", whiteSpace: "nowrap" }}>{label}</button>;
+            return (
+              <button key={k} role="tab" aria-selected={on}
+                onClick={() => { setTab(k); scrollToTabs(); }}
+                onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--pb-ink)"; }}
+                onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--pb-ink-2)"; }}
+                style={{ position: "relative", cursor: "pointer", fontFamily: "inherit",
+                  fontSize: ".875rem", fontWeight: on ? 700 : 500,
+                  letterSpacing: on ? "-.005em" : "0",
+                  color: on ? "var(--pb-ink)" : "var(--pb-ink-2)",
+                  background: "transparent", border: "none",
+                  padding: "16px 16px 15px", whiteSpace: "nowrap",
+                  transition: "color .16s ease" }}>
+                {label}
+                {/* The rule sits on the bar's own bottom border rather than on the
+                    button, so the active tab reads as continuous with the panel
+                    below it instead of underlined. */}
+                <span aria-hidden="true" style={{ position: "absolute", left: 12, right: 12, bottom: -1,
+                  height: 2, borderRadius: 2, background: on ? "var(--pb-gold)" : "transparent" }} />
+              </button>
+            );
           })}
         </div>
       </div>
@@ -339,7 +378,10 @@ function chip(kind) {
   const base = { borderRadius: 999, padding: "7px 13px", fontSize: ".82rem", fontWeight: 600 };
   if (kind === "good") return { ...base, background: "rgba(79,217,138,.1)", border: "1px solid rgba(79,217,138,.35)", color: "#7fe3a6" };
   if (kind === "warn") return { ...base, background: "rgba(224,144,106,.12)", border: "1px solid rgba(224,144,106,.35)", color: "#e0906a" };
-  return { ...base, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", color: "#f4f1ea" };
+  // Literal, not tokenised: these sit on the verdict card over the hero photo,
+  // which is dark in both themes. (An earlier sweep tokenised this by accident
+  // and they turned dark-on-dark in light mode.)
+  return { ...base, background: "rgba(255,255,255,.10)", border: "1px solid rgba(255,255,255,.22)", color: "#f4f1ea" };
 }
 const H2 = { fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.4rem,3vw,1.9rem)" };
 
@@ -408,7 +450,7 @@ function Overview({ park, nps, isForest, isStatePark }) {
           </p>
           {p && (p.activities || []).length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18 }}>
-              {p.activities.slice(0, 6).map((a) => <span key={a} style={{ fontSize: ".82rem", fontWeight: 500, color: "#e7e3d8", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "7px 13px" }}>{a}</span>)}
+              {p.activities.slice(0, 6).map((a) => <span key={a} style={{ fontSize: ".82rem", fontWeight: 500, color: "var(--pb-ink-2)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "7px 13px" }}>{a}</span>)}
             </div>
           )}
           {p && p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 18, textDecoration: "none", fontSize: ".86rem", fontWeight: 600, color: "var(--pb-gold)" }}>More on NPS.gov →</a>}
@@ -422,7 +464,7 @@ function Overview({ park, nps, isForest, isStatePark }) {
           {p && (nps.thingsToDo || []).length > 0 && (
             <div style={{ ...card, borderRadius: 16 }}>
               <div style={microLabel}>Notable things to do</div>
-              <div style={{ fontSize: ".9rem", color: "#e7e3d8", lineHeight: 1.7, marginTop: 6 }}>{nps.thingsToDo.slice(0, 5).map((t) => t.title).join(" · ")}</div>
+              <div style={{ fontSize: ".9rem", color: "var(--pb-ink-2)", lineHeight: 1.7, marginTop: 6 }}>{nps.thingsToDo.slice(0, 5).map((t) => t.title).join(" · ")}</div>
             </div>
           )}
         </div>
@@ -514,7 +556,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
         {hourly ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(104px,1fr))", gap: 10 }}>
             {hourly.map((h, i) => (
-              <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
+              <div key={i} style={{ textAlign: "center", background: "var(--pb-tint)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", tz ? { hour: "numeric", timeZone: tz } : { hour: "numeric" })}</div>
                 <div style={{ display: "flex", justifyContent: "center", margin: "9px 0 7px" }}>
                   <ForecastTile size={88} seed={String(i)}
@@ -535,7 +577,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
         {daily ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(92px,1fr))", gap: 8 }}>
             {daily.map((d, i) => (
-              <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 6px" }}>
+              <div key={i} style={{ textAlign: "center", background: "var(--pb-tint)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 6px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".06em" }}>{d.name}</div>
                 <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 6px" }}>
                   <ForecastTile size={78} seed={d.name}
@@ -608,12 +650,12 @@ function StatCard({ label, value, note, valueColor, tint }) {
   return (
     <div style={{ ...card, ...bg }}>
       <div style={microLabel}>{label}</div>
-      <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.85rem", lineHeight: 1, marginTop: 10, color: valueColor || "#f4f1ea" }}>{value}</div>
+      <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.85rem", lineHeight: 1, marginTop: 10, color: valueColor || "var(--pb-ink)" }}>{value}</div>
       <div style={{ fontSize: ".82rem", color: "var(--pb-ink-2)", marginTop: 6, lineHeight: 1.5 }}>{note}</div>
     </div>
   );
 }
-function Row({ k, v }) { return <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}><span style={{ fontSize: ".84rem", color: "var(--pb-ink-2)" }}>{k}</span><b style={{ fontSize: ".9rem", color: "#f4f1ea" }}>{v}</b></div>; }
+function Row({ k, v }) { return <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}><span style={{ fontSize: ".84rem", color: "var(--pb-ink-2)" }}>{k}</span><b style={{ fontSize: ".9rem", color: "var(--pb-ink)" }}>{v}</b></div>; }
 
 function AlertCard({ a }) {
   const [open, setOpen] = useState(false);
@@ -630,16 +672,16 @@ function AlertCard({ a }) {
       </div>
       {a.area && <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 5 }}>{a.area}</div>}
       {a.effective && <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".06em", textTransform: "uppercase", color: "#7f8a82", marginTop: 6 }}>In effect {fmtDateTime(a.effective)}{a.expires ? " → " + fmtDateTime(a.expires) : ""}</div>}
-      {a.headline && <p style={{ fontSize: ".9rem", color: "#e7e3d8", fontWeight: 500, lineHeight: 1.5, marginTop: 10 }}>{a.headline}</p>}
+      {a.headline && <p style={{ fontSize: ".9rem", color: "var(--pb-ink-2)", fontWeight: 500, lineHeight: 1.5, marginTop: 10 }}>{a.headline}</p>}
       {a.description && (
         <p style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6, fontWeight: 300, marginTop: 8, whiteSpace: "pre-line" }}>
           {open || !longDesc ? a.description : a.description.slice(0, 260).trim() + "…"}
         </p>
       )}
       {a.instruction && (open || !longDesc) && (
-        <div style={{ marginTop: 10, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "10px 12px" }}>
+        <div style={{ marginTop: 10, background: "var(--pb-tint)", border: "1px solid var(--pb-line)", borderRadius: 10, padding: "10px 12px" }}>
           <div style={{ ...microLabel, fontSize: ".5rem", marginBottom: 4 }}>What to do</div>
-          <div style={{ fontSize: ".82rem", color: "#e7e3d8", lineHeight: 1.55, whiteSpace: "pre-line" }}>{a.instruction}</div>
+          <div style={{ fontSize: ".82rem", color: "var(--pb-ink-2)", lineHeight: 1.55, whiteSpace: "pre-line" }}>{a.instruction}</div>
         </div>
       )}
       {longDesc && <button onClick={() => setOpen((o) => !o)} style={{ marginTop: 10, background: "none", border: "none", color: c, fontFamily: "inherit", fontSize: ".78rem", fontWeight: 600, cursor: "pointer", padding: 0 }}>{open ? "Show less" : "Read full alert →"}</button>}
@@ -702,14 +744,14 @@ function SubscribeCard({ park, alertsRef }) {
           <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
             {ALERT_DEFS.map(([k, label]) => {
               const on = !!prefs[k];
-              return <button key={k} onClick={() => toggle(k)} type="button" style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: 500, borderRadius: 999, padding: "8px 14px", border: "1px solid " + (on ? "transparent" : "var(--pb-line-strong)"), background: on ? "var(--pb-grad-gold)" : "rgba(255,255,255,.03)", color: on ? "#0b1710" : "#c3c8d0" }}>{on ? "✓ " : ""}{label}</button>;
+              return <button key={k} onClick={() => toggle(k)} type="button" style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: 500, borderRadius: 999, padding: "8px 14px", border: "1px solid " + (on ? "transparent" : "var(--pb-line-strong)"), background: on ? "var(--pb-grad-gold)" : "var(--pb-tint)", color: on ? "#0b1710" : "var(--pb-ink-2)" }}>{on ? "✓ " : ""}{label}</button>;
             })}
           </div>
           {status === "done" ? (
             <div style={{ marginTop: 16, color: "#7fe3a6", fontWeight: 600, fontSize: ".92rem" }}>✓ You&apos;re subscribed — we&apos;ll email you when it changes.</div>
           ) : (
             <form onSubmit={submit} style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={"Email for " + (park ? park.name : "park") + " alerts"} style={{ flex: 1, minWidth: 190, fontFamily: "inherit", fontSize: ".88rem", color: "#f4f1ea", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px", outline: "none" }} />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={"Email for " + (park ? park.name : "park") + " alerts"} style={{ flex: 1, minWidth: 190, fontFamily: "inherit", fontSize: ".88rem", color: "var(--pb-ink)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 12, padding: "12px 15px", outline: "none" }} />
               <button type="submit" disabled={status === "saving"} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".86rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", border: "none", borderRadius: 12, padding: "12px 22px", whiteSpace: "nowrap" }}>{status === "saving" ? "Saving…" : "Subscribe"}</button>
             </form>
           )}
@@ -735,7 +777,7 @@ function TrailRow({ t, park, diff, areaQ }) {
         {photo && photo.url && <img alt="" src={photo.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <b style={{ fontSize: ".9rem", color: "#f4f1ea", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</b>
+        <b style={{ fontSize: ".9rem", color: "var(--pb-ink)", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</b>
         <span style={{ ...microLabel, letterSpacing: ".08em" }}>{diff}{t.lengthMi > 0 ? " · " + t.lengthMi + " mi" : ""}</span>
       </div>
       {href && <span style={{ color: "var(--pb-gold-soft)", flex: "none" }}>→</span>}
@@ -800,7 +842,7 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           {["all", "Easy", "Moderate", "Hard"].map((f) => {
             const on = filter === f;
-            return <button key={f} onClick={() => setFilter(f)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".78rem", fontWeight: 600, borderRadius: 999, padding: "7px 14px", border: on ? "none" : "1px solid var(--pb-line-strong)", background: on ? "var(--pb-grad-gold)" : "rgba(255,255,255,.03)", color: on ? "#0b1710" : "#c3c8d0" }}>{f === "all" ? "All" : f}</button>;
+            return <button key={f} onClick={() => setFilter(f)} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".78rem", fontWeight: 600, borderRadius: 999, padding: "7px 14px", border: on ? "none" : "1px solid var(--pb-line-strong)", background: on ? "var(--pb-grad-gold)" : "var(--pb-tint)", color: on ? "#0b1710" : "var(--pb-ink-2)" }}>{f === "all" ? "All" : f}</button>;
           })}
         </div>
       )}
@@ -816,7 +858,7 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
         // Honest, compact empty state — our trail source genuinely lists none here,
         // rather than a misleading "within range" note that ate the whole tab.
         <div style={{ ...card, padding: "18px 20px" }}>
-          <div style={{ fontFamily: serif, fontSize: "1.15rem", color: "#f4f1ea", marginBottom: 6 }}>No mapped trails here yet</div>
+          <div style={{ fontFamily: serif, fontSize: "1.15rem", color: "var(--pb-ink)", marginBottom: 6 }}>No mapped trails here yet</div>
           <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", lineHeight: 1.6, maxWidth: "56ch" }}>
             {isNP
               ? "We map trails from the National Park Service's public trail dataset, and it doesn't list any inside this park yet — the deep backcountry often isn't digitized."
@@ -841,7 +883,7 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
             <div style={microLabel}>Official {isForest ? "forest" : "park"} rules</div>
             <div style={{ fontFamily: serif, fontSize: "1.3rem", marginTop: 8 }}>{isForest ? "fs.usda.gov" : isStatePark ? "State park site" : "NPS.gov"}</div>
             <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 6 }}>{isForest ? "Fees, closures and fire restrictions change through the year — the forest's own Forest Service page is always current." : isStatePark ? "Fees, hours and closures change through the year — the park's own state-agency page is always current." : "Entrance fees, reservation systems and closures change through the year — the park's own page is always current."}</div>
-            <a href={isForest ? "https://www.fs.usda.gov/" : isStatePark ? (park && park.url ? park.url : "https://www.google.com/search?q=" + encodeURIComponent((park ? park.name : "") + " " + (park ? park.state : "") + " official site")) : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#f4f1ea", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
+            <a href={isForest ? "https://www.fs.usda.gov/" : isStatePark ? (park && park.url ? park.url : "https://www.google.com/search?q=" + encodeURIComponent((park ? park.name : "") + " " + (park ? park.state : "") + " official site")) : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "var(--pb-ink)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
           </div>
         </div>
       </div>
@@ -893,13 +935,13 @@ function Plan({ park, nps, places, isForest, isStatePark, areaQ }) {
           <div style={{ fontFamily: serif, fontSize: "1.6rem", marginTop: 8 }}>{park ? park.state : ""}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
             <a href={"https://maps.google.com/?q=" + encodeURIComponent((park ? park.name : "") + (isNP ? " National Park" : ""))} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "9px 15px" }}>Directions ↗</a>
-            <a href={isForest ? "https://www.fs.usda.gov/" : isStatePark ? (park && park.url ? park.url : "https://www.google.com/search?q=" + encodeURIComponent((park ? park.name : "") + " " + (park ? park.state : "") + " official site")) : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "#f4f1ea", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
+            <a href={isForest ? "https://www.fs.usda.gov/" : isStatePark ? (park && park.url ? park.url : "https://www.google.com/search?q=" + encodeURIComponent((park ? park.name : "") + " " + (park ? park.state : "") + " official site")) : (park && park.npsCode ? "https://www.nps.gov/" + park.npsCode : "https://www.nps.gov")} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", fontSize: ".8rem", fontWeight: 600, color: "var(--pb-ink)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 15px" }}>Official site ↗</a>
           </div>
         </div>
         {p && (p.activities || []).length > 0 && (
           <div style={{ ...card, padding: 20 }}>
             <div style={microLabel}>What to do</div>
-            <div style={{ fontSize: ".9rem", color: "#e7e3d8", lineHeight: 1.7, marginTop: 8 }}>{p.activities.slice(0, 8).join(" · ")}</div>
+            <div style={{ fontSize: ".9rem", color: "var(--pb-ink-2)", lineHeight: 1.7, marginTop: 8 }}>{p.activities.slice(0, 8).join(" · ")}</div>
           </div>
         )}
       </div>

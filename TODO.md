@@ -366,11 +366,15 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
 
 ## Places data coverage (found 2026-07-19)
 
-- [ ] **USER: set `INGEST_SECRET` in Vercel.** `/api/destinations-ingest` has never run —
-      it returns 401 to *everyone* when the secret is unset (`!process.env.INGEST_SECRET`
-      is the first clause of its auth check), so the OSM state-park ingest has been
-      switched off since the day it was written. Confirmed: zero `osm`-sourced rows in
-      `destinations`. Once set, call `?all=1&token=…` (one state per call, ~50 calls).
+- [ ] **The OSM state-park ingest has never successfully written.** PROVEN: zero
+      `osm`-sourced rows in `destinations` (all 688 are `nps`/`usfs`/`state`). NOT proven:
+      *why*. `/api/destinations-ingest` returns 401 to an untokened call whether or not
+      `INGEST_SECRET` is set, so that test says nothing — check the Vercel env directly
+      before assuming the secret is missing. To run: `?all=1&token=…`, one state per call,
+      ~50 calls.
+- [ ] Don't confuse this with the **gateway-towns** ingest, which DID run and worked:
+      `gateway_towns` holds 8,508 GNIS towns across 181 anchors (5,773 around 118 forests,
+      2,698 around 63 parks). That is the "we loaded thousands" memory — towns, not parks.
 - [ ] State park coverage is **97** against thousands in the US. The curated list was
       never meant to be complete. OSM ingest is the stopgap; PAD-US is the real answer
       (the ingest's own comment calls OSM "a free, programmatic stand-in for PAD-US").

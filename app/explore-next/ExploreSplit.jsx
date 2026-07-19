@@ -704,6 +704,14 @@ export default function ExploreSplit() {
     b.extend({ lat: sel.lat, lng: sel.lng });
     let n = 0;
 
+    // Everything found gets drawn, but only what's close decides the frame.
+    // Acadia returns 99 gateway towns, the farthest ~90 miles out, and fitting to
+    // all of them zooms so far back that the park itself is a speck — the opposite
+    // of opening a place. Anything further out is still on the map, just off the
+    // edge until you pan.
+    const FRAME_MI = 30;
+    const inFrame = (lat, lng) => milesBetween({ lat: sel.lat, lng: sel.lng }, { lat, lng }) <= FRAME_MI;
+
     const open = (anchorOrLatLng, title, sub, extra) => {
       infoRef.current.setContent(
         '<div style="font-family:system-ui,sans-serif;max-width:230px;color:#12261b">' +
@@ -742,8 +750,7 @@ export default function ExploreSplit() {
           open(m, name, subFor(kind, it, sel), extra);
         });
         nearbyRef.current.push(m);
-        b.extend({ lat, lng });
-        n++;
+        if (inFrame(lat, lng)) { b.extend({ lat, lng }); n++; }
       });
     });
 
@@ -766,7 +773,7 @@ export default function ExploreSplit() {
           open(e.latLng, t.name || "Trail", subFor("trails", t, sel), "");
         });
         nearbyRef.current.push(line);
-        path.forEach((q) => { b.extend(q); n++; });
+        path.forEach((q) => { if (inFrame(q.lat, q.lng)) { b.extend(q); n++; } });
       });
     }
 
@@ -1458,7 +1465,7 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, on
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 40px" }}>
-        {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} />}
+        {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} vfull={vfull} />}
         {tab === "about" && <About place={place} nps={data.about} err={err.about} />}
         {tab !== "overview" && tab !== "about" && (
           <ThingList kind={tab} items={data[tab]} failed={err[tab]} place={place} />
@@ -1468,13 +1475,50 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, on
   );
 }
 
-function Overview({ place, cond, err }) {
-  if (err) return <Notice text="Couldn't read today's conditions for this place." />;
-  if (!cond) return <Notice text="Reading conditions…" quiet />;
+function Overview({ place, cond, err, vfull }) {
+  // The road-access warning is the one thing here that must render even when the
+  // live conditions fail: eight national parks have no road to them at all, and
+  // a failed weather fetch is no reason to let someone plan a drive to Katmai.
+  const access = roadAccessNote(place.name);
+  const banner = access ? (
+    <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 13,
+      background: "color-mix(in srgb, var(--pb-hold) 12%, transparent)",
+      border: "1px solid color-mix(in srgb, var(--pb-hold) 45%, transparent)" }}>
+      <span aria-hidden="true" style={{ color: "var(--pb-hold)" }}>✈</span>
+      <div>
+        <div style={{ fontWeight: 600, fontSize: ".86rem" }}>{roadAccessLabel(access.level)}</div>
+        <div style={{ fontSize: ".78rem", color: "var(--pb-ink-2)", marginTop: 3, lineHeight: 1.45 }}>{access.text}</div>
+      </div>
+    </div>
+  ) : null;
+
+  if (err) return <div style={{ display: "grid", gap: 12 }}>{banner}<Notice text="Couldn't read today's conditions for this place." /></div>;
+  if (!cond) return <div style={{ display: "grid", gap: 12 }}>{banner}<Notice text="Reading conditions…" quiet /></div>;
   const alerts = cond.weatherAlerts || [];
   const fires = cond.wildfires || [];
+  // pb-verdict already writes this sentence, across five tiers — it separates
+  // "Great day to go" from "Good to go", which the card's three-way GO/PREPARE/
+  // HOLD band flattens. So the panel quotes the engine rather than re-deriving
+  // a coarser version of what it already said.
+  const copy = vfull && vfull.word ? { headline: vfull.word, note: vfull.sub || "" } : null;
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {banner}
+      {copy && (
+        <div style={{ padding: "14px 16px", borderRadius: 13,
+          background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)" }}>
+          <div style={{ fontFamily: "var(--pb-serif)", fontWeight: 400, fontSize: "1.3rem" }}>{copy.headline}</div>
+          <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", marginTop: 5, lineHeight: 1.5 }}>{copy.note}</div>
+          {!!(vfull.chips && vfull.chips.length) && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+              {vfull.chips.slice(0, 4).map((c, i) => (
+                <span key={i} style={{ padding: "4px 9px", borderRadius: 999, fontSize: ".72rem",
+                  background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)" }}>{c}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {cond.temp && (
         <Panel title="Right now">
           <div style={{ fontSize: "1.5rem", fontFamily: "var(--pb-serif)", fontWeight: 300 }}>

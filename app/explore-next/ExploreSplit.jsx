@@ -40,12 +40,39 @@ function milesBetween(a, b) {
 const ST_ABBR = { Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA", Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA", Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD", Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS", Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA", Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY" };
 const abbr = (s) => ST_ABBR[s] || s || "";
 
-const TYPE_LABEL = { national_park: "National park", national_forest: "National forest", state_park: "State park" };
+const TYPE_LABEL = {
+  national_park: "National park", national_forest: "National forest",
+  state_park: "State park", nps_unit: "National Park Service site",
+};
 const CATS = [
   { key: "national_park", label: "Parks" },
   { key: "national_forest", label: "Forests" },
   { key: "state_park", label: "State parks" },
+  { key: "nps_unit", label: "Monuments & sites" },
 ];
+
+// A National Park Service unit is anything from a monument to a battlefield, so
+// name it by its own designation rather than one flat label.
+const NPS_DESIGNATIONS = [
+  "National Monument", "National Historical Park", "National Historic Site",
+  "National Historic Area", "National Seashore", "National Lakeshore",
+  "National Recreation Area", "National Preserve", "National Reserve",
+  "National Battlefield Park", "National Battlefield", "National Military Park",
+  "National Memorial", "National Parkway", "National River", "National Scenic River",
+  "Affiliated Area",
+];
+function npsLabel(name) {
+  for (const d of NPS_DESIGNATIONS) if (name.includes(d)) return d;
+  return "National Park Service site";
+}
+
+// 24 of the NPS units are LINEAR — the Appalachian Trail, the California National
+// Historic Trail — running thousands of miles across up to ten states. They have a
+// centroid in the data, but pinning one to a point and quoting a distance to it
+// would be a straightforward lie about where it is. Routes need the treatment
+// scenic drives get; until they have it, they're excluded rather than misplaced.
+const isLinearUnit = (name) =>
+  /National (Historic|Scenic) Trail/i.test(name) || /\bTrail\b/i.test(name) && /National/i.test(name);
 
 function loadScript(src, id) {
   return new Promise((res) => {
@@ -91,7 +118,8 @@ export default function ExploreSplit() {
   const [dataErr, setDataErr] = useState("");
   const [origin, setOrigin] = useState(null);          // { name, lat, lng, state }
   const [radius, setRadius] = useState(100);           // miles; null = any
-  const [cats, setCats] = useState({ national_park: true, national_forest: true, state_park: true });
+  const [cats, setCats] = useState({ national_park: true, national_forest: true, state_park: true, nps_unit: false });
+  const [dataNote, setDataNote] = useState("");
   const [conds, setConds] = useState({ go: true, prepare: true, hold: true });
   const [stateFilter, setStateFilter] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -122,6 +150,9 @@ export default function ExploreSplit() {
       if (dead) return;
 
       const out = [];
+      // National parks always come from the bundled file — it carries the id and
+      // parkCode the destinations table doesn't, and those are what link to
+      // /parks/:id and fetch the right trails.
       if (okTrip && window.TRIP_PARKS) {
         const codes = window.NPS_CODE || {};
         for (const p of window.TRIP_PARKS) {
@@ -130,16 +161,57 @@ export default function ExploreSplit() {
             href: "/parks/" + p.id });
         }
       }
-      if (okForest && window.FOREST_DATA) {
-        for (const f of window.FOREST_DATA) {
-          out.push({ key: "nf:" + f.name, name: f.name, state: abbr(f.state), lat: f.lat, lng: f.lng,
-            type: "national_forest", href: "" });
+
+      // Everything else from the destinations table, so anything ingested later
+      // shows up with no code change. Typed calls because the API caps at 500 and
+      // the three types together exceed it.
+      let fromDb = 0;
+      const seen = new Set(out.map((p) => p.name.toLowerCase()));
+      for (const type of ["state_park", "national_forest", "nps_unit"]) {
+        try {
+          const r = await fetch("/api/destinations?type=" + type + "&limit=500");
+          if (!r.ok) continue;
+          const j = await r.json();
+          for (const d of j.destinations || []) {
+            if (!d.name || d.lat == null || d.lng == null) continue;
+            if (seen.has(d.name.toLowerCase())) continue;
+            if (type === "nps_unit" && isLinearUnit(d.name)) continue;   // routes, not points
+            seen.add(d.name.toLowerCase());
+            // Some units span up to ten states; the field then reads
+            // "California / Colorado / Idaho / …". Left out of the state filter
+            // rather than polluting it with a compound value.
+            const multi = typeof d.state === "string" && d.state.includes("/");
+            out.push({
+              key: type + ":" + d.id, name: d.name, state: multi ? "" : abbr(d.state),
+              stateLabel: multi ? "Multi-state" : abbr(d.state),
+              lat: Number(d.lat), lng: Number(d.lng), type, href: "",
+              sub: type === "nps_unit" ? npsLabel(d.name) : null,
+            });
+            fromDb++;
+          }
+        } catch { /* fall through to the bundled files */ }
+      }
+
+      // No table (local dev, or it's down) — use what ships in the repo. Fewer
+      // places, but the page works rather than showing an empty shelf.
+      if (!fromDb) {
+        if (okForest && window.FOREST_DATA) {
+          for (const f of window.FOREST_DATA) {
+            if (seen.has(f.name.toLowerCase())) continue;
+            seen.add(f.name.toLowerCase());
+            out.push({ key: "nf:" + f.name, name: f.name, state: abbr(f.state), lat: f.lat, lng: f.lng,
+              type: "national_forest", href: "" });
+          }
         }
+        for (const s of sp) {
+          if (seen.has(s.name.toLowerCase())) continue;
+          seen.add(s.name.toLowerCase());
+          out.push({ key: "sp:" + s.name, name: s.name, state: abbr(s.state), lat: s.lat, lng: s.lng,
+            type: "state_park", href: "" });
+        }
+        setDataNote("Showing the built-in list — the full places database isn't reachable from here.");
       }
-      for (const s of sp) {
-        out.push({ key: "sp:" + s.name, name: s.name, state: abbr(s.state), lat: s.lat, lng: s.lng,
-          type: "state_park", href: "" });
-      }
+
       setPlaces(out);
       if (!out.length) setDataErr("Couldn't load the places list. Reload to try again.");
     })();
@@ -163,7 +235,7 @@ export default function ExploreSplit() {
   }, [places, stateFilter, origin, radius, conds, verdicts]);
 
   const catCounts = useMemo(() => {
-    const c = { national_park: 0, national_forest: 0, state_park: 0 };
+    const c = { national_park: 0, national_forest: 0, state_park: 0, nps_unit: 0 };
     for (const p of inScope) if (c[p.type] != null) c[p.type]++;
     return c;
   }, [inScope]);
@@ -413,6 +485,7 @@ export default function ExploreSplit() {
 
               <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 120px" }}>
                 {dataErr && <Notice text={dataErr} />}
+                {dataNote && <Notice text={dataNote} quiet />}
                 {!dataErr && !places.length && <Notice text="Loading places…" quiet />}
                 {!!places.length && !results.length && (
                   <Notice text={origin
@@ -542,8 +615,8 @@ function Header(props) {
             {c.label}
           </Chip>
         ))}
-        {(!cats.national_park || !cats.national_forest || !cats.state_park) && (
-          <button onClick={() => setCats({ national_park: true, national_forest: true, state_park: true })}
+        {CATS.some((c) => !cats[c.key]) && (
+          <button onClick={() => setCats({ national_park: true, national_forest: true, state_park: true, nps_unit: true })}
             style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-gold)",
               fontFamily: "var(--pb-sans)", fontSize: ".78rem", fontWeight: 600, padding: "0 4px" }}>
             Show all
@@ -722,7 +795,7 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, picked, onToggle, onO
           }} />
         </div>
         <div style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", marginTop: 5 }}>
-          {TYPE_LABEL[p.type]} · {p.state}
+          {p.sub || TYPE_LABEL[p.type]}{(p.stateLabel || p.state) ? " · " + (p.stateLabel || p.state) : ""}
           {dist != null && isFinite(dist)
             ? " · " + (dist < 1 ? "under a mile" : Math.round(dist) + " mi from " + origin.name)
             : ""}

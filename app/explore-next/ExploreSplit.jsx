@@ -134,20 +134,33 @@ export default function ExploreSplit() {
 
   const say = useCallback((m) => { setFlash(m); setTimeout(() => setFlash(""), 3000); }, []);
 
-  // The site nav is a FLOATING PILL (.pb-nav-float — fixed, top 14, ~76 tall), not a
-  // 64px bar. Hardcoding 64 put it 26px on top of the search field. Measured at
-  // runtime so this stays right when the nav changes height or wraps on a narrow
-  // window, instead of being a magic number that silently rots.
+  // The site nav is a FLOATING PILL (.pb-nav-float — fixed, offset by a vw-based
+  // clamp, height set by its contents), not a 64px bar. Hardcoding 64 put it on
+  // top of the search field.
+  //
+  // Measuring once at mount isn't enough either, and that's what kept the overlap
+  // alive: the nav holds a LOGO IMAGE, so at the moment this effect first runs the
+  // nav can still be at its pre-load height. It grows when the image arrives — and
+  // no resize event fires for that, so a one-shot measurement stays permanently
+  // too small. A ResizeObserver catches the image landing, a font swapping in, and
+  // the nav wrapping on a narrow window, all of which change its height without
+  // the window changing size.
   const [topPad, setTopPad] = useState(104);
   useEffect(() => {
+    const nav = document.querySelector(".pb-nav-float");
+    if (!nav) return;
     const measure = () => {
-      const nav = document.querySelector(".pb-nav-float");
-      const bottom = nav ? nav.getBoundingClientRect().bottom : 90;  // fixed → scroll-independent
-      setTopPad(Math.round(bottom) + 14);
+      // fixed positioning → bottom is viewport-relative and scroll-independent
+      setTopPad(Math.round(nav.getBoundingClientRect().bottom) + 14);
     };
     measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    // border-box, not the default content-box: what matters here is where the nav
+    // visually ENDS, and padding or a border changes that without touching the
+    // content box at all.
+    const ro = new ResizeObserver(measure);
+    ro.observe(nav, { box: "border-box" });
+    window.addEventListener("resize", measure);   // catches the vw-clamp offset moving
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
   }, []);
 
   /* ---- load the three local datasets ---- */

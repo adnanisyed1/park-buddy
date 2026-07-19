@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import loadScript from "../components/load-script";
 import SiteHeader from "../components/SiteHeader";
 import useDarkBody from "../lib/useDarkBody";
+import { roadAccessNote } from "../lib/roadAccess";
 import { getClient, initAuth, openAuth } from "../lib/auth";
 import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
 import { fetchElevationProfile } from "../lib/elevationClient";
@@ -67,29 +68,6 @@ const BOUNDARY_URL = (code) =>
 const USER_LOC = { lat: 39.8283, lng: -98.5795 };
 const AVG_MPH = 45;
 
-// Parks with NO road connecting them to the outside road network — a distinct
-// fact from "sparse map data," and important enough to surface before someone
-// plans a drive there. Curated from well-established NPS access info (not
-// inferred from live data, which wouldn't be reliable for this).
-const NO_ROAD_ACCESS = {
-  "Gates of the Arctic": "No roads reach this park — access is by small plane, boat, or on foot only.",
-  "Kobuk Valley": "No roads reach this park — access is by small plane, boat, or on foot only.",
-  "Lake Clark": "No roads reach this park — access is by small plane or boat only.",
-  Katmai: "No roads connect to this park — most visitors arrive by small plane or boat (e.g. to Brooks Camp).",
-  "Isle Royale": "No roads or bridges reach this island park — access is by ferry or seaplane only; no cars are allowed on the island.",
-  "Dry Tortugas": "No roads reach this park — it's 70 miles from Key West, accessible only by boat or seaplane.",
-  "Virgin Islands": "No roads connect from the mainland U.S. — access is by ferry or flight to St. Thomas/St. John.",
-  "Nat. Park of American Samoa": "No roads connect from the mainland U.S. — access is by flight to Pago Pago, American Samoa.",
-};
-// Has some limited/seasonal road access, but most of the park is roadless.
-const LIMITED_ROAD_ACCESS = {
-  "Wrangell–St. Elias": "Only a small part of this park is road-accessible (the unpaved McCarthy Road) — the rest is roadless wilderness reached by plane or on foot.",
-};
-function roadAccessNote(name) {
-  if (NO_ROAD_ACCESS[name]) return { level: "none", text: NO_ROAD_ACCESS[name] };
-  if (LIMITED_ROAD_ACCESS[name]) return { level: "limited", text: LIMITED_ROAD_ACCESS[name] };
-  return null;
-}
 
 // Dark forest map style — matches the futuristic-royal panels so the map reads as
 // part of the page, not a bright rectangle behind it. ALL colors are literal hex:

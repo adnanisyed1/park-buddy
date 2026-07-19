@@ -26,6 +26,7 @@ import { usePhoto } from "../components/PhotoThumb";
 import { useThemedBody } from "../lib/theme";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { getStops, setStops } from "../lib/trip";
+import { roadAccessNote, roadAccessLabel } from "../lib/roadAccess";
 
 /* ------------------------------------------------------------------ helpers */
 const R_EARTH = 3958.8;
@@ -656,6 +657,7 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, picked, onToggle, onO
   const photo = usePhoto(q, p.lat, p.lng, ref, 700);
   const dist = origin ? milesBetween(origin, p) : null;
   const vcol = verdict === "go" ? "var(--pb-go)" : verdict === "prepare" ? "var(--pb-prepare)" : verdict === "hold" ? "var(--pb-hold)" : "var(--pb-muted)";
+  const access = roadAccessNote(p.name);
 
   return (
     <div ref={ref} style={{ borderRadius: 16, overflow: "hidden",
@@ -673,6 +675,26 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, picked, onToggle, onO
           fontSize: ".68rem", background: picked ? "var(--pb-grad-gold)" : "var(--pb-glass-strong)",
           color: picked ? "var(--pb-bg)" : "var(--pb-ink-2)",
           border: picked ? "none" : "1px solid var(--pb-line-strong)" }}>{n}</span>
+
+        {/* Temperature, big, where the eye lands — carried over from the old tile. */}
+        {vfull && vfull.temp != null && (
+          <span style={{ position: "absolute", right: 12, top: 10, fontFamily: "var(--pb-serif)",
+            fontSize: "1.4rem", color: "#f4f1ea", textShadow: "0 1px 8px rgba(0,0,0,.7)" }}>
+            {Math.round(vfull.temp)}°
+          </span>
+        )}
+
+        {/* You cannot drive to eight of the national parks. Say so before someone
+            plans a road trip to one — this is the Alaska/island signal. */}
+        {access && (
+          <span title={access.text} style={{ position: "absolute", left: 12, top: 44,
+            display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 999,
+            fontFamily: "var(--pb-mono)", fontSize: ".56rem", fontWeight: 700, letterSpacing: ".06em",
+            textTransform: "uppercase", color: "var(--pb-hold)", background: "var(--pb-glass-strong)",
+            border: "1px solid color-mix(in srgb, var(--pb-hold) 55%, transparent)" }}>
+            ✈ {access.level === "none" ? "No road" : "Ltd road"}
+          </span>
+        )}
         {/* the perishable fact, on the photo */}
         <span style={{ position: "absolute", left: 12, bottom: 12, display: "inline-flex", alignItems: "center",
           gap: 6, padding: "5px 9px", borderRadius: 999, background: "var(--pb-glass-strong)",
@@ -691,7 +713,7 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, picked, onToggle, onO
               color: "var(--pb-bg)", fontSize: ".62rem", fontWeight: 800, lineHeight: 1 }}>{picked ? "✓" : ""}</button>
           <button onClick={onOpen} style={{ flex: 1, minWidth: 0, textAlign: "left", cursor: "pointer",
             background: "none", border: "none", padding: 0, color: "var(--pb-ink)",
-            fontFamily: "var(--pb-sans)", fontWeight: 600, fontSize: "1rem",
+            fontFamily: "var(--pb-serif)", fontWeight: 500, fontSize: "1.25rem", lineHeight: 1.1,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</button>
           <SaveButton variant="bare" size={26} place={{
             kind: p.type === "national_park" ? "park" : p.type === "national_forest" ? "forest" : "statePark",

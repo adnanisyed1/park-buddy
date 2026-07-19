@@ -181,6 +181,31 @@ export default function ExploreSplit() {
   useEffect(() => { setLimit(24); }, [stateFilter, origin, radius, cats, conds]);
   const shown = results.slice(0, limit);
 
+  // Active weather alerts, straight from weather.gov. Cached per rounded coord for
+  // the session, same convention PBVerdict uses.
+  const alertCache = useRef({});
+  const fetchAlerts = useCallback(async (lat, lng) => {
+    const key = lat.toFixed(3) + "," + lng.toFixed(3);
+    if (alertCache.current[key]) return alertCache.current[key];
+    try {
+      const r = await fetch(
+        "https://api.weather.gov/alerts/active?point=" + lat.toFixed(4) + "," + lng.toFixed(4),
+        { headers: { Accept: "application/geo+json" } }
+      );
+      if (!r.ok) throw new Error(String(r.status));
+      const j = await r.json();
+      const list = (j.features || [])
+        .map((f) => f.properties || {})
+        .filter((p) => p.event)
+        .map((p) => ({ event: p.event, severity: p.severity || "", headline: p.headline || "" }));
+      alertCache.current[key] = list;
+      return list;
+    } catch {
+      alertCache.current[key] = null;   // null = we tried and couldn't
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined" || !window.PBVerdict) return;
     let dead = false, running = 0, i = 0;
@@ -188,24 +213,32 @@ export default function ExploreSplit() {
     // only, which left every state park and forest showing "checking…" forever —
     // a promise the page never kept. weather.gov works from any US coordinate and
     // PBVerdict caches per rounded coord for the session, so the cost is bounded
-    // by what's actually on screen (24) rather than by the whole dataset.
+    // by what's actually on screen rather than by the whole dataset.
     const queue = shown.filter((p) => !verdicts[p.name]);
+
+    const one = async (p) => {
+      // Alerts FIRST, because the verdict is supposed to account for them.
+      // pb-verdict's own fetchVerdict passes evaluate(periods, 0, 0) — weather
+      // only — so a place could read "Great day to go" with a flood warning
+      // active. We fetch the real count and evaluate with it.
+      const alerts = await fetchAlerts(p.lat, p.lng);
+      const periods = await new Promise((res) => window.PBVerdict.fetchPeriods(p.lat, p.lng, res));
+      if (dead) return;
+      const r = periods ? window.PBVerdict.evaluate(periods, (alerts || []).length, 0) : null;
+      if (!r) return;
+      const b = r.score >= 62 ? "go" : r.score >= 42 ? "prepare" : "hold";
+      setVerdicts((v) => ({ ...v, [p.name]: b, [p.name + ":full"]: r, [p.name + ":alerts"]: alerts }));
+    };
+
     const pump = () => {
       while (running < 3 && i < queue.length) {
         const p = queue[i++]; running++;
-        window.PBVerdict.fetchVerdict(p.lat, p.lng, (r) => {
-          running--;
-          if (!dead && r) {
-            const b = r.score >= 62 ? "go" : r.score >= 42 ? "prepare" : "hold";
-            setVerdicts((v) => ({ ...v, [p.name]: b, [p.name + ":full"]: r }));
-          }
-          pump();
-        });
+        one(p).catch(() => {}).then(() => { running--; if (!dead) pump(); });
       }
     };
     pump();
     return () => { dead = true; };
-  }, [shown.map((p) => p.key).join(","), places.length]);
+  }, [shown.map((p) => p.key).join(","), places.length, fetchAlerts]);
 
   /* ---- search: local places first, then geocode (ZIP / address / town) ---- */
   useEffect(() => {
@@ -389,6 +422,7 @@ export default function ExploreSplit() {
                   {shown.map((p, i) => (
                     <PlaceCard key={p.key} p={p} n={i + 1} origin={origin}
                       verdict={verdicts[p.name]} vfull={verdicts[p.name + ":full"]}
+                      alerts={verdicts[p.name + ":alerts"]}
                       picked={picked.has(p.key)} onToggle={() => toggle(p.key)} onOpen={() => setSel(p)} />
                   ))}
                 </div>
@@ -616,7 +650,7 @@ function FilterPopover({ onClose, conds, setConds, states, stateFilter, setState
 }
 
 /* -------------------------------------------------------------- place card */
-function PlaceCard({ p, n, origin, verdict, vfull, picked, onToggle, onOpen }) {
+function PlaceCard({ p, n, origin, verdict, vfull, alerts, picked, onToggle, onOpen }) {
   const ref = useRef(null);
   const q = p.type === "national_park" ? p.name + " National Park|" + p.name : p.name;
   const photo = usePhoto(q, p.lat, p.lng, ref, 700);
@@ -667,11 +701,53 @@ function PlaceCard({ p, n, origin, verdict, vfull, picked, onToggle, onOpen }) {
         </div>
         <div style={{ fontSize: ".76rem", color: "var(--pb-ink-2)", marginTop: 5 }}>
           {TYPE_LABEL[p.type]} · {p.state}
+          {dist != null && isFinite(dist)
+            ? " · " + (dist < 1 ? "under a mile" : Math.round(dist) + " mi from " + origin.name)
+            : ""}
         </div>
-        {dist != null && isFinite(dist) && (
-          <div style={{ ...micro, marginTop: 4, letterSpacing: ".06em" }}>
-            {dist < 1 ? "under a mile" : Math.round(dist) + " mi from " + origin.name}
+
+        {/* ── active alerts. Loudest thing on the card when there are any,
+              because it's the one fact that can change the plan. ── */}
+        {alerts && alerts.length > 0 && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginTop: 9,
+            padding: "7px 9px", borderRadius: 9,
+            background: "color-mix(in srgb, var(--pb-hold) 12%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--pb-hold) 45%, transparent)" }}>
+            <span aria-hidden="true" style={{ color: "var(--pb-hold)", fontSize: ".8rem", lineHeight: 1.3 }}>⚠</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: ".74rem", lineHeight: 1.35, color: "var(--pb-ink)" }}>
+              <b style={{ fontWeight: 600 }}>{alerts[0].event}</b>
+              {alerts.length > 1 && (
+                <span style={{ color: "var(--pb-muted)" }}> + {alerts.length - 1} more</span>
+              )}
+            </span>
           </div>
+        )}
+
+        {/* ── today's weather, and the reasons behind the verdict.
+              All of this already came back with the verdict — it was being
+              thrown away and only the headline word rendered. ── */}
+        {vfull && (
+          <>
+            <div style={{ ...micro, marginTop: 9, letterSpacing: ".06em" }}>
+              {[
+                vfull.temp != null ? vfull.temp + "°" : null,
+                vfull.sky || null,
+                vfull.wind ? vfull.wind + " mph wind" : null,
+              ].filter(Boolean).join(" · ")}
+            </div>
+            {!!(vfull.chips && vfull.chips.length) && (
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 7 }}>
+                {vfull.chips.slice(0, 3).map((c, i) => (
+                  <span key={i} style={{ fontSize: ".68rem", padding: "3px 8px", borderRadius: 999,
+                    background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)",
+                    color: c.pos ? "var(--pb-go)" : "var(--pb-ink-2)" }}>{c.t}</span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {alerts === null && (
+          <div style={{ ...micro, marginTop: 8, letterSpacing: ".06em" }}>Alerts unavailable</div>
         )}
       </div>
     </div>

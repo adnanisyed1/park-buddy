@@ -222,3 +222,75 @@ html[data-theme="light"] .pb-theme {
   .wt-scene *, .wt-chip * { animation: none !important; }
   .wt-particle { opacity: .8 !important; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Forecast strip tiles — design_handoff_forecast_strip_tiles (2026-07-19)
+
+   A separate component from the 236x130 tile, NOT a scale of it. At 88x46 a
+   scaled 2px rain streak lands at 0.75px and the motion disappears, so these are
+   drawn natively: 2.5px strokes that never scale, fewer and larger particles,
+   and slower travel across a bigger share of the tile.
+
+   Keyframes verbatim from the prototype.
+   ──────────────────────────────────────────────────────────────────────────── */
+@keyframes fs-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes fs-drift { from { transform: translateX(-4px); } to { transform: translateX(4px); } }
+@keyframes fs-pulse { 0%, 100% { opacity: .55; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.06); } }
+@keyframes fs-rain  { 0% { transform: translateY(-8px); opacity: 0; } 22% { opacity: 1; } 100% { transform: translateY(26px); opacity: 0; } }
+@keyframes fs-snow  { 0% { transform: translateY(-6px) translateX(0); opacity: 0; } 22% { opacity: 1; } 100% { transform: translateY(30px) translateX(5px); opacity: 0; } }
+@keyframes fs-flash { 0%, 90%, 100% { opacity: 0; } 91%, 96% { opacity: .8; } 93% { opacity: .2; } }
+
+/* The condition is written under every one of these as a temperature and label,
+   so stopping the motion costs no information. */
+@media (prefers-reduced-motion: reduce) { .fs-tile * { animation: none !important; } }
+
+/* Forecast-strip palette. Separate light block for the same reason the big tile
+   needed one: a particle tuned for a dark card is invisible on parchment. The
+   alphas are load-bearing — the flash is a translucent wash, not a fill. */
+:root {
+  --fs-shell: linear-gradient(160deg,#0e2016,#0b1710);
+  --fs-border: rgba(217,183,121,.30);
+  --fs-shell-empty: linear-gradient(160deg,#0c1a12,#0a140d);
+  --fs-border-empty: rgba(217,183,121,.28);
+  --fs-empty-ink: rgba(127,138,130,.7);
+  --fs-empty-dash: #7f8a82;
+  --fs-sun: linear-gradient(120deg,#e8cf9a,#c9a35f);
+  --fs-sun-glow: 0 0 12px rgba(232,207,154,.65);
+  --fs-cloud-fair: #39463c;
+  --fs-cloud-rain: #4a5560;
+  --fs-cloud-snow: #54606b;
+  --fs-cloud-storm: #3a3f4d;
+  --fs-p-rain: rgba(143,184,201,.9);
+  --fs-p-snow: #e6eef4;
+  --fs-p-storm: rgba(180,190,210,.85);
+  --fs-flash: rgba(232,207,154,.5);
+  --fs-bolt: #e8cf9a;
+  --fs-bolt-glow: rgba(232,207,154,.85);
+  --fs-sky-clear: none;  --fs-sky-cloudy: none;  --fs-sky-rain: none;
+  --fs-sky-snow: none;   --fs-sky-storm: none;
+}
+html[data-theme="light"] .pb-theme {
+  --fs-shell: #fbf8f1;
+  --fs-border: rgba(201,163,95,.34);
+  --fs-shell-empty: #f1ede3;
+  --fs-border-empty: rgba(201,163,95,.42);
+  --fs-empty-ink: rgba(138,149,133,.75);
+  --fs-empty-dash: #8a9585;
+  --fs-sun: linear-gradient(120deg,#f2d492,#d9a441);
+  --fs-sun-glow: 0 0 11px rgba(217,164,65,.55);
+  --fs-cloud-fair: #eef2f5;
+  --fs-cloud-rain: #c3ccd4;
+  --fs-cloud-snow: #ccd6de;
+  --fs-cloud-storm: #9aa3ae;
+  --fs-p-rain: rgba(79,147,168,.85);
+  --fs-p-snow: #7fa9bd;
+  --fs-p-storm: rgba(90,100,120,.8);
+  --fs-flash: rgba(255,244,210,.7);
+  --fs-bolt: #d9a441;
+  --fs-bolt-glow: rgba(217,164,65,.8);
+  --fs-sky-clear:  linear-gradient(170deg,#eaf1f4,#f4efe4);
+  --fs-sky-cloudy: linear-gradient(170deg,#e7eef2,#f4efe4);
+  --fs-sky-rain:   linear-gradient(170deg,#dbe4ea,#eef0ec);
+  --fs-sky-snow:   linear-gradient(170deg,#e2eaf0,#f1f2ee);
+  --fs-sky-storm:  linear-gradient(170deg,#cfd6de,#e4e4de);
+}

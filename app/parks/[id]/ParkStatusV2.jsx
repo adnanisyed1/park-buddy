@@ -12,7 +12,8 @@ import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
-import WeatherTile, { WeatherSky, conditionFromSky } from "../../components/WeatherTile";
+import WeatherTile, { conditionFromSky } from "../../components/WeatherTile";
+import ForecastTile from "../../components/ForecastTile";
 import SaveButton from "../../components/SaveButton";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
@@ -46,8 +47,8 @@ function fmtDateTime(iso) {
 // sun-behind-cloud — have no glyph in plenty of system fonts, so a foggy morning
 // or a partly-cloudy Wednesday rendered as a grey tofu box while sunny and rainy
 // days looked fine. Drawn shapes can't fail that way, and they animate.
-// See app/components/WeatherTile.jsx — WeatherSky renders the same scene at
-// forecast-column size rather than a simplified stand-in.
+// The strips use app/components/ForecastTile.jsx, drawn natively at 88x46 and
+// 78x42 — scaling the big tile down put its rain streaks at 0.75px.
 
 const TABS = [
   ["overview", "Overview"],
@@ -515,11 +516,11 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             {hourly.map((h, i) => (
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", tz ? { hour: "numeric", timeZone: tz } : { hour: "numeric" })}</div>
-                {conditionFromSky(h.shortForecast) && (
-                  <div style={{ display: "flex", justifyContent: "center", margin: "9px 0 7px" }}>
-                    <WeatherSky condition={conditionFromSky(h.shortForecast)} width={88} height={46} seed={String(i)} />
-                  </div>
-                )}
+                <div style={{ display: "flex", justifyContent: "center", margin: "9px 0 7px" }}>
+                  <ForecastTile size={88} seed={String(i)}
+                    condition={conditionFromSky(h.shortForecast) || "unknown"}
+                    label={h.shortForecast} />
+                </div>
                 <div style={{ fontFamily: serif, fontSize: "1.3rem" }}>{h.temperature}°</div>
                 <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{h.shortForecast}</div>
               </div>
@@ -536,11 +537,11 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             {daily.map((d, i) => (
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 6px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".06em" }}>{d.name}</div>
-                {conditionFromSky(d.sky) && (
-                  <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 6px" }}>
-                    <WeatherSky condition={conditionFromSky(d.sky)} width={78} height={42} seed={d.name} />
-                  </div>
-                )}
+                <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 6px" }}>
+                  <ForecastTile size={78} seed={d.name}
+                    condition={conditionFromSky(d.sky) || "unknown"}
+                    label={d.sky} />
+                </div>
                 <div style={{ fontFamily: serif, fontSize: "1.05rem" }}>{d.hi}°{d.lo != null && <span style={{ color: "var(--pb-muted)", fontSize: ".8em" }}> / {d.lo}°</span>}</div>
                 <div style={{ fontSize: ".62rem", color: d.pop > 30 ? "#a9c2e0" : "var(--pb-muted)", marginTop: 3 }}>💧 {d.pop}%</div>
               </div>

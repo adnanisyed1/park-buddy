@@ -5,7 +5,8 @@
 // judged by eye instead of by element count, which is how the last two attempts
 // went wrong.
 import { useRef, useState } from "react";
-import WeatherTile, { WeatherChip, WeatherSky, CONDITIONS } from "../components/WeatherTile";
+import WeatherTile, { WeatherChip, CONDITIONS } from "../components/WeatherTile";
+import ForecastTile, { FS_CONDITIONS } from "../components/ForecastTile";
 import { useThemedBody, setTheme, useTheme } from "../lib/theme";
 
 const SAMPLES = [
@@ -55,20 +56,21 @@ export default function WeatherTilesBench() {
           Forecast columns — the same scene, scaled
         </div>
         <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", marginBottom: 16, maxWidth: "56ch" }}>
-          88&times;46 for the hourly strip, 78&times;42 for the 7-day. Not a simplified
-          redraw &mdash; the same cloud, gradient, rays and storm wash, transformed down.
+          88&times;46 hourly and 78&times;42 for the 7-day, from the forecast-strip handoff.
+          Drawn at size, not scaled: 2.5px strokes that never shrink, 3&ndash;5 large
+          particles, and a still &ldquo;unknown&rdquo; state for when there is no forecast.
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-          {CONDITIONS.map((c) => (
+          {FS_CONDITIONS.map((c) => (
             <div key={c} style={{ textAlign: "center" }}>
-              <WeatherSky condition={c} width={88} height={46} seed={c} />
+              <ForecastTile condition={c} size={88} seed={c} />
               <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".54rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 6 }}>{c}</div>
             </div>
           ))}
-          <div style={{ width: 24 }} />
-          {CONDITIONS.map((c) => (
+          <div style={{ width: 20 }} />
+          {FS_CONDITIONS.map((c) => (
             <div key={c + "s"} style={{ textAlign: "center" }}>
-              <WeatherSky condition={c} width={78} height={42} seed={c + "s"} />
+              <ForecastTile condition={c} size={78} seed={c + "s"} />
             </div>
           ))}
         </div>

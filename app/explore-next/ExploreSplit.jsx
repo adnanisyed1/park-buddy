@@ -1560,7 +1560,7 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, on
         {trail ? (
           <TrailDetail trail={trail} place={place} onBack={() => setTrail(null)} />
         ) : (<>
-          {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} vfull={vfull} nearby={data} />}
+          {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} vfull={vfull} nearby={data} onTab={setTab} />}
           {tab === "about" && <About place={place} nps={data.about} err={err.about} />}
           {tab !== "overview" && tab !== "about" && (
             <ThingList kind={tab} items={data[tab]} failed={err[tab]} place={place} onTrail={setTrail} />
@@ -1603,61 +1603,64 @@ function PinesPeek({ name }) {
   );
 }
 
-// One distance-sorted list mixing campgrounds and lakes, each with a drive-time
-// estimate and a link to its own status page. Those pages (/campground-status,
-// /lake-status) already existed and nothing in the rebuild linked to them, so
-// every campground and lake was a dead end.
-function NearbyRoundup({ place, nearby }) {
-  const items = [];
-  (nearby.camping || []).forEach((c) => {
-    if (!isFinite(Number(c.lat))) return;
-    items.push({
-      name: c.name, kind: "Campground",
-      mi: milesBetween(place, { lat: Number(c.lat), lng: Number(c.lng) }),
-      href: "/campground-status?name=" + encodeURIComponent(c.name || "") +
-            "&lat=" + c.lat + "&lng=" + c.lng,
-    });
+// "What's around here", answered once.
+//
+// This used to be a list of campgrounds and lakes — which is exactly what the
+// Camping and Water tabs already hold, so the same rows appeared twice and
+// gateway towns appeared in a third place with no connection to either. The
+// tabs ARE the answer; this summarises them and points into them, so there is
+// one place that says what surrounds this park and one place per kind that
+// lists it.
+const AROUND = [
+  { key: "trails", label: "Trails", icon: "🥾", empty: "none mapped here" },
+  { key: "camping", label: "Camping", icon: "⛺", empty: "none found nearby" },
+  { key: "water", label: "Lakes & water", icon: "💧", empty: "none found nearby" },
+  { key: "towns", label: "Gateway towns", icon: "🏘", empty: "none within reach" },
+];
+
+function AroundHere({ place, nearby, onTab }) {
+  const rows = AROUND.map((a) => {
+    const items = nearby[a.key];
+    if (!items) return { ...a, loading: true };
+    // Trails carry geometry rather than a point, so they get a count and no
+    // distance — saying "0 mi" would be inventing one.
+    let nearest = null;
+    if (a.key !== "trails") {
+      for (const it of items) {
+        const lat = Number(it.lat), lng = Number(it.lng);
+        if (!isFinite(lat) || !isFinite(lng)) continue;
+        const mi = it.distanceMi != null ? Number(it.distanceMi) : milesBetween(place, { lat, lng });
+        if (!isFinite(mi)) continue;
+        if (!nearest || mi < nearest.mi) nearest = { mi, name: it.bareName || it.name };
+      }
+    }
+    return { ...a, count: items.length, nearest };
   });
-  (nearby.water || []).forEach((w) => {
-    if (!isFinite(Number(w.lat))) return;
-    items.push({
-      name: w.name, kind: w.kind === "reservoir" ? "Reservoir" : "Lake",
-      mi: milesBetween(place, { lat: Number(w.lat), lng: Number(w.lng) }),
-      href: "/lake-status?name=" + encodeURIComponent(w.name || "") +
-            "&lat=" + w.lat + "&lng=" + w.lng,
-    });
-  });
-  if (!items.length) return null;
-  items.sort((a, b) => a.mi - b.mi);
 
   return (
-    <Panel title="Nearby">
+    <Panel title="Around here">
       <div style={{ display: "grid", gap: 2 }}>
-        {items.slice(0, 10).map((it, i) => (
-          <Link key={it.name + i} href={it.href}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", textDecoration: "none",
-              color: "var(--pb-ink)", borderTop: i ? "1px solid var(--pb-line)" : "none" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: ".86rem", overflow: "hidden",
-                textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
-              <div style={{ ...micro, marginTop: 3 }}>{it.kind}</div>
-            </div>
-            <div style={{ textAlign: "right", flex: "none" }}>
-              <div style={{ fontSize: ".82rem", fontWeight: 600 }}>{Math.round(it.mi)} mi</div>
-              <div style={{ ...micro, marginTop: 3 }}>est. {driveTimeLabel(it.mi)}</div>
-            </div>
+        {rows.map((r, i) => (
+          <button key={r.key} onClick={() => onTab(r.key)}
+            style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left",
+              cursor: "pointer", background: "none", border: "none", padding: "10px 0",
+              borderTop: i ? "1px solid var(--pb-line)" : "none", color: "var(--pb-ink)", fontFamily: "inherit" }}>
+            <span aria-hidden="true" style={{ fontSize: "1rem", flex: "none" }}>{r.icon}</span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: ".88rem" }}>{r.label}</span>
+            <span style={{ ...micro, letterSpacing: ".06em", textAlign: "right" }}>
+              {r.loading ? "…"
+                : !r.count ? r.empty
+                : r.count + (r.nearest ? " · nearest " + Math.round(r.nearest.mi) + " mi" : "")}
+            </span>
             <span aria-hidden="true" style={{ color: "var(--pb-gold)", flex: "none" }}>›</span>
-          </Link>
+          </button>
         ))}
-      </div>
-      <div style={{ ...micro, marginTop: 10, letterSpacing: ".08em" }}>
-        Straight-line distance · drive time estimated at {AVG_MPH} mph
       </div>
     </Panel>
   );
 }
 
-function Overview({ place, cond, err, vfull, nearby }) {
+function Overview({ place, cond, err, vfull, nearby, onTab }) {
   // The road-access warning is the one thing here that must render even when the
   // live conditions fail: eight national parks have no road to them at all, and
   // a failed weather fetch is no reason to let someone plan a drive to Katmai.
@@ -1748,7 +1751,7 @@ function Overview({ place, cond, err, vfull, nearby }) {
       </Panel>
 
       {/* What else is around, once today's call and today's conditions are read. */}
-      <NearbyRoundup place={place} nearby={nearby || {}} />
+      <AroundHere place={place} nearby={nearby || {}} onTab={onTab} />
       <PinesPeek name={place.name} />
       {place.href && (
         <Link href={place.href} style={{ ...goldBtn, display: "block", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>

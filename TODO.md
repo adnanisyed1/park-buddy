@@ -363,3 +363,20 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
 - `/book` + `/shop` ported 1:1 (partner-powered, honest coming-soon).
 - `/parks/:id` deep park-status page + `park_alerts` Supabase table + `/api/park-alert`.
 - "63 parks" copy reframed to include forests + state parks.
+
+## Places data coverage (found 2026-07-19)
+
+- [ ] **USER: set `INGEST_SECRET` in Vercel.** `/api/destinations-ingest` has never run —
+      it returns 401 to *everyone* when the secret is unset (`!process.env.INGEST_SECRET`
+      is the first clause of its auth check), so the OSM state-park ingest has been
+      switched off since the day it was written. Confirmed: zero `osm`-sourced rows in
+      `destinations`. Once set, call `?all=1&token=…` (one state per call, ~50 calls).
+- [ ] State park coverage is **97** against thousands in the US. The curated list was
+      never meant to be complete. OSM ingest is the stopgap; PAD-US is the real answer
+      (the ingest's own comment calls OSM "a free, programmatic stand-in for PAD-US").
+- [ ] **Linear NPS units have no home.** 25 of the 410 are trails running up to 2,000
+      miles across 14 states (Appalachian, California NHT). Excluded from /explore-next
+      rather than pinned to a misleading centroid. They need the same route treatment as
+      scenic drives — a drawn line, not a pin.
+- [ ] `destinations` row counts as of 2026-07-19: nps_unit 410, national_forest 118,
+      state_park 97, national_park 63. All from `nps`/`usfs`/`state` sources — none ingested.

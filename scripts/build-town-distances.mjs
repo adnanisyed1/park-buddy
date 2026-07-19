@@ -34,9 +34,15 @@ const KEEP_MI = 40;
 
 async function loadTowns() {
   if (FROM) return JSON.parse(fs.readFileSync(path.resolve(FROM), "utf8"));
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // SUPABASE_SERVICE_KEY is the name the app already uses (see app/api/gateway/route.js).
+  // It has to be the service key, not the anon/publishable one: gateway_towns has
+  // RLS enabled with ZERO policies, so anon reads return [] rather than an error —
+  // a silent empty result, which is the worst kind. That's deliberate (the table is
+  // server-only), so this reads it the same way the API does.
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) {
-    console.error("No --from file and no SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in env.");
+    console.error("Needs SUPABASE_URL and SUPABASE_SERVICE_KEY, or pass --from <file>.");
+    console.error("The anon key will NOT work — gateway_towns is RLS-locked to the service role.");
     process.exit(1);
   }
   const out = [];

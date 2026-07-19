@@ -89,11 +89,16 @@ function loadScript(src, id) {
 }
 
 // Numbered map marker. Google Maps can't read CSS variables, so these are literal.
-function numIcon(g, n, on) {
+// The numbered pin is the list-to-map correspondence (the Zillow/Airbnb model),
+// so the number stays. What it was missing is today's call: the ring is drawn in
+// the place's verdict colour, so GO / PREPARE / HOLD reads straight off the map
+// instead of only from the cards.
+function numIcon(g, n, on, verdict) {
   const d = on ? 30 : 24;
+  const ring = verdictHex(verdict).replace("#", "%23");
   const bg = on ? "%23e8cf9a" : "rgba(8,13,9,.92)";
   const fg = on ? "%230a1712" : "%23aab0ba";
-  const stroke = on ? "none" : "stroke='%23d9b779' stroke-opacity='.5'";
+  const stroke = on ? "none" : "stroke='" + ring + "' stroke-opacity='.95' stroke-width='2'";
   const svg =
     "data:image/svg+xml;utf8," +
     "<svg xmlns='http://www.w3.org/2000/svg' width='" + d + "' height='" + d + "' viewBox='0 0 " + d + " " + d + "'>" +
@@ -109,6 +114,47 @@ function originIcon(g) {
     "<circle cx='15' cy='15' r='13' fill='rgba(8,13,9,.92)' stroke='%23e8cf9a' stroke-width='3'/>" +
     "<circle cx='15' cy='15' r='5' fill='%23e8cf9a'/></svg>";
   return { url: svg, scaledSize: new g.maps.Size(30, 30), anchor: new g.maps.Point(15, 15) };
+}
+
+// Trail polyline colours, carried over from the legacy map so a route drawn here
+// looks like the same route drawn anywhere else on the platform.
+// InfoWindow content is an HTML string, so anything from a third-party feed has
+// to be escaped on the way in — these names come from RIDB, OSM and GNIS.
+function esc(v) {
+  return String(v == null ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+// One line under the name, in that kind's own terms.
+function subFor(kind, it, place) {
+  if (kind === "trails") return [TRAIL_CAT_LABEL[it.cat] || "Trail", it.lengthMi ? it.lengthMi + " mi" : null].filter(Boolean).join(" · ");
+  if (kind === "camping") return [it.type || "Campground", it.reservable ? "reservable" : null].filter(Boolean).join(" · ");
+  if (kind === "water") return it.kind || "Lake";
+  if (kind === "towns") return it.distanceMi != null ? Math.round(it.distanceMi) + " mi from " + place.name : "Gateway town";
+  return "";
+}
+
+const BOUNDARY_URL = (code) =>
+  "https://raw.githubusercontent.com/nationalparkservice/data/gh-pages/base_data/boundaries/parks/" + code + ".topojson";
+
+const TRAIL_STYLE = { hiking: "#3f7a34", offroad: "#a15a2a", ski: "#2a6f9e" };
+const TRAIL_CAT_LABEL = { hiking: "Hiking trail", offroad: "Off-road / 4x4 route", ski: "Ski route" };
+
+// Marker SVGs are data URIs, which can't reference CSS custom properties — but
+// the verdict palette differs between light and dark. So resolve the token to a
+// literal at draw time and the markers follow the theme like everything else.
+function cssHex(name, fallback) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  } catch { return fallback; }
+}
+function verdictHex(v) {
+  if (v === "go") return cssHex("--pb-go", "#4fd98a");
+  if (v === "prepare") return cssHex("--pb-prepare", "#e8cf9a");
+  if (v === "hold") return cssHex("--pb-hold", "#e0906a");
+  return "#b3ab97";   // no live read yet
 }
 
 // Nearby features get a smaller, quieter dot than the numbered place markers —
@@ -547,7 +593,8 @@ export default function ExploreSplit() {
       const on = picked.has(p.key);
       const m = new g.maps.Marker({
         position: { lat: p.lat, lng: p.lng }, map,
-        icon: numIcon(g, sel ? shown.indexOf(p) + 1 : i + 1, on || !!sel), title: p.name, zIndex: on ? 20 : 10,
+        icon: numIcon(g, sel ? shown.indexOf(p) + 1 : i + 1, on || !!sel, verdicts[p.name]),
+        title: p.name + (verdicts[p.name] ? " · " + verdicts[p.name].toUpperCase() : ""), zIndex: on ? 20 : 10,
       });
       m.addListener("click", () => setSel(p));
       markersRef.current.push(m);
@@ -577,7 +624,7 @@ export default function ExploreSplit() {
     shown.forEach((p) => { b.extend({ lat: p.lat, lng: p.lng }); n++; });
     if (n > 1) map.fitBounds(b, 60);
     else if (n === 1) { map.setCenter(b.getCenter()); map.setZoom(8); }
-  }, [shown.map((p) => p.key).join(","), picked, origin, radius, mapOk, sel]);
+  }, [shown.map((p) => p.key).join(","), picked, origin, radius, mapOk, sel, verdicts]);
 
   /* ---- the opened place: zoom in, and draw what's around it ---------------
      Opening a park moves the map to that park and puts its trails, campgrounds,
@@ -585,7 +632,61 @@ export default function ExploreSplit() {
      list and the map are always describing the same thing; Overview shows all of
      them. This draws the data the detail panel already fetched — nothing extra is
      requested for the map. */
+  /* ---- live location ------------------------------------------------------
+     Distinct from the search origin: the origin is "where I'm searching from"
+     and doesn't move, this is "where I am right now" and does. watchPosition is
+     cleared on unmount so the page can't leave the GPS polling in the background. */
+  const [liveOn, setLiveOn] = useState(false);
+  const [liveErr, setLiveErr] = useState("");
+  const liveRef = useRef({ watch: null, marker: null });
+  useEffect(() => () => {
+    if (liveRef.current.watch != null && navigator.geolocation) navigator.geolocation.clearWatch(liveRef.current.watch);
+    if (liveRef.current.marker) liveRef.current.marker.setMap(null);
+  }, []);
+
+  const toggleLive = () => {
+    const g = typeof window !== "undefined" ? window.google : null;
+    const map = mapRef.current;
+    if (liveOn) {
+      if (liveRef.current.watch != null) navigator.geolocation.clearWatch(liveRef.current.watch);
+      liveRef.current.watch = null;
+      if (liveRef.current.marker) { liveRef.current.marker.setMap(null); liveRef.current.marker = null; }
+      setLiveOn(false); setLiveErr("");
+      return;
+    }
+    if (!navigator.geolocation) { setLiveErr("This browser can't share a location."); return; }
+    setLiveErr(""); setLiveOn(true);
+    let framed = false;
+    liveRef.current.watch = navigator.geolocation.watchPosition(
+      (pos) => {
+        const at = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        if (!g || !map) return;
+        if (!liveRef.current.marker) {
+          liveRef.current.marker = new g.maps.Marker({
+            position: at, map, zIndex: 60, title: "You are here",
+            icon: { url: "data:image/svg+xml;utf8," +
+              "<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'>" +
+              "<circle cx='11' cy='11' r='9' fill='%232c7a9e' fill-opacity='.28'/>" +
+              "<circle cx='11' cy='11' r='5' fill='%234aa8d8' stroke='%23fffdf7' stroke-width='2'/></svg>",
+              scaledSize: new g.maps.Size(22, 22), anchor: new g.maps.Point(11, 11) },
+          });
+        } else liveRef.current.marker.setPosition(at);
+        // Frame once, then stay out of the way — re-centring on every fix fights
+        // anyone trying to pan.
+        if (!framed) { framed = true; map.panTo(at); if (map.getZoom() < 9) map.setZoom(9); }
+      },
+      (err) => {
+        setLiveOn(false);
+        setLiveErr(err && err.code === 1
+          ? "Location access was denied — you can allow it in your browser's site settings."
+          : "Couldn't get a location fix.");
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+  };
+
   const nearbyRef = useRef([]);
+  const infoRef = useRef(null);
   useEffect(() => {
     const g = typeof window !== "undefined" ? window.google : null;
     const map = mapRef.current;
@@ -593,7 +694,9 @@ export default function ExploreSplit() {
 
     nearbyRef.current.forEach((m) => m.setMap(null));
     nearbyRef.current = [];
+    if (infoRef.current) infoRef.current.close();
     if (!sel) return;
+    if (!infoRef.current) infoRef.current = new g.maps.InfoWindow();
 
     const kinds = ["trails", "camping", "water", "towns"];
     const active = kinds.indexOf(detailTab) > -1 ? [detailTab] : kinds;
@@ -601,28 +704,133 @@ export default function ExploreSplit() {
     b.extend({ lat: sel.lat, lng: sel.lng });
     let n = 0;
 
+    const open = (anchorOrLatLng, title, sub, extra) => {
+      infoRef.current.setContent(
+        '<div style="font-family:system-ui,sans-serif;max-width:230px;color:#12261b">' +
+        '<b>' + esc(title) + '</b>' +
+        (sub ? '<div style="font-size:12px;color:#4a5a50;margin-top:3px">' + esc(sub) + '</div>' : "") +
+        (extra || "") + '</div>'
+      );
+      // A marker anchors the bubble; a click on a polyline has no marker, only the
+      // latlng where the line was hit.
+      if (anchorOrLatLng instanceof g.maps.Marker) infoRef.current.open({ map, anchor: anchorOrLatLng });
+      else { infoRef.current.setPosition(anchorOrLatLng); infoRef.current.open(map); }
+    };
+
     active.forEach((kind) => {
+      // /api/trails returns geometry, not a point — trails have no lat/lng at all,
+      // so they're drawn as lines below rather than as dots that would never appear.
+      if (kind === "trails") return;
       (nearby[kind] || []).forEach((it) => {
         const lat = Number(it.lat), lng = Number(it.lng);
         if (!isFinite(lat) || !isFinite(lng) || (!lat && !lng)) return;
+        const name = it.bareName || it.name || "Unnamed";
         const m = new g.maps.Marker({
           position: { lat, lng }, map, icon: dotIcon(g, kind), zIndex: 5,
-          title: (it.bareName || it.name || "") + " · " + NEARBY_LABEL[kind],
+          title: name + " · " + NEARBY_LABEL[kind],
         });
-        // Clicking a dot takes you to the list it came from, so the map is a way
-        // into the panel rather than a dead end.
-        m.addListener("click", () => setDetailTab(kind));
+        m.addListener("click", () => {
+          setDetailTab(kind);
+          // A campground you can actually book is worth a link straight to the
+          // booking page; everything else just says what it is.
+          const extra = kind === "camping" && it.reservable && it.id
+            ? '<div style="margin-top:7px"><a href="https://www.recreation.gov/camping/campgrounds/' +
+              encodeURIComponent(it.id) + '" target="_blank" rel="noopener" style="font-size:12px">Book on Recreation.gov →</a></div>'
+            : kind === "towns" && it.distanceMi != null
+            ? '<div style="margin-top:7px"><a href="/book?cat=stays" style="font-size:12px">Find stays →</a></div>'
+            : "";
+          open(m, name, subFor(kind, it, sel), extra);
+        });
         nearbyRef.current.push(m);
         b.extend({ lat, lng });
         n++;
       });
     });
 
-    // Frame the place plus whatever is around it. With nothing around it yet
-    // (still loading, or genuinely nothing) just settle on the place itself.
+    // Trails are lines, not points — drawn in the legacy colour for their category
+    // so a footpath, a 4x4 route and a ski route stay distinguishable.
+    if (detailTab === "overview" || detailTab === "trails") {
+      (nearby.trails || []).forEach((t) => {
+        // The feed gives [lat, lng] pairs, which Google's Polyline does not accept —
+        // it wants {lat, lng}. Passing the raw pairs draws a silently empty line.
+        const path = (Array.isArray(t.path) ? t.path : [])
+          .map((q) => (Array.isArray(q) ? { lat: Number(q[0]), lng: Number(q[1]) } : q))
+          .filter((q) => q && isFinite(q.lat) && isFinite(q.lng));
+        if (path.length < 2) return;
+        const line = new g.maps.Polyline({
+          path, map, strokeColor: TRAIL_STYLE[t.cat] || TRAIL_STYLE.hiking,
+          strokeOpacity: 0.95, strokeWeight: 4, zIndex: 8, clickable: true,
+        });
+        line.addListener("click", (e) => {
+          setDetailTab("trails");
+          open(e.latLng, t.name || "Trail", subFor("trails", t, sel), "");
+        });
+        nearbyRef.current.push(line);
+        path.forEach((q) => { b.extend(q); n++; });
+      });
+    }
+
     if (n) map.fitBounds(b, 70);
     else { map.setCenter({ lat: sel.lat, lng: sel.lng }); map.setZoom(10); }
   }, [sel, detailTab, nearby, mapOk]);
+
+  /* ---- the park's real boundary ------------------------------------------
+     A national park is an area, not a pin. The NPS publishes each unit's
+     boundary as topojson; drawing it is the difference between "somewhere
+     around here" and the actual shape of the place. Cached per unit code, and
+     it never tightens the view — a boundary fit would push the campgrounds and
+     trails just drawn above off-screen, so it only widens if the park is
+     bigger than what's on screen. */
+  const boundaryRef = useRef({ cache: {}, feats: [] });
+  useEffect(() => {
+    const g = typeof window !== "undefined" ? window.google : null;
+    const map = mapRef.current;
+    if (!g || !map) return;
+    let dead = false;
+
+    boundaryRef.current.feats.forEach((f) => { try { map.data.remove(f); } catch {} });
+    boundaryRef.current.feats = [];
+    if (!sel || !sel.npsCode) return;
+
+    (async () => {
+      const code = sel.npsCode;
+      let geo = boundaryRef.current.cache[code];
+      if (geo === undefined) {
+        let transient = false;
+        try {
+          await loadScript("https://unpkg.com/topojson-client@3/dist/topojson-client.min.js", "pb-x-topojson");
+          // loadScript resolves as soon as the tag exists, which can be before the
+          // library has evaluated. Waiting on the global is what actually tells us
+          // it's usable.
+          for (let i = 0; i < 40 && !window.topojson; i++) await new Promise((r2) => setTimeout(r2, 50));
+          if (!window.topojson) throw new Error("topojson unavailable");
+          const r = await fetch(BOUNDARY_URL(code));
+          const topo = r.ok ? await r.json() : null;
+          if (topo && topo.objects) {
+            const k = Object.keys(topo.objects)[0];
+            geo = k ? window.topojson.feature(topo, topo.objects[k]) : null;
+          } else geo = null;   // this park genuinely has no published boundary
+        } catch { geo = null; transient = true; }
+        // Cache a real "no boundary" answer, never a transient failure — caching
+        // the latter would mean one flaky load permanently blanks this park.
+        if (!transient) boundaryRef.current.cache[code] = geo;
+      }
+      if (dead || !geo || !mapRef.current) return;
+
+      const feats = map.data.addGeoJson(geo);
+      map.data.setStyle({ strokeColor: "#1d4a37", strokeWeight: 2, fillColor: "#3f7a4a", fillOpacity: 0.22 });
+      boundaryRef.current.feats = feats;
+
+      const bb = new g.maps.LatLngBounds();
+      feats.forEach((f) => f.getGeometry().forEachLatLng((ll) => bb.extend(ll)));
+      const cur = map.getBounds();
+      if (!bb.isEmpty() && cur && !cur.contains(bb.getNorthEast()) && !cur.contains(bb.getSouthWest())) {
+        map.fitBounds(bb, 90);
+      }
+    })();
+
+    return () => { dead = true; };
+  }, [sel, mapOk]);
 
   /* ---- add to trip ---- */
   const addToTrip = () => {
@@ -749,6 +957,52 @@ export default function ExploreSplit() {
               fontSize: ".76rem", fontWeight: 600, color: "var(--pb-gold)" }}>
               {origin.name}{radius ? " · " + radius + " mi" : ""}
             </div>
+          )}
+
+          {mapOk && (
+            <>
+              {/* What the pin colours mean. Without this the ring is just decoration. */}
+              <div style={{ position: "absolute", left: 20, bottom: 20, padding: "10px 13px", borderRadius: 12,
+                background: "var(--pb-glass-strong)", border: "1px solid var(--pb-line)", backdropFilter: "blur(8px)" }}>
+                <div style={{ ...micro, marginBottom: 7 }}>Today&rsquo;s call</div>
+                <div style={{ display: "flex", gap: 13 }}>
+                  {[["--pb-go", "Go"], ["--pb-prepare", "Prepare"], ["--pb-hold", "Hold off"]].map(([v, label]) => (
+                    <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5,
+                      fontSize: ".72rem", color: "var(--pb-ink)" }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 999, border: "2px solid var(--" + v.slice(2) + ")" }} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                {sel && (
+                  <div style={{ display: "flex", gap: 13, marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--pb-line)" }}>
+                    {[["trails", "Trails"], ["camping", "Camping"], ["water", "Water"], ["towns", "Towns"]].map(([k, label]) => (
+                      <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5,
+                        fontSize: ".72rem", color: "var(--pb-muted)" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 999,
+                          background: decodeURIComponent(NEARBY_STYLE[k].c) }} />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ position: "absolute", right: 20, bottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+                <button onClick={toggleLive} title="Follow my location"
+                  style={{ ...mapCtl, color: liveOn ? "#4aa8d8" : "var(--pb-ink)",
+                    borderColor: liveOn ? "#4aa8d8" : "var(--pb-line-strong)" }}>◉</button>
+                <button title="Back to the whole country"
+                  onClick={() => { setSel(null); const m = mapRef.current; if (m) { m.setCenter({ lat: 39.5, lng: -98.5 }); m.setZoom(4); } }}
+                  style={mapCtl}>⌂</button>
+              </div>
+
+              {liveErr && (
+                <div style={{ position: "absolute", right: 20, bottom: 96, maxWidth: 230, padding: "9px 12px",
+                  borderRadius: 10, background: "var(--pb-glass-strong)", border: "1px solid var(--pb-line)",
+                  fontSize: ".74rem", color: "var(--pb-muted)" }}>{liveErr}</div>
+              )}
+            </>
           )}
         </section>
       </div>
@@ -1116,8 +1370,11 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, on
     };
     setData({}); setErr({});
     const ll = "lat=" + place.lat + "&lng=" + place.lng;
+    // Flattening the three categories into one array threw away the only thing
+    // that says whether a line is a footpath, a 4x4 route or a ski route — which
+    // is what colours it on the map and what a hiker most needs to know.
     get("trails", place.npsCode ? "/api/trails?parkCode=" + place.npsCode : "/api/trails?" + ll + "&radius=25",
-      (j) => [].concat(j.hiking || [], j.offroad || [], j.ski || []));
+      (j) => ["hiking", "offroad", "ski"].flatMap((cat) => (j[cat] || []).map((t) => ({ ...t, cat }))));
     get("camping", "/api/places?" + ll + "&radius=30", (j) => (j.facilities || []));
     get("water", "/api/water?" + ll + "&radius=35", (j) => (j.lakes || []));
     get("conditions", "/api/conditions?" + ll, (j) => j);
@@ -1444,6 +1701,10 @@ function ThingList({ kind, items, failed, place }) {
 }
 
 /* ------------------------------------------------------------------- atoms */
+const mapCtl = { cursor: "pointer", width: 38, height: 38, borderRadius: 10, display: "flex",
+  alignItems: "center", justifyContent: "center", fontSize: "1rem", lineHeight: 1,
+  background: "var(--pb-glass-strong)", border: "1px solid var(--pb-line-strong)",
+  color: "var(--pb-ink)", backdropFilter: "blur(8px)" };
 const micro = { fontFamily: "var(--pb-mono)", fontSize: ".58rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" };
 const pillBtn = { cursor: "pointer", fontFamily: "var(--pb-sans)", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "11px 16px" };
 const goldBtn = { cursor: "pointer", width: "100%", fontFamily: "var(--pb-sans)", fontWeight: 700, fontSize: ".9rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 12, padding: "13px 16px" };

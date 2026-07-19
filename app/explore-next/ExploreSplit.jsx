@@ -27,6 +27,7 @@ import { useThemedBody } from "../lib/theme";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { getStops, setStops } from "../lib/trip";
 import { roadAccessNote, roadAccessLabel } from "../lib/roadAccess";
+import WeatherFX from "./WeatherFX";
 
 /* ------------------------------------------------------------------ helpers */
 const R_EARTH = 3958.8;
@@ -300,7 +301,11 @@ export default function ExploreSplit() {
       const r = periods ? window.PBVerdict.evaluate(periods, (alerts || []).length, 0) : null;
       if (!r) return;
       const b = r.score >= 62 ? "go" : r.score >= 42 ? "prepare" : "hold";
-      setVerdicts((v) => ({ ...v, [p.name]: b, [p.name + ":full"]: r, [p.name + ":alerts"]: alerts }));
+      // isDaytime is the forecast's own flag — the weather effect needs it to know
+      // whether a clear sky is a sun or a field of stars.
+      const isDay = periods[0] && periods[0].isDaytime !== false;
+      setVerdicts((v) => ({ ...v, [p.name]: b, [p.name + ":full"]: r,
+        [p.name + ":alerts"]: alerts, [p.name + ":day"]: isDay }));
     };
 
     const pump = () => {
@@ -469,7 +474,8 @@ export default function ExploreSplit() {
           background: "var(--pb-surface)", borderRight: "1px solid var(--pb-line)", position: "relative" }}>
 
           {sel ? (
-            <PlaceDetail place={sel} origin={origin} onBack={() => setSel(null)} resultCount={results.length} />
+            <PlaceDetail place={sel} origin={origin} onBack={() => setSel(null)} resultCount={results.length}
+              vfull={verdicts[sel.name + ":full"]} isDay={verdicts[sel.name + ":day"]} />
           ) : (
             <>
               <Header
@@ -496,7 +502,7 @@ export default function ExploreSplit() {
                   {shown.map((p, i) => (
                     <PlaceCard key={p.key} p={p} n={i + 1} origin={origin}
                       verdict={verdicts[p.name]} vfull={verdicts[p.name + ":full"]}
-                      alerts={verdicts[p.name + ":alerts"]}
+                      alerts={verdicts[p.name + ":alerts"]} isDay={verdicts[p.name + ":day"]}
                       picked={picked.has(p.key)} onToggle={() => toggle(p.key)} onOpen={() => setSel(p)} />
                   ))}
                 </div>
@@ -724,7 +730,7 @@ function FilterPopover({ onClose, conds, setConds, states, stateFilter, setState
 }
 
 /* -------------------------------------------------------------- place card */
-function PlaceCard({ p, n, origin, verdict, vfull, alerts, picked, onToggle, onOpen }) {
+function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onToggle, onOpen }) {
   const ref = useRef(null);
   const q = p.type === "national_park" ? p.name + " National Park|" + p.name : p.name;
   const photo = usePhoto(q, p.lat, p.lng, ref, 700);
@@ -742,6 +748,7 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, picked, onToggle, onO
           ? <img src={photo.url} alt={p.name} loading="lazy"
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <span style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(135deg,var(--pb-surface-2) 0 12px,var(--pb-surface) 12px 24px)" }} />}
+        {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} strength={0.85} />}
         <span style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.05) 45%,rgba(9,24,16,.8) 100%)" }} />
         <span style={{ position: "absolute", left: 12, top: 12, width: 26, height: 26, borderRadius: 999,
           display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--pb-mono)",
@@ -857,7 +864,7 @@ const IN_PLACE = [
   { key: "water", label: "Water" },
 ];
 
-function PlaceDetail({ place, origin, onBack, resultCount }) {
+function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState({});      // { trails, camping, water, conditions }
   const [err, setErr] = useState({});
@@ -919,6 +926,7 @@ function PlaceDetail({ place, origin, onBack, resultCount }) {
           aspectRatio: "16/6", background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)" }}>
           {photo && photo.url && <img src={photo.url} alt={place.name}
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+          {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} strength={1} />}
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.1) 40%,rgba(9,24,16,.86) 100%)" }} />
           <div style={{ position: "absolute", left: 20, bottom: 16 }}>
             <div style={{ fontFamily: "var(--pb-serif)", fontSize: "2rem", fontWeight: 300, lineHeight: 1.05 }}>{place.name}</div>

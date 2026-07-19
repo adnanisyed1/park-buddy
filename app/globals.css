@@ -133,3 +133,64 @@ body {
 ::-webkit-scrollbar-thumb { background: #cdd3c0; border-radius: 9px; }
 
 @keyframes ppspin { to { transform: rotate(360deg); } }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Weather effects for place tiles (app/explore-next/WeatherFX.jsx)
+
+   Every layer animates ONLY transform or opacity, so the compositor handles it
+   and two dozen tiles can run at once without touching layout or paint. The
+   patterns are repeating gradients, which tile infinitely — each layer is inset
+   past its container so a translating pattern never exposes an edge.
+
+   Kept deliberately faint. This sits on top of a photograph of a place someone
+   is deciding whether to visit; the weather is a hint, not the subject.
+   ──────────────────────────────────────────────────────────────────────────── */
+.pbfx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.pbfx > i { position: absolute; inset: -60%; display: block; will-change: transform, opacity; }
+
+@keyframes pbfx-fall     { from { transform: translate3d(0,0,0); }        to { transform: translate3d(-8%, 60%, 0); } }
+@keyframes pbfx-fall-slow{ from { transform: translate3d(0,0,0); }        to { transform: translate3d(6%, 60%, 0); } }
+@keyframes pbfx-drift    { from { transform: translate3d(-12%,0,0); }     to { transform: translate3d(12%, 0, 0); } }
+@keyframes pbfx-drift-b  { from { transform: translate3d(10%,0,0); }      to { transform: translate3d(-10%, 0, 0); } }
+@keyframes pbfx-gust     { from { transform: translate3d(0,0,0); }        to { transform: translate3d(-30%, 0, 0); } }
+@keyframes pbfx-breathe  { 0%,100% { opacity: .30; } 50% { opacity: .62; } }
+@keyframes pbfx-twinkle  { 0%,100% { opacity: .22; } 50% { opacity: .55; } }
+@keyframes pbfx-flash    { 0%,88%,100% { opacity: 0; } 90% { opacity: .5; } 93% { opacity: .12; } 95% { opacity: .38; } }
+
+/* rain — two sheets at different angles and speeds so it reads as depth */
+.pbfx-rain-a { background-image: repeating-linear-gradient(102deg, rgba(214,232,255,.55) 0 1px, transparent 1px 11px); animation: pbfx-fall 0.9s linear infinite; opacity: .40; }
+.pbfx-rain-b { background-image: repeating-linear-gradient(98deg,  rgba(214,232,255,.38) 0 1px, transparent 1px 17px); animation: pbfx-fall 1.5s linear infinite; opacity: .30; }
+
+/* snow — round flakes, two depths, drifting opposite ways */
+.pbfx-snow-a { background-image: radial-gradient(rgba(255,255,255,.92) 1.4px, transparent 1.6px); background-size: 34px 34px; animation: pbfx-fall-slow 7s linear infinite; opacity: .62; }
+.pbfx-snow-b { background-image: radial-gradient(rgba(255,255,255,.65) 1px, transparent 1.2px);  background-size: 22px 22px; animation: pbfx-fall 11s linear infinite;     opacity: .44; }
+
+/* fog / smoke — soft bands sliding across, no hard edges */
+.pbfx-fog-a  { background-image: linear-gradient(180deg, transparent 8%, rgba(233,240,238,.34) 42%, transparent 78%); animation: pbfx-drift 13s ease-in-out infinite alternate; }
+.pbfx-fog-b  { background-image: linear-gradient(180deg, transparent 30%, rgba(233,240,238,.22) 62%, transparent 92%); animation: pbfx-drift-b 19s ease-in-out infinite alternate; }
+.pbfx-smoke-a{ background-image: linear-gradient(180deg, transparent 10%, rgba(190,160,120,.36) 46%, transparent 82%); animation: pbfx-drift 15s ease-in-out infinite alternate; }
+.pbfx-smoke-b{ background-image: linear-gradient(180deg, transparent 26%, rgba(160,130,95,.24) 60%, transparent 94%);  animation: pbfx-drift-b 22s ease-in-out infinite alternate; }
+
+/* cloud — big soft ellipses crossing slowly */
+.pbfx-cloud-a{ background-image: radial-gradient(ellipse 30% 18% at 22% 28%, rgba(255,255,255,.30), transparent 70%), radial-gradient(ellipse 26% 14% at 68% 20%, rgba(255,255,255,.22), transparent 72%); animation: pbfx-drift 26s ease-in-out infinite alternate; }
+.pbfx-cloud-b{ background-image: radial-gradient(ellipse 34% 16% at 48% 40%, rgba(255,255,255,.18), transparent 74%); animation: pbfx-drift-b 34s ease-in-out infinite alternate; }
+
+/* sun — one warm bloom from the upper corner, slowly breathing */
+.pbfx-sun-a  { background-image: radial-gradient(circle at 78% 16%, rgba(255,226,160,.55), rgba(255,214,130,.16) 34%, transparent 62%); animation: pbfx-breathe 7s ease-in-out infinite; }
+
+/* clear night — a still field of stars, twinkling together */
+.pbfx-star-a { background-image: radial-gradient(rgba(255,255,255,.95) 1px, transparent 1.3px); background-size: 46px 46px; animation: pbfx-twinkle 4.5s ease-in-out infinite; }
+.pbfx-star-b { background-image: radial-gradient(rgba(210,228,255,.8) .8px, transparent 1.1px); background-size: 71px 71px; animation: pbfx-twinkle 6.5s ease-in-out infinite reverse; }
+
+/* wind — fast, nearly-flat streaks */
+.pbfx-wind-a { background-image: repeating-linear-gradient(88deg, rgba(255,255,255,.34) 0 2px, transparent 2px 42px); animation: pbfx-gust 2.6s linear infinite; opacity: .34; }
+
+/* storm — rain plus an occasional sheet of light */
+.pbfx-flash  { inset: 0 !important; background: rgba(226,238,255,.9); animation: pbfx-flash 9s ease-out infinite; }
+
+/* Motion is decoration here — every one of these facts is also written on the
+   card in words. Someone who asked the OS for less motion loses nothing. */
+@media (prefers-reduced-motion: reduce) {
+  .pbfx > i { animation: none !important; }
+  .pbfx-rain-b, .pbfx-snow-b, .pbfx-fog-b, .pbfx-smoke-b, .pbfx-cloud-b, .pbfx-star-b, .pbfx-flash { display: none; }
+}

@@ -1,24 +1,11 @@
-import ExploreSplitClient from "./ExploreSplitClient";
+import { redirect } from "next/navigation";
 
-// Still noindex while /explore is the real one — two pages competing for the
-// same query is worse than one. The rest of the block is the metadata this page
-// will need the moment it takes over, kept in place and correct rather than
-// written from scratch under time pressure on swap day. The canonical stays
-// pointed at /explore until then, so nothing here competes with it.
-export const metadata = {
-  title: "ParkBuddy — Discover, plan & collect the outdoors",
-  description:
-    "An interactive map of national parks, forests and state parks with live weather, alerts and official conditions. Find the best outdoors near any city and start a trip.",
-  alternates: { canonical: "/explore" },
-  openGraph: {
-    title: "ParkBuddy — Discover, plan & collect the outdoors",
-    description:
-      "Interactive map of national parks, forests and state parks with live weather, alerts and conditions.",
-    url: "/explore",
-  },
-  robots: { index: false, follow: false },
-};
-
-export default function ExploreNextPage() {
-  return <ExploreSplitClient />;
+// /explore-next was the staging route while this was being built and compared
+// against the old page. It took over at /explore on 2026-07-19, so anything
+// still pointing here — a bookmark, a link shared during review — lands on the
+// real page rather than a second copy competing for the same search queries.
+//
+// Permanent, because the route is not coming back.
+export default function ExploreNextRedirect() {
+  redirect("/explore");
 }

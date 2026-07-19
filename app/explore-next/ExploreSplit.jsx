@@ -910,6 +910,7 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
 /* ------------------------------------------------------------ place detail */
 const IN_PLACE = [
   { key: "overview", label: "Overview" },
+  { key: "about", label: "About" },
   { key: "trails", label: "Trails" },
   { key: "camping", label: "Camping" },
   { key: "water", label: "Water" },
@@ -944,6 +945,12 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
     get("camping", "/api/places?" + ll + "&radius=30", (j) => (j.facilities || []));
     get("water", "/api/water?" + ll + "&radius=35", (j) => (j.lakes || []));
     get("conditions", "/api/conditions?" + ll, (j) => j);
+    // NPS only knows about NPS units. A forest or state park has no entry, so
+    // don't ask — an empty About is honest, a failed request looks broken.
+    if (place.npsCode || place.type === "national_park") {
+      const q = place.npsCode ? "parkCode=" + place.npsCode : "name=" + encodeURIComponent(place.name);
+      get("about", "/api/nps?" + q, (j) => j);
+    }
     return () => { dead = true; };
   }, [place.key]);
 
@@ -995,7 +1002,7 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
             return (
               <Chip key={t.key} on={tab === t.key} onClick={() => setTab(t.key)} dim={empty}>
                 {t.label}
-                {t.key !== "overview" && (
+                {t.key !== "overview" && t.key !== "about" && (
                   <span style={{ marginLeft: 6, fontFamily: "var(--pb-mono)", fontSize: ".62rem",
                     padding: "2px 6px", borderRadius: 999,
                     background: tab === t.key ? "var(--pb-bg)" : "var(--pb-surface-2)",
@@ -1011,7 +1018,8 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 40px" }}>
         {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} />}
-        {tab !== "overview" && (
+        {tab === "about" && <About place={place} nps={data.about} err={err.about} />}
+        {tab !== "overview" && tab !== "about" && (
           <ThingList kind={tab} items={data[tab]} failed={err[tab]} place={place} />
         )}
       </div>
@@ -1042,6 +1050,19 @@ function Overview({ place, cond, err }) {
               </div>))
           : <div style={{ fontSize: ".84rem", color: "var(--pb-muted)" }}>No active weather alerts.</div>}
       </Panel>
+      {cond.airQuality && cond.airQuality.aqi != null && (
+        <Panel title="Air quality">
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <span style={{ fontFamily: "var(--pb-serif)", fontSize: "1.5rem", fontWeight: 300 }}>{cond.airQuality.aqi}</span>
+            <span style={{ fontSize: ".86rem", color: "var(--pb-ink-2)" }}>{cond.airQuality.category}</span>
+          </div>
+          {cond.airQuality.reportingArea && (
+            <div style={{ ...micro, marginTop: 5, letterSpacing: ".06em" }}>
+              {cond.airQuality.parameter ? cond.airQuality.parameter + " · " : ""}{cond.airQuality.reportingArea}
+            </div>
+          )}
+        </Panel>
+      )}
       <Panel title={"Wildfire (" + fires.length + ")"}>
         {fires.length
           ? fires.slice(0, 4).map((f, i) => (
@@ -1056,6 +1077,103 @@ function Overview({ place, cond, err }) {
           Open the full status page →
         </Link>
       )}
+    </div>
+  );
+}
+
+// What this place IS, as opposed to what it's doing today. The old Explore had
+// this and the rebuild dropped it — description, what people come here to do,
+// and a link out to the park's own page.
+//
+// Only National Park Service units have an entry, so a forest or state park says
+// so plainly rather than showing a spinner that never resolves.
+function About({ place, nps, err }) {
+  const isNps = !!(place.npsCode || place.type === "national_park");
+  if (!isNps) {
+    return (
+      <Notice text={"The Park Service publishes this kind of detail for national parks. " +
+        TYPE_LABEL[place.type] + "s like " + place.name + " aren't in that catalogue, so there's nothing to show here."} />
+    );
+  }
+  if (err) return <Notice text={"Couldn't reach the Park Service for " + place.name + "."} />;
+  if (!nps) return <Notice text="Loading…" quiet />;
+
+  const park = nps.park || null;
+  // `park: null` on a real NPS unit almost always means the request didn't
+  // authenticate, not that the Park Service has nothing on Acadia. Don't assert
+  // an absence we haven't established.
+  if (!park) return <Notice text={"Couldn't load Park Service detail for " + place.name + " just now."} />;
+
+  const activities = (park.activities || []).slice(0, 10);
+  const todo = (nps.thingsToDo || []).slice(0, 4);
+  const hours = (park.operatingHours || [])[0];
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      {park.description && (
+        <Panel title={park.designation || "About"}>
+          <div style={{ fontSize: ".9rem", lineHeight: 1.6, color: "var(--pb-ink-2)" }}>{park.description}</div>
+        </Panel>
+      )}
+
+      {!!activities.length && (
+        <Panel title="What people come here to do">
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {activities.map((a) => (
+              <span key={a} style={{ fontSize: ".76rem", padding: "5px 10px", borderRadius: 999,
+                background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)" }}>{a}</span>
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {!!todo.length && (
+        <Panel title="Things to do">
+          {todo.map((t, i) => (
+            <div key={i} style={{ padding: "9px 0", borderTop: i ? "1px solid var(--pb-line)" : "none" }}>
+              <div style={{ fontWeight: 600, fontSize: ".88rem" }}>{t.title}</div>
+              {t.shortDescription && (
+                <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 3, lineHeight: 1.45,
+                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {t.shortDescription}
+                </div>
+              )}
+              {t.duration && <div style={{ ...micro, marginTop: 5, letterSpacing: ".06em" }}>{t.duration}</div>}
+            </div>
+          ))}
+        </Panel>
+      )}
+
+      {hours && hours.description && (
+        <Panel title="Hours">
+          <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.5 }}>{hours.description}</div>
+        </Panel>
+      )}
+
+      {!!(park.entranceFees || []).length && (
+        <Panel title="Getting in">
+          {park.entranceFees.slice(0, 3).map((f, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", fontSize: ".84rem" }}>
+              <span style={{ color: "var(--pb-ink-2)" }}>{f.title}</span>
+              <span style={{ fontFamily: "var(--pb-mono)", color: "var(--pb-gold)" }}>${f.cost}</span>
+            </div>
+          ))}
+        </Panel>
+      )}
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {place.href && (
+          <Link href={place.href} style={{ ...goldBtn, width: "auto", display: "inline-block", textDecoration: "none", boxSizing: "border-box" }}>
+            Full live status →
+          </Link>
+        )}
+        {park.url && (
+          <a href={park.url} target="_blank" rel="noreferrer" style={{ ...pillBtn, display: "inline-block", textDecoration: "none" }}>
+            nps.gov ↗
+          </a>
+        )}
+      </div>
+      <div style={{ ...micro, letterSpacing: ".1em" }}>Source · National Park Service</div>
     </div>
   );
 }

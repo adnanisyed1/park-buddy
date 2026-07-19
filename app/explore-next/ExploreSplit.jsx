@@ -30,6 +30,7 @@ import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor, DARK_STYLE 
 import { roadAccessNote, roadAccessLabel } from "../lib/roadAccess";
 import { WeatherChip, conditionFromSky } from "../components/WeatherTile";
 import TrailDetail from "./TrailDetail";
+import SharedGround from "../components/SharedGround";
 
 /* ------------------------------------------------------------------ helpers */
 const R_EARTH = 3958.8;
@@ -1754,6 +1755,8 @@ function Overview({ place, cond, err, vfull, nearby, onTab }) {
           )}
         </div>
       )}
+
+      <SharedGround place={place} />
 
       {/* ── what's wrong today, if anything ───────────────────────────────────
           Alerts, wildfire and air used to be three titled panels that rendered at

@@ -1643,10 +1643,10 @@ function AroundHere({ place, nearby, onTab }) {
         {rows.map((r, i) => (
           <button key={r.key} onClick={() => onTab(r.key)}
             style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left",
-              cursor: "pointer", background: "none", border: "none", padding: "10px 0",
+              cursor: "pointer", background: "none", border: "none", padding: "8px 0",
               borderTop: i ? "1px solid var(--pb-line)" : "none", color: "var(--pb-ink)", fontFamily: "inherit" }}>
-            <span aria-hidden="true" style={{ fontSize: "1rem", flex: "none" }}>{r.icon}</span>
-            <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: ".88rem" }}>{r.label}</span>
+            <span aria-hidden="true" style={{ fontSize: ".95rem", flex: "none" }}>{r.icon}</span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: ".85rem" }}>{r.label}</span>
             <span style={{ ...micro, letterSpacing: ".06em", textAlign: "right" }}>
               {r.loading ? "…"
                 : !r.count ? r.empty
@@ -1686,6 +1686,22 @@ function Overview({ place, cond, err, vfull, nearby, onTab }) {
   // HOLD band flattens. So the panel quotes the engine rather than re-deriving
   // a coarser version of what it already said.
   const copy = vfull && vfull.word ? { headline: vfull.word, note: vfull.sub || "" } : null;
+  // Same thresholds the map sweep uses, so the panel and the pin can't disagree.
+  const band = !vfull ? null : vfull.score >= 62 ? "go" : vfull.score >= 42 ? "prepare" : "hold";
+  const vband = band === "go" ? "var(--pb-go)" : band === "prepare" ? "var(--pb-prepare)"
+    : band === "hold" ? "var(--pb-hold)" : "var(--pb-muted)";
+
+  // The quiet facts, stated once on one line rather than in three empty panels.
+  // Reasons that merely restate the metrics line or the alert block below.
+  const RESTATES = /(\d+\s*°|\bmph\b|\balerts?\b)/i;
+  const shownChips = ((vfull && vfull.chips) || []).filter((c) => c && c.t && !RESTATES.test(c.t)).slice(0, 3);
+
+  const aq = cond.airQuality;
+  const quiet = [
+    alerts.length ? null : "No active alerts",
+    fires.length ? null : "Nothing burning within 80 mi",
+    aq && aq.aqi != null ? "Air " + aq.aqi + " " + (aq.category || "") : null,
+  ].filter(Boolean);
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {/* Order is the question someone actually asks, in order: can I get there,
@@ -1693,17 +1709,44 @@ function Overview({ place, cond, err, vfull, nearby, onTab }) {
           only then the community stuff. Pines used to sit second and Nearby was
           wedged between the verdict and the conditions, splitting them. */}
       {banner}
+      {/* ── today's call, and the weather that drives it, as ONE block ────────
+          These were two: a verdict card, then a titled "Right now" panel holding
+          two facts the verdict is already about. Split across two bordered boxes
+          they read as two topics and cost ~195px of a ~400px panel. One block,
+          with the reading below a hairline rather than inside another box. */}
       {copy && (
-        <div style={{ padding: "14px 16px", borderRadius: 13,
-          background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)" }}>
-          <div style={{ fontFamily: "var(--pb-serif)", fontWeight: 400, fontSize: "1.3rem" }}>{copy.headline}</div>
-          <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", marginTop: 5, lineHeight: 1.5 }}>{copy.note}</div>
-          {!!(vfull.chips && vfull.chips.length) && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-              {/* A chip is {t, pos}, not a string — pos marks it as a reason in
-                  favour rather than against, which is worth colouring. */}
-              {vfull.chips.slice(0, 4).map((c, i) => (
-                <span key={i} style={{ padding: "4px 9px", borderRadius: 999, fontSize: ".72rem",
+        <div style={{ padding: "16px 18px", borderRadius: 14, background: "var(--pb-tint)",
+          border: "1px solid var(--pb-line)",
+          boxShadow: "inset 0 1px 0 color-mix(in srgb, " + vband + " 22%, transparent)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 999, background: vband, flex: "none" }} />
+            <span style={{ ...micro, letterSpacing: ".16em" }}>Today&rsquo;s call</span>
+          </div>
+          <div style={{ fontFamily: "var(--pb-serif)", fontWeight: 400, fontSize: "1.55rem",
+            lineHeight: 1.15, marginTop: 7, color: vband }}>{copy.headline}</div>
+          <div style={{ fontSize: ".83rem", color: "var(--pb-ink-2)", marginTop: 4, lineHeight: 1.45 }}>{copy.note}</div>
+
+          {(vfull.temp != null || vfull.wind != null) && (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap",
+              marginTop: 12, paddingTop: 11, borderTop: "1px solid var(--pb-line)" }}>
+              {vfull.temp != null && (
+                <span style={{ fontFamily: "var(--pb-serif)", fontSize: "1.7rem", fontWeight: 300,
+                  lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                  {Math.round(vfull.temp)}°<span style={{ fontSize: "1rem" }}>F</span>
+                </span>
+              )}
+              <span style={{ fontSize: ".84rem", color: "var(--pb-ink-2)" }}>
+                {[vfull.sky || null,
+                  vfull.wind != null ? Math.round(vfull.wind) + " mph wind" : null].filter(Boolean).join(" · ")}
+              </span>
+            </div>
+          )}
+
+          {shownChips.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 11 }}>
+              {/* A chip is {t, pos}, not a string — pos marks a reason in favour. */}
+              {shownChips.map((c, i) => (
+                <span key={i} style={{ padding: "3px 9px", borderRadius: 999, fontSize: ".71rem",
                   background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)",
                   color: c.pos ? "var(--pb-go)" : "var(--pb-ink-2)" }}>{c.t}</span>
               ))}
@@ -1711,44 +1754,55 @@ function Overview({ place, cond, err, vfull, nearby, onTab }) {
           )}
         </div>
       )}
-      {cond.temp && (
-        <Panel title="Right now">
-          <div style={{ fontSize: "1.5rem", fontFamily: "var(--pb-serif)", fontWeight: 300 }}>
-            {cond.temp.temp}°{cond.temp.unit || "F"} · {cond.temp.short || cond.temp.label}
-          </div>
-        </Panel>
-      )}
-      <Panel title={"Alerts (" + alerts.length + ")"}>
-        {alerts.length
-          ? alerts.slice(0, 4).map((a, i) => (
-              <div key={i} style={{ padding: "8px 0", borderTop: i ? "1px solid var(--pb-line)" : "none" }}>
-                <div style={{ fontWeight: 600, fontSize: ".88rem" }}>{a.event}</div>
-                <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 3 }}>{a.headline}</div>
-              </div>))
-          : <div style={{ fontSize: ".84rem", color: "var(--pb-muted)" }}>No active weather alerts.</div>}
-      </Panel>
-      {cond.airQuality && cond.airQuality.aqi != null && (
-        <Panel title="Air quality">
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span style={{ fontFamily: "var(--pb-serif)", fontSize: "1.5rem", fontWeight: 300 }}>{cond.airQuality.aqi}</span>
-            <span style={{ fontSize: ".86rem", color: "var(--pb-ink-2)" }}>{cond.airQuality.category}</span>
-          </div>
-          {cond.airQuality.reportingArea && (
-            <div style={{ ...micro, marginTop: 5, letterSpacing: ".06em" }}>
-              {cond.airQuality.parameter ? cond.airQuality.parameter + " · " : ""}{cond.airQuality.reportingArea}
+
+      {/* ── what's wrong today, if anything ───────────────────────────────────
+          Alerts, wildfire and air used to be three titled panels that rendered at
+          full size whether or not they had anything to report — 67px of panel to
+          say nothing is burning. An alert is worth a box; the absence of one is
+          worth a line. */}
+      {alerts.length > 0 && (
+        <div style={{ padding: "12px 14px", borderRadius: 13,
+          background: "color-mix(in srgb, var(--pb-hold) 10%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--pb-hold) 42%, transparent)" }}>
+          {alerts.slice(0, 3).map((a, i) => (
+            <div key={i} style={{ padding: i ? "8px 0 0" : 0, marginTop: i ? 8 : 0,
+              borderTop: i ? "1px solid var(--pb-line)" : "none" }}>
+              <div style={{ display: "flex", gap: 7 }}>
+                <span aria-hidden="true" style={{ color: "var(--pb-hold)", flex: "none" }}>⚠</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: ".86rem" }}>{a.event}</div>
+                  {a.headline && (
+                    <div style={{ fontSize: ".77rem", color: "var(--pb-ink-2)", marginTop: 2, lineHeight: 1.4 }}>{a.headline}</div>
+                  )}
+                </div>
+              </div>
             </div>
+          ))}
+          {alerts.length > 3 && (
+            <div style={{ ...micro, marginTop: 8 }}>+{alerts.length - 3} more</div>
           )}
-        </Panel>
+        </div>
       )}
-      <Panel title={"Wildfire (" + fires.length + ")"}>
-        {fires.length
-          ? fires.slice(0, 4).map((f, i) => (
-              <div key={i} style={{ fontSize: ".84rem", padding: "4px 0" }}>
-                {f.name} — {f.acres ? f.acres.toLocaleString() + " acres" : "size unreported"}
-                {f.distanceMi != null ? " · " + Math.round(f.distanceMi) + " mi away" : ""}
-              </div>))
-          : <div style={{ fontSize: ".84rem", color: "var(--pb-muted)" }}>Nothing burning within 80 miles.</div>}
-      </Panel>
+
+      {fires.length > 0 && (
+        <div style={{ padding: "12px 14px", borderRadius: 13,
+          background: "color-mix(in srgb, var(--pb-hold) 10%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--pb-hold) 42%, transparent)" }}>
+          <div style={{ ...micro, marginBottom: 6 }}>Wildfire ({fires.length})</div>
+          {fires.slice(0, 3).map((f, i) => (
+            <div key={i} style={{ fontSize: ".83rem", padding: "3px 0" }}>
+              {f.name} — {f.acres ? f.acres.toLocaleString() + " acres" : "size unreported"}
+              {f.distanceMi != null ? " · " + Math.round(f.distanceMi) + " mi away" : ""}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Everything quiet collapses to one line. It still SAYS it — silence about
+          alerts and silence about fire look identical, and only one is honest. */}
+      {quiet.length > 0 && (
+        <div style={{ ...micro, letterSpacing: ".08em", lineHeight: 1.7 }}>{quiet.join(" · ")}</div>
+      )}
 
       {/* What else is around, once today's call and today's conditions are read. */}
       <AroundHere place={place} nearby={nearby || {}} onTab={onTab} />

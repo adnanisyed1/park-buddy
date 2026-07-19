@@ -149,13 +149,16 @@ body {
   --wt-sun: linear-gradient(120deg,#e8cf9a,#c9a35f);
   --wt-sun-glow: rgba(232,207,154,.6);
   --wt-ray: rgba(232,207,154,.55);
-  --wt-cloud-fair: #39463c;
-  --wt-cloud-rain: #4a5560;
-  --wt-cloud-snow: #54606b;
-  --wt-cloud-storm: #3a3f4d;
+  /* each cloud bar is a vertical gradient — the flat fill is what made mine
+     look like a sticker instead of a cloud */
+  --wt-cloud-fair: #39463c;   --wt-cloud-fair-2: #26302a;
+  --wt-cloud-rain: #4a5560;   --wt-cloud-rain-2: #333c44;
+  --wt-cloud-snow: #54606b;   --wt-cloud-snow-2: #3c454e;
+  --wt-cloud-storm: #3a3f4d;  --wt-cloud-storm-2: #282c38;
+  --wt-storm-wash: radial-gradient(90% 120% at 50% 0%, rgba(150,140,180,.14), transparent 62%);
   --wt-drop: 143,184,201;
   --wt-flake: #e6eef4;
-  --wt-flash: rgba(255,244,210,.85);
+  --wt-flash: rgba(232,207,154,.55);
   --wt-bolt: #e8cf9a;
   --wt-wet: #8fb8c9;    --wt-wet-line: rgba(143,184,201,.4);
   --wt-cold: #cfe0ea;   --wt-cold-line: rgba(207,224,234,.4);
@@ -171,13 +174,14 @@ html[data-theme="light"] .pb-theme {
   --wt-sun: linear-gradient(120deg,#f2d492,#d9a441);
   --wt-sun-glow: rgba(217,164,65,.45);
   --wt-ray: rgba(217,164,65,.5);
-  --wt-cloud-fair: #eef2f5;
-  --wt-cloud-rain: #c3ccd4;
-  --wt-cloud-snow: #ccd6de;
-  --wt-cloud-storm: #9aa3ae;
+  --wt-cloud-fair: #eef2f5;   --wt-cloud-fair-2: #d5dee4;
+  --wt-cloud-rain: #c3ccd4;   --wt-cloud-rain-2: #a6b2bc;
+  --wt-cloud-snow: #ccd6de;   --wt-cloud-snow-2: #b0bdc8;
+  --wt-cloud-storm: #9aa3ae;  --wt-cloud-storm-2: #7d8794;
+  --wt-storm-wash: radial-gradient(90% 120% at 50% 0%, rgba(120,110,150,.16), transparent 62%);
   --wt-drop: 79,147,168;          /* darker particles — pale sky needs contrast */
   --wt-flake: #7fa9bd;
-  --wt-flash: rgba(255,244,210,.7);
+  --wt-flash: rgba(217,164,65,.42);
   --wt-bolt: #d9a441;
   /* The handoff's light accents. The dark set is near-white and vanishes on
      parchment — a COLD chip has to be readable to be worth showing. */

@@ -85,13 +85,33 @@ function makeParticles(kind, seedKey) {
   return [];
 }
 
-function Cloud({ color, style, anim = "wt-drift 6s ease-in-out infinite alternate" }) {
-  // Three lobes over a bar — the prototype's cloud, as pure shapes.
+// The cloud, with the prototype's real geometry — read out of the markup rather
+// than guessed. Three things I had wrong: it's CENTRED in the scene (left:0;
+// right:0 with the shape auto-margined), the bar is a vertical GRADIENT rather
+// than a flat fill, and every condition has its own size and lobe offsets.
+// Flat and left-pinned is what made mine read as a sticker.
+const CLOUD_GEO = {
+  cloudy: { top: 52, w: 96,  h: 34, barH: 22, drift: 6, l1: { s: 34, x: 16, b: 10 }, l2: { s: 30, x: 44, b: 12 } },
+  rain:   { top: 30, w: 104, h: 34, barH: 24, drift: 7, l1: { s: 38, x: 18, b: 12 }, l2: { s: 32, x: 50, b: 14 } },
+  snow:   { top: 30, w: 100, h: 32, barH: 22, drift: 8, l1: { s: 34, x: 18, b: 11 }, l2: { s: 30, x: 48, b: 13 } },
+  storm:  { top: 26, w: 104, h: 34, barH: 24, drift: 6, l1: { s: 38, x: 18, b: 12 }, l2: { s: 32, x: 50, b: 14 } },
+};
+
+function Cloud({ kind }) {
+  const g = CLOUD_GEO[kind];
+  const top = `var(--wt-cloud-${kind === "cloudy" ? "fair" : kind})`;
+  const bottom = `var(--wt-cloud-${kind === "cloudy" ? "fair" : kind}-2)`;
   return (
-    <div style={{ position: "absolute", animation: anim, ...style }}>
-      <div style={{ position: "absolute", left: 0, bottom: 0, width: 76, height: 22, borderRadius: 999, background: color }} />
-      <div style={{ position: "absolute", left: 12, bottom: 12, width: 34, height: 34, borderRadius: "50%", background: color }} />
-      <div style={{ position: "absolute", left: 38, bottom: 9, width: 26, height: 26, borderRadius: "50%", background: color }} />
+    <div style={{ position: "absolute", top: g.top, left: 0, right: 0,
+      animation: `wt-drift ${g.drift}s ease-in-out infinite alternate` }}>
+      <div style={{ position: "relative", width: g.w, height: g.h, margin: "0 auto" }}>
+        <div style={{ position: "absolute", bottom: 0, left: 0, width: g.w, height: g.barH,
+          borderRadius: 16, background: `linear-gradient(180deg, ${top}, ${bottom})` }} />
+        <div style={{ position: "absolute", bottom: g.l1.b, left: g.l1.x, width: g.l1.s, height: g.l1.s,
+          borderRadius: "50%", background: top }} />
+        <div style={{ position: "absolute", bottom: g.l2.b, left: g.l2.x, width: g.l2.s, height: g.l2.s,
+          borderRadius: "50%", background: top }} />
+      </div>
     </div>
   );
 }
@@ -120,7 +140,7 @@ function Scene({ condition, particles }) {
       <div style={{ ...base, backgroundImage: "radial-gradient(90% 120% at 78% 24%, var(--wt-glow), transparent 62%), var(--wt-sky-cloudy)" }}>
         <div style={{ position: "absolute", top: 22, right: 44, width: 34, height: 34, borderRadius: "50%",
           background: "var(--wt-sun)", boxShadow: "0 0 20px var(--wt-sun-glow)", animation: "wt-float 5s ease-in-out infinite" }} />
-        <Cloud color={SKY.cloudy.cloud} style={{ left: 42, top: 58, width: 76, height: 46 }} />
+        <Cloud kind="cloudy" />
       </div>
     );
   }
@@ -128,9 +148,11 @@ function Scene({ condition, particles }) {
   if (condition === "rain" || condition === "storm") {
     const s = SKY[condition];
     return (
-      <div style={{ ...base, backgroundImage: s.sky }}>
-        <Cloud color={s.cloud} style={{ left: 60, top: 26, width: 76, height: 46 }}
-          anim={condition === "storm" ? "wt-drift 8s ease-in-out infinite alternate" : "wt-drift 7s ease-in-out infinite alternate"} />
+      <div style={{ ...base, backgroundImage: condition === "storm" ? "var(--wt-storm-wash), " + s.sky : s.sky }}>
+        {condition === "storm" && (
+          <div style={{ position: "absolute", inset: 0, background: "var(--wt-flash)", animation: "wt-flash 5s linear infinite", pointerEvents: "none" }} />
+        )}
+        <Cloud kind={condition} />
         {particles.map((p, i) => (
           <span key={i} className="wt-particle" style={{
             position: "absolute", top: p.top, left: p.left, width: 2, height: p.h, borderRadius: 2,
@@ -139,9 +161,8 @@ function Scene({ condition, particles }) {
           }} />
         ))}
         {condition === "storm" && (<>
-          <div style={{ position: "absolute", inset: 0, background: "var(--wt-flash)", animation: "wt-flash 5s linear infinite", pointerEvents: "none" }} />
           <div style={{
-            position: "absolute", left: 104, top: 74, width: 0, height: 0,
+            position: "absolute", left: "50%", marginLeft: -9, top: 72, width: 0, height: 0,
             borderLeft: "9px solid transparent", borderRight: "9px solid transparent",
             borderTop: "16px solid var(--wt-bolt)",
             filter: "drop-shadow(0 0 8px var(--wt-sun-glow))",
@@ -155,8 +176,7 @@ function Scene({ condition, particles }) {
   // snow
   return (
     <div style={{ ...base, backgroundImage: SKY.snow.sky }}>
-      <Cloud color={SKY.snow.cloud} style={{ left: 58, top: 24, width: 76, height: 46 }}
-        anim="wt-drift 8s ease-in-out infinite alternate" />
+      <Cloud kind="snow" />
       {particles.map((p, i) => (
         <span key={i} className="wt-particle" style={{
           position: "absolute", top: p.top, left: p.left, width: p.size, height: p.size, borderRadius: "50%",

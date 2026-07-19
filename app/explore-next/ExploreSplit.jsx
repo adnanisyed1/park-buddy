@@ -29,6 +29,7 @@ import { getStops, setStops, subscribeTrip } from "../lib/trip";
 import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor, DARK_STYLE } from "../lib/mapPrefs";
 import { roadAccessNote, roadAccessLabel } from "../lib/roadAccess";
 import { WeatherChip, conditionFromSky } from "../components/WeatherTile";
+import TrailDetail from "./TrailDetail";
 
 /* ------------------------------------------------------------------ helpers */
 const R_EARTH = 3958.8;
@@ -1343,6 +1344,10 @@ const IN_PLACE = [
 
 function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, onTab, onNearby }) {
   const setTab = onTab;
+  // Picking a trail opens a sub-view inside the panel rather than navigating
+  // away, so you keep the park you were looking at.
+  const [trail, setTrail] = useState(null);
+  useEffect(() => { setTrail(null); }, [place.key, tab]);
   const [data, setData] = useState({});      // { trails, camping, water, conditions }
   const [err, setErr] = useState({});
   const heroRef = useRef(null);
@@ -1465,11 +1470,15 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, on
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 40px" }}>
-        {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} vfull={vfull} />}
-        {tab === "about" && <About place={place} nps={data.about} err={err.about} />}
-        {tab !== "overview" && tab !== "about" && (
-          <ThingList kind={tab} items={data[tab]} failed={err[tab]} place={place} />
-        )}
+        {trail ? (
+          <TrailDetail trail={trail} place={place} onBack={() => setTrail(null)} />
+        ) : (<>
+          {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} vfull={vfull} />}
+          {tab === "about" && <About place={place} nps={data.about} err={err.about} />}
+          {tab !== "overview" && tab !== "about" && (
+            <ThingList kind={tab} items={data[tab]} failed={err[tab]} place={place} onTrail={setTrail} />
+          )}
+        </>)}
       </div>
     </>
   );
@@ -1511,9 +1520,12 @@ function Overview({ place, cond, err, vfull }) {
           <div style={{ fontSize: ".84rem", color: "var(--pb-ink-2)", marginTop: 5, lineHeight: 1.5 }}>{copy.note}</div>
           {!!(vfull.chips && vfull.chips.length) && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+              {/* A chip is {t, pos}, not a string — pos marks it as a reason in
+                  favour rather than against, which is worth colouring. */}
               {vfull.chips.slice(0, 4).map((c, i) => (
                 <span key={i} style={{ padding: "4px 9px", borderRadius: 999, fontSize: ".72rem",
-                  background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)", color: "var(--pb-ink-2)" }}>{c}</span>
+                  background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)",
+                  color: c.pos ? "var(--pb-go)" : "var(--pb-ink-2)" }}>{c.t}</span>
               ))}
             </div>
           )}
@@ -1663,7 +1675,7 @@ function About({ place, nps, err }) {
   );
 }
 
-function ThingList({ kind, items, failed, place }) {
+function ThingList({ kind, items, failed, place, onTrail }) {
   const LABEL = { trails: "trails", camping: "campgrounds", water: "lakes", towns: "towns" };
   if (failed) return <Notice text={kind === "towns"
     ? "Nearby towns are indexed for national parks and forests. For " + place.name +
@@ -1718,12 +1730,24 @@ function ThingList({ kind, items, failed, place }) {
           kind === "trails" ? [it.trailClass || it.difficulty, it.lengthMi ? it.lengthMi + " mi" : null].filter(Boolean).join(" · ")
           : kind === "camping" ? [it.type, it.reservable ? "reservable" : null].filter(Boolean).join(" · ")
           : (it.kind || "lake");
+        // A trail has a whole view behind it — stats, photo, reviews. Everything
+        // else here is already showing all it has, so only trails become buttons.
+        const openable = kind === "trails" && onTrail;
         return (
           <div key={name + i} style={{ padding: "12px 14px", borderRadius: 13,
             background: "var(--pb-tint)", border: "1px solid var(--pb-line)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: ".92rem" }}>{name}</div>
+                {openable ? (
+                  <button onClick={() => onTrail(it)}
+                    style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer",
+                      background: "none", border: "none", padding: 0, color: "var(--pb-ink)",
+                      fontFamily: "inherit", fontWeight: 600, fontSize: ".92rem" }}>
+                    {name} <span aria-hidden="true" style={{ color: "var(--pb-gold)" }}>›</span>
+                  </button>
+                ) : (
+                  <div style={{ fontWeight: 600, fontSize: ".92rem" }}>{name}</div>
+                )}
                 {sub && <div style={{ ...micro, marginTop: 4, letterSpacing: ".06em" }}>{sub}</div>}
                 {it.description && (
                   <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", marginTop: 6, lineHeight: 1.45,

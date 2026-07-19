@@ -7,8 +7,8 @@
 //
 //   GET  ?live=1   list orders, optionally refreshing each open print job from Lulu
 //   POST { id, message }   email the customer about their order
-import crypto from "crypto";
 import { luluConfigured, getPrintJob } from "../../../lib/lulu";
+import { requireAdmin } from "../../../lib/adminAuth";
 import { sendMail, mailConfigured } from "../../../lib/mail";
 
 export const runtime = "nodejs";
@@ -18,21 +18,7 @@ export const dynamic = "force-dynamic";
 const LATE_AFTER_DAYS = 14;
 const STUCK_AFTER_DAYS = 3;   // still not ACCEPTED by the printer after this long
 
-function safeEq(a, b) {
-  const x = Buffer.from(String(a || ""));
-  const y = Buffer.from(String(b || ""));
-  if (x.length !== y.length) return false;
-  try { return crypto.timingSafeEqual(x, y); } catch { return false; }
-}
-
 function sbBase() { return (process.env.SUPABASE_URL || "").replace(/\/+(rest(\/v1)?)?\/*$/i, ""); }
-
-function authed(request) {
-  const secret = process.env.ORDERS_ADMIN_SECRET;
-  if (!secret) return { ok: false, status: 503, error: "Order desk isn't configured (ORDERS_ADMIN_SECRET)." };
-  if (!safeEq(request.headers.get("x-admin-secret"), secret)) return { ok: false, status: 401, error: "Not authorized." };
-  return { ok: true };
-}
 
 const jobIdFrom = (note) => { const m = /job\s+(\d+)/i.exec(String(note || "")); return m ? m[1] : null; };
 const trackFrom = (note) => { const m = /(https?:\/\/\S+)/.exec(String(note || "")); return m ? m[1] : null; };
@@ -65,8 +51,8 @@ function concernOf(row, job) {
 }
 
 export async function GET(request) {
-  const gate = authed(request);
-  if (!gate.ok) return Response.json({ error: gate.error }, { status: gate.status });
+  const gate = requireAdmin(request);
+  if (gate) return gate;
 
   const sb = sbBase(), svc = process.env.SUPABASE_SERVICE_KEY;
   if (!sb || !svc) return Response.json({ error: "Database isn't configured." }, { status: 503 });
@@ -118,8 +104,8 @@ export async function GET(request) {
 // the owner typed, in the Park Buddy shell — no templated apology language, because the
 // situations that need a human are exactly the ones a template gets wrong.
 export async function POST(request) {
-  const gate = authed(request);
-  if (!gate.ok) return Response.json({ error: gate.error }, { status: gate.status });
+  const gate = requireAdmin(request);
+  if (gate) return gate;
   if (!mailConfigured()) return Response.json({ error: "Email isn't configured (RESEND_API_KEY)." }, { status: 503 });
 
   let body;

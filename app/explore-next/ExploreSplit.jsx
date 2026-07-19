@@ -273,6 +273,44 @@ export default function ExploreSplit() {
     }
   }, []);
 
+  /* ---- phone layout -------------------------------------------------------
+     The split is a desktop shape. At 375px a 50vw panel is 187px wide — narrower
+     than a single card — so the page wasn't degraded on a phone, it was unusable.
+     On a phone the panel takes the whole screen and the map becomes a full-screen
+     view you switch to, which is what every app of this kind does.
+
+     Reading the breakpoint in JS rather than CSS is only safe because this page
+     is loaded ssr:false — there's no server render for the first client value to
+     disagree with. It would be a hydration bug otherwise. */
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const apply = () => setPhone(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  // Which half a phone is looking at. Desktop shows both and ignores this.
+  const [phoneView, setPhoneView] = useState("list");
+
+  // The platform's phone tab bar is fixed to the bottom and owns its own height,
+  // so measure it rather than hardcoding one — the same reason the top nav is
+  // measured. Getting this wrong doesn't look wrong, it makes the map/list
+  // toggle invisible underneath the bar, which is how I first shipped it.
+  const [barH, setBarH] = useState(0);
+  useEffect(() => {
+    if (!phone) { setBarH(0); return; }
+    const bar = document.querySelector(".pbtabbar");
+    if (!bar) return;
+    const measure = () => setBarH(Math.round(bar.getBoundingClientRect().height));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(bar, { box: "border-box" });
+    return () => ro.disconnect();
+  }, [phone]);
+  // Opening a place on a phone should show you the place, not leave you on the map.
+  useEffect(() => { if (phone && sel) setPhoneView("list"); }, [phone, sel && sel.key]);
+
   const [nearby, setNearby] = useState({});
   const [detailTab, setDetailTab] = useState("overview");
   useEffect(() => { setNearby({}); setDetailTab("overview"); }, [sel && sel.key]);
@@ -576,6 +614,24 @@ export default function ExploreSplit() {
   useEffect(() => subscribeMapPrefs((prefs) => {
     if (mapRef.current) mapRef.current.setOptions(mapOptionsFor(prefs, MAP_STYLE));
   }), []);
+
+  // A map inside display:none has zero size, and Google caches that. Revealing it
+  // without a resize gives you a grey rectangle with the logo in the corner —
+  // it needs telling, and re-centring afterwards or it keeps the old centre in
+  // the wrong place.
+  useEffect(() => {
+    if (!phone || phoneView !== "map") return;
+    const g = typeof window !== "undefined" ? window.google : null;
+    const map = mapRef.current;
+    if (!g || !map) return;
+    const c = map.getCenter();
+    const t = setTimeout(() => {
+      g.maps.event.trigger(map, "resize");
+      if (c) map.setCenter(c);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [phone, phoneView, mapOk]);
+
 
   // redraw markers whenever the visible set changes
   useEffect(() => {
@@ -881,8 +937,11 @@ export default function ExploreSplit() {
       <div style={{ display: "flex", height: "100vh", paddingTop: topPad, boxSizing: "border-box" }}>
 
         {/* ─────────────────────────────── panel */}
-        <section style={{ width: 700, maxWidth: "50vw", flex: "none", display: "flex", flexDirection: "column",
-          background: "var(--pb-surface)", borderRight: "1px solid var(--pb-line)", position: "relative" }}>
+        <section style={phone
+          ? { width: "100%", flex: "none", display: phoneView === "list" ? "flex" : "none",
+              flexDirection: "column", background: "var(--pb-surface)", position: "relative" }
+          : { width: 700, maxWidth: "50vw", flex: "none", display: "flex", flexDirection: "column",
+              background: "var(--pb-surface)", borderRight: "1px solid var(--pb-line)", position: "relative" }}>
 
           {sel ? (
             <PlaceDetail place={sel} origin={origin} onBack={() => setSel(null)} resultCount={results.length}
@@ -901,7 +960,8 @@ export default function ExploreSplit() {
                 count={results.length} stateName={stateFilter}
               />
 
-              <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 120px" }}>
+              <div style={{ flex: 1, overflowY: "auto",
+                padding: phone ? "0 16px " + (barH + 96) + "px" : "0 24px 120px" }}>
                 {dataErr && <Notice text={dataErr} />}
                 {dataNote && <Notice text={dataNote} quiet />}
                 {!dataErr && !places.length && <Notice text="Loading places…" quiet />}
@@ -950,7 +1010,9 @@ export default function ExploreSplit() {
         </section>
 
         {/* ─────────────────────────────── map */}
-        <section style={{ flex: 1, position: "relative", background: "var(--pb-bg-2)" }}>
+        <section style={phone
+          ? { flex: 1, position: "relative", background: "var(--pb-bg-2)", display: phoneView === "map" ? "block" : "none" }
+          : { flex: 1, position: "relative", background: "var(--pb-bg-2)" }}>
           <div ref={mapEl} style={{ position: "absolute", inset: 0 }} />
           {mapOk === false && (
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center",
@@ -1014,6 +1076,21 @@ export default function ExploreSplit() {
           )}
         </section>
       </div>
+
+      {/* On a phone the two halves are one at a time, so there has to be a way
+          back to the other one. Hidden entirely on desktop, where both show. */}
+      {phone && (
+        <button
+          onClick={() => setPhoneView((v) => (v === "list" ? "map" : "list"))}
+          style={{ position: "fixed", left: "50%", bottom: barH + 16, transform: "translateX(-50%)",
+            zIndex: 40, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8,
+            padding: "12px 20px", borderRadius: 999, border: "1px solid var(--pb-line-strong)",
+            background: "var(--pb-glass-strong)", backdropFilter: "blur(10px)",
+            color: "var(--pb-ink)", fontFamily: "var(--pb-sans)", fontWeight: 700, fontSize: ".86rem",
+            boxShadow: "0 6px 22px rgba(0,0,0,.28)" }}>
+          {phoneView === "list" ? "◉  Map" : "☰  List"}
+        </button>
+      )}
     </div>
   );
 }

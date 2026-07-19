@@ -145,24 +145,41 @@ export default function ExploreSplit() {
     return () => { dead = true; };
   }, []);
 
-  /* ---- verdicts, only for what's actually on screen ---- */
-  const results = useMemo(() => {
-    let out = places.filter((p) => cats[p.type]);
+  /* ---- filtering ----
+     Split in two on purpose. `inScope` applies everything EXCEPT the category
+     toggles, so each chip can show how many places it would contribute. A count
+     that changed when you toggled a different chip would be useless. */
+  const inScope = useMemo(() => {
+    let out = places;
     if (stateFilter) out = out.filter((p) => p.state === stateFilter);
     if (origin && radius) out = out.filter((p) => milesBetween(origin, p) <= radius);
-    if (origin) {
-      out = out.slice().sort((a, b) => milesBetween(origin, a) - milesBetween(origin, b));
-    } else {
-      out = out.slice().sort((a, b) => a.name.localeCompare(b.name));
+    // Conditions only bite once a verdict has actually arrived — an unknown
+    // verdict must never silently hide a place.
+    if (!conds.go || !conds.prepare || !conds.hold) {
+      out = out.filter((p) => { const v = verdicts[p.name]; return !v || conds[v]; });
     }
-    // Conditions filter only bites once a verdict has actually arrived — an
-    // unknown verdict must never silently hide a place.
-    const anyOff = !conds.go || !conds.prepare || !conds.hold;
-    if (anyOff) out = out.filter((p) => { const v = verdicts[p.name]; return !v || conds[v]; });
-    return out.slice(0, 60);
-  }, [places, cats, stateFilter, origin, radius, conds, verdicts]);
+    return out;
+  }, [places, stateFilter, origin, radius, conds, verdicts]);
 
-  const shown = results.slice(0, 24);
+  const catCounts = useMemo(() => {
+    const c = { national_park: 0, national_forest: 0, state_park: 0 };
+    for (const p of inScope) if (c[p.type] != null) c[p.type]++;
+    return c;
+  }, [inScope]);
+
+  const results = useMemo(() => {
+    const out = inScope.filter((p) => cats[p.type]);
+    return origin
+      ? out.slice().sort((a, b) => milesBetween(origin, a) - milesBetween(origin, b))
+      : out.slice().sort((a, b) => a.name.localeCompare(b.name));
+  }, [inScope, cats, origin]);
+
+  // Render in pages rather than capping. Every card costs a photo fetch and a
+  // verdict lookup, so 255 at once would hammer both — but the number on screen
+  // must never be presented as the total.
+  const [limit, setLimit] = useState(24);
+  useEffect(() => { setLimit(24); }, [stateFilter, origin, radius, cats, conds]);
+  const shown = results.slice(0, limit);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.PBVerdict) return;
@@ -352,7 +369,7 @@ export default function ExploreSplit() {
               <Header
                 query={query} setQuery={setQuery} sugg={sugg} onPick={pickPlace} onSubmit={searchGeo}
                 geocoding={geocoding} filtersOpen={filtersOpen} setFiltersOpen={setFiltersOpen}
-                activeFilters={activeFilters} cats={cats} setCats={setCats}
+                activeFilters={activeFilters} cats={cats} setCats={setCats} catCounts={catCounts}
                 origin={origin} setOrigin={setOrigin} radius={radius} setRadius={setRadius}
                 onMyLocation={useMyLocation}
                 conds={conds} setConds={setConds} states={states}
@@ -376,8 +393,13 @@ export default function ExploreSplit() {
                   ))}
                 </div>
                 {results.length > shown.length && (
-                  <div style={{ ...micro, textAlign: "center", marginTop: 18 }}>
-                    Showing {shown.length} of {results.length} — narrow the search to see the rest
+                  <div style={{ textAlign: "center", marginTop: 20 }}>
+                    <button onClick={() => setLimit((n) => n + 24)} style={{ ...pillBtn, padding: "12px 22px" }}>
+                      Show {Math.min(24, results.length - shown.length)} more
+                    </button>
+                    <div style={{ ...micro, marginTop: 9 }}>
+                      Showing {shown.length} of {results.length}
+                    </div>
                   </div>
                 )}
               </div>
@@ -427,7 +449,7 @@ export default function ExploreSplit() {
 /* ------------------------------------------------------------------ header */
 function Header(props) {
   const { query, setQuery, sugg, onPick, onSubmit, geocoding, filtersOpen, setFiltersOpen,
-    activeFilters, cats, setCats, origin, setOrigin, radius, setRadius, onMyLocation,
+    activeFilters, cats, setCats, catCounts, origin, setOrigin, radius, setRadius, onMyLocation,
     conds, setConds, states, stateFilter, setStateFilter, count } = props;
 
   return (
@@ -475,13 +497,23 @@ function Header(props) {
         </button>
       </div>
 
-      {/* chips — what kind of place */}
-      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12 }}>
+      {/* chips — what kind of place, and how many of each.
+          The count is what makes the toggle legible: turning one off is
+          obviously subtraction when you can see what you're subtracting. */}
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
         {CATS.map((c) => (
-          <Chip key={c.key} on={cats[c.key]} onClick={() => setCats((s) => ({ ...s, [c.key]: !s[c.key] }))}>
+          <Chip key={c.key} on={cats[c.key]} onClick={() => setCats((s) => ({ ...s, [c.key]: !s[c.key] }))}
+            count={catCounts[c.key]}>
             {c.label}
           </Chip>
         ))}
+        {(!cats.national_park || !cats.national_forest || !cats.state_park) && (
+          <button onClick={() => setCats({ national_park: true, national_forest: true, state_park: true })}
+            style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-gold)",
+              fontFamily: "var(--pb-sans)", fontSize: ".78rem", fontWeight: 600, padding: "0 4px" }}>
+            Show all
+          </button>
+        )}
       </div>
 
       {/* the pinpoint */}
@@ -844,17 +876,25 @@ const micro = { fontFamily: "var(--pb-mono)", fontSize: ".58rem", letterSpacing:
 const pillBtn = { cursor: "pointer", fontFamily: "var(--pb-sans)", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "11px 16px" };
 const goldBtn = { cursor: "pointer", width: "100%", fontFamily: "var(--pb-sans)", fontWeight: 700, fontSize: ".9rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 12, padding: "13px 16px" };
 
-function Chip({ on, onClick, children, dot, dim }) {
+function Chip({ on, onClick, children, dot, dim, count }) {
+  const empty = count === 0;
   return (
     <button onClick={onClick} aria-pressed={!!on}
       style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
         padding: "8px 13px", borderRadius: 999, fontFamily: "var(--pb-sans)",
-        fontSize: ".8rem", fontWeight: on ? 700 : 500, opacity: dim ? 0.5 : 1,
+        fontSize: ".8rem", fontWeight: on ? 700 : 500, opacity: dim || empty ? 0.5 : 1,
         background: on ? "var(--pb-grad-gold)" : "var(--pb-tint)",
         color: on ? "var(--pb-bg)" : "var(--pb-ink-2)",
         border: "1px solid " + (on ? "transparent" : "var(--pb-line)") }}>
       {dot && <span style={{ width: 8, height: 8, borderRadius: 999, background: dot }} />}
       {children}
+      {count != null && (
+        <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", padding: "2px 6px",
+          borderRadius: 999, background: on ? "rgba(10,23,18,.22)" : "var(--pb-surface-2)",
+          color: on ? "var(--pb-bg)" : empty ? "var(--pb-muted)" : "var(--pb-gold-soft)" }}>
+          {count}
+        </span>
+      )}
     </button>
   );
 }

@@ -5,7 +5,7 @@
 // judged by eye instead of by element count, which is how the last two attempts
 // went wrong.
 import { useRef, useState } from "react";
-import WeatherTile, { WeatherChip, CONDITIONS } from "../components/WeatherTile";
+import WeatherTile, { WeatherChip, WeatherSky, CONDITIONS } from "../components/WeatherTile";
 import { useThemedBody, setTheme, useTheme } from "../lib/theme";
 
 const SAMPLES = [
@@ -49,6 +49,28 @@ export default function WeatherTilesBench() {
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {SAMPLES.map((s) => <WeatherChip key={s.condition} condition={s.condition} temp={s.temp} />)}
+        </div>
+
+        <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".6rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "52px 0 6px" }}>
+          Forecast columns — the same scene, scaled
+        </div>
+        <div style={{ fontSize: ".8rem", color: "var(--pb-muted)", marginBottom: 16, maxWidth: "56ch" }}>
+          88&times;46 for the hourly strip, 78&times;42 for the 7-day. Not a simplified
+          redraw &mdash; the same cloud, gradient, rays and storm wash, transformed down.
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {CONDITIONS.map((c) => (
+            <div key={c} style={{ textAlign: "center" }}>
+              <WeatherSky condition={c} width={88} height={46} seed={c} />
+              <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".54rem", letterSpacing: ".12em", textTransform: "uppercase", color: "var(--pb-muted)", marginTop: 6 }}>{c}</div>
+            </div>
+          ))}
+          <div style={{ width: 24 }} />
+          {CONDITIONS.map((c) => (
+            <div key={c + "s"} style={{ textAlign: "center" }}>
+              <WeatherSky condition={c} width={78} height={42} seed={c + "s"} />
+            </div>
+          ))}
         </div>
 
         <div style={{ fontFamily: "var(--pb-mono)", fontSize: ".6rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-muted)", margin: "52px 0 16px" }}>

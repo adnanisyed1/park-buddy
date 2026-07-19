@@ -188,6 +188,40 @@ function Scene({ condition, particles }) {
   );
 }
 
+// The SAME scene at any size, scaled rather than redrawn.
+//
+// The first attempt at small tiles hand-rolled a simpler sky — one flat lobe,
+// three drops, no gradient, no rays, no storm wash. It looked worse because it
+// WAS less, and there was no reason for it to be: the scene is absolutely
+// positioned in a 236x130 box, so a transform gives every bit of that detail at
+// any width for the cost of one composited layer.
+//
+// Particle counts do drop with size, because 22 streaks in a 104px column is
+// mud rather than rain — but they're the same streaks, from the same generator.
+export function WeatherSky({ condition = "clear", width = 104, height = 52, radius = 10, seed = "" }) {
+  const cond = CONDITIONS.indexOf(condition) > -1 ? condition : "clear";
+  const k = width / 236;
+  const all = useMemo(() => makeParticles(cond, seed + cond), [cond, seed]);
+  // A narrow column can't carry a full sky's worth of rain legibly.
+  const particles = useMemo(() => {
+    if (width >= 200) return all;
+    const keep = Math.max(4, Math.round(all.length * (width / 236)));
+    return all.slice(0, keep);
+  }, [all, width]);
+
+  return (
+    <div style={{ width, height, borderRadius: radius, overflow: "hidden", position: "relative",
+      background: "var(--pb-surface-2)" }}>
+      <div style={{
+        position: "absolute", top: -18 * k, left: 0, width: 236, height: 130,
+        transform: `scale(${k})`, transformOrigin: "top left",
+      }}>
+        <Scene condition={cond} particles={particles} />
+      </div>
+    </div>
+  );
+}
+
 export default function WeatherTile({ condition = "clear", temp, place, label, status, width = 236 }) {
   const cond = CONDITIONS.indexOf(condition) > -1 ? condition : "clear";
   const particles = useMemo(() => makeParticles(cond, (place || "") + cond), [cond, place]);

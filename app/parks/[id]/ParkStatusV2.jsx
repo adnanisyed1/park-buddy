@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
-import WeatherTile, { conditionFromSky } from "../../components/WeatherTile";
+import WeatherTile, { WeatherSky, conditionFromSky } from "../../components/WeatherTile";
 import SaveButton from "../../components/SaveButton";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
@@ -46,45 +46,8 @@ function fmtDateTime(iso) {
 // sun-behind-cloud — have no glyph in plenty of system fonts, so a foggy morning
 // or a partly-cloudy Wednesday rendered as a grey tofu box while sunny and rainy
 // days looked fine. Drawn shapes can't fail that way, and they animate.
-// See app/components/WeatherTile.jsx (MiniSky, below, for the strips).
-
-// A forecast column is ~92px wide and there are thirteen of them, so the full
-// 236px tile can't go here — and thirteen of those would be 300+ animated nodes
-// for a strip you scan rather than watch. This is the tile's sky, shrunk to a
-// glyph, using the same condition vocabulary.
-function MiniSky({ sky }) {
-  const c = conditionFromSky(sky);
-  if (!c) return null;
-  const cloud = { cloudy: "var(--wt-cloud-fair)", rain: "var(--wt-cloud-rain)", snow: "var(--wt-cloud-snow)", storm: "var(--wt-cloud-storm)" }[c];
-  return (
-    <span title={sky} aria-label={sky} role="img"
-      style={{ position: "relative", display: "inline-block", width: "1em", height: "1em" }}>
-      {c === "clear" ? (
-        <span style={{ position: "absolute", inset: "18%", borderRadius: "50%", background: "var(--wt-sun)",
-          boxShadow: "0 0 10px var(--wt-sun-glow)", animation: "wt-float 4s ease-in-out infinite" }} />
-      ) : (<>
-        <span style={{ position: "absolute", left: "6%", top: "26%", width: "76%", height: "26%", borderRadius: 999,
-          background: cloud, animation: "wt-drift 6s ease-in-out infinite alternate" }} />
-        <span style={{ position: "absolute", left: "26%", top: "12%", width: "38%", height: "38%", borderRadius: "50%", background: cloud }} />
-        {(c === "rain" || c === "storm") && [0, 1, 2].map((i) => (
-          <span key={i} style={{ position: "absolute", top: "58%", left: 16 + i * 22 + "%", width: 2, height: "22%",
-            borderRadius: 2, background: "rgba(var(--wt-drop),.85)",
-            animation: `wt-rain ${0.8 + i * 0.15}s linear ${i * 0.25}s infinite` }} />
-        ))}
-        {c === "snow" && [0, 1, 2].map((i) => (
-          <span key={i} style={{ position: "absolute", top: "58%", left: 18 + i * 22 + "%", width: 3, height: 3,
-            borderRadius: "50%", background: "var(--wt-flake)",
-            animation: `wt-snow ${2 + i * 0.4}s linear ${i * 0.5}s infinite` }} />
-        ))}
-        {c === "storm" && (
-          <span style={{ position: "absolute", left: "44%", top: "56%", width: 0, height: 0,
-            borderLeft: "3px solid transparent", borderRight: "3px solid transparent",
-            borderTop: "7px solid var(--wt-bolt)", animation: "wt-pulse 1.2s ease-in-out infinite" }} />
-        )}
-      </>)}
-    </span>
-  );
-}
+// See app/components/WeatherTile.jsx — WeatherSky renders the same scene at
+// forecast-column size rather than a simplified stand-in.
 
 const TABS = [
   ["overview", "Overview"],
@@ -552,9 +515,11 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             {hourly.map((h, i) => (
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", tz ? { hour: "numeric", timeZone: tz } : { hour: "numeric" })}</div>
-                <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 6px", fontSize: "1.35rem" }}>
-                  <MiniSky sky={h.shortForecast} />
-                </div>
+                {conditionFromSky(h.shortForecast) && (
+                  <div style={{ display: "flex", justifyContent: "center", margin: "9px 0 7px" }}>
+                    <WeatherSky condition={conditionFromSky(h.shortForecast)} width={88} height={46} seed={String(i)} />
+                  </div>
+                )}
                 <div style={{ fontFamily: serif, fontSize: "1.3rem" }}>{h.temperature}°</div>
                 <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{h.shortForecast}</div>
               </div>
@@ -571,9 +536,11 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             {daily.map((d, i) => (
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 6px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".06em" }}>{d.name}</div>
-                <div style={{ display: "flex", justifyContent: "center", margin: "7px 0 5px", fontSize: "1.25rem" }}>
-                  <MiniSky sky={d.sky} />
-                </div>
+                {conditionFromSky(d.sky) && (
+                  <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 6px" }}>
+                    <WeatherSky condition={conditionFromSky(d.sky)} width={78} height={42} seed={d.name} />
+                  </div>
+                )}
                 <div style={{ fontFamily: serif, fontSize: "1.05rem" }}>{d.hi}°{d.lo != null && <span style={{ color: "var(--pb-muted)", fontSize: ".8em" }}> / {d.lo}°</span>}</div>
                 <div style={{ fontSize: ".62rem", color: d.pop > 30 ? "#a9c2e0" : "var(--pb-muted)", marginTop: 3 }}>💧 {d.pop}%</div>
               </div>

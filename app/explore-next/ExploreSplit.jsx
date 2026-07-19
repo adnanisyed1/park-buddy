@@ -1685,8 +1685,11 @@ function Overview({ place, cond, err, vfull, nearby }) {
   const copy = vfull && vfull.word ? { headline: vfull.word, note: vfull.sub || "" } : null;
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {/* Order is the question someone actually asks, in order: can I get there,
+          should I go today, what is it like right now, what else is around, and
+          only then the community stuff. Pines used to sit second and Nearby was
+          wedged between the verdict and the conditions, splitting them. */}
       {banner}
-      <PinesPeek name={place.name} />
       {copy && (
         <div style={{ padding: "14px 16px", borderRadius: 13,
           background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)" }}>
@@ -1705,7 +1708,6 @@ function Overview({ place, cond, err, vfull, nearby }) {
           )}
         </div>
       )}
-      <NearbyRoundup place={place} nearby={nearby || {}} />
       {cond.temp && (
         <Panel title="Right now">
           <div style={{ fontSize: "1.5rem", fontFamily: "var(--pb-serif)", fontWeight: 300 }}>
@@ -1744,6 +1746,10 @@ function Overview({ place, cond, err, vfull, nearby }) {
               </div>))
           : <div style={{ fontSize: ".84rem", color: "var(--pb-muted)" }}>Nothing burning within 80 miles.</div>}
       </Panel>
+
+      {/* What else is around, once today's call and today's conditions are read. */}
+      <NearbyRoundup place={place} nearby={nearby || {}} />
+      <PinesPeek name={place.name} />
       {place.href && (
         <Link href={place.href} style={{ ...goldBtn, display: "block", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
           Open the full status page →

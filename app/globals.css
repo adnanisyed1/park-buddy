@@ -135,81 +135,53 @@ body {
 @keyframes ppspin { to { transform: rotate(360deg); } }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Animated weather tile (app/explore-next/WeatherFX.jsx)
+   Animated weather icons (app/components/WeatherFX.jsx)
 
-   A small self-contained scene — cloud with falling rain, drifting fog bands,
-   a turning sun — that sits beside the temperature. Deliberately NOT an overlay
-   on the photograph: the photo is what someone is judging the place by, and
-   washing it in animation makes every card look like the same weather.
+   SVG rather than div blobs: a real cloud silhouette, tapered drops, six-armed
+   flakes, a crescent with a clean edge. The crescent is a masked path, which
+   removes the old trick of biting the moon's shape out with a matching
+   background colour — that only ever worked when the caller guessed the colour
+   behind it right.
 
-   Everything animates transform or opacity only, so a screenful of these stays
-   on the compositor. Sized off the container's font-size so one component works
-   at tile scale and hero scale.
+   Only transform and opacity animate, so a screenful stays on the compositor.
+   SVG needs transform-box: fill-box or every rotation spins about the viewBox
+   origin instead of the shape's own centre.
    ──────────────────────────────────────────────────────────────────────────── */
-.wx { position: relative; width: 1.9em; height: 1.9em; flex: none; display: block; }
-.wx * { position: absolute; }
+.wx { display: block; flex: none; overflow: visible; }
+.wx * { transform-box: fill-box; transform-origin: center; }
 
-/* the cloud shared by rain / snow / storm / cloudy */
-.wx-cloud { width: 78%; height: 42%; left: 11%; top: 24%; border-radius: 999px; background: currentColor; opacity: .92; }
-.wx-cloud::before, .wx-cloud::after { content: ""; position: absolute; border-radius: 50%; background: inherit; }
-.wx-cloud::before { width: 52%; height: 96%; left: 10%; top: -52%; }
-.wx-cloud::after  { width: 40%; height: 76%; right: 12%; top: -34%; }
-.wx-drift  { animation: wx-cloud-drift 6s ease-in-out infinite alternate; }
-@keyframes wx-cloud-drift { from { transform: translate3d(-6%,0,0); } to { transform: translate3d(6%,0,0); } }
+@keyframes wx-drop   { 0% { transform: translateY(-3px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(11px); opacity: 0; } }
+@keyframes wx-flake  { 0% { transform: translateY(-3px) rotate(0deg); opacity: 0; } 20% { opacity: 1; }
+                       100% { transform: translateY(11px) rotate(160deg); opacity: 0; } }
+@keyframes wx-nudge  { from { transform: translateX(-.9px); } to { transform: translateX(.9px); } }
+@keyframes wx-spin   { to { transform: rotate(360deg); } }
+@keyframes wx-pulse  { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes wx-slide  { 0% { transform: translateX(-3px); opacity: .35; } 50% { opacity: 1; } 100% { transform: translateX(3px); opacity: .35; } }
+@keyframes wx-gust   { 0% { transform: translateX(-5px); opacity: 0; } 35% { opacity: 1; } 100% { transform: translateX(6px); opacity: 0; } }
+@keyframes wx-bolt   { 0%,64%,100% { opacity: .25; } 68% { opacity: 1; } 74% { opacity: .3; } 78% { opacity: 1; } }
+@keyframes wx-twink  { 0%,100% { opacity: .3; transform: scale(.7); } 50% { opacity: 1; transform: scale(1); } }
 
-/* falling bits — three of them, staggered, so it reads as continuous */
-.wx-drop, .wx-flake { top: 62%; border-radius: 999px; background: currentColor; }
-.wx-drop  { width: 7%;  height: 22%; }
-.wx-flake { width: 13%; height: 13%; }
-.wx-i1 { left: 26%; animation-delay: 0s; }
-.wx-i2 { left: 46%; animation-delay: .28s; }
-.wx-i3 { left: 66%; animation-delay: .56s; }
-.wx-drop  { animation: wx-fall .85s linear infinite; }
-.wx-flake { animation: wx-flutter 2.1s linear infinite; }
-@keyframes wx-fall    { 0% { transform: translate3d(0,-38%,0); opacity: 0; } 22% { opacity: .95; } 100% { transform: translate3d(-14%,120%,0); opacity: 0; } }
-@keyframes wx-flutter { 0% { transform: translate3d(0,-30%,0); opacity: 0; } 25% { opacity: .95; } 55% { transform: translate3d(18%,45%,0); } 100% { transform: translate3d(-10%,115%,0); opacity: 0; } }
+.wx-cloud { animation: wx-nudge 5s ease-in-out infinite alternate; }
+.wx-d1 { animation: wx-drop 1.05s linear infinite; }
+.wx-d2 { animation: wx-drop 1.05s linear infinite .35s; }
+.wx-d3 { animation: wx-drop 1.05s linear infinite .7s; }
+.wx-f1 { animation: wx-flake 2.6s linear infinite; }
+.wx-f2 { animation: wx-flake 2.6s linear infinite .85s; }
+.wx-f3 { animation: wx-flake 2.6s linear infinite 1.7s; }
+.wx-rays { animation: wx-spin 22s linear infinite; }
+.wx-disc { animation: wx-pulse 4.5s ease-in-out infinite; }
+.wx-l1 { animation: wx-slide 4.2s ease-in-out infinite; }
+.wx-l2 { animation: wx-slide 5.6s ease-in-out infinite reverse; }
+.wx-l3 { animation: wx-slide 6.8s ease-in-out infinite; }
+.wx-g1 { animation: wx-gust 2.4s ease-in-out infinite; }
+.wx-g2 { animation: wx-gust 2.4s ease-in-out infinite .3s; }
+.wx-g3 { animation: wx-gust 2.4s ease-in-out infinite .6s; }
+.wx-zap { animation: wx-bolt 2.8s steps(1) infinite; }
+.wx-t1 { animation: wx-twink 3s ease-in-out infinite; }
+.wx-t2 { animation: wx-twink 4.1s ease-in-out infinite 1.1s; }
 
-/* storm bolt */
-.wx-bolt { left: 42%; top: 60%; width: 18%; height: 34%; background: currentColor;
-  clip-path: polygon(58% 0, 8% 56%, 44% 56%, 30% 100%, 92% 40%, 52% 40%);
-  animation: wx-bolt 2.4s steps(1) infinite; }
-@keyframes wx-bolt { 0%,72%,100% { opacity: .15; } 76% { opacity: 1; } 80% { opacity: .2; } 84% { opacity: .9; } }
-
-/* fog / smoke — stacked bands sliding opposite ways */
-.wx-band { height: 9%; border-radius: 999px; background: currentColor; left: 8%; width: 84%; }
-.wx-b1 { top: 30%; animation: wx-band-a 3.4s ease-in-out infinite alternate; opacity: .95; }
-.wx-b2 { top: 48%; animation: wx-band-b 4.2s ease-in-out infinite alternate; opacity: .7; width: 70%; left: 16%; }
-.wx-b3 { top: 66%; animation: wx-band-a 5.0s ease-in-out infinite alternate; opacity: .85; width: 78%; left: 10%; }
-@keyframes wx-band-a { from { transform: translate3d(-13%,0,0); } to { transform: translate3d(13%,0,0); } }
-@keyframes wx-band-b { from { transform: translate3d(15%,0,0); }  to { transform: translate3d(-15%,0,0); } }
-
-/* sun — disc plus a slowly turning cross of rays */
-.wx-sun  { width: 46%; height: 46%; left: 27%; top: 27%; border-radius: 50%; background: currentColor; }
-.wx-rays { inset: 0; animation: wx-spin 9s linear infinite; }
-.wx-rays::before, .wx-rays::after { content: ""; position: absolute; background: currentColor; border-radius: 999px; opacity: .85; }
-.wx-rays::before { left: 47%; top: 2%;  width: 6%; height: 96%; }
-.wx-rays::after  { top: 47%; left: 2%;  height: 6%; width: 96%; }
-@keyframes wx-spin { to { transform: rotate(180deg); } }
-
-/* clear night — crescent, and stars that breathe out of sync */
-.wx-moon { inset: 18%; border-radius: 50%; background: currentColor; }
-.wx-moon::after { content: ""; position: absolute; inset: -14% -34% -14% 22%; border-radius: 50%; background: var(--wx-cut, var(--pb-surface-2)); }
-.wx-star { width: 14%; height: 14%; border-radius: 50%; background: currentColor; }
-.wx-s1 { left: 4%;  top: 12%; animation: wx-twinkle 2.6s ease-in-out infinite; }
-.wx-s2 { left: 78%; top: 72%; animation: wx-twinkle 3.4s ease-in-out infinite .8s; }
-@keyframes wx-twinkle { 0%,100% { opacity: .25; transform: scale(.75); } 50% { opacity: 1; transform: scale(1); } }
-
-/* wind — three streaks chasing each other */
-.wx-gust { height: 8%; border-radius: 999px; background: currentColor; left: 6%; }
-.wx-g1 { top: 30%; width: 62%; animation: wx-gust 1.9s ease-in-out infinite; }
-.wx-g2 { top: 48%; width: 86%; animation: wx-gust 1.6s ease-in-out infinite .2s; }
-.wx-g3 { top: 66%; width: 48%; animation: wx-gust 2.2s ease-in-out infinite .4s; }
-@keyframes wx-gust { 0% { transform: translate3d(-24%,0,0); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate3d(34%,0,0); opacity: 0; } }
-
-/* Every one of these facts is also written next to it in words, so stopping the
-   motion costs nothing. */
+/* The condition is written beside every one of these in words, so stopping the
+   motion loses nothing. */
 @media (prefers-reduced-motion: reduce) {
-  .wx * { animation: none !important; }
-  .wx-drop, .wx-flake { opacity: .9; }
-  .wx-bolt, .wx-star { opacity: 1; }
+  .wx * { animation: none !important; opacity: 1 !important; }
 }

@@ -505,7 +505,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", tz ? { hour: "numeric", timeZone: tz } : { hour: "numeric" })}</div>
                 <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 6px" }}>
-                  <WeatherFX sky={h.shortForecast} wind={0} isDay={h.isDaytime} size="1.5rem" cut="var(--pb-surface)" always />
+                  <WeatherFX sky={h.shortForecast} wind={0} isDay={h.isDaytime} size="1.5rem" always />
                 </div>
                 <div style={{ fontFamily: serif, fontSize: "1.3rem" }}>{h.temperature}°</div>
                 <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{h.shortForecast}</div>
@@ -524,7 +524,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 6px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".06em" }}>{d.name}</div>
                 <div style={{ display: "flex", justifyContent: "center", margin: "7px 0 5px" }}>
-                  <WeatherFX sky={d.sky} wind={d.wind} isDay={d.isDay} size="1.4rem" cut="var(--pb-surface)" always />
+                  <WeatherFX sky={d.sky} wind={d.wind} isDay={d.isDay} size="1.4rem" always />
                 </div>
                 <div style={{ fontFamily: serif, fontSize: "1.05rem" }}>{d.hi}°{d.lo != null && <span style={{ color: "var(--pb-muted)", fontSize: ".8em" }}> / {d.lo}°</span>}</div>
                 <div style={{ fontSize: ".62rem", color: d.pop > 30 ? "#a9c2e0" : "var(--pb-muted)", marginTop: 3 }}>💧 {d.pop}%</div>

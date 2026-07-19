@@ -793,7 +793,7 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
             alignItems: "center", gap: 7, padding: "5px 10px 5px 8px", borderRadius: 999,
             background: "rgba(8,19,13,.62)", backdropFilter: "blur(8px)",
             border: "1px solid rgba(217,183,121,.22)" }}>
-            <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.05rem" cut="#0d1a13" />
+            <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.05rem" />
             {vfull.temp != null && (
               <span style={{ fontFamily: "var(--pb-serif)", fontSize: "1.15rem", color: "#f7f4ec", lineHeight: 1 }}>
                 {Math.round(vfull.temp)}°
@@ -870,7 +870,7 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 9 }}>
               <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size=".9rem"
-                cut={picked ? "var(--pb-surface-2)" : "var(--pb-surface)"} />
+                />
               <span style={{ ...micro, letterSpacing: ".06em" }}>
                 {[
                   vfull.temp != null ? vfull.temp + "°" : null,
@@ -972,7 +972,7 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
           <div style={{ position: "absolute", left: 20, bottom: 16 }}>
             <div style={{ fontFamily: "var(--pb-serif)", fontSize: "2rem", fontWeight: 300, lineHeight: 1.05 }}>{place.name}</div>
             <div style={{ ...micro, marginTop: 5, display: "flex", alignItems: "center", gap: 8 }}>
-              {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.1rem" cut="#0d1a13" />}
+              {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.1rem" />}
               {TYPE_LABEL[place.type]} · {place.state}
               {dist != null && isFinite(dist) ? " · " + Math.round(dist) + " MI FROM " + origin.name.toUpperCase() : ""}
             </div>

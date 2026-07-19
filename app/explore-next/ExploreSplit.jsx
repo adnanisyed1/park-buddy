@@ -27,7 +27,7 @@ import { useThemedBody } from "../lib/theme";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { getStops, setStops } from "../lib/trip";
 import { roadAccessNote, roadAccessLabel } from "../lib/roadAccess";
-import WeatherFX from "./WeatherFX";
+import WeatherFX from "../components/WeatherFX";
 
 /* ------------------------------------------------------------------ helpers */
 const R_EARTH = 3958.8;

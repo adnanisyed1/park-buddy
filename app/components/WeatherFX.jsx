@@ -90,8 +90,13 @@ const LABEL = {
 
 // `cut` is the background the crescent bites out of — it has to match whatever
 // the tile is sitting on or the moon shows a coloured notch.
-export default function WeatherFX({ sky, wind, isDay, size = "1rem", cut }) {
-  const kind = skyKind(sky, wind, isDay);
+// `always` is for slots that are guaranteed to HAVE a forecast — a row of hourly
+// tiles, a 7-day strip. There, an unrecognised phrase ("Areas Of Blowing Dust")
+// should still draw something rather than leave a hole in the row. On a card that
+// may not have fetched a forecast yet, leave it off: absent is honest, a guessed
+// cloud is not.
+export default function WeatherFX({ sky, wind, isDay, size = "1rem", cut, always = false }) {
+  const kind = skyKind(sky, wind, isDay) || (always && sky ? "cloud" : null);
   if (!kind) return null;
   return (
     <span

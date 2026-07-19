@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
+import WeatherFX from "../../components/WeatherFX";
 import SaveButton from "../../components/SaveButton";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
@@ -41,16 +42,11 @@ function fmtDateTime(iso) {
   try { return new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); }
   catch { return ""; }
 }
-function wxEmoji(text = "") {
-  const t = text.toLowerCase();
-  if (/thunder|t-storm|tstorm/.test(t)) return "⛈";
-  if (/snow|flurr|wintry|sleet/.test(t)) return "❄";
-  if (/rain|shower|drizzle/.test(t)) return "🌧";
-  if (/fog|haze|mist/.test(t)) return "🌫";
-  if (/cloud|overcast/.test(t)) return /partly|few|mostly sunny/.test(t) ? "🌤" : "☁";
-  if (/clear|sunny/.test(t)) return "☀";
-  return "🌡";
-}
+// Weather glyphs used to be emoji here. Two of them — U+1F32B fog and U+1F324
+// sun-behind-cloud — have no glyph in plenty of system fonts, so a foggy morning
+// or a partly-cloudy Wednesday rendered as a grey tofu box while sunny and rainy
+// days looked fine. Drawn shapes can't fail that way, and they animate.
+// See app/components/WeatherFX.jsx.
 
 const TABS = [
   ["overview", "Overview"],
@@ -175,7 +171,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
               const cur = per[i];
               if (!cur.isDaytime) continue;
               const night = per[i + 1] && !per[i + 1].isDaytime ? per[i + 1] : null;
-              days.push({ name: cur.name.replace(/ (Afternoon|Night)/, "").slice(0, 3), hi: cur.temperature, lo: night ? night.temperature : null, icon: wxEmoji(cur.shortForecast), pop: (cur.probabilityOfPrecipitation && cur.probabilityOfPrecipitation.value) || 0 });
+              days.push({ name: cur.name.replace(/ (Afternoon|Night)/, "").slice(0, 3), hi: cur.temperature, lo: night ? night.temperature : null, sky: cur.shortForecast || "", isDay: true, wind: 0, pop: (cur.probabilityOfPrecipitation && cur.probabilityOfPrecipitation.value) || 0 });
             }
             setDaily(days);
           }
@@ -508,7 +504,9 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             {hourly.map((h, i) => (
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", tz ? { hour: "numeric", timeZone: tz } : { hour: "numeric" })}</div>
-                <div style={{ fontSize: "1.4rem", margin: "6px 0" }}>{wxEmoji(h.shortForecast)}</div>
+                <div style={{ display: "flex", justifyContent: "center", margin: "8px 0 6px" }}>
+                  <WeatherFX sky={h.shortForecast} wind={0} isDay={h.isDaytime} size="1.5rem" cut="var(--pb-surface)" always />
+                </div>
                 <div style={{ fontFamily: serif, fontSize: "1.3rem" }}>{h.temperature}°</div>
                 <div style={{ fontSize: ".68rem", color: "var(--pb-muted)", marginTop: 2 }}>{h.shortForecast}</div>
               </div>
@@ -525,7 +523,9 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             {daily.map((d, i) => (
               <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,.03)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 6px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".06em" }}>{d.name}</div>
-                <div style={{ fontSize: "1.3rem", margin: "5px 0" }}>{d.icon}</div>
+                <div style={{ display: "flex", justifyContent: "center", margin: "7px 0 5px" }}>
+                  <WeatherFX sky={d.sky} wind={d.wind} isDay={d.isDay} size="1.4rem" cut="var(--pb-surface)" always />
+                </div>
                 <div style={{ fontFamily: serif, fontSize: "1.05rem" }}>{d.hi}°{d.lo != null && <span style={{ color: "var(--pb-muted)", fontSize: ".8em" }}> / {d.lo}°</span>}</div>
                 <div style={{ fontSize: ".62rem", color: d.pop > 30 ? "#a9c2e0" : "var(--pb-muted)", marginTop: 3 }}>💧 {d.pop}%</div>
               </div>

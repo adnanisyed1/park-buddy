@@ -27,7 +27,7 @@ import { useThemedBody } from "../lib/theme";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
 import { getStops, setStops } from "../lib/trip";
 import { roadAccessNote, roadAccessLabel } from "../lib/roadAccess";
-import WeatherFX from "../components/WeatherFX";
+import { WeatherChip, conditionFromSky } from "../components/WeatherTile";
 
 /* ------------------------------------------------------------------ helpers */
 const R_EARTH = 3958.8;
@@ -806,7 +806,6 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
             alignItems: "center", gap: 7, padding: "5px 10px 5px 8px", borderRadius: 999,
             background: "rgba(8,19,13,.62)", backdropFilter: "blur(8px)",
             border: "1px solid rgba(217,183,121,.22)" }}>
-            <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.05rem" />
             {vfull.temp != null && (
               <span style={{ fontFamily: "var(--pb-serif)", fontSize: "1.15rem", color: "#f7f4ec", lineHeight: 1 }}>
                 {Math.round(vfull.temp)}°
@@ -881,15 +880,12 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
               thrown away and only the headline word rendered. ── */}
         {vfull && (
           <>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 9 }}>
-              <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size=".9rem"
-                />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              {conditionFromSky(vfull.sky) && (
+                <WeatherChip condition={conditionFromSky(vfull.sky)} temp={vfull.temp} />
+              )}
               <span style={{ ...micro, letterSpacing: ".06em" }}>
-                {[
-                  vfull.temp != null ? vfull.temp + "°" : null,
-                  vfull.sky || null,
-                  vfull.wind ? vfull.wind + " mph wind" : null,
-                ].filter(Boolean).join(" · ")}
+                {[vfull.sky || null, vfull.wind ? vfull.wind + " mph wind" : null].filter(Boolean).join(" · ")}
               </span>
             </div>
             {!!(vfull.chips && vfull.chips.length) && (
@@ -984,8 +980,7 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.1) 40%,rgba(9,24,16,.86) 100%)" }} />
           <div style={{ position: "absolute", left: 20, bottom: 16 }}>
             <div style={{ fontFamily: "var(--pb-serif)", fontSize: "2rem", fontWeight: 300, lineHeight: 1.05 }}>{place.name}</div>
-            <div style={{ ...micro, marginTop: 5, display: "flex", alignItems: "center", gap: 8 }}>
-              {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.1rem" />}
+            <div style={{ ...micro, marginTop: 5 }}>
               {TYPE_LABEL[place.type]} · {place.state}
               {dist != null && isFinite(dist) ? " · " + Math.round(dist) + " MI FROM " + origin.name.toUpperCase() : ""}
             </div>

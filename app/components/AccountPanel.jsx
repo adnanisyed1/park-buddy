@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useAuth, getAccessToken, deleteAccount } from "../lib/auth";
 import TripLibrary from "./TripLibrary";
+import SavedPlaces from "./SavedPlaces";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 const micro = { fontFamily: mono, fontSize: ".54rem", letterSpacing: ".16em", textTransform: "uppercase", color: "var(--pb-muted)" };
@@ -16,6 +17,7 @@ const field = { width: "100%", background: "rgba(255,255,255,.04)", border: "1px
 const ghostBtn = { cursor: "pointer", fontFamily: "var(--pb-sans)", fontWeight: 600, fontSize: ".8rem", color: "#e7e3d8", background: "rgba(255,255,255,.04)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 14px" };
 
 const TILES = [
+  { key: "saved", label: "Saved Places", icon: "♥", desc: "Places you've saved · your buckets" },
   { key: "prefs", label: "Preferences", icon: "⚙", desc: "Interests, units, map & home region" },
   { key: "trips", label: "My Itineraries", icon: "🧭", desc: "Your saved trips" },
   { key: "orders", label: "Books & Orders", icon: "📖", desc: "Trip Books you've made & ordered" },
@@ -101,6 +103,7 @@ export default function AccountPanel() {
               ))}
             </div>
           )}
+          {view === "saved" && <SavedPlaces onClose={closeAuth} />}
           {view === "prefs" && <Preferences auth={auth} />}
           {view === "trips" && <TripLibrary onNavigate={closeAuth} />}
           {view === "orders" && <Orders onClose={closeAuth} />}

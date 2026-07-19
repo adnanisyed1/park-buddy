@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
+import SaveButton from "../../components/SaveButton";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
 import { addStop, inTrip } from "../../lib/trip";
@@ -248,6 +249,21 @@ export default function ParkStatusV2({ id, kind = "park" }) {
             <h1 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(3rem,8vw,6rem)", lineHeight: 0.92, letterSpacing: "-.02em", textShadow: "0 6px 40px rgba(0,0,0,.5)", marginTop: 10 }}>{park ? park.name : "…"}</h1>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
               <button onClick={addToTrip} style={{ cursor: "pointer", fontSize: ".86rem", fontWeight: 600, color: "#0b1710", background: "var(--pb-grad-gold)", border: "none", borderRadius: 999, padding: "12px 22px", boxShadow: "0 10px 30px -14px rgba(217,183,121,.6)" }}>{added ? "✓ In your trip" : "+ Add to trip"}</button>
+              {park && (
+                <SaveButton
+                  size={44}
+                  label="Save"
+                  place={{
+                    kind: isForest ? "forest" : isStatePark ? "statePark" : "park",
+                    name: park.name,
+                    ref: park.code || park.id || id,   // parkCode where we have one — keeps same-named places apart
+                    state: park.state,
+                    lat: park.lat, lng: park.lng,
+                    sub: KIND_LABEL,
+                    href: "/parks/" + id,
+                  }}
+                />
+              )}
               <a href="/#ask" style={{ textDecoration: "none", cursor: "pointer", fontSize: ".86rem", fontWeight: 600, color: "#f4f1ea", background: "rgba(10,23,18,.5)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "12px 22px" }}>✦ Ask Park Buddy</a>
             </div>
           </div>

@@ -135,6 +135,16 @@ function subFor(kind, it, place) {
   return "";
 }
 
+// Rough drive time from straight-line miles. 45 mph is the old page's figure and
+// it stays an estimate — it doesn't know about roads, let alone today's traffic,
+// which is why every label that uses it says "est.".
+const AVG_MPH = 45;
+function driveTimeLabel(miles) {
+  const hrs = miles / AVG_MPH;
+  if (hrs < 1) return Math.round(hrs * 60) + " min";
+  return Math.round(hrs * 10) / 10 + " hr";
+}
+
 const BOUNDARY_URL = (code) =>
   "https://raw.githubusercontent.com/nationalparkservice/data/gh-pages/base_data/boundaries/parks/" + code + ".topojson";
 
@@ -1550,7 +1560,7 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, on
         {trail ? (
           <TrailDetail trail={trail} place={place} onBack={() => setTrail(null)} />
         ) : (<>
-          {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} vfull={vfull} />}
+          {tab === "overview" && <Overview place={place} cond={data.conditions} err={err.conditions} vfull={vfull} nearby={data} />}
           {tab === "about" && <About place={place} nps={data.about} err={err.about} />}
           {tab !== "overview" && tab !== "about" && (
             <ThingList kind={tab} items={data[tab]} failed={err[tab]} place={place} onTrail={setTrail} />
@@ -1561,7 +1571,93 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, on
   );
 }
 
-function Overview({ place, cond, err, vfull }) {
+// Pines are the platform's place-locked short videos. The peek is deliberately
+// quiet and always honest about the count: an invitation when a place has none,
+// a link when it has some. Never a number it hasn't checked.
+function PinesPeek({ name }) {
+  const [pins, setPins] = useState(null);
+  useEffect(() => {
+    if (!name) return;
+    let on = true;
+    fetch("/api/pines?place_name=" + encodeURIComponent(name) + "&limit=1")
+      .then((r) => (r.ok ? r.json() : { pines: [] }))
+      .then((d) => { if (on) setPins(d.pines || []); })
+      .catch(() => { if (on) setPins(null); });   // null stays hidden rather than lying
+    return () => { on = false; };
+  }, [name]);
+  if (pins === null) return null;
+  return (
+    <Link href="/pines" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none",
+      border: "1px solid var(--pb-line)", borderRadius: 12, padding: "10px 12px", background: "var(--pb-tint)" }}>
+      <span style={{ width: 20, height: 20, borderRadius: 6, background: "var(--pb-grad-gold)", flex: "none",
+        display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="var(--pb-bg)" aria-hidden="true">
+          <path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" />
+        </svg>
+      </span>
+      <span style={{ flex: 1, minWidth: 0, fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink)" }}>
+        {pins.length ? "Pines from here" : "Be the first to pin a Pine here"}
+      </span>
+      <span style={{ fontSize: ".78rem", fontWeight: 600, color: "var(--pb-gold)", flex: "none" }}>→</span>
+    </Link>
+  );
+}
+
+// One distance-sorted list mixing campgrounds and lakes, each with a drive-time
+// estimate and a link to its own status page. Those pages (/campground-status,
+// /lake-status) already existed and nothing in the rebuild linked to them, so
+// every campground and lake was a dead end.
+function NearbyRoundup({ place, nearby }) {
+  const items = [];
+  (nearby.camping || []).forEach((c) => {
+    if (!isFinite(Number(c.lat))) return;
+    items.push({
+      name: c.name, kind: "Campground",
+      mi: milesBetween(place, { lat: Number(c.lat), lng: Number(c.lng) }),
+      href: "/campground-status?name=" + encodeURIComponent(c.name || "") +
+            "&lat=" + c.lat + "&lng=" + c.lng,
+    });
+  });
+  (nearby.water || []).forEach((w) => {
+    if (!isFinite(Number(w.lat))) return;
+    items.push({
+      name: w.name, kind: w.kind === "reservoir" ? "Reservoir" : "Lake",
+      mi: milesBetween(place, { lat: Number(w.lat), lng: Number(w.lng) }),
+      href: "/lake-status?name=" + encodeURIComponent(w.name || "") +
+            "&lat=" + w.lat + "&lng=" + w.lng,
+    });
+  });
+  if (!items.length) return null;
+  items.sort((a, b) => a.mi - b.mi);
+
+  return (
+    <Panel title="Nearby">
+      <div style={{ display: "grid", gap: 2 }}>
+        {items.slice(0, 10).map((it, i) => (
+          <Link key={it.name + i} href={it.href}
+            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", textDecoration: "none",
+              color: "var(--pb-ink)", borderTop: i ? "1px solid var(--pb-line)" : "none" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: ".86rem", overflow: "hidden",
+                textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.name}</div>
+              <div style={{ ...micro, marginTop: 3 }}>{it.kind}</div>
+            </div>
+            <div style={{ textAlign: "right", flex: "none" }}>
+              <div style={{ fontSize: ".82rem", fontWeight: 600 }}>{Math.round(it.mi)} mi</div>
+              <div style={{ ...micro, marginTop: 3 }}>est. {driveTimeLabel(it.mi)}</div>
+            </div>
+            <span aria-hidden="true" style={{ color: "var(--pb-gold)", flex: "none" }}>›</span>
+          </Link>
+        ))}
+      </div>
+      <div style={{ ...micro, marginTop: 10, letterSpacing: ".08em" }}>
+        Straight-line distance · drive time estimated at {AVG_MPH} mph
+      </div>
+    </Panel>
+  );
+}
+
+function Overview({ place, cond, err, vfull, nearby }) {
   // The road-access warning is the one thing here that must render even when the
   // live conditions fail: eight national parks have no road to them at all, and
   // a failed weather fetch is no reason to let someone plan a drive to Katmai.
@@ -1590,6 +1686,7 @@ function Overview({ place, cond, err, vfull }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {banner}
+      <PinesPeek name={place.name} />
       {copy && (
         <div style={{ padding: "14px 16px", borderRadius: 13,
           background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)" }}>
@@ -1608,6 +1705,7 @@ function Overview({ place, cond, err, vfull }) {
           )}
         </div>
       )}
+      <NearbyRoundup place={place} nearby={nearby || {}} />
       {cond.temp && (
         <Panel title="Right now">
           <div style={{ fontSize: "1.5rem", fontFamily: "var(--pb-serif)", fontWeight: 300 }}>

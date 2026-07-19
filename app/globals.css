@@ -135,62 +135,81 @@ body {
 @keyframes ppspin { to { transform: rotate(360deg); } }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Weather effects for place tiles (app/explore-next/WeatherFX.jsx)
+   Animated weather tile (app/explore-next/WeatherFX.jsx)
 
-   Every layer animates ONLY transform or opacity, so the compositor handles it
-   and two dozen tiles can run at once without touching layout or paint. The
-   patterns are repeating gradients, which tile infinitely — each layer is inset
-   past its container so a translating pattern never exposes an edge.
+   A small self-contained scene — cloud with falling rain, drifting fog bands,
+   a turning sun — that sits beside the temperature. Deliberately NOT an overlay
+   on the photograph: the photo is what someone is judging the place by, and
+   washing it in animation makes every card look like the same weather.
 
-   Kept deliberately faint. This sits on top of a photograph of a place someone
-   is deciding whether to visit; the weather is a hint, not the subject.
+   Everything animates transform or opacity only, so a screenful of these stays
+   on the compositor. Sized off the container's font-size so one component works
+   at tile scale and hero scale.
    ──────────────────────────────────────────────────────────────────────────── */
-.pbfx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
-.pbfx > i { position: absolute; inset: -60%; display: block; will-change: transform, opacity; }
+.wx { position: relative; width: 1.9em; height: 1.9em; flex: none; display: block; }
+.wx * { position: absolute; }
 
-@keyframes pbfx-fall     { from { transform: translate3d(0,0,0); }        to { transform: translate3d(-8%, 60%, 0); } }
-@keyframes pbfx-fall-slow{ from { transform: translate3d(0,0,0); }        to { transform: translate3d(6%, 60%, 0); } }
-@keyframes pbfx-drift    { from { transform: translate3d(-12%,0,0); }     to { transform: translate3d(12%, 0, 0); } }
-@keyframes pbfx-drift-b  { from { transform: translate3d(10%,0,0); }      to { transform: translate3d(-10%, 0, 0); } }
-@keyframes pbfx-gust     { from { transform: translate3d(0,0,0); }        to { transform: translate3d(-30%, 0, 0); } }
-@keyframes pbfx-breathe  { 0%,100% { opacity: .30; } 50% { opacity: .62; } }
-@keyframes pbfx-twinkle  { 0%,100% { opacity: .22; } 50% { opacity: .55; } }
-@keyframes pbfx-flash    { 0%,88%,100% { opacity: 0; } 90% { opacity: .5; } 93% { opacity: .12; } 95% { opacity: .38; } }
+/* the cloud shared by rain / snow / storm / cloudy */
+.wx-cloud { width: 78%; height: 42%; left: 11%; top: 24%; border-radius: 999px; background: currentColor; opacity: .92; }
+.wx-cloud::before, .wx-cloud::after { content: ""; position: absolute; border-radius: 50%; background: inherit; }
+.wx-cloud::before { width: 52%; height: 96%; left: 10%; top: -52%; }
+.wx-cloud::after  { width: 40%; height: 76%; right: 12%; top: -34%; }
+.wx-drift  { animation: wx-cloud-drift 6s ease-in-out infinite alternate; }
+@keyframes wx-cloud-drift { from { transform: translate3d(-6%,0,0); } to { transform: translate3d(6%,0,0); } }
 
-/* rain — two sheets at different angles and speeds so it reads as depth */
-.pbfx-rain-a { background-image: repeating-linear-gradient(102deg, rgba(214,232,255,.55) 0 1px, transparent 1px 11px); animation: pbfx-fall 0.9s linear infinite; opacity: .40; }
-.pbfx-rain-b { background-image: repeating-linear-gradient(98deg,  rgba(214,232,255,.38) 0 1px, transparent 1px 17px); animation: pbfx-fall 1.5s linear infinite; opacity: .30; }
+/* falling bits — three of them, staggered, so it reads as continuous */
+.wx-drop, .wx-flake { top: 62%; border-radius: 999px; background: currentColor; }
+.wx-drop  { width: 7%;  height: 22%; }
+.wx-flake { width: 13%; height: 13%; }
+.wx-i1 { left: 26%; animation-delay: 0s; }
+.wx-i2 { left: 46%; animation-delay: .28s; }
+.wx-i3 { left: 66%; animation-delay: .56s; }
+.wx-drop  { animation: wx-fall .85s linear infinite; }
+.wx-flake { animation: wx-flutter 2.1s linear infinite; }
+@keyframes wx-fall    { 0% { transform: translate3d(0,-38%,0); opacity: 0; } 22% { opacity: .95; } 100% { transform: translate3d(-14%,120%,0); opacity: 0; } }
+@keyframes wx-flutter { 0% { transform: translate3d(0,-30%,0); opacity: 0; } 25% { opacity: .95; } 55% { transform: translate3d(18%,45%,0); } 100% { transform: translate3d(-10%,115%,0); opacity: 0; } }
 
-/* snow — round flakes, two depths, drifting opposite ways */
-.pbfx-snow-a { background-image: radial-gradient(rgba(255,255,255,.92) 1.4px, transparent 1.6px); background-size: 34px 34px; animation: pbfx-fall-slow 7s linear infinite; opacity: .62; }
-.pbfx-snow-b { background-image: radial-gradient(rgba(255,255,255,.65) 1px, transparent 1.2px);  background-size: 22px 22px; animation: pbfx-fall 11s linear infinite;     opacity: .44; }
+/* storm bolt */
+.wx-bolt { left: 42%; top: 60%; width: 18%; height: 34%; background: currentColor;
+  clip-path: polygon(58% 0, 8% 56%, 44% 56%, 30% 100%, 92% 40%, 52% 40%);
+  animation: wx-bolt 2.4s steps(1) infinite; }
+@keyframes wx-bolt { 0%,72%,100% { opacity: .15; } 76% { opacity: 1; } 80% { opacity: .2; } 84% { opacity: .9; } }
 
-/* fog / smoke — soft bands sliding across, no hard edges */
-.pbfx-fog-a  { background-image: linear-gradient(180deg, transparent 8%, rgba(233,240,238,.34) 42%, transparent 78%); animation: pbfx-drift 13s ease-in-out infinite alternate; }
-.pbfx-fog-b  { background-image: linear-gradient(180deg, transparent 30%, rgba(233,240,238,.22) 62%, transparent 92%); animation: pbfx-drift-b 19s ease-in-out infinite alternate; }
-.pbfx-smoke-a{ background-image: linear-gradient(180deg, transparent 10%, rgba(190,160,120,.36) 46%, transparent 82%); animation: pbfx-drift 15s ease-in-out infinite alternate; }
-.pbfx-smoke-b{ background-image: linear-gradient(180deg, transparent 26%, rgba(160,130,95,.24) 60%, transparent 94%);  animation: pbfx-drift-b 22s ease-in-out infinite alternate; }
+/* fog / smoke — stacked bands sliding opposite ways */
+.wx-band { height: 9%; border-radius: 999px; background: currentColor; left: 8%; width: 84%; }
+.wx-b1 { top: 30%; animation: wx-band-a 3.4s ease-in-out infinite alternate; opacity: .95; }
+.wx-b2 { top: 48%; animation: wx-band-b 4.2s ease-in-out infinite alternate; opacity: .7; width: 70%; left: 16%; }
+.wx-b3 { top: 66%; animation: wx-band-a 5.0s ease-in-out infinite alternate; opacity: .85; width: 78%; left: 10%; }
+@keyframes wx-band-a { from { transform: translate3d(-13%,0,0); } to { transform: translate3d(13%,0,0); } }
+@keyframes wx-band-b { from { transform: translate3d(15%,0,0); }  to { transform: translate3d(-15%,0,0); } }
 
-/* cloud — big soft ellipses crossing slowly */
-.pbfx-cloud-a{ background-image: radial-gradient(ellipse 30% 18% at 22% 28%, rgba(255,255,255,.30), transparent 70%), radial-gradient(ellipse 26% 14% at 68% 20%, rgba(255,255,255,.22), transparent 72%); animation: pbfx-drift 26s ease-in-out infinite alternate; }
-.pbfx-cloud-b{ background-image: radial-gradient(ellipse 34% 16% at 48% 40%, rgba(255,255,255,.18), transparent 74%); animation: pbfx-drift-b 34s ease-in-out infinite alternate; }
+/* sun — disc plus a slowly turning cross of rays */
+.wx-sun  { width: 46%; height: 46%; left: 27%; top: 27%; border-radius: 50%; background: currentColor; }
+.wx-rays { inset: 0; animation: wx-spin 9s linear infinite; }
+.wx-rays::before, .wx-rays::after { content: ""; position: absolute; background: currentColor; border-radius: 999px; opacity: .85; }
+.wx-rays::before { left: 47%; top: 2%;  width: 6%; height: 96%; }
+.wx-rays::after  { top: 47%; left: 2%;  height: 6%; width: 96%; }
+@keyframes wx-spin { to { transform: rotate(180deg); } }
 
-/* sun — one warm bloom from the upper corner, slowly breathing */
-.pbfx-sun-a  { background-image: radial-gradient(circle at 78% 16%, rgba(255,226,160,.55), rgba(255,214,130,.16) 34%, transparent 62%); animation: pbfx-breathe 7s ease-in-out infinite; }
+/* clear night — crescent, and stars that breathe out of sync */
+.wx-moon { inset: 18%; border-radius: 50%; background: currentColor; }
+.wx-moon::after { content: ""; position: absolute; inset: -14% -34% -14% 22%; border-radius: 50%; background: var(--wx-cut, var(--pb-surface-2)); }
+.wx-star { width: 14%; height: 14%; border-radius: 50%; background: currentColor; }
+.wx-s1 { left: 4%;  top: 12%; animation: wx-twinkle 2.6s ease-in-out infinite; }
+.wx-s2 { left: 78%; top: 72%; animation: wx-twinkle 3.4s ease-in-out infinite .8s; }
+@keyframes wx-twinkle { 0%,100% { opacity: .25; transform: scale(.75); } 50% { opacity: 1; transform: scale(1); } }
 
-/* clear night — a still field of stars, twinkling together */
-.pbfx-star-a { background-image: radial-gradient(rgba(255,255,255,.95) 1px, transparent 1.3px); background-size: 46px 46px; animation: pbfx-twinkle 4.5s ease-in-out infinite; }
-.pbfx-star-b { background-image: radial-gradient(rgba(210,228,255,.8) .8px, transparent 1.1px); background-size: 71px 71px; animation: pbfx-twinkle 6.5s ease-in-out infinite reverse; }
+/* wind — three streaks chasing each other */
+.wx-gust { height: 8%; border-radius: 999px; background: currentColor; left: 6%; }
+.wx-g1 { top: 30%; width: 62%; animation: wx-gust 1.9s ease-in-out infinite; }
+.wx-g2 { top: 48%; width: 86%; animation: wx-gust 1.6s ease-in-out infinite .2s; }
+.wx-g3 { top: 66%; width: 48%; animation: wx-gust 2.2s ease-in-out infinite .4s; }
+@keyframes wx-gust { 0% { transform: translate3d(-24%,0,0); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate3d(34%,0,0); opacity: 0; } }
 
-/* wind — fast, nearly-flat streaks */
-.pbfx-wind-a { background-image: repeating-linear-gradient(88deg, rgba(255,255,255,.34) 0 2px, transparent 2px 42px); animation: pbfx-gust 2.6s linear infinite; opacity: .34; }
-
-/* storm — rain plus an occasional sheet of light */
-.pbfx-flash  { inset: 0 !important; background: rgba(226,238,255,.9); animation: pbfx-flash 9s ease-out infinite; }
-
-/* Motion is decoration here — every one of these facts is also written on the
-   card in words. Someone who asked the OS for less motion loses nothing. */
+/* Every one of these facts is also written next to it in words, so stopping the
+   motion costs nothing. */
 @media (prefers-reduced-motion: reduce) {
-  .pbfx > i { animation: none !important; }
-  .pbfx-rain-b, .pbfx-snow-b, .pbfx-fog-b, .pbfx-smoke-b, .pbfx-cloud-b, .pbfx-star-b, .pbfx-flash { display: none; }
+  .wx * { animation: none !important; }
+  .wx-drop, .wx-flake { opacity: .9; }
+  .wx-bolt, .wx-star { opacity: 1; }
 }

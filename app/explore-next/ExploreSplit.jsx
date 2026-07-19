@@ -748,7 +748,6 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
           ? <img src={photo.url} alt={p.name} loading="lazy"
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           : <span style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(135deg,var(--pb-surface-2) 0 12px,var(--pb-surface) 12px 24px)" }} />}
-        {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} strength={0.85} />}
         <span style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.05) 45%,rgba(9,24,16,.8) 100%)" }} />
         <span style={{ position: "absolute", left: 12, top: 12, width: 26, height: 26, borderRadius: 999,
           display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--pb-mono)",
@@ -757,10 +756,17 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
           border: picked ? "none" : "1px solid var(--pb-line-strong)" }}>{n}</span>
 
         {/* Temperature, big, where the eye lands — carried over from the old tile. */}
-        {vfull && vfull.temp != null && (
-          <span style={{ position: "absolute", right: 12, top: 10, fontFamily: "var(--pb-serif)",
-            fontSize: "1.4rem", color: "#f4f1ea", textShadow: "0 1px 8px rgba(0,0,0,.7)" }}>
-            {Math.round(vfull.temp)}°
+        {vfull && (
+          <span style={{ position: "absolute", right: 10, top: 10, display: "inline-flex",
+            alignItems: "center", gap: 7, padding: "5px 10px 5px 8px", borderRadius: 999,
+            background: "rgba(8,19,13,.62)", backdropFilter: "blur(8px)",
+            border: "1px solid rgba(217,183,121,.22)" }}>
+            <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.05rem" cut="#0d1a13" />
+            {vfull.temp != null && (
+              <span style={{ fontFamily: "var(--pb-serif)", fontSize: "1.15rem", color: "#f7f4ec", lineHeight: 1 }}>
+                {Math.round(vfull.temp)}°
+              </span>
+            )}
           </span>
         )}
 
@@ -830,12 +836,16 @@ function PlaceCard({ p, n, origin, verdict, vfull, alerts, isDay, picked, onTogg
               thrown away and only the headline word rendered. ── */}
         {vfull && (
           <>
-            <div style={{ ...micro, marginTop: 9, letterSpacing: ".06em" }}>
-              {[
-                vfull.temp != null ? vfull.temp + "°" : null,
-                vfull.sky || null,
-                vfull.wind ? vfull.wind + " mph wind" : null,
-              ].filter(Boolean).join(" · ")}
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 9 }}>
+              <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size=".9rem"
+                cut={picked ? "var(--pb-surface-2)" : "var(--pb-surface)"} />
+              <span style={{ ...micro, letterSpacing: ".06em" }}>
+                {[
+                  vfull.temp != null ? vfull.temp + "°" : null,
+                  vfull.sky || null,
+                  vfull.wind ? vfull.wind + " mph wind" : null,
+                ].filter(Boolean).join(" · ")}
+              </span>
             </div>
             {!!(vfull.chips && vfull.chips.length) && (
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 7 }}>
@@ -926,11 +936,11 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
           aspectRatio: "16/6", background: "var(--pb-surface-2)", border: "1px solid var(--pb-line)" }}>
           {photo && photo.url && <img src={photo.url} alt={place.name}
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
-          {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} strength={1} />}
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(9,24,16,.1) 40%,rgba(9,24,16,.86) 100%)" }} />
           <div style={{ position: "absolute", left: 20, bottom: 16 }}>
             <div style={{ fontFamily: "var(--pb-serif)", fontSize: "2rem", fontWeight: 300, lineHeight: 1.05 }}>{place.name}</div>
-            <div style={{ ...micro, marginTop: 5 }}>
+            <div style={{ ...micro, marginTop: 5, display: "flex", alignItems: "center", gap: 8 }}>
+              {vfull && <WeatherFX sky={vfull.sky} wind={vfull.wind} isDay={isDay} size="1.1rem" cut="#0d1a13" />}
               {TYPE_LABEL[place.type]} · {place.state}
               {dist != null && isFinite(dist) ? " · " + Math.round(dist) + " MI FROM " + origin.name.toUpperCase() : ""}
             </div>

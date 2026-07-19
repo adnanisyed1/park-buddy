@@ -134,6 +134,22 @@ export default function ExploreSplit() {
 
   const say = useCallback((m) => { setFlash(m); setTimeout(() => setFlash(""), 3000); }, []);
 
+  // The site nav is a FLOATING PILL (.pb-nav-float — fixed, top 14, ~76 tall), not a
+  // 64px bar. Hardcoding 64 put it 26px on top of the search field. Measured at
+  // runtime so this stays right when the nav changes height or wraps on a narrow
+  // window, instead of being a magic number that silently rots.
+  const [topPad, setTopPad] = useState(104);
+  useEffect(() => {
+    const measure = () => {
+      const nav = document.querySelector(".pb-nav-float");
+      const bottom = nav ? nav.getBoundingClientRect().bottom : 90;  // fixed → scroll-independent
+      setTopPad(Math.round(bottom) + 14);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   /* ---- load the three local datasets ---- */
   useEffect(() => {
     let dead = false;
@@ -226,7 +242,11 @@ export default function ExploreSplit() {
   const inScope = useMemo(() => {
     let out = places;
     if (stateFilter) out = out.filter((p) => p.state === stateFilter);
-    if (origin && radius) out = out.filter((p) => milesBetween(origin, p) <= radius);
+    // A state is a scope, not another narrowing. Picking Utah means all of Utah —
+    // leaving the radius on top of it would silently hide the half of the state
+    // outside the circle, which is the opposite of what choosing a state means.
+    // The origin still sorts and still shows distances; it just stops excluding.
+    if (origin && radius && !stateFilter) out = out.filter((p) => milesBetween(origin, p) <= radius);
     // Conditions only bite once a verdict has actually arrived — an unknown
     // verdict must never silently hide a place.
     if (!conds.go || !conds.prepare || !conds.hold) {
@@ -424,7 +444,7 @@ export default function ExploreSplit() {
     const b = new g.maps.LatLngBounds();
     let n = 0;
     if (origin) { b.extend({ lat: origin.lat, lng: origin.lng }); n++; }
-    shown.slice(0, 12).forEach((p) => { b.extend({ lat: p.lat, lng: p.lng }); n++; });
+    shown.forEach((p) => { b.extend({ lat: p.lat, lng: p.lng }); n++; });
     if (n > 1) map.fitBounds(b, 60);
     else if (n === 1) { map.setCenter(b.getCenter()); map.setZoom(8); }
   }, [shown.map((p) => p.key).join(","), picked, origin, radius, mapOk]);
@@ -467,7 +487,7 @@ export default function ExploreSplit() {
   return (
     <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       <SiteHeader />
-      <div style={{ display: "flex", height: "100vh", paddingTop: 64, boxSizing: "border-box" }}>
+      <div style={{ display: "flex", height: "100vh", paddingTop: topPad, boxSizing: "border-box" }}>
 
         {/* ─────────────────────────────── panel */}
         <section style={{ width: 700, maxWidth: "50vw", flex: "none", display: "flex", flexDirection: "column",
@@ -486,7 +506,7 @@ export default function ExploreSplit() {
                 onMyLocation={useMyLocation}
                 conds={conds} setConds={setConds} states={states}
                 stateFilter={stateFilter} setStateFilter={setStateFilter}
-                count={results.length}
+                count={results.length} stateName={stateFilter}
               />
 
               <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 120px" }}>
@@ -564,7 +584,7 @@ export default function ExploreSplit() {
 function Header(props) {
   const { query, setQuery, sugg, onPick, onSubmit, geocoding, filtersOpen, setFiltersOpen,
     activeFilters, cats, setCats, catCounts, origin, setOrigin, radius, setRadius, onMyLocation,
-    conds, setConds, states, stateFilter, setStateFilter, count } = props;
+    conds, setConds, states, stateFilter, setStateFilter, count, stateName } = props;
 
   return (
     <div style={{ padding: "20px 24px 14px", position: "relative", flex: "none" }}>
@@ -636,7 +656,9 @@ function Header(props) {
           borderRadius: 999, background: "var(--pb-surface-2)", border: "1px solid var(--pb-gold-2)" }}>
           <span style={{ width: 14, height: 14, borderRadius: 999, border: "2.5px solid var(--pb-gold)", flex: "none" }} />
           <span style={{ flex: 1, fontSize: ".8rem", fontWeight: 600 }}>Searching from {origin.name}</span>
-          {radius && <span style={{ ...micro, letterSpacing: ".08em" }}>within {radius} mi</span>}
+          <span style={{ ...micro, letterSpacing: ".08em" }}>
+            {stateName ? "distance sorts only" : radius ? "within " + radius + " mi" : "any distance"}
+          </span>
           <button onClick={() => setOrigin(null)} aria-label="Clear location"
             style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-muted)", fontSize: ".9rem" }}>✕</button>
         </div>
@@ -649,10 +671,14 @@ function Header(props) {
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 16 }}>
         <div>
           <div style={{ fontFamily: "var(--pb-serif)", fontSize: "1.3rem", fontWeight: 300 }}>
-            {count} place{count === 1 ? "" : "s"}{origin ? " near " + origin.name : ""}
+            {count} place{count === 1 ? "" : "s"}
+            {stateName ? " in " + stateName : origin ? " near " + origin.name : ""}
           </div>
           <div style={{ ...micro, marginTop: 3 }}>
-            {origin && radius ? "WITHIN " + radius + " MI" : "ALPHABETICAL — SEARCH A PLACE TO SORT BY DISTANCE"}
+            {stateName
+              ? (origin ? "THE WHOLE STATE — SORTED FROM " + origin.name.toUpperCase() : "THE WHOLE STATE")
+              : origin && radius ? "WITHIN " + radius + " MI"
+              : "ALPHABETICAL — SEARCH A PLACE TO SORT BY DISTANCE"}
           </div>
         </div>
       </div>
@@ -709,6 +735,12 @@ function FilterPopover({ onClose, conds, setConds, states, stateFilter, setState
         <div style={{ ...micro, padding: "14px 16px 8px" }}>
           {origin ? "Distance from " + origin.name : "Distance"}
         </div>
+        {stateFilter && (
+          <div style={{ padding: "0 16px 8px", fontSize: ".76rem", color: "var(--pb-muted)", lineHeight: 1.5 }}>
+            Showing all of {stateFilter}. Distance sorts the list but doesn&rsquo;t limit it —
+            clear the state to search by radius again.
+          </div>
+        )}
         {origin ? (
           <div style={{ display: "flex", gap: 6, padding: "0 16px", flexWrap: "wrap" }}>
             {[50, 100, 200, null].map((r) => (

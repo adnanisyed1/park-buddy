@@ -25,7 +25,8 @@ import SaveButton from "../components/SaveButton";
 import { usePhoto } from "../components/PhotoThumb";
 import { useThemedBody } from "../lib/theme";
 import { ensureMapsLoaded } from "../lib/googleMapsLoader";
-import { getStops, setStops } from "../lib/trip";
+import { getStops, setStops, subscribeTrip } from "../lib/trip";
+import { getMapPrefs, setMapPrefs, subscribeMapPrefs, mapOptionsFor, DARK_STYLE } from "../lib/mapPrefs";
 import { roadAccessNote, roadAccessLabel } from "../lib/roadAccess";
 import { WeatherChip, conditionFromSky } from "../components/WeatherTile";
 
@@ -131,6 +132,40 @@ function dotIcon(g, kind) {
   return { url: svg, scaledSize: new g.maps.Size(d, d), anchor: new g.maps.Point(d / 2, d / 2) };
 }
 
+// Explore's own dark style: roads and POI labels off so the place markers are the
+// only thing competing for attention. Passed to mapOptionsFor as this page's dark
+// style, which only applies to the roadmap base — satellite and terrain imagery
+// ignore it, which is why the toggle still feels like a real choice.
+const MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#0f2318" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#7f8a82" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0a1712" }, { weight: 3 }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#2a4436" }] },
+  { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#c9a35f" }, { weight: 1 }] },
+  { featureType: "administrative.province", elementType: "geometry.stroke", stylers: [{ color: "#3a5a48" }] },
+  { featureType: "administrative.province", elementType: "labels.text.fill", stylers: [{ color: "#8a938b" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#aab0ba" }] },
+  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#123322" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#16401f" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0b262b" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4f96c9" }] },
+  { featureType: "road", stylers: [{ visibility: "off" }] },
+  { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+];
+
+// Every type here has a status page except nps_unit, which has none — so it gets
+// no link rather than a broken one. Without this a forest or state park opened
+// from the map was a dead end, even though /forests/:slug and /state-parks/:id
+// have existed all along.
+function statusHrefFor(p) {
+  if (!p) return "";
+  if (p.type === "national_park" && p.id) return "/parks/" + p.id;
+  if (p.type === "national_forest") return "/forests/" + p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (p.type === "state_park" && p.destId) return "/state-parks/" + encodeURIComponent(p.destId);
+  return "";
+}
+
 /* --------------------------------------------------------------- the screen */
 export default function ExploreSplit() {
   const themeRef = useRef(null);
@@ -153,6 +188,44 @@ export default function ExploreSplit() {
   const [sel, setSel] = useState(null);                // the opened place
   // What the detail panel has fetched for the opened place, lifted so the map can
   // draw it. The panel still owns the fetching — this is the same data, shown twice.
+  // The trip store is shared with the park pages and the trip modal, so a stop
+  // added anywhere else has to show up here. Reading getStops() during render
+  // looked fine and was always stale — nothing told React to re-render.
+  const [tripCount, setTripCount] = useState(0);
+  useEffect(() => {
+    const sync = () => setTripCount(getStops().length);
+    sync();
+    return subscribeTrip(sync);
+  }, []);
+
+  // The homepage's "Design your adventure → Enter the map" modal writes the
+  // visitor's choices to pb_map_filters and expects the map to pick them up.
+  // Nothing read the key here, so that whole funnel quietly lost the selection.
+  // Consumed once and cleared, so a refresh doesn't re-apply a stale choice.
+  //
+  // Only the three place types the homepage offers map onto controls that exist
+  // here; its per-layer choices (camp / lakes / hike / ohv / ski) are handled by
+  // the in-place tabs instead, so they're deliberately not translated.
+  useEffect(() => {
+    let raw;
+    try { raw = localStorage.getItem("pb_map_filters"); } catch { return; }
+    if (!raw) return;
+    try { localStorage.removeItem("pb_map_filters"); } catch {}
+    let f;
+    try { f = JSON.parse(raw); } catch { return; }
+    if (!f) return;
+    const TYPE = { np: "national_park", sp: "state_park", nf: "national_forest" };
+    if (f.types) {
+      const next = {};
+      Object.keys(TYPE).forEach((k) => { if (k in f.types) next[TYPE[k]] = !!f.types[k]; });
+      if (Object.keys(next).length) setCats((c) => ({ ...c, ...next }));
+    }
+    if (Number(f.radius) > 0) setRadius(Number(f.radius));
+    if (f.near && typeof f.near.lat === "number") {
+      setOrigin({ name: "My location", lat: f.near.lat, lng: f.near.lng, state: "" });
+    }
+  }, []);
+
   const [nearby, setNearby] = useState({});
   const [detailTab, setDetailTab] = useState("overview");
   useEffect(() => { setNearby({}); setDetailTab("overview"); }, [sel && sel.key]);
@@ -240,7 +313,10 @@ export default function ExploreSplit() {
             out.push({
               key: type + ":" + d.id, name: d.name, state: multi ? "" : abbr(d.state),
               stateLabel: multi ? "Multi-state" : abbr(d.state),
-              lat: Number(d.lat), lng: Number(d.lng), type, href: "",
+              lat: Number(d.lat), lng: Number(d.lng), type,
+              // the destinations-table id is what /state-parks/:id keys on
+              destId: d.id,
+              href: statusHrefFor({ type, name: d.name, destId: d.id }),
               sub: type === "nps_unit" ? npsLabel(d.name) : null,
             });
             fromDb++;
@@ -256,7 +332,7 @@ export default function ExploreSplit() {
             if (seen.has(f.name.toLowerCase())) continue;
             seen.add(f.name.toLowerCase());
             out.push({ key: "nf:" + f.name, name: f.name, state: abbr(f.state), lat: f.lat, lng: f.lng,
-              type: "national_forest", href: "" });
+              type: "national_forest", href: statusHrefFor({ type: "national_forest", name: f.name }) });
           }
         }
         for (const s of sp) {
@@ -436,14 +512,23 @@ export default function ExploreSplit() {
       setMapOk(ok);
       if (!ok || !mapEl.current) return;
       const g = window.google;
+      // Map appearance is a platform-wide preference (app/lib/mapPrefs.js), not a
+      // per-page decision. Hardcoding "hybrid" here meant this map silently
+      // disagreed with every other map on the site.
       mapRef.current = new g.maps.Map(mapEl.current, {
         center: { lat: 39.5, lng: -98.5 }, zoom: 4, minZoom: 3, maxZoom: 15,
-        mapTypeId: "hybrid", mapTypeControl: true, streetViewControl: false,
-        fullscreenControl: false, gestureHandling: "cooperative", backgroundColor: "#0a1712",
+        mapTypeControl: true, streetViewControl: false,
+        fullscreenControl: true, gestureHandling: "cooperative", backgroundColor: "#0a1712",
+        ...mapOptionsFor(getMapPrefs(), MAP_STYLE),
       });
     });
     return () => { dead = true; };
   }, []);
+
+  // …and follow it when it changes elsewhere on the site.
+  useEffect(() => subscribeMapPrefs((prefs) => {
+    if (mapRef.current) mapRef.current.setOptions(mapOptionsFor(prefs, MAP_STYLE));
+  }), []);
 
   // redraw markers whenever the visible set changes
   useEffect(() => {
@@ -576,7 +661,7 @@ export default function ExploreSplit() {
   /* ------------------------------------------------------------------ view */
   return (
     <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
-      <SiteHeader />
+      <SiteHeader active="explore" tripCount={tripCount} acctSlot />
       <div style={{ display: "flex", height: "100vh", paddingTop: topPad, boxSizing: "border-box" }}>
 
         {/* ─────────────────────────────── panel */}
@@ -634,7 +719,7 @@ export default function ExploreSplit() {
                   background: "var(--pb-glass-strong)", borderTop: "1px solid var(--pb-line)", backdropFilter: "blur(14px)" }}>
                   <button onClick={addToTrip} style={goldBtn}>Add {picked.size} to Trip Studio</button>
                   <div style={{ textAlign: "center", fontSize: ".74rem", color: "var(--pb-muted)", marginTop: 7 }}>
-                    Your trip has {getStops().length} stop{getStops().length === 1 ? "" : "s"}
+                    Your trip has {tripCount} stop{tripCount === 1 ? "" : "s"}
                   </div>
                 </div>
               )}

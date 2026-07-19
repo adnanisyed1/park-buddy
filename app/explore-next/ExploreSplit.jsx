@@ -110,6 +110,27 @@ function originIcon(g) {
   return { url: svg, scaledSize: new g.maps.Size(30, 30), anchor: new g.maps.Point(15, 15) };
 }
 
+// Nearby features get a smaller, quieter dot than the numbered place markers —
+// they're context around the place you opened, not results you're choosing between.
+// One colour per kind so the map reads without a click.
+const NEARBY_LABEL = { trails: "trail", camping: "campground", water: "water", towns: "gateway town" };
+const NEARBY_STYLE = {
+  trails:  { c: "%236fbf8b", r: 6 },
+  camping: { c: "%23e8cf9a", r: 6 },
+  water:   { c: "%236fb6d9", r: 6 },
+  towns:   { c: "%23d79a9a", r: 7 },
+};
+function dotIcon(g, kind) {
+  const st = NEARBY_STYLE[kind] || NEARBY_STYLE.trails;
+  const d = st.r * 2 + 6;
+  const svg =
+    "data:image/svg+xml;utf8," +
+    "<svg xmlns='http://www.w3.org/2000/svg' width='" + d + "' height='" + d + "' viewBox='0 0 " + d + " " + d + "'>" +
+    "<circle cx='" + d / 2 + "' cy='" + d / 2 + "' r='" + st.r + "' fill='" + st.c +
+      "' stroke='rgba(8,13,9,.85)' stroke-width='2'/></svg>";
+  return { url: svg, scaledSize: new g.maps.Size(d, d), anchor: new g.maps.Point(d / 2, d / 2) };
+}
+
 /* --------------------------------------------------------------- the screen */
 export default function ExploreSplit() {
   const themeRef = useRef(null);
@@ -130,6 +151,11 @@ export default function ExploreSplit() {
   const [verdicts, setVerdicts] = useState({});
   const [picked, setPicked] = useState(() => new Set());
   const [sel, setSel] = useState(null);                // the opened place
+  // What the detail panel has fetched for the opened place, lifted so the map can
+  // draw it. The panel still owns the fetching — this is the same data, shown twice.
+  const [nearby, setNearby] = useState({});
+  const [detailTab, setDetailTab] = useState("overview");
+  useEffect(() => { setNearby({}); setDetailTab("overview"); }, [sel && sel.key]);
   const [flash, setFlash] = useState("");
 
   const say = useCallback((m) => { setFlash(m); setTimeout(() => setFlash(""), 3000); }, []);
@@ -428,11 +454,15 @@ export default function ExploreSplit() {
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
 
-    shown.forEach((p, i) => {
+    // With a place open the map belongs to that place: show only it, and don't
+    // re-fit to the whole result set (that would fight the zoom-in below).
+    const list = sel ? shown.filter((p) => p.key === sel.key) : shown;
+
+    list.forEach((p, i) => {
       const on = picked.has(p.key);
       const m = new g.maps.Marker({
         position: { lat: p.lat, lng: p.lng }, map,
-        icon: numIcon(g, i + 1, on), title: p.name, zIndex: on ? 20 : 10,
+        icon: numIcon(g, sel ? shown.indexOf(p) + 1 : i + 1, on || !!sel), title: p.name, zIndex: on ? 20 : 10,
       });
       m.addListener("click", () => setSel(p));
       markersRef.current.push(m);
@@ -454,13 +484,60 @@ export default function ExploreSplit() {
       }
     }
 
+    if (sel) return;   // the selection effect owns the viewport while a place is open
+
     const b = new g.maps.LatLngBounds();
     let n = 0;
     if (origin) { b.extend({ lat: origin.lat, lng: origin.lng }); n++; }
     shown.forEach((p) => { b.extend({ lat: p.lat, lng: p.lng }); n++; });
     if (n > 1) map.fitBounds(b, 60);
     else if (n === 1) { map.setCenter(b.getCenter()); map.setZoom(8); }
-  }, [shown.map((p) => p.key).join(","), picked, origin, radius, mapOk]);
+  }, [shown.map((p) => p.key).join(","), picked, origin, radius, mapOk, sel]);
+
+  /* ---- the opened place: zoom in, and draw what's around it ---------------
+     Opening a park moves the map to that park and puts its trails, campgrounds,
+     lakes and gateway towns on it. The active tab drives which kinds show, so the
+     list and the map are always describing the same thing; Overview shows all of
+     them. This draws the data the detail panel already fetched — nothing extra is
+     requested for the map. */
+  const nearbyRef = useRef([]);
+  useEffect(() => {
+    const g = typeof window !== "undefined" ? window.google : null;
+    const map = mapRef.current;
+    if (!g || !map) return;
+
+    nearbyRef.current.forEach((m) => m.setMap(null));
+    nearbyRef.current = [];
+    if (!sel) return;
+
+    const kinds = ["trails", "camping", "water", "towns"];
+    const active = kinds.indexOf(detailTab) > -1 ? [detailTab] : kinds;
+    const b = new g.maps.LatLngBounds();
+    b.extend({ lat: sel.lat, lng: sel.lng });
+    let n = 0;
+
+    active.forEach((kind) => {
+      (nearby[kind] || []).forEach((it) => {
+        const lat = Number(it.lat), lng = Number(it.lng);
+        if (!isFinite(lat) || !isFinite(lng) || (!lat && !lng)) return;
+        const m = new g.maps.Marker({
+          position: { lat, lng }, map, icon: dotIcon(g, kind), zIndex: 5,
+          title: (it.bareName || it.name || "") + " · " + NEARBY_LABEL[kind],
+        });
+        // Clicking a dot takes you to the list it came from, so the map is a way
+        // into the panel rather than a dead end.
+        m.addListener("click", () => setDetailTab(kind));
+        nearbyRef.current.push(m);
+        b.extend({ lat, lng });
+        n++;
+      });
+    });
+
+    // Frame the place plus whatever is around it. With nothing around it yet
+    // (still loading, or genuinely nothing) just settle on the place itself.
+    if (n) map.fitBounds(b, 70);
+    else { map.setCenter({ lat: sel.lat, lng: sel.lng }); map.setZoom(10); }
+  }, [sel, detailTab, nearby, mapOk]);
 
   /* ---- add to trip ---- */
   const addToTrip = () => {
@@ -508,6 +585,7 @@ export default function ExploreSplit() {
 
           {sel ? (
             <PlaceDetail place={sel} origin={origin} onBack={() => setSel(null)} resultCount={results.length}
+              tab={detailTab} onTab={setDetailTab} onNearby={setNearby}
               vfull={verdicts[sel.name + ":full"]} isDay={verdicts[sel.name + ":day"]} />
           ) : (
             <>
@@ -914,10 +992,11 @@ const IN_PLACE = [
   { key: "trails", label: "Trails" },
   { key: "camping", label: "Camping" },
   { key: "water", label: "Water" },
+  { key: "towns", label: "Towns" },
 ];
 
-function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
-  const [tab, setTab] = useState("overview");
+function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay, tab, onTab, onNearby }) {
+  const setTab = onTab;
   const [data, setData] = useState({});      // { trails, camping, water, conditions }
   const [err, setErr] = useState({});
   const heroRef = useRef(null);
@@ -928,14 +1007,26 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
   // on demand. Each section fails on its own and says so.
   useEffect(() => {
     let dead = false;
-    const get = async (key, url, pick) => {
+    // Every one of these is a third-party call, so each gets a deadline. Without
+    // one, a slow source leaves its chip showing "…" forever — and the count on a
+    // chip is a promise that a number is coming.
+    //
+    // /api/gateway is the reason this exists: it serves stored towns instantly for
+    // national parks and forests, but state parks and monuments aren't in that
+    // index, so they fall through to a live Overpass query that takes ~20s. That
+    // is most of the places in this list.
+    const get = async (key, url, pick, ms = 12000) => {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), ms);
       try {
-        const r = await fetch(url);
+        const r = await fetch(url, { signal: ctl.signal });
         if (!r.ok) throw new Error(String(r.status));
         const j = await r.json();
         if (!dead) setData((d) => ({ ...d, [key]: pick(j) }));
       } catch {
         if (!dead) setErr((e) => ({ ...e, [key]: true }));
+      } finally {
+        clearTimeout(timer);
       }
     };
     setData({}); setErr({});
@@ -945,6 +1036,10 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
     get("camping", "/api/places?" + ll + "&radius=30", (j) => (j.facilities || []));
     get("water", "/api/water?" + ll + "&radius=35", (j) => (j.lakes || []));
     get("conditions", "/api/conditions?" + ll, (j) => j);
+    // Where you actually sleep, eat and buy fuel. Comes from the gateway_towns
+    // table via /api/gateway, ranked nearest-first.
+    get("towns", "/api/gateway?" + ll + (place.state ? "&state=" + encodeURIComponent(place.state) : ""),
+      (j) => (j.towns || []));
     // NPS only knows about NPS units. A forest or state park has no entry, so
     // don't ask — an empty About is honest, a failed request looks broken.
     if (place.npsCode || place.type === "national_park") {
@@ -954,10 +1049,14 @@ function PlaceDetail({ place, origin, onBack, resultCount, vfull, isDay }) {
     return () => { dead = true; };
   }, [place.key]);
 
+  // The map draws from this same object, so it can never disagree with the list.
+  useEffect(() => { if (onNearby) onNearby(data); }, [data, onNearby]);
+
   const counts = {
     trails: data.trails ? data.trails.length : null,
     camping: data.camping ? data.camping.length : null,
     water: data.water ? data.water.length : null,
+    towns: data.towns ? data.towns.length : null,
   };
   const dist = origin ? milesBetween(origin, place) : null;
 
@@ -1179,10 +1278,51 @@ function About({ place, nps, err }) {
 }
 
 function ThingList({ kind, items, failed, place }) {
-  const LABEL = { trails: "trails", camping: "campgrounds", water: "lakes" };
-  if (failed) return <Notice text={"Couldn't load " + LABEL[kind] + " for " + place.name + ". The source didn't answer."} />;
+  const LABEL = { trails: "trails", camping: "campgrounds", water: "lakes", towns: "towns" };
+  if (failed) return <Notice text={kind === "towns"
+    ? "Nearby towns are indexed for national parks and forests. For " + place.name +
+      " they have to be looked up live, and that didn't finish in time."
+    : "Couldn't load " + LABEL[kind] + " for " + place.name + ". The source didn't answer."} />;
   if (!items) return <Notice text={"Loading " + LABEL[kind] + "…"} quiet />;
-  if (!items.length) return <Notice text={"No " + LABEL[kind] + " found in or near " + place.name + "."} />;
+  if (!items.length) return <Notice text={kind === "towns"
+    ? "No towns found within reach of " + place.name + "."
+    : "No " + LABEL[kind] + " found in or near " + place.name + "."} />;
+
+  if (kind === "towns") {
+    // Ranked nearest-first, so the distance leads. This is the "where do I sleep"
+    // list — a town 90 miles out is a different trip from one 8 miles out.
+    return (
+      <>
+        <div style={{ display: "grid", gap: 8 }}>
+          {items.slice(0, 12).map((t, i) => (
+            <div key={(t.name || "") + i} style={{ display: "flex", alignItems: "center", gap: 12,
+              padding: "11px 13px", borderRadius: 13, background: "var(--pb-tint)", border: "1px solid var(--pb-line)" }}>
+              <span style={{ flex: "none", width: 34, height: 34, borderRadius: 9, display: "flex",
+                alignItems: "center", justifyContent: "center", background: "var(--pb-surface-2)",
+                border: "1px solid var(--pb-line)", fontFamily: "var(--pb-mono)", fontSize: ".62rem",
+                color: "var(--pb-gold)" }}>{i + 1}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: ".92rem", overflow: "hidden",
+                  textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.bareName || t.name}</div>
+                {t.distanceMi != null && (
+                  <div style={{ ...micro, marginTop: 3, letterSpacing: ".06em" }}>
+                    {Math.round(t.distanceMi)} mi from {place.name}
+                  </div>
+                )}
+              </div>
+              <SaveButton variant="bare" size={26} place={{
+                kind: "town", name: t.bareName || t.name, ref: place.state || place.name,
+                state: place.state, lat: t.lat, lng: t.lng, sub: "Gateway town", href: "",
+              }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ ...micro, marginTop: 12, letterSpacing: ".08em" }}>
+          Nearest first · lodging, food, fuel and outfitters
+        </div>
+      </>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 14 }}>

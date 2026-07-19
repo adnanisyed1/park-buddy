@@ -20,8 +20,9 @@ import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
 import { addStop, inTrip } from "../../lib/trip";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
-const VC = { go: "#4fd98a", prepare: "#e8cf9a", hold: "#e0906a", loading: "#b3ab97" };
-const VHEAD = { go: "Great day to go", prepare: "Go prepared", hold: "Hold off today", loading: "Checking today's call…" };
+// These flip per theme (globals.css defines a darker set for light, because the
+// bright dark-theme green is illegible on a pale card).
+const VC = { go: "var(--pb-go)", prepare: "var(--pb-prepare)", hold: "var(--pb-hold)", loading: "var(--pb-muted)" };
 const card = { background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 18, padding: 18 };
 // Small caps label. Two variants, because the same style was being used on the
 // hero photograph AND on the page surface, which need opposite inks: #9aa7a0 is
@@ -286,16 +287,16 @@ export default function ParkStatusV2({ id, kind = "park" }) {
             </div>
           </div>
           {/* verdict card */}
-          <div style={{ background: "rgba(10,23,18,.62)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid " + vColor + "66", borderRadius: 22, padding: 22, boxShadow: "0 30px 80px -50px rgba(0,0,0,.9)" }}>
+          <div style={{ background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid color-mix(in srgb, " + vColor + " 45%, transparent)", borderRadius: 22, padding: 22, color: "var(--pb-ink)", boxShadow: "0 30px 80px -50px rgba(0,0,0,.9)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 12, height: 12, borderRadius: "50%", background: vColor, boxShadow: "0 0 10px " + vColor, animation: "ps-pulse 2.4s infinite" }} />
-              <span style={{ ...microOnPhoto, letterSpacing: ".16em" }}>Today&apos;s call{verdict ? "" : " · loading"}</span>
+              <span style={{ ...microLabel, letterSpacing: ".16em" }}>Today&apos;s call{verdict ? "" : " · loading"}</span>
             </div>
             <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 2, marginTop: 10 }}>
               <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(2.4rem,5vw,3.4rem)", lineHeight: 1.05, color: vColor }}>{verdict ? (verdict.word || bucket.toUpperCase()) : "…"}</span>
-              <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: "1.4rem", color: "#e7e3d8" }}>{VHEAD[bucket]}</span>
+
             </div>
-            <p style={{ fontSize: ".96rem", color: "#d3d8d1", lineHeight: 1.5, marginTop: 6 }}>{verdict ? verdict.sub : "Let me read today's conditions from the National Weather Service…"}</p>
+            <p style={{ fontSize: ".96rem", color: "var(--pb-ink-2)", lineHeight: 1.5, marginTop: 6 }}>{verdict ? verdict.sub : "Let me read today's conditions from the National Weather Service…"}</p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
               {temp != null && <span style={chip()}>☀ {temp}°F {verdict.sky || ""}</span>}
               {verdict && typeof verdict.wind === "number" ? <span style={chip()}>🌬 {Math.round(verdict.wind)} mph</span> : null}
@@ -381,7 +382,7 @@ function chip(kind) {
   // Literal, not tokenised: these sit on the verdict card over the hero photo,
   // which is dark in both themes. (An earlier sweep tokenised this by accident
   // and they turned dark-on-dark in light mode.)
-  return { ...base, background: "rgba(255,255,255,.10)", border: "1px solid rgba(255,255,255,.22)", color: "#f4f1ea" };
+  return { ...base, background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", color: "var(--pb-ink)" };
 }
 const H2 = { fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.4rem,3vw,1.9rem)" };
 

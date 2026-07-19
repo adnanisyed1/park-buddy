@@ -312,7 +312,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
           aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
           title={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-          style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: "50%", background: "transparent", border: "1px solid var(--pb-line-strong)", color: "var(--pb-ink)", flex: "none" }}
+          style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 38, height: 38, borderRadius: "50%", background: "var(--pb-glass)", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", color: "var(--pb-ink)", flex: "none" }}
         >
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
             {theme === "light"
@@ -324,21 +324,21 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           <button
             type="button"
             onClick={openTrip}
-            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 15px" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "var(--pb-glass)", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 15px" }}
           >
             🎒 My Trip
             <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".58rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "2px 7px" }}>{count}</span>
           </button>
         )}
         {user ? (
-          <button type="button" onClick={openAuth} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 13px 5px 5px" }}>
+          <button type="button" onClick={openAuth} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "var(--pb-glass)", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "5px 13px 5px 5px" }}>
             {avatar
               ? <img src={avatar} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover" }} />
               : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--pb-grad-gold)", color: "var(--pb-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: ".78rem" }}>{(displayName || "?").charAt(0).toUpperCase()}</span>}
             <span style={{ maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</span>
           </button>
         ) : (
-          <button type="button" onClick={openAuth} style={{ cursor: "pointer", fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "transparent", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}>
+          <button type="button" onClick={openAuth} style={{ cursor: "pointer", fontFamily: "inherit", color: "var(--pb-ink)", fontSize: ".82rem", fontWeight: 600, background: "var(--pb-glass)", WebkitBackdropFilter: "blur(22px) saturate(1.4)", backdropFilter: "blur(22px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "8px 16px" }}>
             Sign in
           </button>
         )}

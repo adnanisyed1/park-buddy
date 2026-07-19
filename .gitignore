@@ -11,3 +11,6 @@ out
 
 # byway ingest geocode cache (build-time)
 scripts/.cache/
+
+# build-time geometry cache — polygons are fetched, used, and thrown away
+scripts/.cache/

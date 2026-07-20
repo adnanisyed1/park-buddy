@@ -10,11 +10,12 @@
 // usually many times the size of the park beside it and typically has no timed
 // entry, no fee and allows dispersed camping — and almost nobody knows. That
 // contrast is the reason this page exists rather than being a directory row.
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
+import { lodgingOffers } from "../../lib/lodging";
 
 const mono = { fontFamily: "var(--pb-mono)", lineHeight: 1, textTransform: "uppercase" };
 const GUTTER = "clamp(20px, 5vw, 64px)";
@@ -222,17 +223,7 @@ export default function TownPage({ town }) {
             </p>
           </div>
 
-          {/* Deliberately empty until the Expedia/Vrbo integration lands. An
-              honest empty slot beats three invented partner cards. */}
-          <div style={{ marginTop: 24, padding: "28px 22px", borderRadius: 8,
-            border: "1px dashed var(--pb-line-strong)", background: "var(--pb-bg)", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--pb-serif)", fontSize: "1.15rem" }}>Cabins and stays are coming here</div>
-            <p style={{ margin: "8px auto 0", maxWidth: "56ch", fontSize: ".86rem", lineHeight: 1.55, color: "var(--pb-muted)" }}>
-              We&rsquo;re wiring real inventory rather than a list of links. When it lands, every stay will
-              show how far it is from the boundary — not from the town centre — and whether it sits inside
-              the forest.
-            </p>
-          </div>
+          <LodgingOffers town={town} />
         </div>
       </section>
 
@@ -253,6 +244,53 @@ export default function TownPage({ town }) {
 }
 
 /* ------------------------------------------------------------------ pieces */
+// The two lodging hand-offs. Which partners exist, and how their URLs are built,
+// is entirely app/lib/lodging.js — this only renders what that returns, so an
+// approved Hipcamp or a re-minted link needs no change here.
+//
+// `today` starts null and is filled in after mount. These pages are statically
+// generated, so a date computed during render would be the BUILD date: a link
+// minted for a fortnight in July would still look current in September. Reading
+// the real clock on the client fixes that, and deferring it to an effect keeps
+// the first paint identical to the server HTML instead of tripping hydration.
+function LodgingOffers({ town }) {
+  const [today, setToday] = useState(null);
+  useEffect(() => setToday(new Date().toISOString().slice(0, 10)), []);
+  const offers = lodgingOffers(town, today);
+  if (!offers.length) return null;
+
+  return (
+    <div style={{ marginTop: 24, display: "grid", gap: 14,
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+      {offers.map((o) => (
+        <a key={o.key} href={o.url} target="_blank" rel="sponsored noopener noreferrer"
+          style={{ display: "flex", flexDirection: "column", gap: 10, textDecoration: "none", color: "inherit",
+            background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 8, padding: "24px 26px" }}>
+          <div style={{ ...mono, fontSize: 10, fontWeight: 700, letterSpacing: ".1em", color: "var(--pb-muted)" }}>
+            {o.partner}
+          </div>
+          <div style={{ fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "1.25rem", lineHeight: 1.2 }}>
+            {o.title}
+          </div>
+          <p style={{ margin: 0, fontSize: ".88rem", lineHeight: 1.55, color: "var(--pb-ink-2)", flex: 1 }}>
+            {o.blurb}
+          </p>
+          <span style={{ ...mono, fontSize: 10, fontWeight: 700, letterSpacing: ".08em", color: "var(--pb-gold)" }}>
+            {o.cta} →
+          </span>
+        </a>
+      ))}
+      {/* Dates are the visitor's to choose. We deliberately don't pre-fill a
+          range, because any range we picked would be wrong for most people and
+          silently stale for the rest. */}
+      <p style={{ gridColumn: "1 / -1", margin: 0, ...mono, fontSize: 10, letterSpacing: ".06em",
+        color: "var(--pb-muted)" }}>
+        Searches open undated — pick your nights on the partner&rsquo;s site.
+      </p>
+    </div>
+  );
+}
+
 function LandRow({ s }) {
   const isForest = s.type === "national_forest";
   const href = isForest

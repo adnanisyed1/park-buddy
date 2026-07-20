@@ -35,7 +35,7 @@ import PbTabBar, { PATHS, DEFAULT_ICON, Ico } from "./PbTabBar";
 // section label rather than an id.
 const SECTION_NAMES = {
   explore: "The Live Map", "build-trip": "Trip Studio", "trip-mode": "Trip Mode",
-  "scenic-drives": "Scenic Drives", cruises: "Cruises", book: "Book", shop: "Shop",
+  "scenic-drives": "Scenic Drives", towns: "Gateway Towns", cruises: "Cruises", book: "Book", shop: "Shop",
   trips: "My Trips", "trip-book": "Trip Book", "trip-book-styles": "Trip Book", "trip-print": "Trip Book",
   parks: "Park", forests: "Forest", "state-parks": "State Park", lakes: "Lakes",
   "trail-status": "Trail", "lake-status": "Lake", "campground-status": "Campground", "todo-status": "To-Do",
@@ -56,6 +56,7 @@ const TAB_OF = {
   shop: "shop", "trip-book": "shop", "trip-book-styles": "shop", "trip-print": "shop",
   pines: "pines",
   explore: "explore", "build-trip": "explore", "scenic-drives": "explore", "trip-mode": "explore",
+  towns: "explore",
   cruises: "explore", diving: "explore", climbing: "explore", parks: "explore", forests: "explore",
   "state-parks": "explore", lakes: "explore", "trail-status": "explore", "lake-status": "explore",
   "campground-status": "explore", "todo-status": "explore", ski: "explore", offroad: "explore", trips: "explore",

@@ -73,7 +73,19 @@ export const MINTED = {
 //     { partner: "Vrbo", name: "The A-Frame on Fall River",
 //       url: "https://vrbo.com/affiliates/…", note: "…", lat: …, lng: … },
 //   ],
-export const PICKS = {};
+export const PICKS = {
+  "estes-park-co": [
+    {
+      partner: "Expedia",
+      name: "Alpine Trail Ridge Inn",
+      url: "https://expedia.com/affiliates/estes-park-hotels-alpine-trail-ridge-inn.46UfPUI",
+      // Every claim checked against the property's own page on 2026-07-19:
+      // 927 Moraine Ave; Expedia lists Beaver Meadows Visitor Center and the
+      // park itself at a 1-minute drive; 8.8/10 from 1,016 reviews.
+      note: "On Moraine Avenue a minute from the Beaver Meadows entrance — you're in the park before your coffee cools. 8.8/10 across a thousand-plus reviews.",
+    },
+  ],
+};
 
 export function townPicks(town) {
   return (town && PICKS[town.slug]) || [];

@@ -61,6 +61,24 @@ export const MINTED = {
   },
 };
 
+// Individual properties we vouch for, keyed by town slug — the "Park Buddy
+// picks". Every entry is a link to ONE property's detail page, minted in the
+// Creator Toolbox (browse to the property, Get link), because detail pages are
+// the highest-converting page type Expedia offers and the mint guarantees the
+// click tracks. `note` is OUR copy — why this one, in the site's voice; the
+// partner's own blurb never appears here. Optional lat/lng lets the card say
+// how far the property is from the boundary once we have it.
+//
+//   "estes-park-co": [
+//     { partner: "Vrbo", name: "The A-Frame on Fall River",
+//       url: "https://vrbo.com/affiliates/…", note: "…", lat: …, lng: … },
+//   ],
+export const PICKS = {};
+
+export function townPicks(town) {
+  return (town && PICKS[town.slug]) || [];
+}
+
 function trackingParams(kind) {
   const p = new URLSearchParams();
   p.set("clickref", PARTNER.clickref);

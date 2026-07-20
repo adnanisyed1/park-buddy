@@ -15,7 +15,7 @@ import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
-import { lodgingOffers } from "../../lib/lodging";
+import { lodgingOffers, townPicks } from "../../lib/lodging";
 
 const mono = { fontFamily: "var(--pb-mono)", lineHeight: 1, textTransform: "uppercase" };
 const GUTTER = "clamp(20px, 5vw, 64px)";
@@ -257,11 +257,45 @@ function LodgingOffers({ town }) {
   const [today, setToday] = useState(null);
   useEffect(() => setToday(new Date().toISOString().slice(0, 10)), []);
   const offers = lodgingOffers(town, today);
-  if (!offers.length) return null;
+  const picks = townPicks(town);
+  if (!offers.length && !picks.length) return null;
 
   return (
-    <div style={{ marginTop: 24, display: "grid", gap: 14,
-      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+    <>
+      {/* Named properties we vouch for — above the searches, because a specific
+          recommendation is worth more than "here are 143 results". Renders
+          nothing until a town has real picks; no placeholder card. */}
+      {picks.length > 0 && (
+        <div style={{ marginTop: 24, display: "grid", gap: 14,
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          {picks.map((p) => (
+            <a key={p.url} href={p.url} target="_blank" rel="sponsored noopener noreferrer"
+              style={{ display: "flex", flexDirection: "column", gap: 10, textDecoration: "none", color: "inherit",
+                background: "var(--pb-surface)", border: "1px solid var(--pb-gold-2)", borderRadius: 8, padding: "24px 26px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <span style={{ ...mono, fontSize: 10, fontWeight: 700, letterSpacing: ".1em", color: "var(--pb-gold)" }}>
+                  Park Buddy pick
+                </span>
+                <span style={{ ...mono, fontSize: 10, fontWeight: 700, letterSpacing: ".1em", color: "var(--pb-muted)" }}>
+                  {p.partner}
+                </span>
+              </div>
+              <div style={{ fontFamily: "var(--pb-serif)", fontWeight: 600, fontSize: "1.25rem", lineHeight: 1.2 }}>
+                {p.name}
+              </div>
+              <p style={{ margin: 0, fontSize: ".88rem", lineHeight: 1.55, color: "var(--pb-ink-2)", flex: 1 }}>
+                {p.note}
+              </p>
+              <span style={{ ...mono, fontSize: 10, fontWeight: 700, letterSpacing: ".08em", color: "var(--pb-gold)" }}>
+                See rooms &amp; rates →
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: picks.length ? 14 : 24, display: "grid", gap: 14,
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
       {offers.map((o) => (
         <a key={o.key} href={o.url} target="_blank" rel="sponsored noopener noreferrer"
           style={{ display: "flex", flexDirection: "column", gap: 10, textDecoration: "none", color: "inherit",
@@ -287,7 +321,8 @@ function LodgingOffers({ town }) {
         color: "var(--pb-muted)" }}>
         Searches open undated — pick your nights on the partner&rsquo;s site.
       </p>
-    </div>
+      </div>
+    </>
   );
 }
 

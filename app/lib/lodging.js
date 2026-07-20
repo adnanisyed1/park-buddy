@@ -5,18 +5,22 @@
 // edit values here and no component changes.
 //
 // WHAT WAS VERIFIED (2026-07-19), so nobody has to re-derive it:
-//   • The creator builder mints one link at a time and bakes fixed dates into it
-//     ("estespark" came out pinned to 25 Jul – 8 Aug 2026, which goes stale).
-//   • The minted Expedia homepage link resolves to expedia.com carrying a standard
-//     Partnerize/PHG parameter set (affcid / clickref / ref_id / my_ad / afflid).
-//   • Those parameters ALSO survive on a search URL we build ourselves:
-//     /Hotel-Search?destination=…&latLong=… returned 130 real properties for
-//     Estes Park with affcid and clickref intact, and no dates required.
+//   • Minted /affiliates/ links are REDIRECTS: each pass-through mints a fresh
+//     per-click id (clickref) before landing on a normal search URL. Three
+//     different links produced three different clickrefs.
+//   • The builder can mint a DATELESS search ("hotel-search-estes-park-dateless"
+//     → /Hotel-Search, 143 properties, no d1/d2), so minted links don't have to
+//     go stale. The first Vrbo link only baked dates in because it was built as
+//     a dated search.
+//   • The landing URL's parameter set (affcid / clickref / ref_id / my_ad /
+//     afflid) also survives on a search URL we construct ourselves — 130 real
+//     properties for Estes Park with the params intact.
 //
-// WHAT IS NOT VERIFIED: that a constructed link is *attributed* a commission.
-// Parameters surviving in the URL bar is not proof the sale tracks — only the
-// partner dashboard can confirm that. So the module is built to run either way:
-// a minted link wins when we have one, and construction is the fallback.
+// Why minted still wins over constructed: a constructed URL pins ONE stale
+// clickref forever, so per-click tracking (and possibly attribution — never
+// confirmed in the dashboard) is degraded. Mint per town via the creator
+// builder or Creator Toolbox; construction is the fallback for towns nobody
+// has minted yet.
 export const PARTNER = {
   // Constant across every link Expedia has issued us — this is the account.
   campaignId: "1011l435015",
@@ -38,13 +42,23 @@ export const PARTNER = {
 // sending someone to a search for a fortnight that has already passed.
 export const MINTED = {
   vrbo: {
-    // slug: { url, expires }  — expires = last date the baked-in range is useful
+    // slug: { url, expires }  — expires = last date the baked-in range is useful.
+    // Omit expires entirely for a dateless link; it never goes stale.
     "estes-park-co": {
       url: "https://vrbo.com/affiliates/the_park_buddy/estespark",
       expires: "2026-08-08",
     },
   },
-  expedia: {},
+  expedia: {
+    // Proof (2026-07-19) that the builder CAN mint a dateless search: this one
+    // resolved to /Hotel-Search for Estes Park with 143 properties, no d1/d2,
+    // and a FRESH clickref (1101lDC7zzvz — different from every prior link).
+    // That last part is why minted beats constructed: the /affiliates/ redirect
+    // mints a new click id per visitor, ours pins one stale id. Mint per town.
+    "estes-park-co": {
+      url: "https://expedia.com/affiliates/hotel-search-estes-park-dateless.OO7kPeS",
+    },
+  },
 };
 
 function trackingParams(kind) {

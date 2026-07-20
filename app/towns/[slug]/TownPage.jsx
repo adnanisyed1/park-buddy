@@ -16,6 +16,7 @@ import SiteHeader from "../../components/SiteHeader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
 import { lodgingOffers, townPicks } from "../../lib/lodging";
+import ToursSection from "./ToursSection";
 
 const mono = { fontFamily: "var(--pb-mono)", lineHeight: 1, textTransform: "uppercase" };
 const GUTTER = "clamp(20px, 5vw, 64px)";
@@ -226,6 +227,8 @@ export default function TownPage({ town }) {
           <LodgingOffers town={town} />
         </div>
       </section>
+
+      <ToursSection town={town} gutter={GUTTER} wrap={WRAP} />
 
       <footer style={{ ...WRAP, padding: `clamp(32px,6vh,64px) ${GUTTER}` }}>
         <div style={{ borderTop: "1px solid var(--pb-line)", paddingTop: 22 }}>

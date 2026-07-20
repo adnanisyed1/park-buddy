@@ -13,7 +13,27 @@ import RANKED from "./gateway-ranked.json";
 import ATTRS from "./town-attributes.json";
 import GEO from "./place-geo.json";
 
+// Exact key, as written by build-town-attributes.
 const attrKey = (name, lat, lng) => `${name}|${lat.toFixed(3)},${lng.toFixed(3)}`;
+
+// TOWN IDENTITY — by name plus PROXIMITY, not by a coordinate key.
+//
+// gateway_towns stores the same town at slightly different coordinates depending
+// on which place indexed it. Ouray is 38.0275,-107.6734 under Black Canyon and
+// 38.0228,-107.6712 under San Juan — 300m apart. Split, the page picked the
+// wrong half and announced "16 miles from Rio Grande" for a town that is INSIDE
+// Uncompahgre.
+//
+// Rounding does NOT fix this: at two decimals those two land on 38.03 and 38.02,
+// opposite sides of a grid line. Any grid splits the pairs that straddle it.
+// So group by name, then cluster what's genuinely close together.
+const MERGE_MI = 2;
+function milesBetween(aLat, aLng, bLat, bLng) {
+  const R = 3958.8, rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
 export const townSlug = (name, st) =>
   (name + (st ? "-" + st : "")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -24,17 +44,25 @@ const ST_ABBR = { Alabama:"AL",Alaska:"AK",Arizona:"AZ",Arkansas:"AR",California
 let CACHE = null;
 
 function build() {
-  const byKey = new Map();
+  // name -> clusters of the same real town
+  const byName = new Map();
 
   for (const [placeId, towns] of Object.entries(RANKED.places || {})) {
     const place = GEO.places[placeId];
     if (!place) continue;
     for (const t of towns) {
-      const k = attrKey(t.name, t.lat, t.lng);
-      if (!byKey.has(k)) {
-        byKey.set(k, { name: t.name, lat: t.lat, lng: t.lng, serves: [] });
+      const nk = t.name.toLowerCase();
+      if (!byName.has(nk)) byName.set(nk, []);
+      const clusters = byName.get(nk);
+      let c = clusters.find((x) => milesBetween(x.lat, x.lng, t.lat, t.lng) <= MERGE_MI);
+      if (!c) {
+        c = { name: t.name, lat: t.lat, lng: t.lng, coords: [], serves: [] };
+        clusters.push(c);
       }
-      byKey.get(k).serves.push({
+      // every coordinate variant is kept — the attributes file is keyed on
+      // whichever one the crawler happened to see
+      c.coords.push([t.lat, t.lng]);
+      c.serves.push({
         id: placeId,
         name: place.name,
         type: place.type,
@@ -47,8 +75,13 @@ function build() {
   }
 
   const towns = [];
-  for (const [k, t] of byKey) {
-    const a = ATTRS.towns[k];
+  for (const t of [...byName.values()].flat()) {
+    // try every coordinate this town was stored under before giving up
+    let a = null;
+    for (const [la, ln] of t.coords) {
+      a = ATTRS.towns[attrKey(t.name, la, ln)];
+      if (a) break;
+    }
     // Nearest first — inside beats outside, which is what the sign gives us.
     t.serves.sort((x, y) => (x.inside === y.inside ? x.distanceMi - y.distanceMi : x.inside ? -1 : 1));
 

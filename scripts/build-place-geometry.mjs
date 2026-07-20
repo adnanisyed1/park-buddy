@@ -353,7 +353,11 @@ async function main() {
 
   // --- outputs ------------------------------------------------------------
   const geo = {};
-  for (const p of places) geo[p.id] = { name: p.name, type: p.type, acres: Math.round(p.acres || 0), bbox: p.bbox.map((n) => +n.toFixed(4)), source: p.source || "nps" };
+  // state is carried through because the town slug needs it. Without it two
+  // towns called Jackson (WY and AL) collapse onto one URL — the same
+  // name-collision that made "Glendale" look like a gateway for Zion AND Grand
+  // Canyon earlier today.
+  for (const p of places) geo[p.id] = { name: p.name, type: p.type, state: p.state || "", acres: Math.round(p.acres || 0), bbox: p.bbox.map((n) => +n.toFixed(4)), source: p.source || "nps" };
   fs.writeFileSync(OUT_GEO, JSON.stringify({ generatedAt: new Date().toISOString(), places: geo }, null, 0));
   fs.writeFileSync(OUT_ADJ, JSON.stringify({ generatedAt: new Date().toISOString(), adjacency }, null, 0));
 

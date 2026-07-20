@@ -40,6 +40,18 @@ const NPS_TOPO = (code) =>
   `https://raw.githubusercontent.com/nationalparkservice/data/gh-pages/base_data/boundaries/parks/${code}.topojson`;
 const USFS_Q =
   "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_ForestSystemBoundaries_01/MapServer/0/query";
+// Fallback for forests the ADMINISTRATIVE layer groups away. USFS publishes
+// "National Forests in Alabama" as ONE administrative unit while our table lists
+// Talladega, Conecuh, Bankhead and Tuskegee separately — 21 forests had no
+// geometry because of this, and mapping them all onto the group polygon would
+// make every Alabama town "near" a forest 200 miles away. The proclaimed layer
+// carries each named forest on its own.
+//
+// NB proclaimed boundaries include private inholdings within the historically
+// proclaimed area, so they run larger than administrative ones. Same class of
+// measure, different figure — the source is recorded per place.
+const USFS_PROCLAIMED_Q =
+  "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_ProclaimedForestBoundaries_01/MapServer/0/query";
 
 const args = process.argv.slice(2);
 const STATE = (args.includes("--state") ? args[args.indexOf("--state") + 1] : "") || "";
@@ -211,6 +223,22 @@ async function parkRings(code) {
   return { rings: rings.map((r) => decimate(r)), acres };
 }
 
+async function loadProclaimed(names) {
+  if (!names.length) return [];
+  const where = names.map((n) => `forestname='${n.replace(/'/g, "''")}'`).join(" OR ");
+  const params = new URLSearchParams({
+    where, outFields: "forestname,gis_acres", returnGeometry: "true", outSR: "4326",
+    geometryPrecision: "4", maxAllowableOffset: "0.004", f: "json",
+  });
+  const d = await getJSON(USFS_PROCLAIMED_Q + "?" + params, { timeout: 120000 });
+  return (d.features || []).map((f) => ({
+    name: f.attributes.forestname,
+    acres: f.attributes.gis_acres,
+    rings: (f.geometry?.rings || []).map((r) => decimate(r)),
+    source: "usfs-proclaimed",
+  })).filter((f) => f.rings.length);
+}
+
 async function loadForests() {
   const where = STATE ? `1=1` : `1=1`;      // USFS has no clean state field; filter after
   const params = new URLSearchParams({
@@ -276,7 +304,25 @@ async function main() {
   for (const f of forests) {
     const c = resolve(f.name);
     if (!c) { unmatched.push("forest " + f.name); continue; }
-    places.push({ id: c.id, name: c.name, state: c.state, type: "national_forest", acres: f.acres, rings: f.rings, bbox: bboxOf(f.rings) });
+    places.push({ id: c.id, name: c.name, state: c.state, type: "national_forest", acres: f.acres, rings: f.rings, bbox: bboxOf(f.rings), source: "usfs-admin" });
+  }
+
+  // Anything in the destinations table that the administrative layer never
+  // matched — try it by its own name against the proclaimed layer.
+  const got = new Set(places.map((p) => p.id));
+  const stillMissing = [...canonical.values()]
+    .filter((c) => c.type === "national_forest" && !got.has(c.id))
+    .filter((c, i, arr) => arr.findIndex((x) => x.id === c.id) === i);
+  if (stillMissing.length) {
+    console.log(`trying proclaimed boundaries for ${stillMissing.length} forests the admin layer groups away…`);
+    const proc = await loadProclaimed(stillMissing.map((c) => c.name));
+    for (const f of proc) {
+      const c = resolve(f.name);
+      if (!c || got.has(c.id)) continue;
+      places.push({ id: c.id, name: c.name, state: c.state, type: "national_forest", acres: f.acres, rings: f.rings, bbox: bboxOf(f.rings), source: "usfs-proclaimed" });
+      got.add(c.id);
+    }
+    console.log(`  recovered ${proc.length}`);
   }
 
   // --- adjacency, from real geometry -------------------------------------
@@ -307,7 +353,7 @@ async function main() {
 
   // --- outputs ------------------------------------------------------------
   const geo = {};
-  for (const p of places) geo[p.id] = { name: p.name, type: p.type, acres: Math.round(p.acres || 0), bbox: p.bbox.map((n) => +n.toFixed(4)) };
+  for (const p of places) geo[p.id] = { name: p.name, type: p.type, acres: Math.round(p.acres || 0), bbox: p.bbox.map((n) => +n.toFixed(4)), source: p.source || "nps" };
   fs.writeFileSync(OUT_GEO, JSON.stringify({ generatedAt: new Date().toISOString(), places: geo }, null, 0));
   fs.writeFileSync(OUT_ADJ, JSON.stringify({ generatedAt: new Date().toISOString(), adjacency }, null, 0));
 

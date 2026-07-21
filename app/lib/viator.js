@@ -36,7 +36,15 @@ const DEST_TTL = 24 * 3600 * 1000;
 async function destinations() {
   if (DESTS && Date.now() - DESTS.at < DEST_TTL) return DESTS.list;
   const res = await fetch(`${BASE}/destinations`, { headers: headers(), cache: "no-store" });
-  if (!res.ok) throw new Error(`viator /destinations ${res.status}`);
+  if (!res.ok) {
+    // Viator's error body says WHY (invalid key vs inactive vs wrong header).
+    // Also fingerprint the key — length + ends only, safe for private logs —
+    // so a bad paste in the env vault is distinguishable from a dead key.
+    const body = (await res.text().catch(() => "")).slice(0, 300);
+    const k = process.env.VIATOR_API_KEY || "";
+    console.error(`[viator] key fingerprint: len=${k.length} "${k.slice(0, 2)}…${k.slice(-2)}" trimmed=${k === k.trim()}`);
+    throw new Error(`viator /destinations ${res.status} :: ${body}`);
+  }
   const data = await res.json();
   const rows = Array.isArray(data.destinations) ? data.destinations : [];
   const list = rows

@@ -16,11 +16,17 @@
 //     afflid) also survives on a search URL we construct ourselves — 130 real
 //     properties for Estes Park with the params intact.
 //
-// Why minted still wins over constructed: a constructed URL pins ONE stale
-// clickref forever, so per-click tracking (and possibly attribution — never
-// confirmed in the dashboard) is degraded. Mint per town via the creator
-// builder or Creator Toolbox; construction is the fallback for towns nobody
-// has minted yet.
+// CONFIRMED IN THE DASHBOARD (2026-07-21): constructed URLs DO register
+// clicks. Controlled test — five loads of the constructed Estes Park
+// /Hotel-Search URL, nothing else clicked for a day — showed exactly +5 in
+// Performance → Clicks. All five counted despite sharing one clickref, so
+// there's no per-clickref dedup working against us. Click registration is
+// Expedia's own documented "is it tracking" test, so the constructed fallback
+// is earning-capable for every town with no minting required.
+//
+// Minted links remain first-class anyway: the /affiliates/ redirect stamps a
+// fresh clickref per visitor, which keeps per-click reporting granular, and
+// property picks can only exist as minted detail-page links.
 export const PARTNER = {
   // Constant across every link Expedia has issued us — this is the account.
   campaignId: "1011l435015",

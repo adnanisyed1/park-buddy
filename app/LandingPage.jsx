@@ -14,7 +14,6 @@ import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
 import PillarShowcase from "./components/PillarShowcase";
 import ScrollTrail from "./components/ScrollTrail";
-import { useTheme } from "./lib/theme";
 
 const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
 const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
@@ -392,12 +391,12 @@ const EXPLORE_FEATURES = [
 
 function ExploreSection() {
   return (
-    // Intentional dark feature-band — stays dark even in Light mode (per the light
-    // Figma). The gradient lives OUTSIDE the .pb-forcedark subtree so its ends
-    // resolve to the OUTER theme's --pb-bg (cream in Light), dissolving the band
-    // into the page the way the Pines band does — no hard seams.
+    // THE band recipe (one pattern, used by Explore, Plan and Pines alike —
+    // owner call 2026-07-22): page bg → deep green #0c1f15 → page bg. With
+    // the landing now dark-only, the three bands read as identical slow
+    // swells of the same green, exactly like the Figma page.
     <section style={{ position: "relative", overflow: "hidden" }}>
-     <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--pb-bg) 0%, #0a1712 7%, #0a1712 93%, var(--pb-bg) 100%)" }} />
+     <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--pb-bg), #0c1f15, var(--pb-bg))" }} />
      <div className="pb-forcedark" style={{ position: "relative" }}>
      <div style={{ ...section }}>
       <div className="pbl-split" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 40, alignItems: "center" }}>
@@ -767,17 +766,18 @@ function Footer() {
 }
 
 export default function LandingPage() {
-  // Theme-aware body paint (the fixed backdrop below covers most of it; this catches
-  // overscroll). The landing opts into theming via the .pb-theme wrapper, so the
-  // --pb-* tokens flip to their light values when the user picks Light.
-  const theme = useTheme();
+  // The landing is DARK-ONLY (owner call 2026-07-22, aligning the site to the
+  // Figma rendition): one continuous dark story from hero to close, no
+  // cream-to-dark jumps between sections. Same precedent as Explore, which
+  // has always stayed dark. .pb-forcedark pins the dark tokens for the whole
+  // subtree regardless of the user's theme choice.
   useEffect(() => {
     const prev = document.body.style.background;
-    document.body.style.background = theme === "light" ? "#faf8f4" : "#0a1712";
+    document.body.style.background = "#0a1712";
     return () => { document.body.style.background = prev; };
-  }, [theme]);
+  }, []);
   return (
-    <div className="pb-theme">
+    <div className="pb-forcedark">
       <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: -1 }} />
       <SiteHeader active={null} />
       <main style={{ fontFamily: sans, color: "var(--pb-ink)", overflowX: "hidden" }}>

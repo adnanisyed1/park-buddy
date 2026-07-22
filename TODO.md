@@ -384,3 +384,18 @@ teaser + **waitlist** (`/api/pines-waitlist`) + generated **OG share card** (`op
       scenic drives — a drawn line, not a pin.
 - [ ] `destinations` row counts as of 2026-07-19: nps_unit 410, national_forest 118,
       state_park 97, national_park 63. All from `nps`/`usfs`/`state` sources — none ingested.
+
+## Security follow-ups (audit 2026-07-22 — top 5 already fixed in cc5147b)
+- [ ] Flip CSP from Report-Only to enforced (verify deployed source first — golive memory), then work toward dropping unsafe-eval/unsafe-inline
+- [ ] park-alert + book-order emails: double opt-in before any sender job goes live
+- [ ] Pines reports: require auth or raise threshold (IP-rotation brigading can hide legit content)
+- [ ] Ingest/seed secret: move from ?token= query to header + timing-safe compare
+- [ ] Pines POST: verify cf_uid belongs to the caller before insert
+- [ ] Consider /api/elevation route (Terrarium tiles) — kills Google ElevationService dependency (see OSM memo)
+
+## Trails → OpenStreetMap maps (research memo 2026-07-22, agent-verified)
+Recommended: MapLibre GL JS + self-hosted Protomaps PMTiles on R2 (~$5/mo, no per-load billing),
+AWS Terrarium terrain tiles for hillshade + /api/elevation, maplibre-contour for contours.
+Licensing GREEN for sellable maps (ODbL Produced Work + attribution) ONLY on self-hosted stack.
+Unlocks true offline (PMTiles + service worker) — Google tiles never can. Migration ~5-7 days
+to parity+offline. Phase: trails first, byways second (unblocks paid maps), Explore stays Google.

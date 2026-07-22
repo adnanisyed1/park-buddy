@@ -14,9 +14,17 @@
 // the first live call (key pending), so it trusts nothing it hasn't seen.
 const BASE = "https://api.viator.com/partner";
 
+// Key resolution: the owner added the production key to the env vault as
+// VIATOR_API_KEY_PROD (2026-07-22) — prefer it when present so a working
+// prod key wins over the older (still-401ing) signup key, without anyone
+// having to delete the old variable.
+function viatorKey() {
+  return process.env.VIATOR_API_KEY_PROD || process.env.VIATOR_API_KEY || "";
+}
+
 function headers() {
   return {
-    "exp-api-key": process.env.VIATOR_API_KEY,
+    "exp-api-key": viatorKey(),
     Accept: "application/json;version=2.0",
     "Accept-Language": "en-US",
     "Content-Type": "application/json",
@@ -24,7 +32,7 @@ function headers() {
 }
 
 export function viatorConfigured() {
-  return !!process.env.VIATOR_API_KEY;
+  return !!viatorKey();
 }
 
 // ---- destination taxonomy ---------------------------------------------------
@@ -41,7 +49,7 @@ async function destinations() {
     // Also fingerprint the key — length + ends only, safe for private logs —
     // so a bad paste in the env vault is distinguishable from a dead key.
     const body = (await res.text().catch(() => "")).slice(0, 300);
-    const k = process.env.VIATOR_API_KEY || "";
+    const k = viatorKey();
     console.error(`[viator] key fingerprint: len=${k.length} "${k.slice(0, 2)}…${k.slice(-2)}" trimmed=${k === k.trim()}`);
     throw new Error(`viator /destinations ${res.status} :: ${body}`);
   }

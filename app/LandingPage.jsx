@@ -282,6 +282,36 @@ function VerdictEngine() {
 }
 
 /* ====================== EXPLORE (map) ====================== */
+// Every tile is a SHIPPED /explore capability (inventoried from ExploreApp.jsx
+// 2026-07-22) — the honesty rule applies to marketing too: no tile for
+// anything that isn't live on the map today.
+const EXPLORE_FEATURES = [
+  { t: "Live verdicts", d: "One honest GO / PREPARE / HOLD on every pin, refreshed every 15 minutes.", pulse: true,
+    ic: <circle cx="12" cy="12" r="5" /> },
+  { t: "Temps on every pin", d: "Teardrop markers carry the current temperature — read the map like a dashboard.",
+    ic: <><path d="M12 3a2 2 0 0 1 2 2v7a4 4 0 1 1-4 0V5a2 2 0 0 1 2-2z" /><path d="M12 9v6" /></> },
+  { t: "Three systems, one map", d: "63 National Parks, National Forests and State Parks — layered together.",
+    ic: <><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z" /><path d="M9 4v13M15 7v13" /></> },
+  { t: "Trail drill-downs", d: "Elevation profiles, difficulty, time estimates and hiker reviews per trail.",
+    ic: <><path d="M3 20l6-9 4 5 3-4 5 8z" /><circle cx="17" cy="5" r="2" /></> },
+  { t: "Campgrounds that book", d: "Live site availability, straight through to Recreation.gov.",
+    ic: <><path d="M12 5 4 19h16z" /><path d="M12 5v14M8 19l4-6 4 6" /></> },
+  { t: "Live webcams", d: "See the trailhead sky before you commit to the drive.",
+    ic: <><rect x="3" y="6" width="14" height="11" rx="2" /><path d="M17 10l4-2v7l-4-2" /></> },
+  { t: "Alerts & closures", d: "Official NPS alert feeds, right on the pin that they affect.",
+    ic: <><path d="M12 4l9 16H3z" /><path d="M12 10v4M12 17v.5" /></> },
+  { t: "Air & fire", d: "AirNow air quality and active-wildfire proximity, weighed into the verdict.",
+    ic: <><path d="M12 20a6 6 0 0 0 6-6c0-4-3-6-6-11-3 5-6 7-6 11a6 6 0 0 0 6 6z" /></> },
+  { t: "Basecamp towns", d: "A layer that shows which town serves which park — and where to stay.",
+    ic: <><path d="M4 20V9l5-4 5 4M9 20v-6h4v6" /><path d="M14 20V11l6-3v12" /></> },
+  { t: "Scenic drives", d: "America's byways drawn as real routes you can add to a trip.",
+    ic: <><path d="M4 19c5 0 3-12 8-12s3 12 8 12" /><path d="M12 5v1.5M12 10v1.5M12 15v1.5" /></> },
+  { t: "Search that thinks", d: "Type-grouped, state-aware search — filter the whole map to your state.",
+    ic: <><circle cx="10" cy="10" r="6" /><path d="M15 15l5 5" /></> },
+  { t: "Build as you browse", d: "One tap adds any park, trail or campground to your trip.",
+    ic: <><path d="M12 5v14M5 12h14" /></> },
+];
+
 function ExploreSection() {
   return (
     // Intentional dark feature-band — stays dark even in Light mode (per the light
@@ -315,6 +345,33 @@ function ExploreSection() {
             </ul>
           </div>
         </div>
+      </div>
+
+      {/* Everything on the map — one tile per shipped capability */}
+      <div style={{ marginTop: 64 }}>
+        <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 34px" }}>
+          <Eyebrow>Everything on the map</Eyebrow>
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.5rem,3vw,2.1rem)", lineHeight: 1.1, color: "var(--pb-ink)", margin: "10px 0 0", textWrap: "balance" }}>
+            Twelve tools hiding in one map.
+          </h3>
+        </div>
+        <div className="pbl-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+          {EXPLORE_FEATURES.map((f, i) => (
+            <Reveal key={f.t} delay={(i % 4) * 60 + Math.floor(i / 4) * 40} style={{ display: "flex" }}>
+              <div className="pbl-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9, padding: "16px 15px", borderRadius: 14, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)" }}>
+                <span style={{ position: "relative", width: 34, height: 34, borderRadius: 10, background: "rgba(217,183,121,.08)", border: "1px solid var(--pb-line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pb-gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{f.ic}</svg>
+                  {f.pulse && <span className="pbl-pulse" aria-hidden style={{ position: "absolute", right: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: V.GO }} />}
+                </span>
+                <b style={{ fontFamily: serif, fontWeight: 600, fontSize: ".98rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{f.t}</b>
+                <span style={{ fontSize: ".74rem", lineHeight: 1.45, color: "var(--pb-ink-2)" }}>{f.d}</span>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+        <p style={{ textAlign: "center", marginTop: 26 }}>
+          <Link href="/explore" className="pbl-btn" style={{ display: "inline-block", fontFamily: sans, fontWeight: 700, fontSize: ".88rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "12px 24px", textDecoration: "none" }}>Try them all on the live map →</Link>
+        </p>
       </div>
      </div>
     </section>
@@ -622,6 +679,10 @@ export default function LandingPage() {
         .pbl-pop { animation: pblPop .35s var(--pb-ease-out) .12s both; }
         @keyframes pblPop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
 
+        /* the verdict tile's live dot — a slow, subtle breath (scale+opacity only) */
+        .pbl-pulse { animation: pblPulse 2.6s ease-in-out infinite; box-shadow: 0 0 8px rgba(79,217,138,.8); }
+        @keyframes pblPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(0.78); } }
+
         /* verdict strip: hidden scrollbar + soft edge fades */
         .pbl-vstrip { scrollbar-width: none;
           -webkit-mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent);
@@ -631,6 +692,7 @@ export default function LandingPage() {
         @media (prefers-reduced-motion: reduce){
           .pbl-in { transform: none; animation: pblFadeOnly .3s ease forwards; }
           .pbl-card:hover, .pbl-btn:hover { transform: none !important; }
+          .pbl-pulse { animation: none; }
         }
         @keyframes pblFadeOnly { to { opacity: 1; } }
 
@@ -638,9 +700,11 @@ export default function LandingPage() {
           .pbl-split { grid-template-columns: 1fr !important; }
           .pbl-swap { order: 2; }
           .pbl-pines { grid-template-columns: 1fr !important; }
+          .pbl-4 { grid-template-columns: 1fr 1fr !important; }
         }
         @media (max-width: 680px){
           .pbl-3 { grid-template-columns: 1fr !important; }
+          .pbl-4 { grid-template-columns: 1fr 1fr !important; }
           .pbl-tripcard { grid-template-columns: 1fr !important; }
           /* Pines reels → swipeable strip, ~2 in view with a peek of the next */
           .pbl-reels {

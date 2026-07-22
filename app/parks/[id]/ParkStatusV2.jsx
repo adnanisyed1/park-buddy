@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
+import BuddyLoader from "../../components/BuddyLoader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
 import WeatherTile, { conditionFromSky } from "../../components/WeatherTile";
@@ -903,7 +904,7 @@ function AlertCard({ a }) {
     </div>
   );
 }
-function Loading({ text }) { return <div style={{ textAlign: "center", color: "var(--pb-muted)", fontSize: ".84rem", padding: "10px 0" }}>{text}</div>; }
+function Loading({ text }) { return <BuddyLoader text={text} size={44} />; }
 
 function Webcam({ cam, park }) {
   const q = (cam && (cam.title || cam.name)) ? (cam.title || cam.name) + "|" + (park ? park.name : "") : (park ? park.name + " National Park" : null);

@@ -5,6 +5,8 @@
 // server resolves. Next shows this as the route's Suspense fallback — instantly on
 // client nav, and as the streamed shell on a cold load. All-dark (#0a1712) to match
 // the pages, so there's no flash when the real content swaps in.
+import BuddyLoader from "./BuddyLoader";
+
 export default function StatusLoading() {
   const bar = (w, i) => <div key={i} className="pb-sk" style={{ height: 15, width: w, borderRadius: 8 }} />;
   return (
@@ -18,6 +20,10 @@ export default function StatusLoading() {
       {/* hero skeleton */}
       <div style={{ position: "relative", minHeight: "clamp(320px,46vh,460px)", display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "clamp(96px,13vh,140px) clamp(16px,4vw,40px) 30px", overflow: "hidden" }}>
         <div className="pb-sk" style={{ position: "absolute", inset: 0 }} />
+        {/* the brand over the sheen: badge + orbiting arc + birds */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <BuddyLoader text="Reading the outdoors…" />
+        </div>
         <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="pb-sk" style={{ height: 12, width: 130, borderRadius: 6 }} />
           <div className="pb-sk" style={{ height: 46, width: "min(62%,340px)", borderRadius: 12 }} />

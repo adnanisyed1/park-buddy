@@ -294,3 +294,17 @@ html[data-theme="light"] .pb-theme {
   --fs-sky-snow:   linear-gradient(170deg,#e2eaf0,#f1f2ee);
   --fs-sky-storm:  linear-gradient(170deg,#cfd6de,#e4e4de);
 }
+
+/* ── BuddyLoader — badge, orbiting gold arc, gliding birds ─────────────── */
+@keyframes pb-orbit { to { transform: rotate(360deg); } }
+@keyframes pb-fly {
+  0%   { transform: translate(-14px, 10px) scale(.8);  opacity: 0; }
+  12%  { opacity: .85; }
+  50%  { transform: translate(78px, -2px)  scale(1); }
+  86%  { opacity: .85; }
+  100% { transform: translate(168px, -12px) scale(.85); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-orbit-arc, .pb-bird { animation: none !important; }
+  .pb-bird { opacity: 0 !important; }
+}

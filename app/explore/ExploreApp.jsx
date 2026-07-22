@@ -509,13 +509,29 @@ export default function ExploreApp() {
 
   useEffect(() => {
     let disposed = false;
+    // BOOT ORDER IS THE LOAD TIME (rebuilt 2026-07-22 to halve time-to-map).
+    // Old shape was fully sequential: trip-data → 3 more scripts → only THEN
+    // start the Google Maps script (the heaviest fetch, dead last). New shape:
+    //   · Maps script kicks off FIRST, so its network time overlaps the data
+    //     scripts — the critical path is max(maps, data), not the sum.
+    //   · trip-data / pb-verdict / gateway-towns are independent globals
+    //     (verified: no cross-reads) — they load in parallel.
+    //   · topojson (only needed when a boundary is drawn) and the chat widget
+    //     wait for idle; showBoundary lazy-loads topojson as a backstop.
+    //   · If the landing's showcase map already warmed window.google.maps,
+    //     mapsReady resolves instantly and pins draw as soon as data lands.
+    let key = "";
+    try { key = localStorage.getItem("pb_gmaps_key") || ""; } catch {}
+    if (!key) key = process.env.NEXT_PUBLIC_GMAPS_KEY || "";
+    if (!key && window.GMAPS_KEY) key = window.GMAPS_KEY;
+    const mapsReady = key ? loadGoogleScript(key) : Promise.resolve(false);
+    if (!key) patch({ keyOverlay: true });
+
     (async () => {
-      // Real data + verdict engine + gateway towns + topojson (for NPS boundaries).
-      await loadScript("/trip-data.js");
       await Promise.all([
+        loadScript("/trip-data.js"),
         loadScript("/pb-verdict.js"),
         loadScript("/gateway-towns.js"),
-        loadScript("https://cdn.jsdelivr.net/npm/topojson-client@3"),
       ]);
       if (disposed) return;
 
@@ -532,34 +548,42 @@ export default function ExploreApp() {
       // Remembered map appearance (dark vs. standard terrain).
       try { const ms = localStorage.getItem("pb_map_style"); if (ms === "standard") { mapStyleRef.current = "standard"; patch({ mapStyle: "standard" }); } } catch {}
 
-      // Maps key: env-injected (Netlify) → localStorage (design's paste flow) → legacy global.
-      let key = "";
-      try { key = localStorage.getItem("pb_gmaps_key") || ""; } catch {}
-      if (!key) key = process.env.NEXT_PUBLIC_GMAPS_KEY || "";
-      if (!key && window.GMAPS_KEY) key = window.GMAPS_KEY;
-      if (!key) { patch({ keyOverlay: true }); }
-      else loadGoogle(key, all);
+      if (await mapsReady && !disposed) draw(all);
 
-      // Auth is now the React store + SiteHeader modal (no legacy auth.js here —
-      // that caused a second, different sign-in panel on this page).
-      loadScript("/ask-parkbuddy.js");
+      // Off the critical path: the chat widget and the boundary decoder.
+      const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+      idle(() => {
+        loadScript("/ask-parkbuddy.js");
+        loadScript("https://cdn.jsdelivr.net/npm/topojson-client@3");
+      });
     })();
     return () => { disposed = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function loadGoogle(key, all) {
-    window.gm_authFailure = () => {
-      patch({ keyOverlay: true, keyMsg: "That key was rejected for this site. Use an unrestricted dev key, or add this URL to the key's allowed referrers in Google Cloud." });
-    };
-    if (window.google && window.google.maps) { draw(all); return; }
-    window.__pbExInit = () => draw(all);
-    if (document.getElementById("pb-ex-gm-js")) return;
-    const s = document.createElement("script");
-    s.id = "pb-ex-gm-js";
-    s.async = true;
-    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&libraries=geometry&v=weekly&loading=async&callback=__pbExInit";
-    s.onerror = () => patch({ keyOverlay: true, keyMsg: "Could not load Google Maps. Check your connection or the key." });
-    document.head.appendChild(s);
+  // Loads the Maps JS and resolves true when usable (false on failure — the
+  // caller decides what to draw). Reuses a script injected by anyone else
+  // (the landing showcase's shared loader included) instead of double-adding.
+  function loadGoogleScript(key) {
+    return new Promise((resolve) => {
+      window.gm_authFailure = () => {
+        patch({ keyOverlay: true, keyMsg: "That key was rejected for this site. Use an unrestricted dev key, or add this URL to the key's allowed referrers in Google Cloud." });
+        resolve(false);
+      };
+      if (window.google && window.google.maps) return resolve(true);
+      if (document.getElementById("pb-ex-gm-js") || document.getElementById("pb-shared-gm-js")) {
+        const check = setInterval(() => {
+          if (window.google && window.google.maps) { clearInterval(check); resolve(true); }
+        }, 120);
+        return;
+      }
+      window.__pbExInit = () => resolve(true);
+      const s = document.createElement("script");
+      s.id = "pb-ex-gm-js";
+      s.async = true;
+      s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&libraries=geometry&v=weekly&loading=async&callback=__pbExInit";
+      s.onerror = () => { patch({ keyOverlay: true, keyMsg: "Could not load Google Maps. Check your connection or the key." }); resolve(false); };
+      document.head.appendChild(s);
+    });
   }
 
   // Create a marker for any destination in state that doesn't have one yet
@@ -928,7 +952,10 @@ export default function ExploreApp() {
     let geo = boundaryRef.current.cache[p.npsCode];
     if (geo === undefined) {
       try {
+        // topojson-client loads at idle; if the user focuses a park before
+        // that tick fires, pull it in now (loadScript dedupes by src).
         const topo = await fetch(BOUNDARY_URL(p.npsCode)).then((r) => (r.ok ? r.json() : null));
+        if (topo && !window.topojson) { try { await loadScript("https://cdn.jsdelivr.net/npm/topojson-client@3"); } catch {} }
         if (topo && window.topojson && topo.objects) {
           const key = Object.keys(topo.objects)[0];
           geo = key ? window.topojson.feature(topo, topo.objects[key]) : null;

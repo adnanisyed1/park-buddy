@@ -779,6 +779,22 @@ export default function LandingPage() {
     document.body.style.background = theme === "light" ? "#faf8f4" : "#0a1712";
     return () => { document.body.style.background = prev; };
   }, [theme]);
+  // Head start for the most-clicked CTA: prefetch Explore's boot data while
+  // the visitor is still reading (idle-time, cache-only — Explore's own
+  // loadScript calls then hit the HTTP cache instead of the network). The
+  // showcase's real map already warms the Google Maps script itself.
+  useEffect(() => {
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 2000));
+    const id = idle(() => {
+      for (const href of ["/trip-data.js", "/pb-verdict.js", "/gateway-towns.js"]) {
+        if (document.querySelector(`link[href="${href}"]`)) continue;
+        const l = document.createElement("link");
+        l.rel = "prefetch"; l.as = "script"; l.href = href;
+        document.head.appendChild(l);
+      }
+    });
+    return () => { (window.cancelIdleCallback || clearTimeout)(id); };
+  }, []);
   return (
     <div className="pb-theme">
       <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: -1 }} />

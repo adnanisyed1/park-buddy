@@ -106,6 +106,10 @@ export default function RootLayout({ children }) {
             __html: `window.GMAPS_KEY=${JSON.stringify(process.env.NEXT_PUBLIC_GMAPS_KEY || "")};`,
           }}
         />
+        {/* Maps is the heaviest third-party on the map pages — pay the DNS/TLS
+            handshakes early, site-wide (harmless where Maps never loads). */}
+        <link rel="preconnect" href="https://maps.googleapis.com" />
+        <link rel="preconnect" href="https://maps.gstatic.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}

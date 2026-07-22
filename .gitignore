@@ -18,3 +18,5 @@ scripts/.cache/
 # build-time geometry cache — polygons are fetched, used, and thrown away
 scripts/.cache/
 scripts/.lake-cache/
+scripts/.lake-crawl.log
+scripts/.overview-cache/

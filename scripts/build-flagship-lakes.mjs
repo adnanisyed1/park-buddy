@@ -72,8 +72,10 @@ async function nhdLakes(bbox) {
   const env = [bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad].join(",");
   const p = new URLSearchParams({
     // FTYPE filter is load-bearing: NHD's waterbody layer includes glaciers
-    // (Ice Mass) and swamps, and without it Skilak GLACIER shipped as a lake.
-    where: `AREASQKM>${MIN_LAKE_KM2} AND GNIS_NAME <> ' ' AND FTYPE IN ('LakePond','Reservoir')`,
+    // (Ice Mass 378) and swamps (466), and without it Skilak GLACIER shipped
+    // as a lake. FTYPE is an INTEGER field on this layer — the string names
+    // ('LakePond') 400 the whole query. 390 = LakePond, 436 = Reservoir.
+    where: `AREASQKM>${MIN_LAKE_KM2} AND GNIS_NAME <> ' ' AND FTYPE IN (390,436)`,
     geometry: env,
     geometryType: "esriGeometryEnvelope",
     inSR: "4326", outSR: "4326",
@@ -107,7 +109,7 @@ async function nhdLakes(bbox) {
       name,
       lat: Math.round(((miny + maxy) / 2) * 1e4) / 1e4,
       lng: Math.round(((minx + maxx) / 2) * 1e4) / 1e4,
-      kind: a.FTYPE === "Reservoir" ? "reservoir" : "lake",
+      kind: a.FTYPE === 436 ? "reservoir" : "lake",
       sizeKm2: Math.round(a.AREASQKM * 10) / 10,
       // The dam matcher measures to the SHORE. Kenai Lake (natural, 20mi
       // long) got flagged man-made because Cooper Lake's dam fell inside a

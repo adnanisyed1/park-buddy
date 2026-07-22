@@ -204,7 +204,10 @@ async function generateOverview(dossier, key) {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-5",
+      // Opus 4.8 — the strongest prose writer. The whole 180-place run costs
+      // ~$4-5 at its pricing; on customer-facing editorial that is the
+      // cheapest quality upgrade this product will ever buy.
+      model: "claude-opus-4-8",
       max_tokens: 900,
       system: SYSTEM,
       messages: [{ role: "user", content: "DOSSIER:\n" + JSON.stringify(dossier, null, 1) }],

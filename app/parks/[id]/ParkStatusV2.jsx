@@ -260,7 +260,12 @@ export default function ParkStatusV2({ id, kind = "park" }) {
 
   return (
     <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
-      <style>{`
+      {/* dangerouslySetInnerHTML is LOAD-BEARING here, not a shortcut: a
+          style tag rendered as a text child gets HTML-escaped by the server
+          but not the client, so any apostrophe, quote or angle bracket —
+          including the > child combinator, which is legitimate CSS — fails
+          hydration for the whole page. This has now bitten twice. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes ps-pulse { 0% { box-shadow: 0 0 0 0 rgba(79,217,138,.5);} 70% { box-shadow: 0 0 0 8px rgba(79,217,138,0);} 100% { box-shadow: 0 0 0 0 rgba(79,217,138,0);} }
         @keyframes ps-ken { 0% { transform: scale(1.04);} 100% { transform: scale(1.12);} }
         .ps-tab-panel { display: none; }
@@ -280,6 +285,13 @@ export default function ParkStatusV2({ id, kind = "park" }) {
            prose — because the whole picture in one glance beats details that
            push half the picture off-screen. */
         @media (max-width: 640px) {
+          /* weather on a phone: the animated today-tile swaps for a one-line
+             reading (never scale the tile — motion dies sub-pixel), and the
+             hourly / 7-day tile grids become one sideways-scrolling strip. */
+          .ps-nowtile { display: none !important; }
+          .ps-nowline { display: flex !important; }
+          .ps-hours { display: flex !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+          .ps-hours > div { flex: 0 0 104px; }
           .ps-stats { gap: 6px !important; }
           .ps-stats .ps-stat { padding: 10px 8px !important; }
           .ps-stats .ps-stat-lab-full { display: none !important; }
@@ -287,7 +299,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
           .ps-stats .ps-stat-val { font-size: 1.05rem !important; margin-top: 7px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .ps-stats .ps-stat-note { display: none !important; }
         }
-      `}</style>
+      ` }} />
 
       <SiteHeader acctSlot />
 
@@ -578,6 +590,21 @@ function Overview({ park, nps, isForest, isStatePark }) {
 function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alertsRef, isForest, isStatePark }) {
   const [now, setNow] = useState(null); // client-only clock — avoids SSR/hydration drift on sun/moon
   useEffect(() => { setNow(new Date()); }, []);
+
+  // "Forecast for the entire year" — the honest version. Nobody can forecast
+  // a year, and this page never pretends; what a trip planner actually needs
+  // is "what is October like here", and five years of observations answer
+  // that truthfully. Labeled as typical, never as forecast.
+  const [climate, setClimate] = useState(null);
+  useEffect(() => {
+    if (!park || !isFinite(park.lat)) return;
+    let dead = false;
+    fetch("/api/climate?lat=" + park.lat.toFixed(3) + "&lng=" + park.lng.toFixed(3))
+      .then((r) => r.json())
+      .then((d) => { if (!dead && d && d.months && d.months.length === 12) setClimate(d); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, [park && park.lat, park && park.lng]);
   const alerts = (cond && cond.weatherAlerts) || [];
   const fires = (cond && cond.wildfires) || [];
   const aqi = cond && cond.airQuality;
@@ -641,17 +668,28 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
       <div style={{ ...card, marginTop: 12 }}>
         <div style={{ ...microLabel, marginBottom: 14 }}>Next 12 hours · NWS forecast</div>
         {hourly && hourly[0] && conditionFromSky(hourly[0].shortForecast) && (
-          <div style={{ marginBottom: 16 }}>
-            <WeatherTile
-              condition={conditionFromSky(hourly[0].shortForecast)}
-              temp={hourly[0].temperature}
-              label={hourly[0].shortForecast}
-              place={park ? park.name : ""}
-            />
-          </div>
+          <>
+            {/* The animated tile must never be SCALED (sub-pixel kills its
+                motion), and on a phone it swallows the screen — so below
+                640px it isn't shrunk, it's swapped for a one-line "right
+                now" reading. Same facts, two renditions. */}
+            <div className="ps-nowtile" style={{ marginBottom: 16 }}>
+              <WeatherTile
+                condition={conditionFromSky(hourly[0].shortForecast)}
+                temp={hourly[0].temperature}
+                label={hourly[0].shortForecast}
+                place={park ? park.name : ""}
+              />
+            </div>
+            <div className="ps-nowline" style={{ display: "none", alignItems: "baseline", gap: 10, marginBottom: 14 }}>
+              <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem" }}>{hourly[0].temperature}°F</span>
+              <span style={{ fontSize: ".9rem", color: "var(--pb-ink-2)" }}>{hourly[0].shortForecast}</span>
+              <span style={{ ...microLabel, marginLeft: "auto" }}>Now</span>
+            </div>
+          </>
         )}
         {hourly ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(104px,1fr))", gap: 10 }}>
+          <div className="ps-hours" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(104px,1fr))", gap: 10 }}>
             {hourly.map((h, i) => (
               <div key={i} style={{ textAlign: "center", background: "var(--pb-tint)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 8px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".08em" }}>{new Date(h.startTime).toLocaleTimeString("en-US", tz ? { hour: "numeric", timeZone: tz } : { hour: "numeric" })}</div>
@@ -672,7 +710,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
       <div style={{ ...card, marginTop: 12 }}>
         <div style={{ ...microLabel, marginBottom: 14 }}>7-day outlook · NWS</div>
         {daily ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(92px,1fr))", gap: 8 }}>
+          <div className="ps-hours" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(92px,1fr))", gap: 8 }}>
             {daily.map((d, i) => (
               <div key={i} style={{ textAlign: "center", background: "var(--pb-tint)", border: "1px solid rgba(217,183,121,.12)", borderRadius: 12, padding: "12px 6px" }}>
                 <div style={{ ...microLabel, letterSpacing: ".06em" }}>{d.name}</div>
@@ -688,6 +726,42 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
           </div>
         ) : <Loading text="Loading 7-day outlook…" />}
       </div>
+
+      {/* A typical year — historical monthly averages, the truthful answer to
+          "what's the forecast for the whole year". Renders only when the data
+          arrived; no skeleton, no apology. */}
+      {climate && (
+        <div style={{ ...card, marginTop: 12 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
+            <div style={{ ...microLabel }}>A typical year here</div>
+            <div style={{ fontSize: ".64rem", color: "var(--pb-muted)" }}>averages, {climate.years} — not a forecast</div>
+          </div>
+          <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginBottom: 12 }}>
+            The best month to come is the one that matches the trip you want — this is what each one is usually like.
+          </div>
+          <div className="ps-hours" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(88px,1fr))", gap: 8 }}>
+            {climate.months.map((mo) => {
+              const isNow = now && MONTH_IDX[mo.m] === now.getMonth();
+              return (
+                <div key={mo.m} style={{ textAlign: "center", background: "var(--pb-tint)", borderRadius: 12, padding: "12px 6px",
+                  border: isNow ? "1px solid var(--pb-gold-2)" : "1px solid rgba(217,183,121,.12)" }}>
+                  <div style={{ ...microLabel, letterSpacing: ".08em", color: isNow ? "var(--pb-gold)" : undefined }}>{mo.m}</div>
+                  <div style={{ fontFamily: serif, fontSize: "1.15rem", marginTop: 8 }}>
+                    {mo.hi != null ? mo.hi + "°" : "—"}
+                    {mo.lo != null && <span style={{ color: "var(--pb-muted)", fontSize: ".78em" }}> / {mo.lo}°</span>}
+                  </div>
+                  <div style={{ fontSize: ".62rem", color: "var(--pb-muted)", marginTop: 4 }}>
+                    {mo.wetDays != null ? "💧 " + mo.wetDays + " wet days" : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: ".6rem", color: "var(--pb-muted)", marginTop: 10, fontFamily: mono, letterSpacing: ".06em", textTransform: "uppercase" }}>
+            {climate.credit}
+          </div>
+        </div>
+      )}
 
       {/* Sun & sky */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 12, marginTop: 12 }}>
@@ -741,6 +815,8 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
     </>
   );
 }
+
+const MONTH_IDX = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
 function StatCard({ label, short, value, note, valueColor, tint }) {
   const bg = tint === "good" ? { background: "rgba(79,217,138,.07)", border: "1px solid rgba(79,217,138,.3)" } : tint === "warn" ? { background: "rgba(224,144,106,.07)", border: "1px solid rgba(224,144,106,.3)" } : {};

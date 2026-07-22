@@ -968,7 +968,7 @@ export default function ExploreSplit() {
                 onMyLocation={useMyLocation}
                 conds={conds} setConds={setConds} states={states}
                 stateFilter={stateFilter} setStateFilter={setStateFilter}
-                count={results.length} stateName={stateFilter}
+                count={results.length} stateName={stateFilter} phone={phone}
               />
 
               <div style={{ flex: 1, overflowY: "auto",
@@ -1110,10 +1110,10 @@ export default function ExploreSplit() {
 function Header(props) {
   const { query, setQuery, sugg, onPick, onSubmit, geocoding, filtersOpen, setFiltersOpen,
     activeFilters, cats, setCats, catCounts, origin, setOrigin, radius, setRadius, onMyLocation,
-    conds, setConds, states, stateFilter, setStateFilter, count, stateName } = props;
+    conds, setConds, states, stateFilter, setStateFilter, count, stateName, phone } = props;
 
   return (
-    <div style={{ padding: "20px 24px 14px", position: "relative", flex: "none" }}>
+    <div style={{ padding: phone ? "12px 14px 8px" : "20px 24px 14px", position: "relative", flex: "none" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <div style={{ flex: 1, position: "relative" }}>
           <input
@@ -1154,7 +1154,16 @@ function Header(props) {
           anything set inside the popover (state, radius, hidden conditions)
           appears here as a removable chip — so closed-popover state is never
           invisible, and nothing is stated in two places. */}
-      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
+      <div style={phone
+        // On a phone the chips are ONE line that scrolls sideways — wrapping
+        // stacked them three rows tall and buried the first place card below
+        // ~250px of controls. Sideways scroll is the native phone idiom for
+        // chip rows; the negative margins bleed the scroll area to the panel
+        // edges so chips don't clip mid-pill at the padding line.
+        ? { display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center",
+            marginTop: 10, margin: "10px -14px 0", padding: "0 14px 2px",
+            WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }
+        : { display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
         <button onClick={() => setFiltersOpen((v) => !v)}
           style={{ ...pillBtn, borderColor: filtersOpen || activeFilters > 0 ? "var(--pb-gold-2)" : "var(--pb-line-strong)",
             display: "flex", alignItems: "center", gap: 7 }}>
@@ -1175,7 +1184,8 @@ function Header(props) {
         {CATS.some((c) => !cats[c.key]) && (
           <button onClick={() => setCats({ national_park: true, national_forest: true, state_park: true, nps_unit: true })}
             style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-gold)",
-              fontFamily: "var(--pb-sans)", fontSize: ".78rem", fontWeight: 600, padding: "0 4px" }}>
+              fontFamily: "var(--pb-sans)", fontSize: ".78rem", fontWeight: 600, padding: "0 4px",
+              whiteSpace: "nowrap", flex: "none" }}>
             Show all
           </button>
         )}
@@ -1212,20 +1222,31 @@ function Header(props) {
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 16 }}>
-        <div>
-          <div style={{ fontFamily: "var(--pb-serif)", fontSize: "1.3rem", fontWeight: 300 }}>
-            {count} place{count === 1 ? "" : "s"}
-            {stateName ? " in " + stateName : origin ? " near " + origin.name : ""}
-          </div>
-          <div style={{ ...micro, marginTop: 3 }}>
-            {stateName
-              ? (origin ? "THE WHOLE STATE — SORTED FROM " + origin.name.toUpperCase() : "THE WHOLE STATE")
-              : origin && radius ? "WITHIN " + radius + " MI"
-              : "ALPHABETICAL — SEARCH A PLACE TO SORT BY DISTANCE"}
+      {/* On the phone the two-line headline collapses to one quiet line —
+          the count is orientation, not a heading, and vertical space is the
+          scarcest thing on that screen. */}
+      {phone ? (
+        <div style={{ ...micro, marginTop: 10 }}>
+          {count} PLACE{count === 1 ? "" : "S"}
+          {stateName ? " IN " + stateName : origin ? " NEAR " + origin.name.toUpperCase() : " — A–Z"}
+          {!stateName && origin && radius ? " · WITHIN " + radius + " MI" : ""}
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 16 }}>
+          <div>
+            <div style={{ fontFamily: "var(--pb-serif)", fontSize: "1.3rem", fontWeight: 300 }}>
+              {count} place{count === 1 ? "" : "s"}
+              {stateName ? " in " + stateName : origin ? " near " + origin.name : ""}
+            </div>
+            <div style={{ ...micro, marginTop: 3 }}>
+              {stateName
+                ? (origin ? "THE WHOLE STATE — SORTED FROM " + origin.name.toUpperCase() : "THE WHOLE STATE")
+                : origin && radius ? "WITHIN " + radius + " MI"
+                : "ALPHABETICAL — SEARCH A PLACE TO SORT BY DISTANCE"}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {filtersOpen && (
         <FilterPopover
@@ -2033,7 +2054,7 @@ const mapCtl = { cursor: "pointer", width: 38, height: 38, borderRadius: 10, dis
   background: "var(--pb-glass-strong)", border: "1px solid var(--pb-line-strong)",
   color: "var(--pb-ink)", backdropFilter: "blur(8px)" };
 const micro = { fontFamily: "var(--pb-mono)", fontSize: ".58rem", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--pb-muted)" };
-const pillBtn = { cursor: "pointer", fontFamily: "var(--pb-sans)", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "11px 16px" };
+const pillBtn = { cursor: "pointer", fontFamily: "var(--pb-sans)", fontWeight: 600, fontSize: ".82rem", color: "var(--pb-ink)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "11px 16px", whiteSpace: "nowrap", flex: "none" };
 const goldBtn = { cursor: "pointer", width: "100%", fontFamily: "var(--pb-sans)", fontWeight: 700, fontSize: ".9rem", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", border: "none", borderRadius: 12, padding: "13px 16px" };
 
 function Chip({ on, onClick, children, dot, dim, count }) {
@@ -2042,6 +2063,8 @@ function Chip({ on, onClick, children, dot, dim, count }) {
     <button onClick={onClick} aria-pressed={!!on}
       style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
         padding: "8px 13px", borderRadius: 999, fontFamily: "var(--pb-sans)",
+        // never shrink or fold inside a sideways-scrolling chip row
+        whiteSpace: "nowrap", flex: "none",
         fontSize: ".8rem", fontWeight: on ? 700 : 500, opacity: dim || empty ? 0.5 : 1,
         background: on ? "var(--pb-grad-gold)" : "var(--pb-tint)",
         color: on ? "var(--pb-bg)" : "var(--pb-ink-2)",
@@ -2066,6 +2089,7 @@ function AppliedChip({ onClear, children }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 8px 7px 13px",
       borderRadius: 999, fontFamily: "var(--pb-sans)", fontSize: ".78rem", fontWeight: 600,
+      whiteSpace: "nowrap", flex: "none",
       background: "var(--pb-surface-2)", color: "var(--pb-ink)", border: "1px solid var(--pb-gold-2)" }}>
       {children}
       <button onClick={onClear} aria-label={"Remove filter: " + (typeof children === "string" ? children : "")}

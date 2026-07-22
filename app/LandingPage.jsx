@@ -281,6 +281,84 @@ function VerdictEngine() {
   );
 }
 
+/* ====================== TRUSTED SOURCES ====================== */
+// Every chip is a feed the platform actually calls (lodging/photo partners
+// excluded on purpose — this section is about the DATA the verdicts and
+// pages are built from). The streams are SVG dashes flowing along curved
+// paths into the badge: constant motion, so the easing is linear — the one
+// place linear is correct. pathLength=100 normalizes speed across curves.
+const SOURCES = [
+  { n: "NWS", d: "National Weather Service" },
+  { n: "NPS", d: "National Park Service" },
+  { n: "USFS", d: "US Forest Service" },
+  { n: "USGS", d: "Hydrography & place names" },
+  { n: "USACE", d: "Army Corps — dams & lakes" },
+  { n: "EPA AirNow", d: "Air quality index" },
+  { n: "NIFC", d: "Wildfire intelligence" },
+  { n: "Recreation.gov", d: "Campsites & permits" },
+  { n: "ERA5", d: "Climate reanalysis" },
+  { n: "OpenStreetMap", d: "Trails & places" },
+];
+
+function TrustedSources() {
+  const streams = [
+    { d: "M0 20 C 150 20, 250 150, 396 178", dur: 3.2, delay: 0 },
+    { d: "M0 95 C 140 95, 260 165, 396 180", dur: 2.7, delay: -0.9 },
+    { d: "M0 180 C 160 180, 260 180, 396 182", dur: 3.6, delay: -1.7 },
+    { d: "M0 265 C 140 265, 260 200, 396 184", dur: 2.9, delay: -0.4 },
+    { d: "M0 340 C 150 340, 250 215, 396 186", dur: 3.4, delay: -2.2 },
+  ];
+  return (
+    <section style={{ ...section }}>
+      <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto" }}>
+        <Eyebrow>Sources we answer to</Eyebrow>
+        <H2>We only trust the trustworthy.</H2>
+        <p style={{ fontSize: ".96rem", lineHeight: 1.6, color: "var(--pb-ink-2)", marginTop: 14 }}>
+          No scraped blogs. No vibes. Every verdict our Buddies see is distilled from official
+          federal feeds and open data — flowing in all day, weighed every 15 minutes.
+        </p>
+      </div>
+
+      <div className="pbl-flowgrid" style={{ display: "grid", gridTemplateColumns: "270px 1fr 170px", gap: 18, alignItems: "center", marginTop: 44 }}>
+        {/* the sources */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {SOURCES.map((s, i) => (
+            <Reveal key={s.n} delay={i * 45}>
+              <div title={s.d} style={{ padding: "9px 11px", borderRadius: 11, background: "var(--pb-surface)", border: "1px solid var(--pb-line)" }}>
+                <div style={{ fontFamily: mono, fontSize: ".6rem", fontWeight: 700, letterSpacing: ".08em", color: "var(--pb-gold)" }}>{s.n}</div>
+                <div style={{ fontSize: ".62rem", color: "var(--pb-muted)", marginTop: 2, lineHeight: 1.3 }}>{s.d}</div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        {/* the flow — data streaming toward the badge */}
+        <svg className="pbl-flowsvg" viewBox="0 0 400 360" preserveAspectRatio="none" aria-hidden style={{ width: "100%", height: 260 }}>
+          {streams.map((s, i) => (
+            <g key={i}>
+              <path d={s.d} pathLength="100" fill="none" stroke="var(--pb-line-strong)" strokeWidth="1" />
+              <path className="pbl-flow" d={s.d} pathLength="100" fill="none" stroke="var(--pb-gold)" strokeWidth="1.8" strokeLinecap="round"
+                strokeDasharray="3 17" style={{ animationDuration: s.dur + "s", animationDelay: s.delay + "s" }} />
+            </g>
+          ))}
+        </svg>
+
+        {/* the Buddy — in: ten feeds, out: one call */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+          <div style={{ position: "relative", width: 108, height: 108 }}>
+            <div className="pbl-flowring" style={{ position: "absolute", inset: -8, borderRadius: "50%", border: "1.5px solid var(--pb-line-strong)", borderTopColor: "var(--pb-gold)" }} />
+            <img src="/brand/the-park-buddy-badge.png" alt="The Park Buddy" width={108} height={108} style={{ position: "relative", objectFit: "contain", filter: "drop-shadow(0 6px 18px rgba(0,0,0,.35))" }} />
+          </div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 13px", borderRadius: 999, border: "1px solid " + V.GO + "55", background: V.GO + "12" }}>
+            <span className="pbl-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: V.GO }} />
+            <span style={{ fontFamily: mono, fontSize: ".58rem", fontWeight: 700, letterSpacing: ".1em", color: V.GO }}>ONE HONEST CALL</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ====================== EXPLORE (map) ====================== */
 // Every tile is a SHIPPED /explore capability (inventoried from ExploreApp.jsx
 // 2026-07-22) — the honesty rule applies to marketing too: no tile for
@@ -641,6 +719,7 @@ export default function LandingPage() {
         <Hero />
         <div data-trail-stop="One place"><PillarShowcase /></div>
         <div data-trail-stop="The verdict engine"><VerdictEngine /></div>
+        <div data-trail-stop="Trusted sources"><TrustedSources /></div>
         <div data-trail-stop="Explore">
           {/* Feather the light→dark seam — the audit's harshest section cut.
               #0a1712 is the forced-dark band's own bg, so the gradient lands
@@ -657,7 +736,11 @@ export default function LandingPage() {
         <Footer />
         <ScrollTrail />
       </main>
-      <style>{`
+      {/* dangerouslySetInnerHTML is LOAD-BEARING: a plain <style>{`…`}</style>
+          child gets HTML-escaped on the server but not the client (apostrophes
+          → &#x27;), which kills hydration for the whole page. Same scar as
+          ParkStatusV2. Never convert this back to a text child. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         /* hero entrance — one-time stagger, strong ease-out */
         .pbl-in { opacity: 0; transform: translateY(14px); animation: pblIn .7s var(--pb-ease-out) forwards; }
         @keyframes pblIn { to { opacity: 1; transform: translateY(0); } }
@@ -678,6 +761,20 @@ export default function LandingPage() {
         .pbl-swapin { animation: pblIn .3s var(--pb-ease-out) both; }
         .pbl-pop { animation: pblPop .35s var(--pb-ease-out) .12s both; }
         @keyframes pblPop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+
+        /* trusted-sources streams: dashes flow along normalized paths (pathLength=100,
+           period 3+17=20 → offset -20 loops seamlessly). Constant motion = linear. */
+        .pbl-flow { animation: pblFlow 3s linear infinite; }
+        @keyframes pblFlow { to { stroke-dashoffset: -20; } }
+        .pbl-flowring { animation: pblSpin 9s linear infinite; }
+        @keyframes pblSpin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce){
+          .pbl-flow, .pbl-flowring { animation: none; }
+        }
+        @media (max-width: 900px){
+          .pbl-flowgrid { grid-template-columns: 1fr !important; }
+          .pbl-flowsvg { display: none; }
+        }
 
         /* the verdict tile's live dot — a slow, subtle breath (scale+opacity only) */
         .pbl-pulse { animation: pblPulse 2.6s ease-in-out infinite; box-shadow: 0 0 8px rgba(79,217,138,.8); }
@@ -720,7 +817,7 @@ export default function LandingPage() {
           .pbl-reels::-webkit-scrollbar { display: none; }
           .pbl-reel { flex: 0 0 46%; scroll-snap-align: start; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

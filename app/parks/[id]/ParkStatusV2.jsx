@@ -471,8 +471,37 @@ function Overview({ park, nps, isForest, isStatePark }) {
   const stateAbout = park
     ? park.name + " is a state park managed by " + (park.state || "the state") + "'s park agency. The live conditions below come from the nearest National Weather Service, wildfire and air-quality stations; check the park's official page for hours, fees, closures and any reservations."
     : "";
+
+  // NPS descriptions only exist for NPS places, so every forest used to open
+  // with the SAME templated sentence — which reads as "no About" the moment
+  // you have seen two forest pages (owner, from Ouachita, which has a rich
+  // Wikipedia article saying nothing templated at all). We already trust
+  // Wikipedia for photos; trust it for the story too. The template stays as
+  // the fallback and the operational note stays appended either way.
+  const [wiki, setWiki] = useState(null); // {extract, url}
+  useEffect(() => {
+    if (!park || !(isForest || isStatePark) || (p && p.description)) return;
+    let dead = false;
+    fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(park.name))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (dead || !d) return;
+        // A disambiguation page or a stub is worse than the template.
+        if (d.type === "standard" && d.extract && d.extract.length > 120) {
+          setWiki({ extract: d.extract, url: d.content_urls?.desktop?.page || null });
+        }
+      })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, [park && park.name, isForest, isStatePark, !!(p && p.description)]);
+
   const aboutHead = isForest ? "About the forest" : isStatePark ? "About this state park" : "About the park";
-  const aboutBody = p && p.description ? p.description : isForest ? forestAbout : isStatePark ? stateAbout : "Pulling this park's story from NPS.gov…";
+  const aboutBody = p && p.description ? p.description
+    : wiki ? wiki.extract
+    : isForest ? forestAbout : isStatePark ? stateAbout : "Pulling this park's story from NPS.gov…";
+  const practicalNote = isForest
+    ? "Live conditions on this page come from the nearest weather, wildfire and air-quality stations; check the forest's ranger district for road closures, dispersed-camping rules and permits."
+    : "Live conditions on this page come from the nearest weather, wildfire and air-quality stations; check the park's official page for hours, fees and reservations.";
   return (
     <>
       <PinesRail park={park} />
@@ -482,6 +511,23 @@ function Overview({ park, nps, isForest, isStatePark }) {
           <p style={{ color: "var(--pb-ink-2)", fontSize: "1rem", lineHeight: 1.75, fontWeight: 300, marginTop: 12 }}>
             {aboutBody}
           </p>
+          {/* When the story came from Wikipedia, our operational note still
+              belongs on the page — as its own quiet paragraph, with the
+              source credited where the words came from. */}
+          {wiki && (
+            <>
+              <p style={{ color: "var(--pb-muted)", fontSize: ".88rem", lineHeight: 1.6, fontWeight: 300, marginTop: 10 }}>
+                {practicalNote}
+              </p>
+              {wiki.url && (
+                <a href={wiki.url} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, textDecoration: "none",
+                    fontFamily: mono, fontSize: ".62rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)" }}>
+                  From Wikipedia →
+                </a>
+              )}
+            </>
+          )}
           {p && (p.activities || []).length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18 }}>
               {p.activities.slice(0, 6).map((a) => <span key={a} style={{ fontSize: ".82rem", fontWeight: 500, color: "var(--pb-ink-2)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "7px 13px" }}>{a}</span>)}

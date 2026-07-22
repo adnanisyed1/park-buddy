@@ -52,7 +52,9 @@ function storedFlagships(lat, lng) {
 // caller falls back to pure GNIS, which is exactly the old behavior.
 async function flagshipLakes(envelope) {
   const p = new URLSearchParams({
-    where: "AREASQKM>2 AND GNIS_NAME <> ' '",
+    // FTYPE is load-bearing: without it NHD hands back glaciers (Ice Mass)
+    // and swamps as "lakes" — Skilak Glacier shipped as one before this.
+    where: "AREASQKM>2 AND GNIS_NAME <> ' ' AND FTYPE IN ('LakePond','Reservoir')",
     geometry: envelope,
     geometryType: "esriGeometryEnvelope",
     inSR: "4326",

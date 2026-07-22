@@ -71,7 +71,9 @@ async function nhdLakes(bbox) {
   const pad = 0.1; // a flagship ON the boundary still belongs to the place
   const env = [bbox[0] - pad, bbox[1] - pad, bbox[2] + pad, bbox[3] + pad].join(",");
   const p = new URLSearchParams({
-    where: `AREASQKM>${MIN_LAKE_KM2} AND GNIS_NAME <> ' '`,
+    // FTYPE filter is load-bearing: NHD's waterbody layer includes glaciers
+    // (Ice Mass) and swamps, and without it Skilak GLACIER shipped as a lake.
+    where: `AREASQKM>${MIN_LAKE_KM2} AND GNIS_NAME <> ' ' AND FTYPE IN ('LakePond','Reservoir')`,
     geometry: env,
     geometryType: "esriGeometryEnvelope",
     inSR: "4326", outSR: "4326",
@@ -107,6 +109,10 @@ async function nhdLakes(bbox) {
       lng: Math.round(((minx + maxx) / 2) * 1e4) / 1e4,
       kind: a.FTYPE === "Reservoir" ? "reservoir" : "lake",
       sizeKm2: Math.round(a.AREASQKM * 10) / 10,
+      // The dam matcher measures to the SHORE. Kenai Lake (natural, 20mi
+      // long) got flagged man-made because Cooper Lake's dam fell inside a
+      // centroid radius — a dam belongs to a lake only if it sits ON it.
+      bbox: [minx, miny, maxx, maxy].map((v) => Math.round(v * 1e4) / 1e4),
     });
   }
   return lakes;
@@ -148,10 +154,11 @@ async function nidDamFor(lake) {
   const base = lake.name.replace(/\b(lake|reservoir)\b/gi, "").trim() || lake.name;
   const sug = await fetchJson(NID + "/suggestions?text=" + encodeURIComponent(base), { tries: 2, timeoutMs: 25000 });
   const cands = (sug && sug.dams) || [];
-  // A dam sits at the EDGE of its lake, and big lakes are long — Lake
-  // Ouachita's dam is ~20mi from its centroid — so the match radius scales
-  // with surface area rather than pretending every lake is a circle-let.
-  const maxMi = Math.max(5, Math.sqrt(lake.sizeKm2 || 1) * 1.2 + 3);
+  // A dam belongs to a lake only if it sits ON the lake, so measure to the
+  // SHORE (bbox edge), not the centroid. Centroid radii flagged natural
+  // Kenai Lake as man-made off a neighboring lake's dam; a 2-mile band
+  // around the bbox keeps Hoover-on-Mead while rejecting next-door dams.
+  const MAX_SHORE_MI = 2;
   let best = null;
   for (const c of cands.slice(0, 5)) {
     const fedId = String(c.federalId || "").replace(/S\d+$/i, "");
@@ -159,10 +166,14 @@ async function nidDamFor(lake) {
     const inv = await fetchJson(NID + "/dams/" + encodeURIComponent(fedId) + "/inventory", { tries: 2, timeoutMs: 25000 });
     await sleep(350);
     if (!inv || !isFinite(inv.latitude) || !isFinite(inv.longitude)) continue;
-    const dLat = (inv.latitude - lake.lat) * 69;
-    const dLng = (inv.longitude - lake.lng) * 69 * Math.cos((lake.lat * Math.PI) / 180);
+    const b = lake.bbox; // [minx,miny,maxx,maxy]
+    if (!b) continue;    // recrawl provides these; no bbox, no verdict
+    const cx = Math.min(Math.max(inv.longitude, b[0]), b[2]);
+    const cy = Math.min(Math.max(inv.latitude, b[1]), b[3]);
+    const dLat = (inv.latitude - cy) * 69;
+    const dLng = (inv.longitude - cx) * 69 * Math.cos((lake.lat * Math.PI) / 180);
     const mi = Math.sqrt(dLat * dLat + dLng * dLng);
-    if (mi > maxMi) continue;
+    if (mi > MAX_SHORE_MI) continue;
     if (!best || mi < best.mi) {
       best = {
         mi: Math.round(mi * 10) / 10,

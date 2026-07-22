@@ -219,6 +219,39 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const bucket = verdict ? verdict.bucket : "loading";
   const vColor = VC[bucket];
   const temp = verdict && typeof verdict.temp === "number" ? Math.round(verdict.temp) : null;
+
+  // On a phone the hero grid stacks, which used to drop the verdict card ON
+  // TOP of the photograph — the picture became a thin frame around a card.
+  // Below 640px the card moves out of the hero entirely and docks just under
+  // it instead (slight overlap, so they read as one composition).
+  const [phoneHero, setPhoneHero] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const apply = () => setPhoneHero(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // One definition, two possible homes (in the hero grid on desktop, below
+  // the hero on a phone) — never two copies to keep in sync.
+  const verdictCard = (
+    <div style={{ background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid color-mix(in srgb, " + vColor + " 45%, transparent)", borderRadius: 22, padding: phoneHero ? 16 : 22, color: "var(--pb-ink)", boxShadow: "0 30px 80px -50px rgba(0,0,0,.9)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ width: 12, height: 12, borderRadius: "50%", background: vColor, boxShadow: "0 0 10px " + vColor, animation: "ps-pulse 2.4s infinite" }} />
+        <span style={{ ...microLabel, letterSpacing: ".16em" }}>Today&apos;s call{verdict ? "" : " · loading"}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 2, marginTop: phoneHero ? 6 : 10 }}>
+        <span style={{ fontFamily: serif, fontWeight: 700, fontSize: phoneHero ? "1.9rem" : "clamp(2.4rem,5vw,3.4rem)", lineHeight: 1.05, color: vColor }}>{verdict ? (verdict.word || bucket.toUpperCase()) : "…"}</span>
+      </div>
+      <p style={{ fontSize: phoneHero ? ".88rem" : ".96rem", color: "var(--pb-ink-2)", lineHeight: 1.5, marginTop: 6 }}>{verdict ? verdict.sub : "Let me read today's conditions from the National Weather Service…"}</p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: phoneHero ? 10 : 16 }}>
+        {temp != null && <span style={chip()}>☀ {temp}°F {verdict.sky || ""}</span>}
+        {verdict && typeof verdict.wind === "number" ? <span style={chip()}>🌬 {Math.round(verdict.wind)} mph</span> : null}
+        <span style={chip((cond && (cond.weatherAlerts || []).length) ? "warn" : "good")}>{cond ? ((cond.weatherAlerts || []).length ? (cond.weatherAlerts.length + " alert" + (cond.weatherAlerts.length === 1 ? "" : "s")) : "No alerts") : "…"}</span>
+      </div>
+    </div>
+  );
   // Reliable last-resort photo candidates for trail/campground tiles: this place's
   // own article (national parks need the " National Park" suffix; forests & state
   // parks already carry theirs). Used as usePhoto `fallback` so a tile shows its
@@ -235,7 +268,13 @@ export default function ParkStatusV2({ id, kind = "park" }) {
         /* two-column layouts (hero, about, subscribe) — stack on mobile */
         .ps-grid { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); }
         @media (max-width: 860px) { .ps-grid { grid-template-columns: 1fr !important; } }
-        @media (max-width: 640px) { .ps-hero { min-height: auto !important; } }
+        /* On phones the verdict card leaves the hero (see phoneHero), so the
+           photo needs a real height of its own — min-height auto collapsed it
+           to a sliver behind the title once the card stopped propping it up.
+           NOTE: never put quote, apostrophe or angle-bracket characters in
+           this style block. The server HTML-escapes them, the client keeps
+           them raw, and that mismatch fails hydration for the whole page. */
+        @media (max-width: 640px) { .ps-hero { min-height: 48vh !important; padding-top: 84px !important; } }
       `}</style>
 
       <SiteHeader acctSlot />
@@ -286,25 +325,19 @@ export default function ParkStatusV2({ id, kind = "park" }) {
               </button>
             </div>
           </div>
-          {/* verdict card */}
-          <div style={{ background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(18px)", backdropFilter: "blur(18px)", border: "1px solid color-mix(in srgb, " + vColor + " 45%, transparent)", borderRadius: 22, padding: 22, color: "var(--pb-ink)", boxShadow: "0 30px 80px -50px rgba(0,0,0,.9)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ width: 12, height: 12, borderRadius: "50%", background: vColor, boxShadow: "0 0 10px " + vColor, animation: "ps-pulse 2.4s infinite" }} />
-              <span style={{ ...microLabel, letterSpacing: ".16em" }}>Today&apos;s call{verdict ? "" : " · loading"}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 2, marginTop: 10 }}>
-              <span style={{ fontFamily: serif, fontWeight: 700, fontSize: "clamp(2.4rem,5vw,3.4rem)", lineHeight: 1.05, color: vColor }}>{verdict ? (verdict.word || bucket.toUpperCase()) : "…"}</span>
-
-            </div>
-            <p style={{ fontSize: ".96rem", color: "var(--pb-ink-2)", lineHeight: 1.5, marginTop: 6 }}>{verdict ? verdict.sub : "Let me read today's conditions from the National Weather Service…"}</p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-              {temp != null && <span style={chip()}>☀ {temp}°F {verdict.sky || ""}</span>}
-              {verdict && typeof verdict.wind === "number" ? <span style={chip()}>🌬 {Math.round(verdict.wind)} mph</span> : null}
-              <span style={chip((cond && (cond.weatherAlerts || []).length) ? "warn" : "good")}>{cond ? ((cond.weatherAlerts || []).length ? (cond.weatherAlerts.length + " alert" + (cond.weatherAlerts.length === 1 ? "" : "s")) : "No alerts") : "…"}</span>
-            </div>
-          </div>
+          {/* verdict card — desktop home, beside the title on the photo */}
+          {!phoneHero && verdictCard}
         </div>
       </section>
+
+      {/* Phone home for the verdict card: docked just below the hero with a
+          slight overlap, so the photograph stays a photograph and today's
+          call still reads as part of the same composition. */}
+      {phoneHero && (
+        <div style={{ position: "relative", zIndex: 3, margin: "-26px 14px 10px" }}>
+          {verdictCard}
+        </div>
+      )}
 
       {/* The alerts nudge used to sit here, as a full-width band between the hero
           and the tabs — an interstitial across the one path everyone takes into

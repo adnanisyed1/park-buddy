@@ -1,6 +1,7 @@
 import { StatusShell, HeroBand, StatGrid, BigStat, GoldButton, NearbySection, NotFoundBody } from "../components/StatusShell";
 import { getParks, nearestPark, getNearby, getPhotoInfo, getParkContact, formatPhone } from "../lib/statusData";
 import CampAvailability from "./CampAvailability";
+import ToursNearby from "../components/ToursNearby";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 // Recreation.gov campground booking URLs carry the facility id we need for the
@@ -114,6 +115,7 @@ export default async function CampgroundStatusPage({ searchParams }) {
           q: c.name, lat: c.lat, lng: c.lng,
         }))}
       />
+      <ToursNearby lat={lat} lng={lng} name={name} />
     </StatusShell>
   );
 }

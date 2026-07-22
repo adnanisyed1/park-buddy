@@ -9,6 +9,7 @@ import NearbyExplorer from "./NearbyExplorer";
 import AddToTripButton from "../components/AddToTripButton";
 import WebcamsSection from "../components/WebcamsSection";
 import ThingsToDo from "../components/ThingsToDo";
+import ToursNearby from "../components/ToursNearby";
 
 const CAT_META = {
   hiking: { icon: "🥾", label: "Hiking trail" },
@@ -165,6 +166,8 @@ export default async function TrailStatusPage({ searchParams }) {
       <div style={{ marginBottom: 26 }}>
         <NearbyExplorer nearby={nearby} refName={trail.name} refLat={ref?.lat} refLng={ref?.lng} state={park?.state || ""} />
       </div>
+
+      {ref && <ToursNearby lat={ref.lat} lng={ref.lng} name={trail.name} />}
 
       <ReviewsBlock reviews={reviews} avg={avg} writeHref="/explore" />
     </StatusShell>

@@ -1329,6 +1329,22 @@ export default function ExploreApp() {
   // Distinct states present in the loaded destinations, for the State filter.
   const stateOptions = Array.from(new Set(parks.map((p) => p.state).filter(Boolean))).sort();
 
+  // Gateway towns in the typeahead (owner call 2026-07-22: every town must be
+  // searchable). Server-side name index over all ~3,200 town pages; debounced
+  // so typing doesn't spray requests.
+  const [townHits, setTownHits] = useState([]);
+  useEffect(() => {
+    const term = ui.searchQuery.trim();
+    if (term.length < 2) { setTownHits([]); return; }
+    const t = setTimeout(() => {
+      fetch("/api/town-search?q=" + encodeURIComponent(term))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setTownHits(d && Array.isArray(d.towns) ? d.towns : []))
+        .catch(() => setTownHits([]));
+    }, 220);
+    return () => clearTimeout(t);
+  }, [ui.searchQuery]);
+
   // Search matches NAME or STATE, then splits into the divided type sections
   // (National Parks / State Parks / National Forests) the design calls for.
   const q = ui.searchQuery.trim().toLowerCase();
@@ -1525,8 +1541,8 @@ export default function ExploreApp() {
           </div>
           {q && (
             <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0, zIndex: 70, ...panelGlass, borderRadius: 16, overflow: "hidden", maxHeight: 380, overflowY: "auto" }}>
-              {searchGroups.length === 0 && (
-                <div style={{ padding: "16px", textAlign: "center", color: "#7f8a82", fontSize: ".84rem" }}>Hmm, I can't find anything matching “{ui.searchQuery.trim()}” — try a park, forest or state-park name.</div>
+              {searchGroups.length === 0 && townHits.length === 0 && (
+                <div style={{ padding: "16px", textAlign: "center", color: "#7f8a82", fontSize: ".84rem" }}>Hmm, I can't find anything matching “{ui.searchQuery.trim()}” — try a park, forest, state-park or town name.</div>
               )}
               {searchGroups.map((g) => (
                 <div key={g.type}>
@@ -1546,6 +1562,26 @@ export default function ExploreApp() {
                   })}
                 </div>
               ))}
+              {townHits.length > 0 && (
+                <div>
+                  <div style={{ ...monoLabel, padding: "9px 15px 4px", display: "flex", alignItems: "center", gap: 7 }}>
+                    <span>🏘</span>Gateway towns
+                    <span style={{ color: "#5f6a62" }}>· {townHits.length}</span>
+                  </div>
+                  {townHits.map((t) => (
+                    <a key={t.slug} href={"/towns/" + t.slug} style={{ width: "100%", boxSizing: "border-box", textAlign: "left", display: "flex", alignItems: "center", gap: 11, padding: "10px 15px", borderBottom: "1px solid rgba(217,183,121,.06)", background: "none", cursor: "pointer", fontFamily: "inherit", textDecoration: "none" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#c9a35f", flex: "none" }} />
+                      <span style={{ fontSize: ".9rem", color: "#f4f1ea", flex: 1 }}>
+                        {t.name}
+                        {t.serves && t.serves.length > 0 && (
+                          <span style={{ fontSize: ".72rem", color: "#8a938b" }}> — serves {t.serves[0]}</span>
+                        )}
+                      </span>
+                      <span style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".08em", textTransform: "uppercase", color: "#8a938b" }}>{t.st}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

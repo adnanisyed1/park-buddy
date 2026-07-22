@@ -565,6 +565,26 @@ export default function ExploreSplit() {
       .slice(0, 6)
       .map((p) => ({ kind: "place", label: p.name, sub: TYPE_LABEL[p.type] + " · " + p.state, place: p }));
     setSugg(local);
+    // Gateway towns ride along (owner call 2026-07-22: every town searchable
+    // from anywhere). Server-side name index over the ~3,200 town pages;
+    // debounced so typing doesn't spray requests, appended below the places.
+    let dead = false;
+    const t = setTimeout(() => {
+      fetch("/api/town-search?q=" + encodeURIComponent(q))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (dead) return;
+          const towns = ((d && d.towns) || []).slice(0, 4).map((tn) => ({
+            kind: "town",
+            label: tn.name + ", " + tn.st,
+            sub: "Gateway town" + (tn.serves && tn.serves.length ? " · serves " + tn.serves[0] : ""),
+            href: "/towns/" + tn.slug,
+          }));
+          if (towns.length) setSugg([...local, ...towns]);
+        })
+        .catch(() => {});
+    }, 220);
+    return () => { dead = true; clearTimeout(t); };
   }, [query, places]);
 
   const searchGeo = async () => {
@@ -1136,7 +1156,18 @@ function Header(props) {
             <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 30,
               background: "var(--pb-glass-strong)", border: "1px solid var(--pb-line-strong)",
               borderRadius: 14, overflow: "hidden", backdropFilter: "blur(14px)" }}>
-              {sugg.map((s) => (
+              {sugg.map((s) => s.href ? (
+                // Gateway towns are PAGES — a pick goes to the town guide, not
+                // the map anchor (owner call 2026-07-22: towns clickable from
+                // anywhere).
+                <a key={"town:" + s.href} href={s.href}
+                  style={{ display: "block", width: "100%", boxSizing: "border-box", textAlign: "left", cursor: "pointer",
+                    padding: "10px 14px", background: "transparent", textDecoration: "none",
+                    borderBottom: "1px solid var(--pb-line)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+                  <div style={{ fontSize: ".87rem", fontWeight: 600 }}>🏘 {s.label}</div>
+                  <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", marginTop: 1 }}>{s.sub}</div>
+                </a>
+              ) : (
                 <button key={s.label} onClick={() => onPick(s.place)}
                   style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer",
                     padding: "10px 14px", background: "transparent", border: "none",

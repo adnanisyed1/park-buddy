@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { townHref } from "../lib/townLink";
 
 // "Near this trailhead" — one radius control (10/25/50/Any mi) filtering five
 // sections (trails, lakes, national parks, national forests, gateway towns) that
@@ -71,7 +72,8 @@ export default function NearbyExplorer({ nearby, refName, refLat, refLng, state 
       .then((d) => {
         const items = ((d && d.towns) || []).map((t) => {
           const bare = String(t.name || "").replace(/,.*$/, "").trim();
-          return { name: t.name, distMi: t.distanceMi, href: null, lat: t.lat, lng: t.lng, q: [t.name, state ? bare + ", " + state : "", bare].filter(Boolean).join("|") };
+          // Towns have real pages now — link them (owner call 2026-07-22).
+          return { name: t.name, distMi: t.distanceMi, href: townHref(bare, t.state || state), lat: t.lat, lng: t.lng, q: [t.name, state ? bare + ", " + state : "", bare].filter(Boolean).join("|") };
         }).sort((a, b) => a.distMi - b.distMi).slice(0, 8);
         if (on) setPlaces(items);
       })

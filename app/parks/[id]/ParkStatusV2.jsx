@@ -19,6 +19,8 @@ import SaveButton from "../../components/SaveButton";
 import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
 import { addStop, inTrip } from "../../lib/trip";
+import { townHref } from "../../lib/townLink";
+import ToursNearby from "../../components/ToursNearby";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 // These flip per theme (globals.css defines a darker set for light, because the
@@ -1221,7 +1223,9 @@ function Nearby({ park, nearby, radius, setRadius }) {
     // District 3" is a real GNIS name in Arkansas) — a top-5 shortlist has no
     // room for a single one of them. Names, not opinions: these are filings,
     // not places with beds.
-    ["Gateway towns", ((nearby && nearby.towns) || []).filter((o) => !/justice of the peace|election precinct|voting precinct|census|township \d|magisterial|supervisor.s district/i.test(o.name || "")), () => null, "🏘", (o) => o.name + (o.state || st ? ", " + (o.state || st) : "")],
+    // Towns are PAGES now (~3,200 of them, pre-rendered) — every tile links
+    // to its town guide (owner call 2026-07-22: no more dead town text).
+    ["Gateway towns", ((nearby && nearby.towns) || []).filter((o) => !/justice of the peace|election precinct|voting precinct|census|township \d|magisterial|supervisor.s district/i.test(o.name || "")), (o) => townHref(o.name, o.state || st), "🏘", (o) => o.name + (o.state || st ? ", " + (o.state || st) : "")],
     ["NPS monuments & sites", (nearby && nearby.npsUnits) || [], (o) => "https://www.nps.gov/" + String(o.id || "").replace(/^nps:/, "") + "/", "🏛", (o) => o.name],
   ];
   return (
@@ -1265,6 +1269,7 @@ function Nearby({ park, nearby, radius, setRadius }) {
           </div>
         );
       })}
+      {park && park.lat != null && <ToursNearby lat={park.lat} lng={park.lng} name={park.name} />}
     </>
   );
 }

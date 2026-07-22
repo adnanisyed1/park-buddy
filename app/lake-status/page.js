@@ -2,6 +2,7 @@ import { StatusShell, NotFoundBody, NearbySection } from "../components/StatusSh
 import { getParks, nearestPark, getNearby, getPhotoInfo, getPointWeather, getWaterbody, getLakeAccess, getWebcams, getThingsToDo, getParkContact, formatPhone, getNearbyByways } from "../lib/statusData";
 import LakeLivingHero from "./LakeLivingHero";
 import NearbyWater from "./NearbyWater";
+import ToursNearby from "../components/ToursNearby";
 import WebcamsSection from "../components/WebcamsSection";
 import ThingsToDo from "../components/ThingsToDo";
 
@@ -176,6 +177,8 @@ export default async function LakeStatusPage({ searchParams }) {
         <SectionHead>More water nearby</SectionHead>
         <NearbyWater items={waterItems} />
       </div>
+
+      <ToursNearby lat={lat} lng={lng} name={name} />
 
       <NearbySection
         title="Nearby trails"

@@ -1145,9 +1145,20 @@ function Header(props) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ONE filter surface. The rule that keeps it legible: this row shows
+          what's APPLIED, the popover is where you EDIT. "Filters" leads the
+          row as the door to the editor; category chips sit beside it because
+          "what kind of place" is the primary lens and deserves daylight; and
+          anything set inside the popover (state, radius, hidden conditions)
+          appears here as a removable chip — so closed-popover state is never
+          invisible, and nothing is stated in two places. */}
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
         <button onClick={() => setFiltersOpen((v) => !v)}
-          style={{ ...pillBtn, borderColor: filtersOpen ? "var(--pb-gold-2)" : "var(--pb-line-strong)",
+          style={{ ...pillBtn, borderColor: filtersOpen || activeFilters > 0 ? "var(--pb-gold-2)" : "var(--pb-line-strong)",
             display: "flex", alignItems: "center", gap: 7 }}>
+          <span aria-hidden="true" style={{ color: "var(--pb-gold)", fontSize: ".72rem" }}>⚙</span>
           <span style={{ color: "var(--pb-gold)" }}>Filters</span>
           {activeFilters > 0 && (
             <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: "var(--pb-grad-gold)",
@@ -1155,12 +1166,6 @@ function Header(props) {
               display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{activeFilters}</span>
           )}
         </button>
-      </div>
-
-      {/* chips — what kind of place, and how many of each.
-          The count is what makes the toggle legible: turning one off is
-          obviously subtraction when you can see what you're subtracting. */}
-      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
         {CATS.map((c) => (
           <Chip key={c.key} on={cats[c.key]} onClick={() => setCats((s) => ({ ...s, [c.key]: !s[c.key] }))}
             count={catCounts[c.key]}>
@@ -1174,10 +1179,27 @@ function Header(props) {
             Show all
           </button>
         )}
+        {!origin && (
+          <button onClick={onMyLocation} style={{ ...pillBtn, fontSize: ".78rem" }}>
+            ◎ Near me
+          </button>
+        )}
+        {/* applied-in-popover state, surfaced and removable */}
+        {stateFilter && (
+          <AppliedChip onClear={() => setStateFilter("")}>{stateFilter}</AppliedChip>
+        )}
+        {origin && radius && !stateFilter && (
+          <AppliedChip onClear={() => setRadius(null)}>within {radius} mi</AppliedChip>
+        )}
+        {Object.values(conds).some((v) => !v) && (
+          <AppliedChip onClear={() => setConds({ go: true, prepare: true, hold: true })}>
+            hiding {[["go", "good"], ["prepare", "prepare"], ["hold", "hold"]].filter(([k]) => !conds[k]).map(([, l]) => l).join(" + ")}
+          </AppliedChip>
+        )}
       </div>
 
-      {/* the pinpoint */}
-      {origin ? (
+      {/* the pinpoint — a status banner, not a filter, so it keeps its row */}
+      {origin && (
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 12, padding: "8px 12px",
           borderRadius: 999, background: "var(--pb-surface-2)", border: "1px solid var(--pb-gold-2)" }}>
           <span style={{ width: 14, height: 14, borderRadius: 999, border: "2.5px solid var(--pb-gold)", flex: "none" }} />
@@ -1188,10 +1210,6 @@ function Header(props) {
           <button onClick={() => setOrigin(null)} aria-label="Clear location"
             style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-muted)", fontSize: ".9rem" }}>✕</button>
         </div>
-      ) : (
-        <button onClick={onMyLocation} style={{ ...pillBtn, marginTop: 12, fontSize: ".78rem" }}>
-          ◎ Use my location
-        </button>
       )}
 
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 16 }}>
@@ -2038,6 +2056,22 @@ function Chip({ on, onClick, children, dot, dim, count }) {
         </span>
       )}
     </button>
+  );
+}
+
+// A filter that was applied inside the popover, shown in the chip row so the
+// list's current truth is readable without opening anything. The ✕ removes
+// just that one narrowing — different job from Chip, which TOGGLES a lens.
+function AppliedChip({ onClear, children }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 8px 7px 13px",
+      borderRadius: 999, fontFamily: "var(--pb-sans)", fontSize: ".78rem", fontWeight: 600,
+      background: "var(--pb-surface-2)", color: "var(--pb-ink)", border: "1px solid var(--pb-gold-2)" }}>
+      {children}
+      <button onClick={onClear} aria-label={"Remove filter: " + (typeof children === "string" ? children : "")}
+        style={{ cursor: "pointer", background: "none", border: "none", padding: "0 4px",
+          color: "var(--pb-muted)", fontSize: ".82rem", lineHeight: 1 }}>✕</button>
+    </span>
   );
 }
 

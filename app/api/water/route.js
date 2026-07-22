@@ -44,7 +44,15 @@ async function flagshipLakes(envelope) {
     f: "json",
   });
   try {
-    const r = await fetch(NHD_URL + "?" + p.toString(), { next: { revalidate: 3600 } });
+    // NHD's response time swings from ~2s to 60s+ with server load. Eight
+    // seconds is the budget: past that the page ships GNIS-only (the old
+    // behavior) rather than hanging every park page on a federal server's
+    // bad evening. Healthy responses are cached an hour, so one good fetch
+    // covers a place for a while.
+    const r = await fetch(NHD_URL + "?" + p.toString(), {
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!r.ok) return [];
     const data = await r.json();
     return (data.features || [])

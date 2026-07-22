@@ -275,6 +275,18 @@ export default function ParkStatusV2({ id, kind = "park" }) {
            this style block. The server HTML-escapes them, the client keeps
            them raw, and that mismatch fails hydration for the whole page. */
         @media (max-width: 640px) { .ps-hero { min-height: 48vh !important; padding-top: 84px !important; } }
+        /* Live-conditions strip: four cells, one line, no scroll, ANY screen.
+           On the phone the cells compact — one-word label, smaller value, no
+           prose — because the whole picture in one glance beats details that
+           push half the picture off-screen. */
+        @media (max-width: 640px) {
+          .ps-stats { gap: 6px !important; }
+          .ps-stats .ps-stat { padding: 10px 8px !important; }
+          .ps-stats .ps-stat-lab-full { display: none !important; }
+          .ps-stats .ps-stat-lab-short { display: block !important; font-size: .5rem !important; letter-spacing: .1em !important; }
+          .ps-stats .ps-stat-val { font-size: 1.05rem !important; margin-top: 7px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .ps-stats .ps-stat-note { display: none !important; }
+        }
       `}</style>
 
       <SiteHeader acctSlot />
@@ -580,20 +592,21 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
         <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#4fd98a" }} />
         <h2 style={{ fontFamily: mono, fontSize: ".66rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>Live conditions</h2>
       </div>
-      {/* One line, always — a status strip reads at a glance; stacked cards
-          read as a page of homework. Four abreast on desktop; on a phone the
-          line keeps its shape and scrolls sideways instead of stacking. */}
-      <div style={{ display: "flex", gap: 12, overflowX: "auto", WebkitOverflowScrolling: "touch",
-        scrollbarWidth: "none", paddingBottom: 2 }}>
-        <StatCard label="Weather alerts · NWS" value={cond ? (alerts.length ? String(alerts.length) : "None active") : "…"} valueColor={alerts.length ? "#e0906a" : "#7fe3a6"} note={alerts.length ? alerts.slice(0, 2).map((a) => a.event).join(" · ") : "No watches or warnings for the park today."} tint={alerts.length ? "warn" : "good"} />
-        <StatCard label="Wildfires · within 80 mi" value={cond ? String(fires.length) : "…"} note={fires.length ? ("Nearest: " + (fires[0].name || "active fire")) : "No active wildfires reported nearby."} />
-        <StatCard label="Air quality · AirNow" value={aqi ? String(aqi.aqi) : (cond ? "—" : "…")} valueColor={aqi && aqi.aqi <= 50 ? "#7fe3a6" : "#e8cf9a"} note={aqi ? (aqi.category + (aqi.parameter ? " · " + aqi.parameter : "")) : "Air-quality reading unavailable for this area."} />
+      {/* One line, all four visible, NO scroll (owner: the whole live picture
+          in one glance, one place). What gives on a phone is the prose, not
+          the line: below 640px each card compacts to short label + value via
+          the ps-stat classes in the style block, and the notes disappear —
+          the counts ARE the story; the details live in the sections below. */}
+      <div className="ps-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+        <StatCard short="Alerts" label="Weather alerts · NWS" value={cond ? (alerts.length ? String(alerts.length) : "None active") : "…"} valueColor={alerts.length ? "#e0906a" : "#7fe3a6"} note={alerts.length ? alerts.slice(0, 2).map((a) => a.event).join(" · ") : "No watches or warnings for the park today."} tint={alerts.length ? "warn" : "good"} />
+        <StatCard short="Wildfires" label="Wildfires · within 80 mi" value={cond ? String(fires.length) : "…"} note={fires.length ? ("Nearest: " + (fires[0].name || "active fire")) : "No active wildfires reported nearby."} />
+        <StatCard short="Air" label="Air quality · AirNow" value={aqi ? String(aqi.aqi) : (cond ? "—" : "…")} valueColor={aqi && aqi.aqi <= 50 ? "#7fe3a6" : "#e8cf9a"} note={aqi ? (aqi.category + (aqi.parameter ? " · " + aqi.parameter : "")) : "Air-quality reading unavailable for this area."} />
         {isForest ? (
-          <StatCard label="Roads · USFS" value="Check district" valueColor="#e8cf9a" note="Forest & FS/MVUM roads close seasonally and after storms — check the ranger district before you go." />
+          <StatCard short="Roads" label="Roads · USFS" value="Check district" valueColor="#e8cf9a" note="Forest & FS/MVUM roads close seasonally and after storms — check the ranger district before you go." />
         ) : isStatePark ? (
-          <StatCard label="Roads &amp; access" value="Check the park" valueColor="#e8cf9a" note="Park roads, gates and day-use areas close seasonally and after storms — check the park's official page before you go." />
+          <StatCard short="Roads" label="Roads &amp; access" value="Check the park" valueColor="#e8cf9a" note="Park roads, gates and day-use areas close seasonally and after storms — check the park's official page before you go." />
         ) : (
-          <StatCard label="Roads · NPS" value={roadText ? "See note" : (road ? "Open" : "…")} valueColor="#e8cf9a" note={roadText || "No road closures reported. Always check NPS.gov before you go."} />
+          <StatCard short="Roads" label="Roads · NPS" value={roadText ? "See note" : (road ? "Open" : "…")} valueColor="#e8cf9a" note={roadText || "No road closures reported. Always check NPS.gov before you go."} />
         )}
       </div>
 
@@ -729,15 +742,18 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
   );
 }
 
-function StatCard({ label, value, note, valueColor, tint }) {
+function StatCard({ label, short, value, note, valueColor, tint }) {
   const bg = tint === "good" ? { background: "rgba(79,217,138,.07)", border: "1px solid rgba(79,217,138,.3)" } : tint === "warn" ? { background: "rgba(224,144,106,.07)", border: "1px solid rgba(224,144,106,.3)" } : {};
   return (
-    // flex-basis over width: in the one-line strip these grow to share the
-    // row on desktop and hold 220px each in the phone's sideways scroll.
-    <div style={{ ...card, ...bg, flex: "1 0 220px", minWidth: 0 }}>
-      <div style={microLabel}>{label}</div>
-      <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.85rem", lineHeight: 1, marginTop: 10, color: valueColor || "var(--pb-ink)" }}>{value}</div>
-      <div style={{ fontSize: ".82rem", color: "var(--pb-ink-2)", marginTop: 6, lineHeight: 1.5 }}>{note}</div>
+    // Two label renditions, CSS-toggled by viewport (see ps-stat rules in the
+    // style block): the full source-credited label where there is room, the
+    // one-word label in the phone's four-across strip. The note disappears on
+    // the phone entirely — the count is the story at that size.
+    <div className="ps-stat" style={{ ...card, ...bg, minWidth: 0 }}>
+      <div className="ps-stat-lab-full" style={microLabel}>{label}</div>
+      <div className="ps-stat-lab-short" style={{ ...microLabel, display: "none" }}>{short || label}</div>
+      <div className="ps-stat-val" style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.85rem", lineHeight: 1, marginTop: 10, color: valueColor || "var(--pb-ink)" }}>{value}</div>
+      <div className="ps-stat-note" style={{ fontSize: ".82rem", color: "var(--pb-ink-2)", marginTop: 6, lineHeight: 1.5 }}>{note}</div>
     </div>
   );
 }

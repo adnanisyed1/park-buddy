@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
+import PillarShowcase from "./components/PillarShowcase";
 import { useTheme } from "./lib/theme";
 
 const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
@@ -530,6 +531,7 @@ export default function LandingPage() {
       <SiteHeader active={null} />
       <main style={{ fontFamily: sans, color: "var(--pb-ink)", overflowX: "hidden" }}>
         <Hero />
+        <PillarShowcase />
         <VerdictEngine />
         <ExploreSection />
         <TripStudioSection />

@@ -263,14 +263,14 @@ export default function PillarShowcase() {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        .pbx { --pbx-out: cubic-bezier(0.23, 1, 0.32, 1); --pbx-inout: cubic-bezier(0.77, 0, 0.175, 1); }
+        .pbx { --pbx-out: var(--pb-ease-out, cubic-bezier(0.23, 1, 0.32, 1)); --pbx-inout: var(--pb-ease-inout, cubic-bezier(0.77, 0, 0.175, 1)); }
 
         /* section entrance — once, subtle */
         .pbx .pbx-head, .pbx .pbx-grid { opacity: 0; transform: translateY(14px); transition: opacity .6s var(--pbx-out), transform .6s var(--pbx-out); }
         .pbx.pbx-inview .pbx-head, .pbx.pbx-inview .pbx-grid { opacity: 1; transform: translateY(0); }
         .pbx.pbx-inview .pbx-grid { transition-delay: .08s; }
 
-        .pbx-tab { display: flex; align-items: center; gap: 12; text-align: left; position: relative; overflow: hidden;
+        .pbx-tab { display: flex; align-items: center; text-align: left; position: relative; overflow: hidden;
           gap: 12px; padding: 14px 16px; border-radius: 14px; cursor: pointer;
           background: var(--pb-surface); border: 1px solid var(--pb-line); color: var(--pb-ink-2);
           transition: transform .16s var(--pbx-out), border-color .22s ease, background .22s ease, color .22s ease; }

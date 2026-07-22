@@ -308,3 +308,11 @@ html[data-theme="light"] .pb-theme {
   .pb-orbit-arc, .pb-bird { animation: none !important; }
   .pb-bird { opacity: 0 !important; }
 }
+
+/* ── Motion tokens — the platform's two easing curves (Emil-strength; the
+   built-in CSS easings are too weak to read as intentional). Entrances/exits
+   use --pb-ease-out; on-screen movement uses --pb-ease-inout. ────────────── */
+:root {
+  --pb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --pb-ease-inout: cubic-bezier(0.77, 0, 0.175, 1);
+}

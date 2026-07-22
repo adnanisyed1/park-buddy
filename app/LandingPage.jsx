@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
 import PillarShowcase from "./components/PillarShowcase";
+import ScrollTrail from "./components/ScrollTrail";
 import { useTheme } from "./lib/theme";
 
 const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
@@ -39,7 +40,9 @@ function Photo({ q, alt = "", style, overlay }) {
   const url = usePhoto(q);
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(160deg,#16321f,#0c1c12)", ...style }}>
-      {url && <img src={url} alt={alt} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0, transition: "opacity .6s", animation: "pbFadeIn .6s forwards" }} onLoad={(e) => (e.currentTarget.style.opacity = 1)} />}
+      {/* One fade mechanism only, driven by onLoad — a mount-time keyframe used to
+          race slow networks and make late photos pop in instead of fading. */}
+      {url && <img src={url} alt={alt} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0, transition: "opacity .5s var(--pb-ease-out)" }} onLoad={(e) => (e.currentTarget.style.opacity = 1)} />}
       {overlay && <div style={{ position: "absolute", inset: 0, background: overlay }} />}
     </div>
   );
@@ -117,6 +120,59 @@ function MotionTile({ img, video, alt = "", style, imgStyle, overlay }) {
   );
 }
 
+/* Counts a stat up from 0 the first time it's seen — the "live tally" should
+   feel live. One-shot, rAF-driven, cubic ease-out; reduced motion (or no IO)
+   renders the final number immediately. */
+function CountUp({ to }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const target = parseInt(to, 10) || 0;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = String(target); return; }
+    let raf, started = false;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting || started) return;
+      started = true;
+      io.disconnect();
+      const t0 = performance.now(), dur = 1100;
+      const tick = (t) => {
+        const p = Math.min(1, (t - t0) / dur);
+        el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }, { threshold: 0.6 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, [to]);
+  return <span ref={ref}>0</span>;
+}
+
+/* Once-only scroll reveal for card grids — the arrival beat the showcase set,
+   extended to its neighbors so adjacent sections share one personality.
+   Decorative: content is in the DOM throughout; only paint is deferred. */
+function Reveal({ children, delay = 0, style }) {
+  const ref = useRef(null);
+  const [on, setOn] = useState(false);
+  const reduced = usePrefersReducedMotion();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setOn(true); io.disconnect(); } }, { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{
+      ...style,
+      opacity: on ? 1 : 0,
+      transform: reduced ? "none" : on ? "none" : "translateY(14px)",
+      transition: `opacity .6s var(--pb-ease-out) ${delay}ms, transform .6s var(--pb-ease-out) ${delay}ms`,
+    }}>{children}</div>
+  );
+}
+
 const Eyebrow = ({ children, style }) => (
   <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--pb-gold-soft)", ...style }}>{children}</div>
 );
@@ -139,27 +195,30 @@ function Hero() {
           alpha (var(--pb-bg-0) → var(--pb-bg)) so there's no muddy dark→cream band. */}
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(10,23,18,.5) 0%,rgba(10,23,18,.24) 30%,rgba(10,23,18,.08) 56%,var(--pb-bg-0) 66%,var(--pb-bg) 99%)" }} />
       <div style={{ position: "relative", maxWidth: 820 }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, ...{}, fontFamily: mono, fontSize: ".6rem", letterSpacing: ".2em", textTransform: "uppercase", color: "#e7e3d8", border: "1px solid rgba(217,183,121,.4)", borderRadius: 999, padding: "7px 16px", background: "rgba(9,17,12,.35)", WebkitBackdropFilter: "blur(6px)", backdropFilter: "blur(6px)" }}>
+        {/* One-time staggered entrance (badge → headline → sub → tally → CTAs).
+            First visit is the "rare/delight" frequency bucket — the one place a
+            hero is allowed choreography. 110ms steps, strong ease-out. */}
+        <div className="pbl-in" style={{ animationDelay: ".05s", display: "inline-flex", alignItems: "center", gap: 8, fontFamily: mono, fontSize: ".6rem", letterSpacing: ".2em", textTransform: "uppercase", color: "#e7e3d8", border: "1px solid rgba(217,183,121,.4)", borderRadius: 999, padding: "7px 16px", background: "rgba(9,17,12,.35)", WebkitBackdropFilter: "blur(6px)", backdropFilter: "blur(6px)" }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: V.GO, boxShadow: "0 0 8px " + V.GO }} /> The honest national park companion
         </div>
-        <h1 style={{ fontFamily: serif, fontWeight: 500, fontSize: "clamp(2.9rem,8vw,5.4rem)", lineHeight: 1.0, color: "#fff", margin: "22px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.5)", textWrap: "balance" }}>
+        <h1 className="pbl-in" style={{ animationDelay: ".16s", fontFamily: serif, fontWeight: 500, fontSize: "clamp(2.9rem,8vw,5.4rem)", lineHeight: 1.0, color: "#fff", margin: "22px 0 0", textShadow: "0 4px 30px rgba(0,0,0,.5)", textWrap: "balance" }}>
             Know if today's <span style={{ fontStyle: "italic", color: "var(--pb-gold)" }}>the day.</span>
         </h1>
-        <p style={{ fontFamily: sans, fontSize: "clamp(1rem,1.6vw,1.2rem)", lineHeight: 1.6, color: "rgba(244,241,234,.9)", margin: "20px auto 0", maxWidth: 560, textShadow: "0 2px 12px rgba(0,0,0,.5)" }}>
+        <p className="pbl-in" style={{ animationDelay: ".27s", fontFamily: sans, fontSize: "clamp(1rem,1.6vw,1.2rem)", lineHeight: 1.6, color: "rgba(244,241,234,.9)", margin: "20px auto 0", maxWidth: 560, textShadow: "0 2px 12px rgba(0,0,0,.5)" }}>
           One honest go / no‑go call for every U.S. national park — live weather, alerts, air and fire — plus everything to plan, book and live the trip.
         </p>
-        {/* live verdict tally */}
-        <div style={{ display: "inline-flex", gap: 18, margin: "26px auto 0", padding: "10px 20px", borderRadius: 16, background: "rgba(9,17,12,.42)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line)" }}>
+        {/* live verdict tally — numbers count up on first view */}
+        <div className="pbl-in" style={{ animationDelay: ".38s", display: "inline-flex", gap: 18, margin: "26px auto 0", padding: "10px 20px", borderRadius: 16, background: "rgba(9,17,12,.42)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line)" }}>
           {[["47", "GO", V.GO], ["11", "PREPARE", V.PREPARE], ["5", "HOLD", V.HOLD]].map(([n, l, c]) => (
             <span key={l} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-              <b style={{ fontFamily: serif, fontSize: "1.5rem", color: c }}>{n}</b>
+              <b style={{ fontFamily: serif, fontSize: "1.5rem", color: c, fontVariantNumeric: "tabular-nums" }}><CountUp to={n} /></b>
               <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".14em", color: "#c9cec6" }}>{l}</span>
             </span>
           ))}
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 30 }}>
-          <Link href="/explore" style={{ fontFamily: sans, fontSize: ".95rem", fontWeight: 700, color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "14px 26px", textDecoration: "none", boxShadow: "0 10px 30px -10px rgba(217,183,121,.7)" }}>Open the Live Map →</Link>
-          <Link href="/build-trip" style={{ fontFamily: sans, fontSize: ".95rem", fontWeight: 600, color: "#fff", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.28)", borderRadius: 999, padding: "14px 26px", textDecoration: "none", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)" }}>Plan a Trip</Link>
+        <div className="pbl-in" style={{ animationDelay: ".5s", display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", marginTop: 30 }}>
+          <Link href="/explore" className="pbl-btn" style={{ fontFamily: sans, fontSize: ".95rem", fontWeight: 700, color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "14px 26px", textDecoration: "none", boxShadow: "0 10px 30px -10px rgba(217,183,121,.7)" }}>Open the Live Map →</Link>
+          <Link href="/build-trip" className="pbl-btn" style={{ fontFamily: sans, fontSize: ".95rem", fontWeight: 600, color: "#fff", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.28)", borderRadius: 999, padding: "14px 26px", textDecoration: "none", WebkitBackdropFilter: "blur(8px)", backdropFilter: "blur(8px)" }}>Plan a Trip</Link>
         </div>
       </div>
       <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", fontFamily: mono, fontSize: ".5rem", letterSpacing: ".2em", textTransform: "uppercase", color: "rgba(244,241,234,.55)", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
@@ -183,9 +242,13 @@ function VerdictEngine() {
         <Eyebrow>The verdict engine</Eyebrow>
         <H2>One honest answer. Zero guesswork.</H2>
       </div>
-      <div className="pbl-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 40 }}>
+      {/* One scrollable line, not a fixed grid — new pipeline entries just append
+          a card and the strip scrolls (snap + edge fades). At today's 3 cards it
+          fills the row exactly like the old grid on desktop. */}
+      <div className="pbl-vstrip" style={{ display: "flex", gap: 16, marginTop: 40, overflowX: "auto", scrollSnapType: "x proximity", WebkitOverflowScrolling: "touch", paddingBottom: 6 }}>
         {cards.map((c, i) => (
-          <div key={c.t} style={{ position: "relative", background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 18, padding: "22px 20px" }}>
+          <Reveal key={c.t} delay={i * 70} style={{ flex: "0 0 min(352px, 84vw)", scrollSnapAlign: "start", display: "flex" }}>
+          <div style={{ position: "relative", flex: 1, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 18, padding: "22px 20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <span style={{ fontFamily: mono, fontSize: ".56rem", color: "var(--pb-gold)", border: "1px solid var(--pb-line-strong)", borderRadius: 6, padding: "3px 6px" }}>{"0" + (i + 1)}</span>
               <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.2rem", color: "var(--pb-ink)" }}>{c.t}</span>
@@ -208,6 +271,7 @@ function VerdictEngine() {
               </ul>
             )}
           </div>
+          </Reveal>
         ))}
       </div>
       <p style={{ textAlign: "center", fontFamily: mono, fontSize: ".64rem", letterSpacing: ".08em", color: "var(--pb-muted)", marginTop: 28 }}>
@@ -302,34 +366,9 @@ function TripStudioSection() {
 }
 
 /* ====================== BOOK ====================== */
-const BOOK = [
-  { l: "Stays", d: "Cabins & glamping", href: "/book?cat=stays", ic: <path d="M4 11 12 4l8 7M6 10v10h12V10" /> },
-  { l: "Campgrounds & RV", d: "Wilderness sites", href: "/book?cat=camp", ic: <path d="M12 4 3 20h18zM12 4v16" /> },
-  { l: "Rental Cars", d: "For the drive", href: "/book?cat=cars", ic: <><path d="M4 13l2-6h12l2 6M4 13h16v4H4z" /><path d="M7 17v2M17 17v2" /></> },
-  { l: "Permits & Passes", d: "Timed entry", href: "/book?cat=permits", ic: <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1 0 4H5a2 2 0 0 1 0-4 2 2 0 0 0 0-4z" /> },
-  { l: "Tours & Experiences", d: "Guided expeditions", href: "/book?cat=tours", ic: <path d="M6 3v18M6 4h11l-2 3 2 3H6" /> },
-];
-function BookSection() {
-  return (
-    <section style={{ ...section }}>
-      <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto" }}>
-        <Eyebrow>Book</Eyebrow>
-        <H2>Everything for the trip. Honestly.</H2>
-        <p style={{ fontSize: ".96rem", lineHeight: 1.6, color: "var(--pb-ink-2)", marginTop: 14 }}>Cabins, glamping, campgrounds, rental cars, permits & tours — we only show what's actually available, and tell you when something isn't live yet.</p>
-      </div>
-      <div className="pbl-5" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginTop: 36 }}>
-        {BOOK.map((b) => (
-          <Link key={b.l} href={b.href} className="pbl-card" style={{ display: "flex", flexDirection: "column", gap: 10, padding: "18px 16px", borderRadius: 16, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", textDecoration: "none" }}>
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="var(--pb-gold)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">{b.ic}</svg>
-            <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "var(--pb-ink)", lineHeight: 1.1 }}>{b.l}</span>
-            <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>{b.d}</span>
-          </Link>
-        ))}
-      </div>
-      <p style={{ textAlign: "center", fontFamily: mono, fontSize: ".62rem", letterSpacing: ".06em", color: "var(--pb-muted)", marginTop: 22 }}>Powered by Recreation.gov, Hipcamp and verified partners.</p>
-    </section>
-  );
-}
+/* BookSection removed 2026-07-22: its five category cards repeated what the
+   pillar showcase's Book vignette and the site nav already advertise — the
+   audit's "repeatable content" cut. `git log` has it if it's ever missed. */
 
 /* ====================== PINES ====================== */
 function PinesSection() {
@@ -370,12 +409,16 @@ function PinesSection() {
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 12, padding: "22px 20px", borderRadius: 16, background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)" }}>
             <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".16em", color: "var(--pb-gold-soft)" }}>EARLY ACCESS</div>
             <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.25rem", color: "var(--pb-ink)", lineHeight: 1.1 }}>Get behind the Pines before anyone else.</div>
+            {/* keyed wrapper so form → success crossfades instead of hard-cutting */}
             {done ? (
-              <div style={{ fontSize: ".85rem", color: V.GO }}>✓ You're on the list — we'll email you the moment Pines opens.</div>
+              <div key="done" className="pbl-swapin" style={{ fontSize: ".85rem", color: V.GO, display: "flex", gap: 7, alignItems: "flex-start" }}>
+                <span className="pbl-pop" style={{ flex: "none", width: 18, height: 18, borderRadius: "50%", background: "rgba(79,217,138,.15)", border: "1px solid " + V.GO + "66", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".62rem" }}>✓</span>
+                You're on the list — we'll email you the moment Pines opens.
+              </div>
             ) : (
-              <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setErr(""); }} placeholder="you@email.com" aria-label="Email" style={{ background: "rgba(255,255,255,.04)", border: "1px solid " + (err ? V.HOLD : "var(--pb-line-strong)"), borderRadius: 10, padding: "11px 14px", color: "var(--pb-ink)", fontFamily: sans, fontSize: ".88rem", outline: "none" }} />
-                <button type="submit" style={{ cursor: "pointer", fontFamily: sans, fontWeight: 700, fontSize: ".88rem", color: "var(--pb-bg)", background: GOLD, border: "none", borderRadius: 10, padding: "11px" }}>Get Early Access</button>
+              <form key="form" onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <input type="email" className="pbl-input" value={email} onChange={(e) => { setEmail(e.target.value); setErr(""); }} placeholder="you@email.com" aria-label="Email" style={{ background: "rgba(255,255,255,.04)", border: "1px solid " + (err ? V.HOLD : "var(--pb-line-strong)"), borderRadius: 10, padding: "11px 14px", color: "var(--pb-ink)", fontFamily: sans, fontSize: ".88rem", outline: "none" }} />
+                <button type="submit" className="pbl-btn" style={{ cursor: "pointer", fontFamily: sans, fontWeight: 700, fontSize: ".88rem", color: "var(--pb-bg)", background: GOLD, border: "none", borderRadius: 10, padding: "11px" }}>Get Early Access</button>
                 {err && <span style={{ fontSize: ".72rem", color: V.HOLD }}>{err}</span>}
               </form>
             )}
@@ -401,11 +444,12 @@ function ShopSection() {
           <H2>Wear the wild.</H2>
           <p style={{ fontSize: ".96rem", lineHeight: 1.6, color: "var(--pb-ink-2)", marginTop: 14 }}>Exclusive Park Buddy apparel, original park art, and Trip Book — your adventure, printed and bound.</p>
         </div>
-        <Link href="/shop" style={{ fontFamily: sans, fontWeight: 700, fontSize: ".85rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "11px 22px", textDecoration: "none", flex: "none" }}>Shop Now</Link>
+        <Link href="/shop" className="pbl-btn" style={{ fontFamily: sans, fontWeight: 700, fontSize: ".85rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "11px 22px", textDecoration: "none", flex: "none" }}>Shop Now</Link>
       </div>
       <div className="pbl-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 34 }}>
-        {PRODUCTS.map((p) => (
-          <Link key={p.l} href={p.href || "/shop"} className="pbl-card" style={{ borderRadius: 18, overflow: "hidden", border: "1px solid var(--pb-line)", background: "var(--pb-surface)", textDecoration: "none" }}>
+        {PRODUCTS.map((p, i) => (
+          <Reveal key={p.l} delay={i * 70} style={{ display: "flex" }}>
+          <Link href={p.href || "/shop"} className="pbl-card" style={{ flex: 1, borderRadius: 18, overflow: "hidden", border: "1px solid var(--pb-line)", background: "var(--pb-surface)", textDecoration: "none" }}>
             <div style={{ position: "relative", aspectRatio: "4/3", background: "#f2f0ec" }}><CoverImg src={p.src} alt={p.l} style={{ background: "#f2f0ec" }} imgStyle={{ objectFit: "cover" }} /></div>
             <div style={{ padding: "14px 16px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
               <div>
@@ -415,6 +459,7 @@ function ShopSection() {
               <span style={{ fontFamily: mono, fontSize: ".8rem", fontWeight: 700, color: "var(--pb-gold)", flex: "none", marginTop: 3 }}>{p.price}</span>
             </div>
           </Link>
+          </Reveal>
         ))}
       </div>
     </section>
@@ -432,7 +477,8 @@ function VisionSection() {
       </div>
       <div className="pbl-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 40 }}>
         {/* Dark Sky */}
-        <div className="pbl-vcard" style={vcard}>
+        <Reveal delay={0} style={{ display: "flex" }}>
+        <div className="pbl-vcard" style={{ ...vcard, flex: 1 }}>
           <SoonTag />
           <div style={vIcon}>✦</div>
           <h3 style={vTitle}>Dark Sky Forecast</h3>
@@ -442,8 +488,10 @@ function VisionSection() {
             <span style={{ fontFamily: mono, fontSize: ".62rem", color: "var(--pb-ink-2)" }}>Bortle 2 — Excellent</span>
           </div>
         </div>
+        </Reveal>
         {/* Passport */}
-        <div className="pbl-vcard" style={vcard}>
+        <Reveal delay={70} style={{ display: "flex" }}>
+        <div className="pbl-vcard" style={{ ...vcard, flex: 1 }}>
           <SoonTag />
           <div style={vIcon}>◎</div>
           <h3 style={vTitle}>Digital Passport</h3>
@@ -455,8 +503,10 @@ function VisionSection() {
             <span style={{ fontFamily: mono, fontSize: ".56rem", color: "var(--pb-muted)", marginLeft: 4 }}>12 / 63</span>
           </div>
         </div>
+        </Reveal>
         {/* SOS */}
-        <div className="pbl-vcard" style={vcard}>
+        <Reveal delay={140} style={{ display: "flex" }}>
+        <div className="pbl-vcard" style={{ ...vcard, flex: 1 }}>
           <SoonTag />
           <div style={vIcon}>⛑</div>
           <h3 style={vTitle}>Trip Check‑In & SOS</h3>
@@ -466,6 +516,7 @@ function VisionSection() {
             <span style={{ fontFamily: mono, fontSize: ".6rem", color: "var(--pb-ink-2)" }}>Last check‑in: 2h ago · Contact notified</span>
           </div>
         </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -486,7 +537,7 @@ function CloseSection() {
       <div style={{ position: "relative", maxWidth: 640 }}>
         <h2 style={{ fontFamily: serif, fontWeight: 500, fontStyle: "italic", fontSize: "clamp(2.2rem,5.5vw,3.6rem)", color: "#fff", margin: 0, textShadow: "0 3px 20px rgba(0,0,0,.6)" }}>Adventure's better with a Buddy.</h2>
         <p style={{ fontSize: "1rem", color: "rgba(244,241,234,.85)", margin: "16px auto 26px", maxWidth: 440 }}>Join thousands of park lovers who check their verdict every morning.</p>
-        <Link href="/explore" style={{ fontFamily: sans, fontWeight: 700, fontSize: "1rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "15px 34px", textDecoration: "none", boxShadow: "0 12px 34px -12px rgba(217,183,121,.7)" }}>Start Exploring →</Link>
+        <Link href="/explore" className="pbl-btn" style={{ fontFamily: sans, fontWeight: 700, fontSize: "1rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "15px 34px", textDecoration: "none", boxShadow: "0 12px 34px -12px rgba(217,183,121,.7)" }}>Start Exploring →</Link>
       </div>
     </section>
   );
@@ -531,30 +582,65 @@ export default function LandingPage() {
       <SiteHeader active={null} />
       <main style={{ fontFamily: sans, color: "var(--pb-ink)", overflowX: "hidden" }}>
         <Hero />
-        <PillarShowcase />
-        <VerdictEngine />
-        <ExploreSection />
-        <TripStudioSection />
-        <BookSection />
-        <PinesSection />
-        <ShopSection />
-        <VisionSection />
+        <div data-trail-stop="One place"><PillarShowcase /></div>
+        <div data-trail-stop="The verdict engine"><VerdictEngine /></div>
+        <div data-trail-stop="Explore">
+          {/* Feather the light→dark seam — the audit's harshest section cut.
+              #0a1712 is the forced-dark band's own bg, so the gradient lands
+              exactly on it in both themes (dark→dark is a no-op). */}
+          <div aria-hidden style={{ height: 90, background: "linear-gradient(180deg, var(--pb-bg), #0a1712)" }} />
+          <ExploreSection />
+          <div aria-hidden style={{ height: 90, background: "linear-gradient(180deg, #0a1712, var(--pb-bg))" }} />
+        </div>
+        <div data-trail-stop="Build Trips"><TripStudioSection /></div>
+        <div data-trail-stop="Pines"><PinesSection /></div>
+        <div data-trail-stop="Shop"><ShopSection /></div>
+        <div data-trail-stop="Your edge"><VisionSection /></div>
         <CloseSection />
         <Footer />
+        <ScrollTrail />
       </main>
       <style>{`
-        @keyframes pbFadeIn { to { opacity: 1; } }
-        .pbl-card { transition: transform .18s ease, border-color .22s, background .22s; }
+        /* hero entrance — one-time stagger, strong ease-out */
+        .pbl-in { opacity: 0; transform: translateY(14px); animation: pblIn .7s var(--pb-ease-out) forwards; }
+        @keyframes pblIn { to { opacity: 1; transform: translateY(0); } }
+
+        /* every gold CTA: press compresses, hover lifts (fine pointers only) */
+        .pbl-btn { transition: transform .16s var(--pb-ease-out), box-shadow .25s ease; will-change: transform; }
+        .pbl-btn:active { transform: scale(0.97); }
+        @media (hover:hover) and (pointer:fine){ .pbl-btn:hover { transform: translateY(-1px); } .pbl-btn:active { transform: scale(0.97); } }
+
+        .pbl-card { transition: transform .18s var(--pb-ease-out), border-color .22s, background .22s; }
+        .pbl-card:active { transform: scale(0.98); }
         @media (hover:hover){ .pbl-card:hover{ transform: translateY(-3px); border-color: rgba(217,183,121,.5); } .pbl-vcard:hover{ border-color: rgba(217,183,121,.4); } }
+
+        /* keyboard focus is visible — outline:none was hiding it */
+        .pbl-input:focus-visible { border-color: rgba(217,183,121,.65) !important; box-shadow: 0 0 0 3px rgba(217,183,121,.22); }
+
+        /* Pines form → success crossfade + check pop */
+        .pbl-swapin { animation: pblIn .3s var(--pb-ease-out) both; }
+        .pbl-pop { animation: pblPop .35s var(--pb-ease-out) .12s both; }
+        @keyframes pblPop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+
+        /* verdict strip: hidden scrollbar + soft edge fades */
+        .pbl-vstrip { scrollbar-width: none;
+          -webkit-mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 22px, #000 calc(100% - 22px), transparent); }
+        .pbl-vstrip::-webkit-scrollbar { display: none; }
+
+        @media (prefers-reduced-motion: reduce){
+          .pbl-in { transform: none; animation: pblFadeOnly .3s ease forwards; }
+          .pbl-card:hover, .pbl-btn:hover { transform: none !important; }
+        }
+        @keyframes pblFadeOnly { to { opacity: 1; } }
+
         @media (max-width: 900px){
           .pbl-split { grid-template-columns: 1fr !important; }
           .pbl-swap { order: 2; }
-          .pbl-5 { grid-template-columns: 1fr 1fr !important; }
           .pbl-pines { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 680px){
           .pbl-3 { grid-template-columns: 1fr !important; }
-          .pbl-5 { grid-template-columns: 1fr 1fr !important; }
           .pbl-tripcard { grid-template-columns: 1fr !important; }
           /* Pines reels → swipeable strip, ~2 in view with a peek of the next */
           .pbl-reels {

@@ -21,7 +21,30 @@ const GNIS_URL = "https://carto.nationalmap.gov/arcgis/rest/services/geonames/Ma
 // layer is no substitute: its biggest features carry blank GNIS_NAMEs.
 const NHD_URL = "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/12/query";
 
+// Pre-crawled flagship lakes (scripts/build-flagship-lakes.mjs): per place,
+// the lakes with government-operated recreation on the shore (RIDB evidence)
+// or serious size. Stored because lakes don't move and NHD's response time
+// does. Empty until the crawl has run — every path below tolerates that.
+import LAKE_DATA from "../../lib/lake-data.json";
+import GEO from "../../lib/place-geo.json";
+
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
+
+// Big-radius queries come from place status pages passing the place's own
+// stored coordinates, so the place can be recovered here without any caller
+// changing: smallest place bbox containing the point that has stored lakes.
+function storedFlagships(lat, lng) {
+  let best = null, bestArea = Infinity;
+  for (const [id, p] of Object.entries(GEO.places)) {
+    const b = p.bbox;
+    if (!b || lat < b[1] || lat > b[3] || lng < b[0] || lng > b[2]) continue;
+    const lakes = LAKE_DATA.places[id];
+    if (!lakes || !lakes.length) continue;
+    const area = (b[2] - b[0]) * (b[3] - b[1]);
+    if (area < bestArea) { best = lakes; bestArea = area; }
+  }
+  return best;
+}
 
 // The region's major lakes by surface area, largest first. Geometry comes back
 // generalized (maxAllowableOffset) and we only need a marker position, so the
@@ -138,12 +161,17 @@ export async function GET(request) {
     // region's MAJOR lakes by size, then fill with the nearest small ones.
     // A 2.7M-acre forest's page should open its water list with Lake Ouachita
     // and Broken Bow Lake, not forty anonymous ponds around the centroid.
-    const flags = radiusKm >= 60 ? await flagshipLakes(envelope) : [];
+    // Stored beats live: the pre-crawled list is gated on recreation evidence
+    // ("can you GO there"), which live NHD can't know, and it costs nothing at
+    // request time. Live NHD remains the fallback for places the crawl hasn't
+    // covered yet.
+    const stored = radiusKm >= 60 ? storedFlagships(lat, lng) : null;
+    const flags = stored || (radiusKm >= 60 ? await flagshipLakes(envelope) : []);
     const seen = {}, lakes = [];
     for (const f of flags) {
       if (seen[f.name.toLowerCase()]) continue;
       seen[f.name.toLowerCase()] = 1;
-      lakes.push({ name: f.name, lat: f.lat, lng: f.lng, kind: f.kind, sizeKm2: f.sizeKm2 });
+      lakes.push({ name: f.name, lat: f.lat, lng: f.lng, kind: f.kind, sizeKm2: f.sizeKm2, ...(f.rec ? { rec: f.rec } : {}) });
     }
     for (const f of feats) {
       if (seen[f.name.toLowerCase()]) continue;

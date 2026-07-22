@@ -1059,6 +1059,19 @@ function NearbyTile({ o, href, pq }) {
       {photo && photo.url && <img alt={o.name} src={photo.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,19,13,.08) 40%,rgba(8,19,13,.9))" }} />
       <span style={{ position: "absolute", right: 10, top: 10, fontFamily: mono, fontSize: ".56rem", fontWeight: 700, color: "#0b1710", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "3px 9px" }}>{o.distMi} mi</span>
+      {/* Owner's flag (2026-07-21): man-made or natural, and only when we can
+          PROVE it — "man-made" is matched against the National Inventory of
+          Dams, "natural" is asserted only for sizeable lakes with no dam on
+          record. The title carries the receipt (dam name + year). */}
+      {o.origin && (
+        <span title={o.dam ? (o.dam.name + (o.dam.year ? " · " + o.dam.year : "") + (o.dam.river ? " · " + o.dam.river : "")) : undefined}
+          style={{ position: "absolute", left: 10, top: 10, fontFamily: mono, fontSize: ".5rem", fontWeight: 700,
+            letterSpacing: ".08em", textTransform: "uppercase", color: "#f4f1ea",
+            background: "rgba(10,23,18,.62)", border: "1px solid rgba(244,241,234,.28)",
+            WebkitBackdropFilter: "blur(6px)", backdropFilter: "blur(6px)", borderRadius: 999, padding: "3px 8px" }}>
+          {o.origin === "man-made" ? "⚙ Man-made" : "🌿 Natural"}
+        </span>
+      )}
       <figcaption style={{ position: "absolute", left: 12, right: 12, bottom: 10, fontFamily: serif, fontWeight: 600, fontSize: "1.1rem", color: "#f7f4ec", textShadow: "0 2px 10px rgba(0,0,0,.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.name}</figcaption>
     </figure>
   );

@@ -171,7 +171,10 @@ export async function GET(request) {
     for (const f of flags) {
       if (seen[f.name.toLowerCase()]) continue;
       seen[f.name.toLowerCase()] = 1;
-      lakes.push({ name: f.name, lat: f.lat, lng: f.lng, kind: f.kind, sizeKm2: f.sizeKm2, ...(f.rec ? { rec: f.rec } : {}) });
+      // origin ("man-made"/"natural", proven against the National Inventory
+      // of Dams) and the dam's own facts ride along when the crawl has them.
+      lakes.push({ name: f.name, lat: f.lat, lng: f.lng, kind: f.kind, sizeKm2: f.sizeKm2,
+        ...(f.rec ? { rec: f.rec } : {}), ...(f.origin ? { origin: f.origin } : {}), ...(f.dam ? { dam: f.dam } : {}) });
     }
     for (const f of feats) {
       if (seen[f.name.toLowerCase()]) continue;

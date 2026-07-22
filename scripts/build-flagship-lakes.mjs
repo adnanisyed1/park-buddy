@@ -134,7 +134,84 @@ async function recEvidence(lake) {
   };
 }
 
+// ---- man-made or natural, proven by the National Inventory of Dams --------
+// NHD won't say: it classes Broken Bow Lake (dammed 1968, USACE) as a plain
+// "LakePond". The NID is the federal registry of every dam, so the test is
+// evidence, not vibes: a dam on this lake's shore = man-made, with the year,
+// the river and the owner to show for it. No dam near a sizeable lake = we
+// call it natural. API shape (probed live 2026-07-21): suggestions by name →
+// federalId → /api/dams/<federalId>/inventory (strip S### structure suffixes;
+// the numeric id 404s on /inventory, only the federalId works).
+const NID = "https://nid.sec.usace.army.mil/api";
+
+async function nidDamFor(lake) {
+  const base = lake.name.replace(/\b(lake|reservoir)\b/gi, "").trim() || lake.name;
+  const sug = await fetchJson(NID + "/suggestions?text=" + encodeURIComponent(base), { tries: 2, timeoutMs: 25000 });
+  const cands = (sug && sug.dams) || [];
+  // A dam sits at the EDGE of its lake, and big lakes are long — Lake
+  // Ouachita's dam is ~20mi from its centroid — so the match radius scales
+  // with surface area rather than pretending every lake is a circle-let.
+  const maxMi = Math.max(5, Math.sqrt(lake.sizeKm2 || 1) * 1.2 + 3);
+  let best = null;
+  for (const c of cands.slice(0, 5)) {
+    const fedId = String(c.federalId || "").replace(/S\d+$/i, "");
+    if (!fedId) continue;
+    const inv = await fetchJson(NID + "/dams/" + encodeURIComponent(fedId) + "/inventory", { tries: 2, timeoutMs: 25000 });
+    await sleep(350);
+    if (!inv || !isFinite(inv.latitude) || !isFinite(inv.longitude)) continue;
+    const dLat = (inv.latitude - lake.lat) * 69;
+    const dLng = (inv.longitude - lake.lng) * 69 * Math.cos((lake.lat * Math.PI) / 180);
+    const mi = Math.sqrt(dLat * dLat + dLng * dLng);
+    if (mi > maxMi) continue;
+    if (!best || mi < best.mi) {
+      best = {
+        mi: Math.round(mi * 10) / 10,
+        name: inv.name || c.name,
+        river: inv.riverName || null,
+        year: inv.yearCompleted || null,
+        heightFt: inv.damHeight || null,
+        owner: inv.ownerNames || null,
+      };
+    }
+  }
+  return best;
+}
+
+// Post-pass over the checkpoint cache: stamps origin ("man-made"/"natural")
+// and dam facts onto every cached lake that hasn't been checked yet. Safe to
+// run while the NHD crawl is still going — it only touches finished files —
+// and safe to re-run: already-stamped lakes are skipped.
+async function damsPass() {
+  const files = readdirSync(CACHE_DIR).filter((f) => f.endsWith(".json"));
+  let stamped = 0, checked = 0;
+  for (const f of files) {
+    const path = join(CACHE_DIR, f);
+    const data = JSON.parse(readFileSync(path, "utf8"));
+    let dirty = false;
+    for (const lake of data.lakes || []) {
+      if (lake.origin !== undefined) continue; // already decided
+      if (!passesGate(lake)) continue;         // don't spend NID calls on gated-out ponds
+      checked++;
+      const dam = await nidDamFor(lake);
+      if (dam) { lake.origin = "man-made"; lake.dam = dam; stamped++; }
+      // Only sizeable lakes earn a confident "natural" — for a 2km² pond an
+      // unlisted farm dam is entirely possible, and a wrong flag is worse
+      // than none.
+      else if (lake.sizeKm2 >= 5) { lake.origin = "natural"; }
+      else { lake.origin = null; }
+      dirty = true;
+    }
+    if (dirty) writeFileSync(path, JSON.stringify(data, null, 1));
+  }
+  console.log(`dams pass: ${checked} lakes checked, ${stamped} matched to a dam (man-made)`);
+}
+
 export async function main() {
+  if (process.argv.includes("--dams")) {
+    mkdirSync(CACHE_DIR, { recursive: true });
+    await damsPass();
+    return emitFromCache();
+  }
   mkdirSync(CACHE_DIR, { recursive: true });
   const emitOnly = process.argv.includes("--emit");
   const ids = Object.keys(GEO.places);
@@ -168,7 +245,12 @@ export async function main() {
     }
   }
 
-  // Emit from cache — the only step --emit runs.
+  emitFromCache(failed);
+}
+
+// Emit from cache — also the only step --emit runs.
+function emitFromCache(failed = 0) {
+  const ids = Object.keys(GEO.places);
   const out = { generatedAt: new Date().toISOString(), places: {} };
   let total = 0;
   for (const id of ids) {

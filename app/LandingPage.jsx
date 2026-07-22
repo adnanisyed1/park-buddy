@@ -462,6 +462,27 @@ function ExploreSection() {
 }
 
 /* ====================== TRIP STUDIO ====================== */
+// Same rule as the Explore tiles: every feature here is SHIPPED in Trip
+// Studio today (time engine, day planner, exports — all live on /build-trip).
+const TRIP_FEATURES = [
+  { t: "Seven ways in", d: "Add parks, forests, state parks, trails, campgrounds, scenic drives and basecamp towns.",
+    ic: <><path d="M12 5v14M5 12h14" /><circle cx="12" cy="12" r="9" /></> },
+  { t: "Real drive times", d: "Every leg is measured on real roads — not straight lines on a map.",
+    ic: <><path d="M4 13l2-6h12l2 6M4 13h16v4H4z" /><path d="M7 17v2M17 17v2" /></> },
+  { t: "Daylight-fit pacing", d: "Days are planned against actual sunrise and sunset, so you're never hiking out in the dark.",
+    ic: <><circle cx="12" cy="14" r="4" /><path d="M12 6V4M6 14H4M20 14h-2M7 9l-1.5-1.5M17 9l1.5-1.5M4 19h16" /></> },
+  { t: "Plan all my days", d: "One tap schedules every stop into days — durations, drives between stops, pacing.",
+    ic: <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M8 3v4M16 3v4M8 14h3M8 17h6" /></> },
+  { t: "Optimize the order", d: "Reorders your stops to cut backtracking and wasted miles.",
+    ic: <><path d="M4 7h11M4 12h7M4 17h13" /><path d="M18 5l3 2-3 2M14 10l3 2-3 2M20 15l-3 2 3 2" /></> },
+  { t: "Conditions, per day", d: "Each day's stops carry their live verdict and forecast — replan before the weather does.",
+    ic: <><path d="M7 15a4 4 0 1 1 1-7.9A5 5 0 0 1 17 8a3.5 3.5 0 0 1 0 7z" /><path d="M9 19l-1 2M13 19l-1 2M17 19l-1 2" /></> },
+  { t: "Byways, folded in", d: "A scenic drive joins as one stop with its waypoints tucked inside — no itinerary spam.",
+    ic: <><path d="M4 19c5 0 3-12 8-12s3 12 8 12" /><circle cx="12" cy="7" r="1.6" /></> },
+  { t: "Take it anywhere", d: "Share a link, sync days to your calendar, print a PDF — or bind it as a Trip Book.",
+    ic: <><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" /><path d="M12 8v6M9.5 11.5 12 14l2.5-2.5" /></> },
+];
+
 function TripStudioSection() {
   return (
     // Same dissolve treatment as the Pines band, but a gentle tint instead of
@@ -505,6 +526,32 @@ function TripStudioSection() {
           </div>
           <Link href="/build-trip" style={{ fontFamily: sans, fontWeight: 700, fontSize: ".9rem", color: "var(--pb-gold)", textDecoration: "none" }}>Open Trip Studio →</Link>
         </div>
+      </div>
+
+      {/* Inside Trip Studio — one tile per shipped planning feature */}
+      <div style={{ marginTop: 64 }}>
+        <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 34px" }}>
+          <Eyebrow>Inside Trip Studio</Eyebrow>
+          <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.5rem,3vw,2.1rem)", lineHeight: 1.1, color: "var(--pb-ink)", margin: "10px 0 0", textWrap: "balance" }}>
+            Eight moves from wishlist to plan.
+          </h3>
+        </div>
+        <div className="pbl-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+          {TRIP_FEATURES.map((f, i) => (
+            <Reveal key={f.t} delay={(i % 4) * 60 + Math.floor(i / 4) * 40} style={{ display: "flex" }}>
+              <div className="pbl-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9, padding: "16px 15px", borderRadius: 14, background: "var(--pb-surface)", border: "1px solid var(--pb-line)" }}>
+                <span style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(217,183,121,.08)", border: "1px solid var(--pb-line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pb-gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{f.ic}</svg>
+                </span>
+                <b style={{ fontFamily: serif, fontWeight: 600, fontSize: ".98rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{f.t}</b>
+                <span style={{ fontSize: ".74rem", lineHeight: 1.45, color: "var(--pb-ink-2)" }}>{f.d}</span>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+        <p style={{ textAlign: "center", marginTop: 26 }}>
+          <Link href="/build-trip" className="pbl-btn" style={{ display: "inline-block", fontFamily: sans, fontWeight: 700, fontSize: ".88rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "12px 24px", textDecoration: "none" }}>Plan a trip in Trip Studio →</Link>
+        </p>
       </div>
       </div>
     </section>

@@ -2,6 +2,9 @@ node_modules
 .next
 out
 .env*.local
+# any .env variant (incl. typos like .env.loccd) — never let a secrets file into git
+.env*
+!.env.example
 .DS_Store
 *.log
 .vercel

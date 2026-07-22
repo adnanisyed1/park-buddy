@@ -1153,20 +1153,39 @@ function Header(props) {
             </div>
           )}
         </div>
+        {/* The door to the Filters panel: an icon docked to the search bar,
+            where every search UI keeps it. The badge is the only state it
+            carries — the chips below say WHAT is applied, this says how many. */}
+        <button onClick={() => setFiltersOpen((v) => !v)} aria-label="Filters"
+          style={{ position: "relative", cursor: "pointer", flex: "none",
+            width: 44, height: 44, borderRadius: 999,
+            background: "var(--pb-tint)", display: "flex", alignItems: "center", justifyContent: "center",
+            border: "1px solid " + (filtersOpen || activeFilters > 0 ? "var(--pb-gold-2)" : "var(--pb-line-strong)") }}>
+          <svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true">
+            <g stroke="var(--pb-gold)" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="1.5" y1="4" x2="15.5" y2="4" />
+              <line x1="1.5" y1="8.5" x2="15.5" y2="8.5" />
+              <line x1="1.5" y1="13" x2="15.5" y2="13" />
+            </g>
+            <g fill="var(--pb-gold)">
+              <circle cx="11" cy="4" r="2.2" />
+              <circle cx="5.5" cy="8.5" r="2.2" />
+              <circle cx="12.5" cy="13" r="2.2" />
+            </g>
+          </svg>
+          {activeFilters > 0 && (
+            <span style={{ position: "absolute", top: -4, right: -4, minWidth: 17, height: 17,
+              borderRadius: 999, background: "var(--pb-grad-gold)", color: "var(--pb-bg)",
+              fontFamily: "var(--pb-mono)", fontSize: ".6rem", display: "flex", alignItems: "center",
+              justifyContent: "center", padding: "0 4px", border: "1.5px solid var(--pb-bg)" }}>{activeFilters}</span>
+          )}
+        </button>
       </div>
 
-      {/* ONE filter surface. The rule that keeps it legible: this row shows
-          what's APPLIED, the popover is where you EDIT. "Filters" leads the
-          row as the door to the editor; category chips sit beside it because
-          "what kind of place" is the primary lens and deserves daylight; and
-          anything set inside the popover (state, radius, hidden conditions)
-          appears here as a removable chip — so closed-popover state is never
-          invisible, and nothing is stated in two places. */}
-      {/* Every filter lives in ONE place — the Filters panel. This row only
-          REPORTS: the door in, then a removable chip per active selection.
-          Nothing here edits anything except by removal, so there are never
-          two competing filter surfaces. Untouched filters add no chrome:
-          the default state is one small button and silence. */}
+      {/* Every filter lives in the panel; this row only REPORTS — Near me,
+          then a removable chip per active selection. When it has nothing to
+          say it doesn't render, so the untouched header is search + icon. */}
+      {(!origin || activeFilters > 0) && (
       <div style={phone
         // One line that scrolls sideways on a phone; the negative margins
         // bleed the scroll area to the panel edges so a chip peeking
@@ -1175,17 +1194,6 @@ function Header(props) {
             margin: "10px -14px 0", padding: "0 14px 2px",
             WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }
         : { display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
-        <button onClick={() => setFiltersOpen((v) => !v)}
-          style={{ ...pillBtn, borderColor: filtersOpen || activeFilters > 0 ? "var(--pb-gold-2)" : "var(--pb-line-strong)",
-            display: "flex", alignItems: "center", gap: 7 }}>
-          <span aria-hidden="true" style={{ color: "var(--pb-gold)", fontSize: ".72rem" }}>⚙</span>
-          <span style={{ color: "var(--pb-gold)" }}>Filters</span>
-          {activeFilters > 0 && (
-            <span style={{ minWidth: 18, height: 18, borderRadius: 999, background: "var(--pb-grad-gold)",
-              color: "var(--pb-bg)", fontFamily: "var(--pb-mono)", fontSize: ".62rem",
-              display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{activeFilters}</span>
-          )}
-        </button>
         {!origin && (
           <button onClick={onMyLocation} style={{ ...pillBtn, fontSize: ".78rem" }}>
             ◎ Near me
@@ -1209,6 +1217,7 @@ function Header(props) {
           </AppliedChip>
         )}
       </div>
+      )}
 
       {/* the pinpoint — a status banner, not a filter, so it keeps its row */}
       {origin && (

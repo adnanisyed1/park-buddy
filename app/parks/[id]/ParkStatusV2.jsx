@@ -519,6 +519,22 @@ function Overview({ park, nps, isForest, isStatePark }) {
     return () => { dead = true; };
   }, [park && park.name, isForest, isStatePark, !!(p && p.description)]);
 
+  // The Park Buddy overview — OUR editorial, generated at build time from
+  // datasets we can prove (visitation, boundaries, dams, towns, climate) and
+  // stored in overview-data.json where the owner can edit every word. Neutral
+  // guidebook voice by choice. Renders nothing until that dataset has this
+  // place; the borrowed About below remains either way.
+  const [pbo, setPbo] = useState(null);
+  useEffect(() => {
+    if (!park || !isFinite(park.lat)) return;
+    let dead = false;
+    fetch("/api/overview?lat=" + park.lat.toFixed(3) + "&lng=" + park.lng.toFixed(3))
+      .then((r) => r.json())
+      .then((d) => { if (!dead && d && d.overview) setPbo(d.overview); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, [park && park.lat, park && park.lng]);
+
   const aboutHead = isForest ? "About the forest" : isStatePark ? "About this state park" : "About the park";
   const aboutBody = p && p.description ? p.description
     : wiki ? wiki.extract
@@ -529,6 +545,28 @@ function Overview({ park, nps, isForest, isStatePark }) {
   return (
     <>
       <PinesRail park={park} />
+
+      {/* The Park Buddy overview — four short sections, each one backed by a
+          dataset this repo owns. This is the house voice; the About below
+          stays the source's voice. */}
+      {pbo && (
+        <div style={{ ...card, marginBottom: "clamp(20px,4vw,36px)", borderColor: "var(--pb-gold-2)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 16 }}>
+            <img src="/brand/the-park-buddy-badge.png" alt="" width={22} height={22} style={{ objectFit: "contain" }} />
+            <div style={{ ...microLabel, letterSpacing: ".16em" }}>The Park Buddy overview</div>
+          </div>
+          <div style={{ display: "grid", gap: "18px 28px", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))" }}>
+            {[["Why people come", pbo.whyCome], ["What most visitors miss", pbo.dontMiss],
+              ["When to go", pbo.whenToGo], ["Where to base", pbo.whereToBase]].map(([h, body]) => body && (
+              <div key={h}>
+                <div style={{ ...microLabel, fontSize: ".6rem", color: "var(--pb-gold)", marginBottom: 7 }}>{h}</div>
+                <p style={{ margin: 0, fontSize: ".92rem", lineHeight: 1.65, color: "var(--pb-ink-2)", fontWeight: 300 }}>{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "grid", gap: "clamp(20px,4vw,40px)" }} className="ps-grid">
         <div>
           <h2 style={{ ...H2, fontSize: "clamp(1.6rem,3.4vw,2.3rem)" }}>{aboutHead}</h2>

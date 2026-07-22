@@ -17,6 +17,8 @@
 //   · reduced motion = instant final states + plain crossfade, not a lockout
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { ensureMapsLoaded } from "../lib/googleMapsLoader";
+import { PB_DARK_MAP_STYLE } from "../lib/mapStyle";
 
 const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
 const V = { GO: "#4fd98a", PREPARE: "#e8cf9a", HOLD: "#e08a6a" };
@@ -60,25 +62,80 @@ const PILLARS = [
 
 /* ── vignettes ─────────────────────────────────────────────────────────── */
 
-// Explore: teardrop pins drop onto a night map with stagger, then a verdict
-// card rises. Pins keep a barely-there float afterwards so the map "breathes".
+// Explore: THE REAL MAP (owner ask 2026-07-22: "this should feel real").
+// A live Google Map in the product's own dark style, five real parks pinned
+// as teardrop temp markers. Non-interactive on purpose — it's a vignette,
+// the CTA is the way in. Falls back to the abstract pin scene when the Maps
+// key/script isn't available (the loader resolves false, never throws).
+const SHOWCASE_PARKS = [
+  { name: "Yellowstone", lat: 44.6, lng: -110.55, t: "72°", v: "GO" },
+  { name: "Rocky Mountain", lat: 40.36, lng: -105.7, t: "58°", v: "PREPARE" },
+  { name: "Great Smoky Mountains", lat: 35.65, lng: -83.51, t: "81°", v: "GO" },
+  { name: "Yosemite", lat: 37.87, lng: -119.54, t: "66°", v: "GO" },
+  { name: "Zion", lat: 37.3, lng: -113.05, t: "94°", v: "HOLD" },
+];
+
+// The landing's teardrop-with-temp pin as a self-contained SVG marker —
+// same silhouette as the CSS pins, monospace temp, verdict-colored ring.
+function teardropIconUrl(temp, color) {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="38" height="46">' +
+    '<path d="M19 44 C11 33 4 26 4 16 A15 15 0 1 1 34 16 C34 26 27 33 19 44 Z" fill="rgba(9,17,12,.94)" stroke="' + color + '" stroke-width="2"/>' +
+    '<text x="19" y="20" text-anchor="middle" font-family="Menlo,Consolas,monospace" font-size="10.5" font-weight="bold" fill="' + color + '">' + temp + "</text></svg>";
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
 function ExploreVignette() {
-  const pins = [
+  const mapRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapFailed, setMapFailed] = useState(false);
+  useEffect(() => {
+    let on = true;
+    ensureMapsLoaded().then((ok) => {
+      if (!on) return;
+      if (!ok || !mapRef.current) { setMapFailed(true); return; }
+      const g = window.google;
+      const map = new g.maps.Map(mapRef.current, {
+        center: { lat: 39.4, lng: -101.5 }, zoom: 4,
+        styles: PB_DARK_MAP_STYLE, backgroundColor: "#0a1712",
+        disableDefaultUI: true, gestureHandling: "none", keyboardShortcuts: false, clickableIcons: false,
+      });
+      SHOWCASE_PARKS.forEach((p, i) => {
+        setTimeout(() => {
+          new g.maps.Marker({
+            map, position: { lat: p.lat, lng: p.lng }, title: p.name,
+            icon: { url: teardropIconUrl(p.t, V[p.v]), scaledSize: new g.maps.Size(38, 46), anchor: new g.maps.Point(19, 44) },
+            animation: g.maps.Animation.DROP,
+          });
+        }, 300 + i * 220); // the drop-in stagger, now on the real map
+      });
+      setMapReady(true);
+    }).catch(() => on && setMapFailed(true));
+    return () => { on = false; };
+  }, []);
+  const fallbackPins = [
     { x: 22, y: 34, t: "72°", v: "GO" }, { x: 44, y: 22, t: "58°", v: "PREPARE" },
     { x: 63, y: 40, t: "81°", v: "GO" }, { x: 36, y: 58, t: "66°", v: "GO" }, { x: 76, y: 62, t: "94°", v: "HOLD" },
   ];
   return (
     <div className="pbx-scene" style={{ background: "radial-gradient(120% 120% at 50% 0%, #12241a, #0a1712)" }}>
-      <div aria-hidden className="pbx-dots" />
-      {pins.map((p, i) => (
-        <div key={i} className="pbx-float" style={{ position: "absolute", left: p.x + "%", top: p.y + "%", animationDelay: 1.2 + i * 0.35 + "s" }}>
-          <div className="pbx-pin" style={{ animationDelay: i * 0.07 + "s" }}>
-            <span className="pbx-pin-body" style={{ borderColor: V[p.v] + "aa" }}>
-              <b style={{ color: V[p.v] }}>{p.t}</b>
-            </span>
-          </div>
-        </div>
-      ))}
+      {/* the real thing */}
+      <div ref={mapRef} style={{ position: "absolute", inset: 0, opacity: mapReady ? 1 : 0, transition: "opacity .6s var(--pbx-out)" }} />
+      {/* fallback: the abstract pin scene, only when Maps can't load */}
+      {mapFailed && (
+        <>
+          <div aria-hidden className="pbx-dots" />
+          {fallbackPins.map((p, i) => (
+            <div key={i} className="pbx-float" style={{ position: "absolute", left: p.x + "%", top: p.y + "%", animationDelay: 1.2 + i * 0.35 + "s" }}>
+              <div className="pbx-pin" style={{ animationDelay: i * 0.07 + "s" }}>
+                <span className="pbx-pin-body" style={{ borderColor: V[p.v] + "aa" }}>
+                  <b style={{ color: V[p.v] }}>{p.t}</b>
+                </span>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
       <div className="pbx-vcard">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
           <b style={{ fontFamily: serif, fontSize: ".98rem", color: "#f4f1ea" }}>Yellowstone</b>

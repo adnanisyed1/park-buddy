@@ -18,6 +18,7 @@ import useDarkBody from "../lib/useDarkBody";
 import { roadAccessNote } from "../lib/roadAccess";
 import { getClient, initAuth, openAuth } from "../lib/auth";
 import { estimateTimeLabel, estimateDifficulty, routeTypeFor } from "../lib/trailStats";
+import { PB_DARK_MAP_STYLE } from "../lib/mapStyle";
 import { fetchElevationProfile } from "../lib/elevationClient";
 import { getStops as tripStops, addStop as tripAdd, removeStop as tripRemove, subscribeTrip } from "../lib/trip";
 import { getMapPrefs, setMapPrefs, mapOptionsFor, subscribeMapPrefs } from "../lib/mapPrefs";
@@ -74,23 +75,9 @@ const AVG_MPH = 45;
 // Google Maps can't resolve CSS vars inside a style array (the same gotcha that
 // broke build-trip). Applies to the "roadmap" base; roads/POI labels are hidden so
 // the verdict pins stay the focus.
-const MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#0f2318" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#7f8a82" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0a1712" }, { weight: 3 }] },
-  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#2a4436" }] },
-  { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#c9a35f" }, { weight: 1 }] },
-  { featureType: "administrative.province", elementType: "geometry.stroke", stylers: [{ color: "#3a5a48" }] },
-  { featureType: "administrative.province", elementType: "labels.text.fill", stylers: [{ color: "#8a938b" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#aab0ba" }] },
-  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#123322" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#16401f" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0b262b" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4f96c9" }] },
-  { featureType: "road", stylers: [{ visibility: "off" }] },
-  { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-];
+// Moved to app/lib/mapStyle.js (2026-07-22) so the landing's showcase map
+// renders with the LITERAL same style as the product map.
+const MAP_STYLE = PB_DARK_MAP_STYLE;
 
 // Two map looks the user can switch between (remembered in localStorage):
 //   dark     — the futuristic-royal forest style above (matches the panels)

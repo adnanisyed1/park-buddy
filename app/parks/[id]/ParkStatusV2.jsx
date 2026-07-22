@@ -664,15 +664,15 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
         </div>
       )}
 
-      {/* 12h forecast */}
+      {/* ONE weather card, Weather-Channel shaped (owner's call): today's sky
+          animates across the full tile, and the hourly strip and the 7-day
+          strip live INSIDE the same card beneath it — one place called
+          Weather, not three stacked boxes. The tile is stretched, never
+          scaled: the no-scale rule protects the MOTION, and percentage
+          particle positions just give the same animation more sky. */}
       <div style={{ ...card, marginTop: 12 }}>
-        <div style={{ ...microLabel, marginBottom: 14 }}>Next 12 hours · NWS forecast</div>
+        <div style={{ ...microLabel, marginBottom: 14 }}>Weather · NWS forecast</div>
         {hourly && hourly[0] && conditionFromSky(hourly[0].shortForecast) && (
-          // Weather-Channel treatment (owner's call): today's sky animates
-          // across the ENTIRE tile width on every screen. Not scaled — the
-          // no-scale rule protects the MOTION, and stretching the stage just
-          // gives the same animation more sky to fall through (particle x
-          // positions are percentages of the stage for exactly this reason).
           <div style={{ marginBottom: 16 }}>
             <WeatherTile
               width="100%"
@@ -683,6 +683,7 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             />
           </div>
         )}
+        <div style={{ ...microLabel, letterSpacing: ".1em", margin: "2px 0 10px" }}>Next 12 hours</div>
         {hourly ? (
           <div className="ps-hours" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(104px,1fr))", gap: 10 }}>
             {hourly.map((h, i) => (
@@ -699,11 +700,8 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
             ))}
           </div>
         ) : <Loading text="Grabbing the next hours from weather.gov…" />}
-      </div>
 
-      {/* 7-day */}
-      <div style={{ ...card, marginTop: 12 }}>
-        <div style={{ ...microLabel, marginBottom: 14 }}>7-day outlook · NWS</div>
+        <div style={{ ...microLabel, letterSpacing: ".1em", margin: "16px 0 10px" }}>7-day outlook</div>
         {daily ? (
           <div className="ps-hours" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(92px,1fr))", gap: 8 }}>
             {daily.map((d, i) => (

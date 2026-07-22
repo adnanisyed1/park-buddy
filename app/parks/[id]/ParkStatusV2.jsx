@@ -580,7 +580,11 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
         <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#4fd98a" }} />
         <h2 style={{ fontFamily: mono, fontSize: ".66rem", letterSpacing: ".2em", textTransform: "uppercase", color: "var(--pb-gold-soft)" }}>Live conditions</h2>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12 }}>
+      {/* One line, always — a status strip reads at a glance; stacked cards
+          read as a page of homework. Four abreast on desktop; on a phone the
+          line keeps its shape and scrolls sideways instead of stacking. */}
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", WebkitOverflowScrolling: "touch",
+        scrollbarWidth: "none", paddingBottom: 2 }}>
         <StatCard label="Weather alerts · NWS" value={cond ? (alerts.length ? String(alerts.length) : "None active") : "…"} valueColor={alerts.length ? "#e0906a" : "#7fe3a6"} note={alerts.length ? alerts.slice(0, 2).map((a) => a.event).join(" · ") : "No watches or warnings for the park today."} tint={alerts.length ? "warn" : "good"} />
         <StatCard label="Wildfires · within 80 mi" value={cond ? String(fires.length) : "…"} note={fires.length ? ("Nearest: " + (fires[0].name || "active fire")) : "No active wildfires reported nearby."} />
         <StatCard label="Air quality · AirNow" value={aqi ? String(aqi.aqi) : (cond ? "—" : "…")} valueColor={aqi && aqi.aqi <= 50 ? "#7fe3a6" : "#e8cf9a"} note={aqi ? (aqi.category + (aqi.parameter ? " · " + aqi.parameter : "")) : "Air-quality reading unavailable for this area."} />
@@ -728,7 +732,9 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
 function StatCard({ label, value, note, valueColor, tint }) {
   const bg = tint === "good" ? { background: "rgba(79,217,138,.07)", border: "1px solid rgba(79,217,138,.3)" } : tint === "warn" ? { background: "rgba(224,144,106,.07)", border: "1px solid rgba(224,144,106,.3)" } : {};
   return (
-    <div style={{ ...card, ...bg }}>
+    // flex-basis over width: in the one-line strip these grow to share the
+    // row on desktop and hold 220px each in the phone's sideways scroll.
+    <div style={{ ...card, ...bg, flex: "1 0 220px", minWidth: 0 }}>
       <div style={microLabel}>{label}</div>
       <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.85rem", lineHeight: 1, marginTop: 10, color: valueColor || "var(--pb-ink)" }}>{value}</div>
       <div style={{ fontSize: ".82rem", color: "var(--pb-ink-2)", marginTop: 6, lineHeight: 1.5 }}>{note}</div>
@@ -1047,10 +1053,32 @@ function NearbyTile({ o, href, pq }) {
 
 function Nearby({ park, nearby, radius, setRadius }) {
   const st = park ? park.state : "";
+
+  // Owner's layout rule (2026-07-21): no section may grow past TWO ROWS of
+  // tiles, on any screen — a page of six endless grids is a wall, two rows
+  // with pagination is a shelf. Fixed column counts (4 desktop / 2 phone)
+  // because pagination needs a knowable page size, which auto-fill isn't.
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const apply = () => setPhone(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const cols = phone ? 2 : 4;
+  const pageSize = cols * 2;
+  const [pages, setPages] = useState({}); // per-section page index
+  useEffect(() => { setPages({}); }, [radius]); // new radius, new deck
+
   const secs = [
     ["Other parks", (nearby && nearby.parks) || [], (o) => "/parks/" + o.id, "🏔", (o) => o.name + " National Park|" + o.name],
     ["Lakes", (nearby && nearby.lakes) || [], (o) => "/lake-status?" + new URLSearchParams({ name: o.name, lat: o.lat || "", lng: o.lng || "" }), "💧", (o) => o.name],
-    ["Gateway towns", (nearby && nearby.towns) || [], () => null, "🏘", (o) => o.name + (o.state || st ? ", " + (o.state || st) : "")],
+    // GNIS civil divisions leak into the stored towns ("Justice of the Peace
+    // District 3" is a real GNIS name in Arkansas) — a top-5 shortlist has no
+    // room for a single one of them. Names, not opinions: these are filings,
+    // not places with beds.
+    ["Gateway towns", ((nearby && nearby.towns) || []).filter((o) => !/justice of the peace|election precinct|voting precinct|census|township \d|magisterial|supervisor.s district/i.test(o.name || "")), () => null, "🏘", (o) => o.name + (o.state || st ? ", " + (o.state || st) : "")],
     ["NPS monuments & sites", (nearby && nearby.npsUnits) || [], (o) => "https://www.nps.gov/" + String(o.id || "").replace(/^nps:/, "") + "/", "🏛", (o) => o.name],
   ];
   return (
@@ -1064,15 +1092,31 @@ function Nearby({ park, nearby, radius, setRadius }) {
         </div>
       </div>
       {secs.map(([title, items, href, icon, pqFn]) => {
-        // Gateway towns are radius-driven — show ALL within the slider (not capped at 8).
-        const cap = title === "Gateway towns" ? 60 : 8;
+        // Gateway towns: the TOP FIVE, not the phone book. Nearest-first is
+        // already the sort, and five is a shortlist a person actually reads.
+        const cap = title === "Gateway towns" ? 5 : 24;
         const within = items.map((o) => ({ ...o, distMi: o.distMi != null ? o.distMi : (park && o.lat != null ? Math.round(milesBetween(park, o)) : null) })).filter((o) => o.distMi != null && o.distMi <= radius).sort((a, b) => a.distMi - b.distMi).slice(0, cap);
+        const totalPages = Math.max(1, Math.ceil(within.length / pageSize));
+        const page = Math.min(pages[title] || 0, totalPages - 1);
+        const slice = within.slice(page * pageSize, (page + 1) * pageSize);
+        const turn = (d) => setPages((prev) => ({ ...prev, [title]: Math.min(Math.max(page + d, 0), totalPages - 1) }));
         return (
           <div key={title} style={{ marginBottom: 24 }}>
-            <div style={{ ...microLabel, letterSpacing: ".12em", marginBottom: 12 }}>{icon} {title}</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
+              <div style={{ ...microLabel, letterSpacing: ".12em" }}>{icon} {title}{within.length > 0 ? " · " + within.length : ""}</div>
+              {totalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button onClick={() => turn(-1)} disabled={page === 0} aria-label={"Previous " + title}
+                    style={{ ...pagerBtn, opacity: page === 0 ? 0.35 : 1 }}>‹</button>
+                  <span style={{ ...microLabel, letterSpacing: ".1em" }}>{page + 1} / {totalPages}</span>
+                  <button onClick={() => turn(1)} disabled={page === totalPages - 1} aria-label={"Next " + title}
+                    style={{ ...pagerBtn, opacity: page === totalPages - 1 ? 0.35 : 1 }}>›</button>
+                </div>
+              )}
+            </div>
             {within.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 10 }}>
-                {within.map((o, i) => <NearbyTile key={i} o={o} href={href(o)} pq={pqFn(o)} />)}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(" + cols + ",1fr)", gap: 10 }}>
+                {slice.map((o, i) => <NearbyTile key={page + "-" + i} o={o} href={href(o)} pq={pqFn(o)} />)}
               </div>
             ) : <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)", padding: "14px" }}>{nearby ? "Nothing within " + radius + " mi." : "Loading…"}</div>}
           </div>
@@ -1081,3 +1125,7 @@ function Nearby({ park, nearby, radius, setRadius }) {
     </>
   );
 }
+
+const pagerBtn = { cursor: "pointer", width: 30, height: 30, borderRadius: 999, background: "var(--pb-tint)",
+  border: "1px solid var(--pb-line-strong)", color: "var(--pb-gold)", fontSize: "1rem", lineHeight: 1,
+  display: "flex", alignItems: "center", justifyContent: "center" };

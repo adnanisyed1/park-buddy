@@ -31,6 +31,10 @@ function headers() {
   };
 }
 
+// Exported for the single-tour route (/api/tour) — same key resolution,
+// same version header, one place to change either.
+export function viatorHeaders() { return headers(); }
+
 export function viatorConfigured() {
   return !!viatorKey();
 }

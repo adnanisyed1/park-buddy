@@ -45,7 +45,12 @@ export default function ToursSection({ town, gutter, wrap }) {
         <div style={{ marginTop: 24, display: "grid", gap: 14,
           gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))" }}>
           {tours.map((t) => (
-            <a key={t.code || t.url} href={t.url} target="_blank" rel="sponsored noopener noreferrer"
+            // Internal-first: the card opens OUR listing (/tours/[code]) with
+            // the full description, schedule and gallery; the affiliate exit
+            // to Viator is the listing page's CTA. Cards without a code (rare)
+            // keep the direct exit.
+            <a key={t.code || t.url} href={t.code ? "/tours/" + t.code : t.url}
+              {...(t.code ? {} : { target: "_blank", rel: "sponsored noopener noreferrer" })}
               style={{ display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit",
                 background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 8, overflow: "hidden" }}>
               {t.photo ? (
@@ -69,7 +74,7 @@ export default function ToursSection({ town, gutter, wrap }) {
                     </span>
                   ) : <span />}
                   <span style={{ ...mono, fontSize: 10, fontWeight: 700, letterSpacing: ".08em", color: "var(--pb-gold)" }}>
-                    Book on Viator →
+                    {t.code ? "See the tour →" : "Book on Viator →"}
                   </span>
                 </div>
               </div>

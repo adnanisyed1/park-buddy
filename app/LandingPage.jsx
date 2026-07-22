@@ -481,15 +481,22 @@ const TRIP_FEATURES = [
     ic: <><path d="M4 19c5 0 3-12 8-12s3 12 8 12" /><circle cx="12" cy="7" r="1.6" /></> },
   { t: "Take it anywhere", d: "Share a link, sync days to your calendar, print a PDF — or bind it as a Trip Book.",
     ic: <><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" /><path d="M12 8v6M9.5 11.5 12 14l2.5-2.5" /></> },
+  { t: "Trip Mode", d: "Day-of, hit Start Trip Mode — your plan becomes a live guide, stop to stop.",
+    ic: <><circle cx="12" cy="12" r="8" /><path d="M12 4v2M12 18v2M4 12h2M18 12h2" /><path d="M10 14l5-5-3 6z" /></> },
+  { t: "Pack & Go checklist", d: "A trip-aware checklist — pack, grab, do — that follows you into Trip Mode and the PDF.",
+    ic: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8.5 8.5l1.5 1.5 3-3M8.5 14.5l1.5 1.5 3-3" /></> },
+  { t: "Ask Buddy, mid-plan", d: "Describe your trip in a sentence — the Buddy fills your checklist and answers as you build.",
+    ic: <><path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H10l-4 4v-4H7a3 3 0 0 1-3-3z" /><path d="M9 9h6M9 12h4" /></> },
+  { t: "Route ⇄ Explore", d: "Flip the studio map between your route and the full live Explore map.",
+    ic: <><path d="M7 8h10l-3-3M17 16H7l3 3" /></> },
 ];
 
 function TripStudioSection() {
   return (
-    // Same dissolve treatment as the Pines band, but a gentle tint instead of
-    // a full dark plunge — Explore (dark) → Plan (soft wash) → Pines (dark)
-    // keeps the page's light/dark rhythm breathing.
+    // The SAME dissolve as the Pines band below it (owner call 2026-07-22:
+    // Plan and Pines read as one family) — page bg → deep green → page bg.
     <section style={{ position: "relative", overflow: "hidden" }}>
-      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--pb-bg) 0%, var(--pb-tint) 50%, var(--pb-bg) 100%)" }} />
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--pb-bg), #0c1f15, var(--pb-bg))" }} />
       <div style={{ ...section, position: "relative" }}>
       <div className="pbl-split" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 40, alignItems: "center" }}>
         <div className="pbl-swap pbl-tripcard" style={{ position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", padding: 18, display: "grid", gridTemplateColumns: "1fr 0.9fr", gap: 16, alignItems: "center" }}>
@@ -533,7 +540,7 @@ function TripStudioSection() {
         <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 34px" }}>
           <Eyebrow>Inside Trip Studio</Eyebrow>
           <h3 style={{ fontFamily: serif, fontWeight: 600, fontSize: "clamp(1.5rem,3vw,2.1rem)", lineHeight: 1.1, color: "var(--pb-ink)", margin: "10px 0 0", textWrap: "balance" }}>
-            Eight moves from wishlist to plan.
+            Twelve moves from wishlist to trail.
           </h3>
         </div>
         <div className="pbl-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>

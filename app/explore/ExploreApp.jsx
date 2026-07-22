@@ -169,7 +169,10 @@ function fetchPhoto(p) {
   const cached = cache[p.name];
   if (cached) return Promise.resolve(cached);
   if (cached === false) return Promise.resolve(null);
-  return fetch("/api/photo?name=" + encodeURIComponent(photoTitleFor(p)) + "&state=" + encodeURIComponent(p.state || "") + "&v=6")
+  // Coords ride along so the geotagged-Commons fallback can catch state
+  // parks / forests / lakes whose names miss Wikipedia (QA 2026-07-22).
+  const geo = isFinite(p.lat) && isFinite(p.lng) ? "&lat=" + p.lat.toFixed(4) + "&lng=" + p.lng.toFixed(4) : "";
+  return fetch("/api/photo?name=" + encodeURIComponent(photoTitleFor(p)) + "&state=" + encodeURIComponent(p.state || "") + geo + "&v=6")
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       if (d && d.found) { const url = d.thumb || d.image || null; if (url) { cache[p.name] = url; savePhotoCache(); } return url; }
@@ -571,8 +574,13 @@ export default function ExploreApp() {
       };
       if (window.google && window.google.maps) return resolve(true);
       if (document.getElementById("pb-ex-gm-js") || document.getElementById("pb-shared-gm-js")) {
+        // Bounded poll (QA 2026-07-22): if the script tag exists but Maps
+        // never evaluates (blocked/offline), give up after ~30s instead of
+        // polling forever past unmount.
+        let tries = 0;
         const check = setInterval(() => {
           if (window.google && window.google.maps) { clearInterval(check); resolve(true); }
+          else if (++tries > 250) { clearInterval(check); resolve(false); }
         }, 120);
         return;
       }
@@ -1460,7 +1468,11 @@ export default function ExploreApp() {
 
   return (
     <div style={{ fontFamily: sans, color: "var(--pb-ink)", position: "fixed", inset: 0, background: "var(--pb-bg)", overflow: "hidden" }}>
-      <style>{`
+      {/* dangerouslySetInnerHTML is LOAD-BEARING: text children of <style> get
+          HTML-escaped on the server but not the client (an apostrophe in a CSS
+          comment broke hydration for this whole page). Same scar as
+          ParkStatusV2/LandingPage/BuildTripApp. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         .ex-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
         .ex-scroll::-webkit-scrollbar { background: transparent; }
         .ex-scroll::-webkit-scrollbar-thumb { background: rgba(217,183,121,.22); border-radius: 9px; }
@@ -1481,7 +1493,7 @@ export default function ExploreApp() {
           .ex-hide-mobile { display: none !important; }
           .ex-reopen { top: 126px !important; }
         }
-      `}</style>
+      ` }} />
 
       {/* Shared platform header — with My Trip + the real account/Sign-in slot in it
           (matches the prototype banner; nothing floats below the header for those). */}

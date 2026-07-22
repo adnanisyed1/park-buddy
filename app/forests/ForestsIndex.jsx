@@ -28,7 +28,13 @@ const REGION_ORDER = ["West", "Pacific", "Rockies", "Southwest", "Midwest", "Sou
 
 function ForestTile({ f }) {
   const ref = useRef(null);
-  const photo = usePhoto(f.name, null, null, ref);
+  // Multi-unit forests ("Grand Mesa, Uncompahgre and Gunnison National
+  // Forests") have no single Wikipedia article — split into constituents as
+  // candidates, and pass coords so the geotagged-Commons fallback can catch
+  // whatever the name misses (QA sweep 2026-07-22: these tiles were blank).
+  const parts = f.name.replace(/ National Forests?$/i, "").split(/,| and /).map((s) => s.trim()).filter(Boolean);
+  const candidates = [f.name, ...(parts.length > 1 ? parts.map((p) => p + " National Forest") : [])].join("|");
+  const photo = usePhoto(candidates, f.lat ?? null, f.lng ?? null, ref);
   const slug = f.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return (
     <Link ref={ref} href={"/forests/" + slug} prefetch={false}

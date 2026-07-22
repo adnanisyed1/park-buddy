@@ -6,6 +6,8 @@ import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage"
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { skuFor, unavailableReason, trimInches } from "../../lib/bookPricing";
 import { buildCoverPdf } from "../../lib/coverPdf";
+import { requireAdmin } from "../../lib/adminAuth";
+import { enforce } from "../../lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -68,6 +70,12 @@ export async function GET(request) {
   if (probe && (process.env.LULU_ENV || "").toLowerCase() === "production") {
     return err("Diagnostics are disabled in production.", 403);
   }
+  // …and even in sandbox they're OPERATOR tools (they create real Lulu jobs
+  // and dump raw Lulu payloads) — admin-gated, not public (audit 2026-07-22).
+  if (probe) {
+    const denied = requireAdmin(request);
+    if (denied) return denied;
+  }
   if (probe === "job") {
     const id = u.searchParams.get("id");
     // full=1 returns Lulu's whole job payload — including whatever normalized/preview
@@ -120,6 +128,10 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  // Public (checkout UI calls it for shipping quotes) but proxies to Lulu —
+  // rate-limited so it can't be used as a quote-spam hose (audit 2026-07-22).
+  const limited = await enforce(request, "lulu-cost", { limit: 10, windowMs: 60_000 });
+  if (limited) return limited;
   if (!luluConfigured()) return err("Print fulfillment isn't configured yet.", 503);
   let body;
   try { body = await request.json(); } catch { return err("Bad request."); }

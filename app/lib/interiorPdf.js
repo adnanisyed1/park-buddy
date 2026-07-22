@@ -36,11 +36,33 @@ function dataUrlToImg(u) {
   if (!m) return null;
   try { return { mime: m[1], bytes: Uint8Array.from(Buffer.from(m[2], "base64")) }; } catch { return null; }
 }
-async function fetchImg(url) {
+// SSRF guard (security audit 2026-07-22): these URLs arrive from the client,
+// and this fetch runs server-side — without a gate it could be pointed at
+// cloud metadata (169.254.169.254), localhost, or internal services and the
+// bytes would come back embedded in the returned PDF. Customer photos live
+// in Supabase storage; the studio preview may hand us Wikimedia URLs. HTTPS
+// + host allowlist + no redirects; everything else resolves to the designed
+// typographic page, same as any other unloadable photo.
+const IMG_HOST_OK = /(^|\.)supabase\.(co|in)$|(^|\.)wikimedia\.org$|(^|\.)wikipedia\.org$/i;
+function imgUrlAllowed(url) {
   try {
-    const r = await fetch(url, { headers: { "User-Agent": "ParkBuddy/1.0 (trip book)" } });
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    if (!IMG_HOST_OK.test(u.hostname)) return false;
+    return true;
+  } catch { return false; }
+}
+async function fetchImg(url) {
+  if (!imgUrlAllowed(url)) return null;
+  try {
+    const r = await fetch(url, {
+      headers: { "User-Agent": "ParkBuddy/1.0 (trip book)" },
+      redirect: "error", // a redirect off the allowlist is a bypass — refuse
+      signal: AbortSignal.timeout(15000),
+    });
     if (!r.ok) return null;
     const ct = r.headers.get("content-type") || "";
+    if (!/^image\//i.test(ct)) return null;
     return { mime: ct.includes("png") ? "image/png" : "image/jpeg", bytes: new Uint8Array(await r.arrayBuffer()) };
   } catch { return null; }
 }

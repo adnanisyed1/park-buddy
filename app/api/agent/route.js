@@ -288,7 +288,10 @@ export async function POST(request) {
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const message = body && typeof body.message === "string" ? body.message.trim() : "";
+  // Length caps (audit 2026-07-22): the per-IP and $/day limits protect the
+  // wallet, but a single oversized prompt could drain the GLOBAL daily budget
+  // cheaply. 4k chars ≈ a very long question; nobody types more at a chatbox.
+  const message = body && typeof body.message === "string" ? body.message.trim().slice(0, 4000) : "";
   if (!message) {
     return Response.json({ error: "Body must include a non-empty 'message' string." }, { status: 400 });
   }
@@ -297,6 +300,7 @@ export async function POST(request) {
     ? body.history
         .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
         .slice(-8)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }))
     : [];
 
   // Optional live page context (current trip + checklist) so the agent can analyze
@@ -312,7 +316,7 @@ export async function POST(request) {
       if (c && typeof c.total === "number") {
         bits.push("Checklist has " + c.total + " items" + (Array.isArray(c.items) && c.items.length ? ": " + c.items.map(function (i) { return i.label; }).slice(0, 30).join(", ") : "") + ".");
       }
-      if (bits.length) contextNote = "\n\n[Live page context \u2014 use this to tailor and avoid duplicates]\n" + bits.join("\n");
+      if (bits.length) contextNote = ("\n\n[Live page context \u2014 use this to tailor and avoid duplicates]\n" + bits.join("\n")).slice(0, 4000);
     } catch (e) {}
   }
 

@@ -24,7 +24,9 @@ function DriveTile({ d }) {
   // the elegant placeholder. (Honest > wrong, per the no-wrong-images rule.)
   // Prefer the stored card image (a real Commons photo of the drive); fall back to
   // the name-based Wikipedia lookup only when we don't have one.
-  const photo = usePhoto(d.cardImage ? null : [...(d.wiki || []), d.name].join("|"), null, null, tileRef);
+  // Coords enable the geotagged-Commons fallback when every wiki candidate
+  // misses — matches the detail page's chain (QA sweep 2026-07-22).
+  const photo = usePhoto(d.cardImage ? null : [...(d.wiki || []), d.name].join("|"), d.lat ?? null, d.lng ?? null, tileRef);
   const cardUrl = d.cardImage || (photo && photo.url);
   const bm = d.tier === "all-american"
     ? { bg: "linear-gradient(135deg,#e8cf9a,var(--pb-gold-2))", ink: "#4a3410", label: "All-American Road" }

@@ -235,11 +235,12 @@ function TripBookVignette() {
             <span style={{ fontFamily: serif, fontSize: ".62rem", fontWeight: 700 }}>JUL 21</span>
           </div>
         </div>
-        {/* the cover, opening from the spine */}
-        <div className="pbx-cover" style={{ position: "absolute", inset: 0, transformOrigin: "left center", background: "linear-gradient(150deg,#1e3a29,#0f2318)", border: "1px solid rgba(217,183,121,.4)", borderRadius: "4px 12px 12px 4px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, backfaceVisibility: "hidden" }}>
-          <img src="/brand/the-park-buddy-badge.png" alt="" width={54} height={54} style={{ objectFit: "contain" }} />
-          <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: ".85rem", color: "#e8cf9a" }}>Our Summer Out West</span>
-          <span style={{ fontFamily: mono, fontSize: ".46rem", letterSpacing: ".22em", color: "rgba(232,207,154,.6)" }}>THE PARK BUDDY PRESS</span>
+        {/* the cover, opening from the spine — THE REAL COVER, captured from
+            the Book Studio's live preview (owner ask 2026-07-22: a real book
+            preview, the way the studio itself would show it). */}
+        <div className="pbx-cover" style={{ position: "absolute", inset: 0, transformOrigin: "left center", border: "1px solid rgba(217,183,121,.4)", borderRadius: "4px 12px 12px 4px", overflow: "hidden", backfaceVisibility: "hidden", background: "#101f16" }}>
+          <img src="/media/landing/trip-book-cover-real.jpg" alt="Trip Book cover — Summer Out West"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
       </div>
     </div>

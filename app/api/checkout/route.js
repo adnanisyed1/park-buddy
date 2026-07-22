@@ -10,6 +10,7 @@ import { quote as bookQuote, skuFor, unavailableReason, trimInches, priceFromLan
 import { storageConfigured, uploadSignedPdf, orderKey } from "../../lib/storage";
 import { buildInteriorPdf, resolveEntryImage } from "../../lib/interiorPdf";
 import { buildCoverPdf } from "../../lib/coverPdf";
+import { enforce } from "../../lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -85,6 +86,10 @@ export function GET() {
 }
 
 export async function POST(request) {
+  // The most expensive unauthenticated POST in the app (two PDF builds, Lulu
+  // cost calls, storage uploads) — rate-limit it (audit 2026-07-22).
+  const limited = await enforce(request, "checkout", { limit: 5, windowMs: 60_000 });
+  if (limited) return limited;
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return err("Payments aren't live yet — check back soon.", 503);
   // SAFETY GUARD: refuse a LIVE key unless fulfillment is ready + explicitly enabled.

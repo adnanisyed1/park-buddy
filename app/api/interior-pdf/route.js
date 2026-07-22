@@ -3,10 +3,15 @@
 // the same builder is reused at fulfillment). Layout/spec live in lib/interiorPdf.
 import { buildInteriorPdf } from "../../lib/interiorPdf";
 import { trimInches } from "../../lib/bookPricing";
+import { enforce } from "../../lib/ratelimit";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
+  // Expensive path (full print-PDF build + image fetches) with no auth —
+  // rate-limit it so it can't be used as a compute hose (audit 2026-07-22).
+  const limited = await enforce(request, "interior-pdf", { limit: 6, windowMs: 60_000 });
+  if (limited) return limited;
   let body;
   try { body = await request.json(); } catch { return Response.json({ error: "Bad request." }, { status: 400 }); }
   const entries = Array.isArray(body.entries) ? body.entries.slice(0, 60) : [];

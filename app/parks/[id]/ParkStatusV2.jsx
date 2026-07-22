@@ -285,11 +285,8 @@ export default function ParkStatusV2({ id, kind = "park" }) {
            prose — because the whole picture in one glance beats details that
            push half the picture off-screen. */
         @media (max-width: 640px) {
-          /* weather on a phone: the animated today-tile swaps for a one-line
-             reading (never scale the tile — motion dies sub-pixel), and the
-             hourly / 7-day tile grids become one sideways-scrolling strip. */
-          .ps-nowtile { display: none !important; }
-          .ps-nowline { display: flex !important; }
+          /* weather on a phone: hourly / 7-day tile grids become one
+             sideways-scrolling strip; the today tile is full-width everywhere. */
           .ps-hours { display: flex !important; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
           .ps-hours > div { flex: 0 0 104px; }
           .ps-stats { gap: 6px !important; }
@@ -326,7 +323,6 @@ export default function ParkStatusV2({ id, kind = "park" }) {
               {park && (
                 <SaveButton
                   size={44}
-                  label="Save"
                   place={{
                     kind: isForest ? "forest" : isStatePark ? "statePark" : "park",
                     name: park.name,
@@ -338,14 +334,18 @@ export default function ParkStatusV2({ id, kind = "park" }) {
                   }}
                 />
               )}
-              <a href="/#ask" style={{ textDecoration: "none", cursor: "pointer", fontSize: ".86rem", fontWeight: 600, color: "#f4f1ea", background: "rgba(10,23,18,.5)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "12px 22px" }}>✦ Ask Park Buddy</a>
-              {/* Where the alerts band went. It sits with the other things you can
-                  DO with this park rather than interrupting the way into it, and
-                  still lands on the same card in Conditions. These hero colours
-                  stay literal on purpose — this row sits on a photograph, not on
+              {/* One primary action, two icons. Save is a heart, Alerts is a
+                  bell — both self-explanatory at 44px — and Ask Park Buddy is
+                  gone from here because the bottom bar already owns Ask on
+                  every page. The hero is for the photograph. These colours
+                  stay literal on purpose — this row sits on a photograph, not
                   the page surface, so it can't follow the light/dark tokens. */}
-              <button onClick={goAlerts} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".86rem", fontWeight: 600, color: "#f4f1ea", background: "rgba(10,23,18,.5)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "12px 22px" }}>
-                <span aria-hidden="true">🔔</span> Alerts
+              <button onClick={goAlerts} aria-label="Get alerts for this place" title="Alerts"
+                style={{ cursor: "pointer", width: 44, height: 44, borderRadius: 999, fontSize: "1.05rem",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  color: "#f4f1ea", background: "rgba(10,23,18,.5)", WebkitBackdropFilter: "blur(10px)",
+                  backdropFilter: "blur(10px)", border: "1px solid var(--pb-line-strong)" }}>
+                <span aria-hidden="true">🔔</span>
               </button>
             </div>
           </div>
@@ -625,13 +625,13 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
           the ps-stat classes in the style block, and the notes disappear —
           the counts ARE the story; the details live in the sections below. */}
       <div className="ps-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
-        <StatCard short="Alerts" label="Weather alerts · NWS" value={cond ? (alerts.length ? String(alerts.length) : "None active") : "…"} valueColor={alerts.length ? "#e0906a" : "#7fe3a6"} note={alerts.length ? alerts.slice(0, 2).map((a) => a.event).join(" · ") : "No watches or warnings for the park today."} tint={alerts.length ? "warn" : "good"} />
+        <StatCard short="Alerts" label="Weather alerts · NWS" value={cond ? (alerts.length ? String(alerts.length) : "None") : "…"} valueColor={alerts.length ? "#e0906a" : "#7fe3a6"} note={alerts.length ? alerts.slice(0, 2).map((a) => a.event).join(" · ") : "No watches or warnings for the park today."} tint={alerts.length ? "warn" : "good"} />
         <StatCard short="Wildfires" label="Wildfires · within 80 mi" value={cond ? String(fires.length) : "…"} note={fires.length ? ("Nearest: " + (fires[0].name || "active fire")) : "No active wildfires reported nearby."} />
         <StatCard short="Air" label="Air quality · AirNow" value={aqi ? String(aqi.aqi) : (cond ? "—" : "…")} valueColor={aqi && aqi.aqi <= 50 ? "#7fe3a6" : "#e8cf9a"} note={aqi ? (aqi.category + (aqi.parameter ? " · " + aqi.parameter : "")) : "Air-quality reading unavailable for this area."} />
         {isForest ? (
-          <StatCard short="Roads" label="Roads · USFS" value="Check district" valueColor="#e8cf9a" note="Forest & FS/MVUM roads close seasonally and after storms — check the ranger district before you go." />
+          <StatCard short="Roads" label="Roads · USFS" value="Varies" valueColor="#e8cf9a" note="Forest & FS/MVUM roads close seasonally and after storms — check the ranger district before you go." />
         ) : isStatePark ? (
-          <StatCard short="Roads" label="Roads &amp; access" value="Check the park" valueColor="#e8cf9a" note="Park roads, gates and day-use areas close seasonally and after storms — check the park's official page before you go." />
+          <StatCard short="Roads" label="Roads &amp; access" value="Varies" valueColor="#e8cf9a" note="Park roads, gates and day-use areas close seasonally and after storms — check the park's official page before you go." />
         ) : (
           <StatCard short="Roads" label="Roads · NPS" value={roadText ? "See note" : (road ? "Open" : "…")} valueColor="#e8cf9a" note={roadText || "No road closures reported. Always check NPS.gov before you go."} />
         )}
@@ -668,25 +668,20 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
       <div style={{ ...card, marginTop: 12 }}>
         <div style={{ ...microLabel, marginBottom: 14 }}>Next 12 hours · NWS forecast</div>
         {hourly && hourly[0] && conditionFromSky(hourly[0].shortForecast) && (
-          <>
-            {/* The animated tile must never be SCALED (sub-pixel kills its
-                motion), and on a phone it swallows the screen — so below
-                640px it isn't shrunk, it's swapped for a one-line "right
-                now" reading. Same facts, two renditions. */}
-            <div className="ps-nowtile" style={{ marginBottom: 16 }}>
-              <WeatherTile
-                condition={conditionFromSky(hourly[0].shortForecast)}
-                temp={hourly[0].temperature}
-                label={hourly[0].shortForecast}
-                place={park ? park.name : ""}
-              />
-            </div>
-            <div className="ps-nowline" style={{ display: "none", alignItems: "baseline", gap: 10, marginBottom: 14 }}>
-              <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.7rem" }}>{hourly[0].temperature}°F</span>
-              <span style={{ fontSize: ".9rem", color: "var(--pb-ink-2)" }}>{hourly[0].shortForecast}</span>
-              <span style={{ ...microLabel, marginLeft: "auto" }}>Now</span>
-            </div>
-          </>
+          // Weather-Channel treatment (owner's call): today's sky animates
+          // across the ENTIRE tile width on every screen. Not scaled — the
+          // no-scale rule protects the MOTION, and stretching the stage just
+          // gives the same animation more sky to fall through (particle x
+          // positions are percentages of the stage for exactly this reason).
+          <div style={{ marginBottom: 16 }}>
+            <WeatherTile
+              width="100%"
+              condition={conditionFromSky(hourly[0].shortForecast)}
+              temp={hourly[0].temperature}
+              label={hourly[0].shortForecast}
+              place={park ? park.name : ""}
+            />
+          </div>
         )}
         {hourly ? (
           <div className="ps-hours" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(104px,1fr))", gap: 10 }}>
@@ -774,15 +769,21 @@ function Conditions({ park, cond, road, hourly, daily, webcams, river, tz, alert
           {moon && moon.fraction < 0.35 && <div style={{ marginTop: 12, background: "rgba(90,134,201,.1)", border: "1px solid rgba(90,134,201,.3)", borderRadius: 10, padding: "9px 11px", fontSize: ".78rem", color: "#a9c2e0" }}>🔭 Dark-sky night — great for stargazing.</div>}
         </div>
         <div style={card}>
-          <div style={microLabel}>{gauge ? gauge.name + " · USGS" : "River flow · USGS"}</div>
+          <div style={microLabel}>{gauge ? "River flow · " + gauge.name + " · USGS" : "River flow · USGS"}</div>
           {gauge ? (
             <>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 12 }}>
                 <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.9rem", lineHeight: 1, color: "#7fe3a6" }}>{gauge.cfs.toLocaleString()}</span>
-                <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink-2)" }}>cfs</span>
+                <span style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--pb-ink-2)" }}>CFS</span>
                 {gauge.gaugeFt != null && <span style={{ fontSize: ".78rem", color: "var(--pb-muted)" }}>· {gauge.gaugeFt} ft stage</span>}
               </div>
-              <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 6 }}>Nearest active streamgage · {gauge.distanceMi} mi away</div>
+              {/* CFS means nothing to most people (owner, correctly). Say it
+                  in water: gallons per second, a unit everyone can picture. */}
+              <div style={{ fontSize: ".78rem", color: "var(--pb-ink-2)", marginTop: 6, lineHeight: 1.5 }}>
+                cubic feet per second — about {Math.round(gauge.cfs * 7.48).toLocaleString()} gallons of water
+                moving past every second
+              </div>
+              <div style={{ fontSize: ".74rem", color: "var(--pb-muted)", marginTop: 4 }}>Nearest active streamgage · {gauge.distanceMi} mi away</div>
             </>
           ) : (
             <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", lineHeight: 1.6, marginTop: 10 }}>{river ? "No active USGS streamgage within ~28 mi of the park center." : "Checking USGS streamgages…"}</div>

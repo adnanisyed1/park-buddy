@@ -66,7 +66,9 @@ function makeParticles(kind, seedKey) {
   if (kind === "rain" || kind === "storm") {
     const n = kind === "rain" ? 22 : 16;                    // handoff counts
     return Array.from({ length: n }, () => ({
-      left: 12 + rnd() * (kind === "rain" ? 196 : 200),
+      // percent of stage width, not px: at width:"100%" the rain must fall
+      // across the whole sky, not huddle in the handoff's 236px corner.
+      left: (((12 + rnd() * (kind === "rain" ? 196 : 200)) / 236) * 100) + "%",
       delay: rnd() * (kind === "rain" ? 1.1 : 1.4),
       dur: kind === "rain" ? 0.8 + rnd() * 0.5 : 0.6 + rnd() * 0.4,
       top: kind === "rain" ? 56 : 58,
@@ -75,7 +77,7 @@ function makeParticles(kind, seedKey) {
   }
   if (kind === "snow") {
     return Array.from({ length: 20 }, () => ({
-      left: 12 + rnd() * 198,
+      left: (((12 + rnd() * 198) / 236) * 100) + "%",
       delay: rnd() * 2,
       dur: 2 + rnd() * 1.6,
       size: 2 + rnd() * 2.5,

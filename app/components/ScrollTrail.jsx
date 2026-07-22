@@ -41,9 +41,9 @@ export default function ScrollTrail() {
       })));
     };
 
-    let raf = 0;
+    // Synchronous on scroll: the browser coalesces scroll events per frame,
+    // and an rAF gate stalls in throttled rendering contexts.
     const paint = () => {
-      raf = 0;
       const { total, trackW } = geom.current;
       const p = Math.min(1, Math.max(0, window.scrollY / total));
       if (fillRef.current) fillRef.current.style.transform = `scaleX(${p})`;
@@ -57,21 +57,18 @@ export default function ScrollTrail() {
         if (el) el.dataset.passed = p >= parseFloat(pct) ? "1" : "0";
       }
     };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(paint); };
-
     measure();
     paint();
     // Sections grow as photos/videos load — re-measure when the page's height
     // settles, not just on window resize.
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => { measure(); onScroll(); }) : null;
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => { measure(); paint(); }) : null;
     ro && ro.observe(document.body);
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", paint, { passive: true });
     window.addEventListener("resize", measure);
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", paint);
       window.removeEventListener("resize", measure);
       ro && ro.disconnect();
-      if (raf) cancelAnimationFrame(raf);
     };
   }, []);
 

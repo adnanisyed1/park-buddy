@@ -1633,7 +1633,11 @@ export default function BuildTripApp() {
 
   return (
     <div style={{ fontFamily: sans, color: "var(--pb-ink)", position: "relative", minHeight: "100vh", background: "var(--pb-bg)" }}>
-      <style>{`
+      {/* dangerouslySetInnerHTML is LOAD-BEARING: text children of <style> get
+          HTML-escaped on the server but not the client (the apostrophe in the
+          comment below + the > combinator), which broke hydration for this
+          whole page. Same scar as ParkStatusV2/LandingPage. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         ::selection { background: #c79a4b; color: #15241c; }
         .bt-scroller::-webkit-scrollbar { height: 9px; }
         .bt-scroller::-webkit-scrollbar-thumb { background: rgba(28,46,34,.25); border-radius: 9px; }
@@ -1648,7 +1652,7 @@ export default function BuildTripApp() {
           .bt-sheet-grid { grid-template-columns: 1fr !important; }
           .bt-sheet-grid > div:first-child { position: static !important; }
         }
-      `}</style>
+      ` }} />
 
       {/* ============ LIVING SCENE (dusk-dark) ============ */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", background: "linear-gradient(180deg,#0a1017 0%,#0c1712 52%,#0e1f16 100%)" }}>

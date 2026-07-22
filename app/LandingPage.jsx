@@ -173,6 +173,104 @@ function Reveal({ children, delay = 0, style }) {
   );
 }
 
+/* One tile at a time, advanced by a TIMER (owner ask 2026-07-22): auto-cycles
+   with a linear progress bar while on screen, one manual action hands over
+   control (dots or chevrons), pauses off-screen, disabled under reduced
+   motion. Used by the Explore tools, Trip Studio moves, Shop and Your Edge. */
+function TimerDeck({ slides, cycle = 5200, minHeight = 300 }) {
+  const reduced = usePrefersReducedMotion();
+  const [active, setActive] = useState(0);
+  const [auto, setAuto] = useState(true);
+  const [inView, setInView] = useState(false);
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.3 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!auto || reduced || !inView) return;
+    const t = setTimeout(() => setActive((a) => (a + 1) % slides.length), cycle);
+    return () => clearTimeout(t);
+  }, [auto, reduced, inView, active, cycle, slides.length]);
+  const go = (i) => { setActive((i + slides.length) % slides.length); setAuto(false); };
+  return (
+    <div ref={rootRef} style={{ width: "100%", maxWidth: 660, margin: "0 auto" }}>
+      <div style={{ position: "relative", minHeight }}>
+        <div key={active} className="pbl-deckin">{slides[active]}</div>
+        <button className="pbl-deckbtn" aria-label="Previous" onClick={() => go(active - 1)} style={{ left: -18 }}>‹</button>
+        <button className="pbl-deckbtn" aria-label="Next" onClick={() => go(active + 1)} style={{ right: -18 }}>›</button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 18 }}>
+        {auto && !reduced && inView && (
+          <span className="pbl-deckprog"><span key={active} className="pbl-deckprog-fill" style={{ animationDuration: cycle + "ms" }} /></span>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {slides.map((_, i) => (
+            <button key={i} className="pbl-deckdot" data-on={i === active ? "1" : "0"} aria-label={"Slide " + (i + 1)} onClick={() => go(i)} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* One tile at a time, advanced by YOUR SCROLL (owner ask 2026-07-22 for the
+   verdict engine): the section pins while the wrapper scrolls beneath, a
+   vertical rail's gold fill mirrors scroll 1:1 (ref transform, no re-render),
+   and each third of the scroll distance swaps in the next tile. Reduced
+   motion = plain stacked tiles, no pinning. */
+function ScrollStory({ slides }) {
+  const reduced = usePrefersReducedMotion();
+  const wrapRef = useRef(null), fillRef = useRef(null);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (reduced) return;
+    // Paint synchronously on scroll — the browser already coalesces scroll
+    // events per frame, and routing through rAF adds a frame of lag (and
+    // stalls entirely in throttled/background rendering contexts).
+    const paint = () => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const total = el.offsetHeight - window.innerHeight;
+      const p = Math.min(1, Math.max(0, -el.getBoundingClientRect().top / Math.max(1, total)));
+      if (fillRef.current) fillRef.current.style.transform = `scaleY(${p})`;
+      const i = Math.min(slides.length - 1, Math.floor(p * slides.length));
+      setIdx((prev) => (prev === i ? prev : i));
+    };
+    window.addEventListener("scroll", paint, { passive: true });
+    window.addEventListener("resize", paint);
+    paint();
+    return () => { window.removeEventListener("scroll", paint); window.removeEventListener("resize", paint); };
+  }, [reduced, slides.length]);
+  if (reduced) {
+    return <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 620, margin: "0 auto" }}>{slides.map((s, i) => <div key={i}>{s.tile}</div>)}</div>;
+  }
+  return (
+    <div ref={wrapRef} style={{ height: slides.length * 85 + "vh", position: "relative" }}>
+      <div style={{ position: "sticky", top: 0, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22 }}>
+        <div style={{ display: "flex", gap: 26, alignItems: "stretch", width: "min(640px, 92vw)" }}>
+          {/* the scroll-tracking rail */}
+          <div style={{ position: "relative", width: 2, flex: "none", background: "var(--pb-line)", borderRadius: 1 }}>
+            <span ref={fillRef} style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,#e8cf9a,#c9a35f)", transformOrigin: "top", transform: "scaleY(0)", borderRadius: 1, boxShadow: "0 0 8px rgba(217,183,121,.5)" }} />
+            {slides.map((_, i) => (
+              <span key={i} style={{ position: "absolute", left: "50%", top: ((i + 0.5) / slides.length) * 100 + "%", width: 9, height: 9, margin: "-4.5px 0 0 -4.5px", borderRadius: "50%", background: i <= idx ? "#c9a35f" : "var(--pb-surface)", border: "1.5px solid " + (i <= idx ? "#e8cf9a" : "var(--pb-line-strong)"), transition: "background .3s, border-color .3s" }} />
+            ))}
+          </div>
+          <div style={{ flex: 1, position: "relative", minHeight: 300 }}>
+            <div key={idx} className="pbl-deckin">{slides[idx].tile}</div>
+          </div>
+        </div>
+        <div style={{ fontFamily: mono, fontSize: ".56rem", letterSpacing: ".2em", color: "var(--pb-muted)" }}>
+          {String(idx + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")} — KEEP SCROLLING
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const Eyebrow = ({ children, style }) => (
   <div style={{ fontFamily: mono, fontSize: ".62rem", letterSpacing: ".22em", textTransform: "uppercase", color: "var(--pb-gold-soft)", ...style }}>{children}</div>
 );
@@ -242,38 +340,34 @@ function VerdictEngine() {
         <Eyebrow>The verdict engine</Eyebrow>
         <H2>One honest answer. Zero guesswork.</H2>
       </div>
-      {/* One scrollable line, not a fixed grid — new pipeline entries just append
-          a card and the strip scrolls (snap + edge fades). At today's 3 cards it
-          fills the row exactly like the old grid on desktop. */}
-      <div className="pbl-vstrip" style={{ display: "flex", gap: 16, marginTop: 40, overflowX: "auto", scrollSnapType: "x proximity", WebkitOverflowScrolling: "touch", paddingBottom: 6 }}>
-        {cards.map((c, i) => (
-          <Reveal key={c.t} delay={i * 70} style={{ flex: "0 0 min(352px, 84vw)", scrollSnapAlign: "start", display: "flex" }}>
-          <div style={{ position: "relative", flex: 1, background: "var(--pb-surface)", border: "1px solid var(--pb-line)", borderRadius: 18, padding: "22px 20px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span style={{ fontFamily: mono, fontSize: ".56rem", color: "var(--pb-gold)", border: "1px solid var(--pb-line-strong)", borderRadius: 6, padding: "3px 6px" }}>{"0" + (i + 1)}</span>
-              <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.2rem", color: "var(--pb-ink)" }}>{c.t}</span>
-            </div>
-            {c.verdicts ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {[["GO", "Perfect conditions. Go today."], ["PREPARE", "Conditions changing. Plan carefully."], ["HOLD", "Stay out — closures or hazards."]].map(([v, d]) => (
-                  <div key={v} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <VChip v={v} /><span style={{ fontSize: ".82rem", color: "var(--pb-ink-2)" }}>{d}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9 }}>
-                {c.items.map((it) => (
-                  <li key={it} style={{ display: "flex", gap: 9, fontSize: ".84rem", color: "var(--pb-ink-2)", lineHeight: 1.4 }}>
-                    <span style={{ color: "var(--pb-gold)", flex: "none" }}>›</span>{it}
-                  </li>
-                ))}
-              </ul>
-            )}
+      {/* One tile at a time, driven by YOUR scroll (owner ask 2026-07-22): the
+          section pins, the rail's gold fill tracks the scroll 1:1, and each
+          third of the journey swaps in the next stage of the pipeline. */}
+      <ScrollStory slides={cards.map((c, i) => ({ tile: (
+        <div style={{ position: "relative", background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 18, padding: "26px 24px", minHeight: 280 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <span style={{ fontFamily: mono, fontSize: ".6rem", color: "var(--pb-gold)", border: "1px solid var(--pb-line-strong)", borderRadius: 6, padding: "3px 7px" }}>{"0" + (i + 1)}</span>
+            <span style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.5rem", color: "var(--pb-ink)" }}>{c.t}</span>
           </div>
-          </Reveal>
-        ))}
-      </div>
+          {c.verdicts ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+              {[["GO", "Perfect conditions. Go today."], ["PREPARE", "Conditions changing. Plan carefully."], ["HOLD", "Stay out — closures or hazards."]].map(([v, d]) => (
+                <div key={v} style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                  <VChip v={v} /><span style={{ fontSize: ".92rem", color: "var(--pb-ink-2)" }}>{d}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 11 }}>
+              {c.items.map((it) => (
+                <li key={it} style={{ display: "flex", gap: 10, fontSize: ".94rem", color: "var(--pb-ink-2)", lineHeight: 1.45 }}>
+                  <span style={{ color: "var(--pb-gold)", flex: "none" }}>›</span>{it}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) }))} />
       <p style={{ textAlign: "center", fontFamily: mono, fontSize: ".64rem", letterSpacing: ".08em", color: "var(--pb-muted)", marginTop: 28 }}>
         Updated every 15 minutes from federal data sources. No opinions. No guesses. Just data.
       </p>
@@ -389,6 +483,13 @@ const EXPLORE_FEATURES = [
   { t: "Build as you browse", d: "One tap adds any park, trail or campground to your trip.",
     ic: <><path d="M12 5v14M5 12h14" /></> },
 ];
+// Four themed tiles of three tools each (indexes into EXPLORE_FEATURES).
+const EXPLORE_GROUPS = [
+  { title: "Know before you go", items: [0, 6, 7] },
+  { title: "One map, every place", items: [2, 8, 9] },
+  { title: "Look closer", items: [3, 4, 5] },
+  { title: "Browse like a local", items: [1, 10, 11] },
+];
 
 function ExploreSection() {
   return (
@@ -430,7 +531,9 @@ function ExploreSection() {
         </div>
       </div>
 
-      {/* Everything on the map — one tile per shipped capability */}
+      {/* Everything on the map — twelve tools as FOUR themed tiles on a timer
+          (owner ask 2026-07-22). Each tile carries three tools; the deck
+          auto-advances with a progress bar and yields to dots/chevrons. */}
       <div style={{ marginTop: 64 }}>
         <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 34px" }}>
           <Eyebrow>Everything on the map</Eyebrow>
@@ -438,20 +541,25 @@ function ExploreSection() {
             Twelve tools hiding in one map.
           </h3>
         </div>
-        <div className="pbl-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
-          {EXPLORE_FEATURES.map((f, i) => (
-            <Reveal key={f.t} delay={(i % 4) * 60 + Math.floor(i / 4) * 40} style={{ display: "flex" }}>
-              <div className="pbl-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9, padding: "16px 15px", borderRadius: 14, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)" }}>
-                <span style={{ position: "relative", width: 34, height: 34, borderRadius: 10, background: "rgba(217,183,121,.08)", border: "1px solid var(--pb-line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pb-gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{f.ic}</svg>
-                  {f.pulse && <span className="pbl-pulse" aria-hidden style={{ position: "absolute", right: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: V.GO }} />}
-                </span>
-                <b style={{ fontFamily: serif, fontWeight: 600, fontSize: ".98rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{f.t}</b>
-                <span style={{ fontSize: ".74rem", lineHeight: 1.45, color: "var(--pb-ink-2)" }}>{f.d}</span>
-              </div>
-            </Reveal>
-          ))}
-        </div>
+        <TimerDeck minHeight={330} slides={EXPLORE_GROUPS.map((grp) => (
+          <div key={grp.title} style={{ background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line-strong)", borderRadius: 18, padding: "24px 26px" }}>
+            <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".18em", color: "var(--pb-gold-soft)", marginBottom: 16 }}>{grp.title.toUpperCase()}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {grp.items.map((idx2) => { const f = EXPLORE_FEATURES[idx2]; return (
+                <div key={f.t} style={{ display: "flex", gap: 13, alignItems: "flex-start" }}>
+                  <span style={{ position: "relative", flex: "none", width: 34, height: 34, borderRadius: 10, background: "rgba(217,183,121,.08)", border: "1px solid var(--pb-line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pb-gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{f.ic}</svg>
+                    {f.pulse && <span className="pbl-pulse" aria-hidden style={{ position: "absolute", right: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: V.GO }} />}
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <b style={{ display: "block", fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{f.t}</b>
+                    <span style={{ fontSize: ".8rem", lineHeight: 1.45, color: "var(--pb-ink-2)" }}>{f.d}</span>
+                  </span>
+                </div>
+              ); })}
+            </div>
+          </div>
+        ))} />
         <p style={{ textAlign: "center", marginTop: 26 }}>
           <Link href="/explore" className="pbl-btn" style={{ display: "inline-block", fontFamily: sans, fontWeight: 700, fontSize: ".88rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "12px 24px", textDecoration: "none" }}>Try them all on the live map →</Link>
         </p>
@@ -491,6 +599,13 @@ const TRIP_FEATURES = [
   { t: "Route ⇄ Explore", d: "Flip the studio map between your route and the full live Explore map.",
     ic: <><path d="M7 8h10l-3-3M17 16H7l3 3" /></> },
 ];
+// Four themed tiles of three moves each (indexes into TRIP_FEATURES).
+const TRIP_GROUPS = [
+  { title: "Build it", items: [0, 6, 10] },
+  { title: "Let it plan itself", items: [1, 2, 3] },
+  { title: "Tune it", items: [4, 5, 11] },
+  { title: "Live it", items: [8, 9, 7] },
+];
 
 function TripStudioSection() {
   return (
@@ -516,9 +631,11 @@ function TripStudioSection() {
               </div>
             ))}
           </div>
-          {/* Scenic-route illustration generated for this section (Figma light 12:4) */}
-          <div style={{ position: "relative", aspectRatio: "4/3", borderRadius: 14, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
-            <CoverImg src="/media/landing/scenic-route.jpg" alt="Illustrated scenic route" />
+          {/* THE REAL PRODUCT (owner ask 2026-07-22): a screenshot of Trip
+              Studio's actual itinerary UI — Utah's Mighty 5, captured from
+              /build-trip — replaces the illustrated scenic route. */}
+          <div style={{ position: "relative", aspectRatio: "4/5", borderRadius: 14, overflow: "hidden", border: "1px solid var(--pb-line)" }}>
+            <CoverImg src="/media/landing/trip-itinerary-real.jpg" alt="Trip Studio itinerary — Utah's Mighty 5" imgStyle={{ objectFit: "cover", objectPosition: "top" }} />
           </div>
         </div>
         <div>
@@ -536,7 +653,8 @@ function TripStudioSection() {
         </div>
       </div>
 
-      {/* Inside Trip Studio — one tile per shipped planning feature */}
+      {/* Inside Trip Studio — twelve moves as FOUR themed tiles on a timer,
+          mirroring the Explore deck so the two pillars read identically. */}
       <div style={{ marginTop: 64 }}>
         <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 34px" }}>
           <Eyebrow>Inside Trip Studio</Eyebrow>
@@ -544,19 +662,24 @@ function TripStudioSection() {
             Twelve moves from wishlist to trail.
           </h3>
         </div>
-        <div className="pbl-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
-          {TRIP_FEATURES.map((f, i) => (
-            <Reveal key={f.t} delay={(i % 4) * 60 + Math.floor(i / 4) * 40} style={{ display: "flex" }}>
-              <div className="pbl-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9, padding: "16px 15px", borderRadius: 14, background: "var(--pb-surface)", border: "1px solid var(--pb-line)" }}>
-                <span style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(217,183,121,.08)", border: "1px solid var(--pb-line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pb-gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{f.ic}</svg>
-                </span>
-                <b style={{ fontFamily: serif, fontWeight: 600, fontSize: ".98rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{f.t}</b>
-                <span style={{ fontSize: ".74rem", lineHeight: 1.45, color: "var(--pb-ink-2)" }}>{f.d}</span>
-              </div>
-            </Reveal>
-          ))}
-        </div>
+        <TimerDeck minHeight={330} slides={TRIP_GROUPS.map((grp) => (
+          <div key={grp.title} style={{ background: "var(--pb-surface)", border: "1px solid var(--pb-line-strong)", borderRadius: 18, padding: "24px 26px" }}>
+            <div style={{ fontFamily: mono, fontSize: ".58rem", letterSpacing: ".18em", color: "var(--pb-gold-soft)", marginBottom: 16 }}>{grp.title.toUpperCase()}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {grp.items.map((idx2) => { const f = TRIP_FEATURES[idx2]; return (
+                <div key={f.t} style={{ display: "flex", gap: 13, alignItems: "flex-start" }}>
+                  <span style={{ flex: "none", width: 34, height: 34, borderRadius: 10, background: "rgba(217,183,121,.08)", border: "1px solid var(--pb-line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--pb-gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{f.ic}</svg>
+                  </span>
+                  <span style={{ minWidth: 0 }}>
+                    <b style={{ display: "block", fontFamily: serif, fontWeight: 600, fontSize: "1.05rem", color: "var(--pb-ink)", lineHeight: 1.15 }}>{f.t}</b>
+                    <span style={{ fontSize: ".8rem", lineHeight: 1.45, color: "var(--pb-ink-2)" }}>{f.d}</span>
+                  </span>
+                </div>
+              ); })}
+            </div>
+          </div>
+        ))} />
         <p style={{ textAlign: "center", marginTop: 26 }}>
           <Link href="/build-trip" className="pbl-btn" style={{ display: "inline-block", fontFamily: sans, fontWeight: 700, fontSize: ".88rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "12px 24px", textDecoration: "none" }}>Plan a trip in Trip Studio →</Link>
         </p>
@@ -647,21 +770,20 @@ function ShopSection() {
         </div>
         <Link href="/shop" className="pbl-btn" style={{ fontFamily: sans, fontWeight: 700, fontSize: ".85rem", color: "var(--pb-bg)", background: GOLD, borderRadius: 999, padding: "11px 22px", textDecoration: "none", flex: "none" }}>Shop Now</Link>
       </div>
-      <div className="pbl-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 34 }}>
-        {PRODUCTS.map((p, i) => (
-          <Reveal key={p.l} delay={i * 70} style={{ display: "flex" }}>
-          <Link href={p.href || "/shop"} className="pbl-card" style={{ flex: 1, borderRadius: 18, overflow: "hidden", border: "1px solid var(--pb-line)", background: "var(--pb-surface)", textDecoration: "none" }}>
-            <div style={{ position: "relative", aspectRatio: "4/3", background: "#f2f0ec" }}><CoverImg src={p.src} alt={p.l} style={{ background: "#f2f0ec" }} imgStyle={{ objectFit: "cover" }} /></div>
-            <div style={{ padding: "14px 16px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+      {/* One product at a time on the shared timer deck (owner ask 2026-07-22) */}
+      <div style={{ marginTop: 34 }}>
+        <TimerDeck minHeight={460} slides={PRODUCTS.map((p) => (
+          <Link key={p.l} href={p.href || "/shop"} className="pbl-card" style={{ display: "block", borderRadius: 18, overflow: "hidden", border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", textDecoration: "none" }}>
+            <div style={{ position: "relative", aspectRatio: "16/10", background: "#f2f0ec" }}><CoverImg src={p.src} alt={p.l} style={{ background: "#f2f0ec" }} imgStyle={{ objectFit: "cover" }} /></div>
+            <div style={{ padding: "16px 18px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
               <div>
-                <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.15rem", color: "var(--pb-ink)" }}>{p.l}</div>
-                <div style={{ fontSize: ".78rem", color: "var(--pb-muted)", marginTop: 2 }}>{p.d}</div>
+                <div style={{ fontFamily: serif, fontWeight: 600, fontSize: "1.3rem", color: "var(--pb-ink)" }}>{p.l}</div>
+                <div style={{ fontSize: ".82rem", color: "var(--pb-muted)", marginTop: 2 }}>{p.d}</div>
               </div>
-              <span style={{ fontFamily: mono, fontSize: ".8rem", fontWeight: 700, color: "var(--pb-gold)", flex: "none", marginTop: 3 }}>{p.price}</span>
+              <span style={{ fontFamily: mono, fontSize: ".9rem", fontWeight: 700, color: "var(--pb-gold)", flex: "none", marginTop: 4 }}>{p.price}</span>
             </div>
           </Link>
-          </Reveal>
-        ))}
+        ))} />
       </div>
     </section>
   );
@@ -676,48 +798,45 @@ function VisionSection() {
         <H2>Features no other park app has.</H2>
         <p style={{ fontSize: ".96rem", lineHeight: 1.6, color: "var(--pb-ink-2)", marginTop: 14 }}>Built on real data. Designed for real adventures. <span style={{ color: "var(--pb-gold-soft)" }}>In the works.</span></p>
       </div>
-      <div className="pbl-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginTop: 40 }}>
-        {/* Dark Sky */}
-        <Reveal delay={0} style={{ display: "flex" }}>
-        <div className="pbl-vcard" style={{ ...vcard, flex: 1 }}>
-          <SoonTag />
-          <div style={vIcon}>✦</div>
-          <h3 style={vTitle}>Dark Sky Forecast</h3>
-          <p style={vDesc}>Bortle rating, moon phase, Milky Way visibility and cloud cover for every park. Know exactly when to look up.</p>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, padding: "8px 12px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)" }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%,#fff,#7fa8ff)" }} />
-            <span style={{ fontFamily: mono, fontSize: ".62rem", color: "var(--pb-ink-2)" }}>Bortle 2 — Excellent</span>
-          </div>
-        </div>
-        </Reveal>
-        {/* Passport */}
-        <Reveal delay={70} style={{ display: "flex" }}>
-        <div className="pbl-vcard" style={{ ...vcard, flex: 1 }}>
-          <SoonTag />
-          <div style={vIcon}>◎</div>
-          <h3 style={vTitle}>Digital Passport</h3>
-          <p style={vDesc}>GPS check‑in at every park earns a collectible stamp. Build your collection, track your journey, share your adventures.</p>
-          <div style={{ display: "flex", gap: 7, marginTop: 14, alignItems: "center" }}>
-            {["YOS", "ZIO", "GLA", "YEL"].map((s, i) => (
-              <span key={s} style={{ width: 34, height: 34, borderRadius: "50%", border: "1.5px solid " + (i < 2 ? "var(--pb-gold-2)" : "var(--pb-line-strong)"), color: i < 2 ? "var(--pb-gold)" : "var(--pb-muted)", background: i < 2 ? "rgba(217,183,121,.08)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: ".5rem" }}>{s}</span>
-            ))}
-            <span style={{ fontFamily: mono, fontSize: ".56rem", color: "var(--pb-muted)", marginLeft: 4 }}>12 / 63</span>
-          </div>
-        </div>
-        </Reveal>
-        {/* SOS */}
-        <Reveal delay={140} style={{ display: "flex" }}>
-        <div className="pbl-vcard" style={{ ...vcard, flex: 1 }}>
-          <SoonTag />
-          <div style={vIcon}>⛑</div>
-          <h3 style={vTitle}>Trip Check‑In & SOS</h3>
-          <p style={vDesc}>Auto‑share your itinerary with an emergency contact. One‑tap SOS with the nearest ranger station and your precise location — because someone should always know where you are.</p>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, padding: "8px 12px", borderRadius: 10, background: "rgba(79,217,138,.06)", border: "1px solid " + V.GO + "44" }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: V.GO, boxShadow: "0 0 8px " + V.GO }} />
-            <span style={{ fontFamily: mono, fontSize: ".6rem", color: "var(--pb-ink-2)" }}>Last check‑in: 2h ago · Contact notified</span>
-          </div>
-        </div>
-        </Reveal>
+      {/* One upcoming edge at a time on the shared timer deck */}
+      <div style={{ marginTop: 40 }}>
+        <TimerDeck minHeight={280} slides={[
+          <div key="sky" className="pbl-vcard" style={vcard}>
+            <SoonTag />
+            <div style={vIcon}>✦</div>
+            <h3 style={vTitle}>Dark Sky Forecast</h3>
+            <p style={vDesc}>Bortle rating, moon phase, Milky Way visibility and cloud cover for every park. Know exactly when to look up.</p>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, padding: "8px 12px", borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid var(--pb-line)" }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%,#fff,#7fa8ff)" }} />
+              <span style={{ fontFamily: mono, fontSize: ".62rem", color: "var(--pb-ink-2)" }}>Bortle 2 — Excellent</span>
+            </div>
+          </div>,
+          <div key="pass" className="pbl-vcard" style={vcard}>
+            <SoonTag />
+            <div style={vIcon}>◎</div>
+            <h3 style={vTitle}>Digital Passport</h3>
+            <p style={vDesc}>GPS check‑in at every park earns a collectible stamp. Build your collection, track your journey, share your adventures.</p>
+            <div style={{ display: "flex", gap: 7, marginTop: 14, alignItems: "center" }}>
+              {["YOS", "ZIO", "GLA", "YEL"].map((s, i) => (
+                <span key={s} style={{ width: 34, height: 34, borderRadius: "50%", border: "1.5px solid " + (i < 2 ? "var(--pb-gold-2)" : "var(--pb-line-strong)"), color: i < 2 ? "var(--pb-gold)" : "var(--pb-muted)", background: i < 2 ? "rgba(217,183,121,.08)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: ".5rem" }}>{s}</span>
+              ))}
+              <span style={{ fontFamily: mono, fontSize: ".56rem", color: "var(--pb-muted)", marginLeft: 4 }}>12 / 63</span>
+            </div>
+          </div>,
+          <div key="sos" className="pbl-vcard" style={vcard}>
+            <SoonTag />
+            <div style={vIcon}>⛑</div>
+            <h3 style={vTitle}>Trip Check‑In & SOS</h3>
+            <p style={vDesc}>Auto‑share your itinerary with an emergency contact. One‑tap SOS with the nearest ranger station and your precise location — because someone should always know where you are.</p>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, padding: "8px 12px", borderRadius: 10, background: "rgba(79,217,138,.06)", border: "1px solid " + V.GO + "44" }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: V.GO, boxShadow: "0 0 8px " + V.GO }} />
+              <span style={{ fontFamily: mono, fontSize: ".6rem", color: "var(--pb-ink-2)" }}>Last check‑in: 2h ago · Contact notified</span>
+            </div>
+          </div>,
+        ]} />
+        <p style={{ textAlign: "center", fontFamily: mono, fontSize: ".62rem", letterSpacing: ".08em", color: "var(--pb-muted)", marginTop: 24 }}>
+          …and that's just what's on the bench. The map, the studio and the book keep growing every week.
+        </p>
       </div>
     </section>
   );
@@ -799,7 +918,10 @@ export default function LandingPage() {
     <div className="pb-theme">
       <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: -1 }} />
       <SiteHeader active={null} />
-      <main style={{ fontFamily: sans, color: "var(--pb-ink)", overflowX: "hidden" }}>
+      {/* overflow-x CLIP, not hidden: hidden turns main into a scroll container
+          and silently kills every position:sticky inside (the verdict scroll
+          story pins on sticky). clip clips without the scroll context. */}
+      <main style={{ fontFamily: sans, color: "var(--pb-ink)", overflowX: "clip" }}>
         <Hero />
         <div data-trail-stop="One place"><PillarShowcase /></div>
         <div data-trail-stop="The verdict engine"><VerdictEngine /></div>
@@ -838,6 +960,27 @@ export default function LandingPage() {
         .pbl-swapin { animation: pblIn .3s var(--pb-ease-out) both; }
         .pbl-pop { animation: pblPop .35s var(--pb-ease-out) .12s both; }
         @keyframes pblPop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+
+        /* deck primitives: keyed slide entrance, chevrons, dots, timer bar */
+        .pbl-deckin { animation: pblDeckIn .45s var(--pb-ease-out) both; }
+        @keyframes pblDeckIn { from { opacity: 0; transform: translateY(14px) scale(.99); } to { opacity: 1; transform: none; } }
+        .pbl-deckbtn { position: absolute; top: 50%; margin-top: -17px; width: 34px; height: 34px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.05rem; line-height: 1;
+          background: var(--pb-surface); border: 1px solid var(--pb-line-strong); color: var(--pb-gold);
+          transition: transform .16s var(--pb-ease-out), border-color .22s ease; z-index: 2; }
+        .pbl-deckbtn:active { transform: scale(0.92); }
+        @media (hover:hover) and (pointer:fine){ .pbl-deckbtn:hover { border-color: rgba(217,183,121,.6); } }
+        .pbl-deckdot { width: 8px; height: 8px; border-radius: 50%; padding: 0; cursor: pointer;
+          background: var(--pb-surface); border: 1.5px solid var(--pb-line-strong);
+          transition: transform .16s var(--pb-ease-out), background .25s, border-color .25s; }
+        .pbl-deckdot[data-on="1"] { background: #c9a35f; border-color: #e8cf9a; }
+        .pbl-deckdot:active { transform: scale(0.8); }
+        @media (hover:hover) and (pointer:fine){ .pbl-deckdot:hover { transform: scale(1.4); } }
+        .pbl-deckprog { width: 130px; height: 2px; border-radius: 1px; background: var(--pb-line); overflow: hidden; display: block; }
+        .pbl-deckprog-fill { display: block; height: 100%; background: linear-gradient(90deg,#e8cf9a,#c9a35f);
+          transform-origin: left; animation: pblDeckProg linear forwards; }
+        @keyframes pblDeckProg { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        @media (prefers-reduced-motion: reduce){ .pbl-deckin { animation: pblFadeOnly .2s ease both; } .pbl-deckprog { display: none; } }
 
         /* trusted-sources streams: dashes flow along normalized paths (pathLength=100,
            period 3+17=20 → offset -20 loops seamlessly). Constant motion = linear. */

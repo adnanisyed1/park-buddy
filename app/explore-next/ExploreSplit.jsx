@@ -55,6 +55,13 @@ const CATS = [
   { key: "nps_unit", label: "Monuments & sites" },
 ];
 
+// Monuments start OFF on purpose (410 units would drown the 63 parks), so
+// "has the user filtered?" must be measured against THIS, not against
+// everything-on — otherwise a fresh page opens already wearing a filter
+// badge, and the quiet default is never quiet.
+const DEFAULT_CATS = { national_park: true, national_forest: true, state_park: true, nps_unit: false };
+const catsAreDefault = (c) => CATS.every(({ key }) => !!c[key] === !!DEFAULT_CATS[key]);
+
 // A National Park Service unit is anything from a monument to a battlefield, so
 // name it by its own designation rather than one flat label.
 const NPS_DESIGNATIONS = [
@@ -233,7 +240,7 @@ export default function ExploreSplit() {
   const [dataErr, setDataErr] = useState("");
   const [origin, setOrigin] = useState(null);          // { name, lat, lng, state }
   const [radius, setRadius] = useState(100);           // miles; null = any
-  const [cats, setCats] = useState({ national_park: true, national_forest: true, state_park: true, nps_unit: false });
+  const [cats, setCats] = useState(DEFAULT_CATS);
   const [dataNote, setDataNote] = useState("");
   const [conds, setConds] = useState({ go: true, prepare: true, hold: true });
   const [stateFilter, setStateFilter] = useState("");
@@ -934,7 +941,8 @@ export default function ExploreSplit() {
   const activeFilters =
     (stateFilter ? 1 : 0) +
     (origin && radius !== 100 ? 1 : 0) +
-    ((!conds.go || !conds.prepare || !conds.hold) ? 1 : 0);
+    ((!conds.go || !conds.prepare || !conds.hold) ? 1 : 0) +
+    (!catsAreDefault(cats) ? 1 : 0);
 
   const states = useMemo(
     () => Array.from(new Set(places.map((p) => p.state).filter(Boolean))).sort(),
@@ -1154,14 +1162,17 @@ function Header(props) {
           anything set inside the popover (state, radius, hidden conditions)
           appears here as a removable chip — so closed-popover state is never
           invisible, and nothing is stated in two places. */}
+      {/* Every filter lives in ONE place — the Filters panel. This row only
+          REPORTS: the door in, then a removable chip per active selection.
+          Nothing here edits anything except by removal, so there are never
+          two competing filter surfaces. Untouched filters add no chrome:
+          the default state is one small button and silence. */}
       <div style={phone
-        // On a phone the chips are ONE line that scrolls sideways — wrapping
-        // stacked them three rows tall and buried the first place card below
-        // ~250px of controls. Sideways scroll is the native phone idiom for
-        // chip rows; the negative margins bleed the scroll area to the panel
-        // edges so chips don't clip mid-pill at the padding line.
+        // One line that scrolls sideways on a phone; the negative margins
+        // bleed the scroll area to the panel edges so a chip peeking
+        // off-screen reads as "scroll me" instead of clipping mid-pill.
         ? { display: "flex", gap: 6, flexWrap: "nowrap", overflowX: "auto", alignItems: "center",
-            marginTop: 10, margin: "10px -14px 0", padding: "0 14px 2px",
+            margin: "10px -14px 0", padding: "0 14px 2px",
             WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }
         : { display: "flex", gap: 7, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
         <button onClick={() => setFiltersOpen((v) => !v)}
@@ -1175,26 +1186,17 @@ function Header(props) {
               display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{activeFilters}</span>
           )}
         </button>
-        {CATS.map((c) => (
-          <Chip key={c.key} on={cats[c.key]} onClick={() => setCats((s) => ({ ...s, [c.key]: !s[c.key] }))}
-            count={catCounts[c.key]}>
-            {c.label}
-          </Chip>
-        ))}
-        {CATS.some((c) => !cats[c.key]) && (
-          <button onClick={() => setCats({ national_park: true, national_forest: true, state_park: true, nps_unit: true })}
-            style={{ cursor: "pointer", background: "none", border: "none", color: "var(--pb-gold)",
-              fontFamily: "var(--pb-sans)", fontSize: ".78rem", fontWeight: 600, padding: "0 4px",
-              whiteSpace: "nowrap", flex: "none" }}>
-            Show all
-          </button>
-        )}
         {!origin && (
           <button onClick={onMyLocation} style={{ ...pillBtn, fontSize: ".78rem" }}>
             ◎ Near me
           </button>
         )}
-        {/* applied-in-popover state, surfaced and removable */}
+        {/* one chip per selection, each removable */}
+        {!catsAreDefault(cats) && (
+          <AppliedChip onClear={() => setCats(DEFAULT_CATS)}>
+            {CATS.filter((c) => cats[c.key]).map((c) => c.label).join(" · ") || "No types"}
+          </AppliedChip>
+        )}
         {stateFilter && (
           <AppliedChip onClear={() => setStateFilter("")}>{stateFilter}</AppliedChip>
         )}
@@ -1251,10 +1253,14 @@ function Header(props) {
       {filtersOpen && (
         <FilterPopover
           onClose={() => setFiltersOpen(false)}
+          cats={cats} setCats={setCats} catCounts={catCounts}
           conds={conds} setConds={setConds}
           states={states} stateFilter={stateFilter} setStateFilter={setStateFilter}
           origin={origin} radius={radius} setRadius={setRadius}
-          onReset={() => { setConds({ go: true, prepare: true, hold: true }); setStateFilter(""); setRadius(100); }}
+          onReset={() => {
+            setCats(DEFAULT_CATS);
+            setConds({ go: true, prepare: true, hold: true }); setStateFilter(""); setRadius(100);
+          }}
           count={count}
         />
       )}
@@ -1262,13 +1268,14 @@ function Header(props) {
   );
 }
 
-function FilterPopover({ onClose, conds, setConds, states, stateFilter, setStateFilter, origin, radius, setRadius, onReset, count }) {
+function FilterPopover({ onClose, cats, setCats, catCounts, conds, setConds, states, stateFilter, setStateFilter, origin, radius, setRadius, onReset, count }) {
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-      <div style={{ position: "absolute", top: 66, right: 24, width: 340, zIndex: 41,
+      <div style={{ position: "absolute", top: 66, right: 24, width: 340, maxWidth: "calc(100vw - 32px)", zIndex: 41,
         background: "var(--pb-glass-strong)", border: "1px solid var(--pb-line-strong)",
         borderRadius: 16, padding: "4px 0 16px", backdropFilter: "blur(18px)",
+        maxHeight: "72vh", overflowY: "auto",
         boxShadow: "0 18px 44px -18px rgba(0,0,0,.6)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px 12px" }}>
           <b style={{ fontSize: ".95rem" }}>Filters</b>
@@ -1276,7 +1283,20 @@ function FilterPopover({ onClose, conds, setConds, states, stateFilter, setState
             color: "var(--pb-gold)", fontSize: ".78rem", fontWeight: 600 }}>Reset</button>
         </div>
 
-        <div style={{ ...micro, padding: "10px 16px 8px" }}>Today&rsquo;s conditions</div>
+        {/* Place type lives here with everything else now — the bar outside
+            only reports selections. Counts stay: subtraction should be
+            legible while you're doing it. */}
+        <div style={{ ...micro, padding: "10px 16px 8px" }}>Place type</div>
+        <div style={{ display: "flex", gap: 6, padding: "0 16px", flexWrap: "wrap" }}>
+          {CATS.map((c) => (
+            <Chip key={c.key} on={cats[c.key]} onClick={() => setCats((s) => ({ ...s, [c.key]: !s[c.key] }))}
+              count={catCounts[c.key]}>
+              {c.label}
+            </Chip>
+          ))}
+        </div>
+
+        <div style={{ ...micro, padding: "14px 16px 8px" }}>Today&rsquo;s conditions</div>
         <div style={{ display: "flex", gap: 6, padding: "0 16px", flexWrap: "wrap" }}>
           {[["go", "Good", "var(--pb-go)"], ["prepare", "Prepare", "var(--pb-prepare)"], ["hold", "Hold", "var(--pb-hold)"]].map(([k, label, c]) => (
             <Chip key={k} on={conds[k]} onClick={() => setConds((s) => ({ ...s, [k]: !s[k] }))} dot={c}>{label}</Chip>

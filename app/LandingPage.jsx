@@ -393,8 +393,12 @@ const EXPLORE_FEATURES = [
 function ExploreSection() {
   return (
     // Intentional dark feature-band — stays dark even in Light mode (per the light
-    // Figma). `.pb-forcedark` re-asserts the dark --pb-* tokens for this subtree.
-    <section className="pb-forcedark" style={{ background: "var(--pb-bg)" }}>
+    // Figma). The gradient lives OUTSIDE the .pb-forcedark subtree so its ends
+    // resolve to the OUTER theme's --pb-bg (cream in Light), dissolving the band
+    // into the page the way the Pines band does — no hard seams.
+    <section style={{ position: "relative", overflow: "hidden" }}>
+     <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--pb-bg) 0%, #0a1712 7%, #0a1712 93%, var(--pb-bg) 100%)" }} />
+     <div className="pb-forcedark" style={{ position: "relative" }}>
      <div style={{ ...section }}>
       <div className="pbl-split" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 40, alignItems: "center" }}>
         <div>
@@ -452,6 +456,7 @@ function ExploreSection() {
         </p>
       </div>
      </div>
+     </div>
     </section>
   );
 }
@@ -459,7 +464,12 @@ function ExploreSection() {
 /* ====================== TRIP STUDIO ====================== */
 function TripStudioSection() {
   return (
-    <section style={{ ...section }}>
+    // Same dissolve treatment as the Pines band, but a gentle tint instead of
+    // a full dark plunge — Explore (dark) → Plan (soft wash) → Pines (dark)
+    // keeps the page's light/dark rhythm breathing.
+    <section style={{ position: "relative", overflow: "hidden" }}>
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--pb-bg) 0%, var(--pb-tint) 50%, var(--pb-bg) 100%)" }} />
+      <div style={{ ...section, position: "relative" }}>
       <div className="pbl-split" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 40, alignItems: "center" }}>
         <div className="pbl-swap pbl-tripcard" style={{ position: "relative", borderRadius: 20, overflow: "hidden", border: "1px solid var(--pb-line-strong)", background: "var(--pb-surface)", padding: 18, display: "grid", gridTemplateColumns: "1fr 0.9fr", gap: 16, alignItems: "center" }}>
           <div>
@@ -495,6 +505,7 @@ function TripStudioSection() {
           </div>
           <Link href="/build-trip" style={{ fontFamily: sans, fontWeight: 700, fontSize: ".9rem", color: "var(--pb-gold)", textDecoration: "none" }}>Open Trip Studio →</Link>
         </div>
+      </div>
       </div>
     </section>
   );
@@ -720,14 +731,7 @@ export default function LandingPage() {
         <div data-trail-stop="One place"><PillarShowcase /></div>
         <div data-trail-stop="The verdict engine"><VerdictEngine /></div>
         <div data-trail-stop="Trusted sources"><TrustedSources /></div>
-        <div data-trail-stop="Explore">
-          {/* Feather the light→dark seam — the audit's harshest section cut.
-              #0a1712 is the forced-dark band's own bg, so the gradient lands
-              exactly on it in both themes (dark→dark is a no-op). */}
-          <div aria-hidden style={{ height: 90, background: "linear-gradient(180deg, var(--pb-bg), #0a1712)" }} />
-          <ExploreSection />
-          <div aria-hidden style={{ height: 90, background: "linear-gradient(180deg, #0a1712, var(--pb-bg))" }} />
-        </div>
+        <div data-trail-stop="Explore"><ExploreSection /></div>
         <div data-trail-stop="Build Trips"><TripStudioSection /></div>
         <div data-trail-stop="Pines"><PinesSection /></div>
         <div data-trail-stop="Shop"><ShopSection /></div>

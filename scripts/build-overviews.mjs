@@ -191,6 +191,8 @@ const SYSTEM = `You write place overviews for Park Buddy, a US parks travel plat
 
 You receive a DOSSIER of verified facts. THE ONLY facts you may state are the ones in the dossier. Never invent a trail, view, animal, event, or claim. Every number you write must appear in the dossier, verbatim or correctly rounded. If a section lacks enough dossier material, return null for it.
 
+Write only from facts that ARE present. Never mention that a fact is missing, unavailable, or "not recorded" — the reader is a traveler, not a data auditor. A gap in the dossier is silently omitted, never narrated.
+
 Return STRICT JSON, no markdown:
 {
  "whyCome": "...",    // 40-75 words. What draws people: visitation numbers/rank when present, the hand-written summary's landmarks, the lede's essence.
@@ -251,7 +253,12 @@ export async function main() {
     console.log("ANTHROPIC_API_KEY not set (env or .env.local). Dossiers work without it; generation does not.");
     process.exit(1);
   }
-  const ids = Object.keys(GEO.places);
+  // --only zion,yellowstone → pilot a handful of places before paying for
+  // the full set (voice review comes before volume).
+  const oi = process.argv.indexOf("--only");
+  const only = oi > -1 ? (process.argv[oi + 1] || "").toLowerCase().split(",").filter(Boolean) : null;
+  const ids = Object.keys(GEO.places).filter(
+    (id) => !only || only.some((q) => id.toLowerCase().includes(q)));
   let done = 0;
   for (const id of ids) {
     const file = join(CACHE_DIR, safe(id) + ".json");

@@ -1,11 +1,41 @@
 {
- "generatedAt": null,
+ "generatedAt": "2026-07-22T03:41:25.345Z",
  "places": {
+  "nps:great-smoky-mountains": {
+   "whyCome": "The most visited national park in the United States, drawing 11,527,939 visits in 2025 and ranking 1 of 59. These are ancient mountains wreathed in blue mist, a subrange of the Appalachians rising along the Tennessee–North Carolina border. Established in 1934 and known for extraordinary biodiversity, the Smokies protect most of the range across the two states.",
+   "dontMiss": "The park is embraced by three national forests, all sharing its boundary: Cherokee National Forest (1,228,298 acres), Nantahala National Forest (1,320,763 acres), and Pisgah National Forest (1,160,338 acres). Together they extend more than three and a half million acres of adjoining public land beyond the park's own 519,621 acres, opening far more country to explore than the park boundary alone suggests.",
+   "whenToGo": "Autumn is the driest window: October typically sees highs near 61°F, lows around 44°F, and about 11 wet days, matched by November. Spring brings milder days, with April highs near 59°F and 14 wet days. Summer is warmest but wettest, with July highs around 76°F and roughly 24 wet days.",
+   "whereToBase": "Pittman Center sits inside the park itself. Gatlinburg lies just 0.7 miles from the boundary, with Townsend at 1.5 miles and Bryson City at 2.2 miles. Fontana Dam, 1.3 miles out, offers another approach on the North Carolina side."
+  },
+  "nps:rocky-mountain": {
+   "whyCome": "The sixth most-visited national park in the United States, drawing 4,171,431 visits in 2025, Rocky Mountain spans 267,271 acres of high Colorado terrain. Trail Ridge Road crests at 12,183 feet through alpine tundra, while the Continental Divide runs the length of the park — a landscape defined by elevation, open sky, and the roof of the Southern Rockies.",
+   "dontMiss": "The park is ringed by vast public land, expanding the wild country well beyond its boundaries. Medicine Bow-Routt National Forest borders it with 4,592,798 acres, alongside the Arapaho and Roosevelt National Forests at 2,491,783 acres and the Routt National Forest at 1,249,143 acres. Together they offer near-limitless forest to explore right where the park ends.",
+   "whenToGo": "September is typically the driest stretch, with highs near 52°F, lows around 30°F, and about 11 wet days. October cools further, with highs near 38°F and only 9 wet days. Summer runs warmer but wetter — July sees highs of 59°F and roughly 20 wet days.",
+   "whereToBase": "Estes Park sits 0.8 miles from the boundary and is the largest hub, with 46 lodgings and 59 places to eat, plus brewery and ski tags. Grand Lake lies just 0.2 miles out, offering 6 lodgings and 16 eateries. Granby, 8.9 miles away, adds 1 lodging and 7 food options."
+  },
+  "nps:yellowstone": {
+   "whyCome": "The world's first national park, established in 1872, Yellowstone drew 4,762,988 visits in 2025, ranking third among the 59 US national parks. It's known for its wildlife and geothermal features — half of Earth's, including the famous Old Faithful geyser — set atop a vast volcanic landscape in Wyoming's northwest corner, reaching into Montana and Idaho.",
+   "dontMiss": "Yellowstone spans 2,199,689 acres and is ringed by public land. Caribou-Targhee, Shoshone, and Custer Gallatin National Forests all share its boundary, while Bridger-Teton lies about a mile away — millions of additional acres to explore. Grand Teton National Park sits just 3 miles off, making a two-park itinerary easy to combine.",
+   "whenToGo": "Summer is the reliable window: July typically sees highs near 73°F with lows around 45°F and just 9 wet days, while September stays mild at about 62°F with only 8 wet days. Winter runs cold, with January highs near 21°F.",
+   "whereToBase": "West Yellowstone sits closest, just 0.3 miles from the boundary. Warm River lies about 11.1 miles out, and Island Park around 12.3 miles from the park's edge — all outside the boundary and within easy reach of the western entrance."
+  },
+  "nps:yosemite": {
+   "whyCome": "The fifth most visited US national park, drawing 4,278,413 visits in 2025, Yosemite is a glacier-carved valley of incomparable beauty that helped launch American conservation. El Capitan and Half Dome rise over the valley floor, while Bridalveil Fall spills from the granite. Internationally recognized for its cliffs, waterfalls, giant sequoia groves, and biological diversity, it earned World Heritage status in 1984.",
+   "dontMiss": "Spanning 746,636 acres across four counties, Yosemite is one of the largest, least fragmented habitat blocks in the Sierra Nevada, with almost 95 percent designated wilderness. It is bordered by Sierra National Forest to the southeast and Stanislaus National Forest to the northwest, and adjoins the Inyo and Humboldt-Toiyabe National Forests, extending protected wildland well beyond the park's own vast granite country.",
+   "whenToGo": "July and August typically bring the warmest, driest conditions, with highs near 74°F and 71°F, lows in the low 40s, and only about 4 wet days each month. September stays mild, with highs around 64°F and roughly 6 wet days, as summer crowds ease.",
+   "whereToBase": "Big Tree sits closest, about 2 miles from the boundary. Mammoth Lakes lies roughly 15.8 miles out, and Mariposa about 17.2 miles away, both common gateways. For a wider base, Sonora is around 27.1 miles from the park."
+  },
+  "nps:zion": {
+   "whyCome": "Zion draws nearly 5 million visits a year, ranking 2 of 59 US national parks in 2025. The reason is written into the rock: sheer 2,000-foot walls of Navajo sandstone framing the Virgin River. Landmark routes like Angels Landing, The Narrows, and Emerald Pools carry travelers deep into a landscape few other places can match.",
+   "dontMiss": "Zion spans 148,976 acres, and the surrounding public land extends the terrain well beyond its boundary. Dixie National Forest, some 1,711,285 acres, sits about 3 miles away, while the 1,581,389-acre Kaibab National Forest lies roughly 24 miles off. Together they wrap the park in a vast expanse of high-country forest worth building extra days around.",
+   "whenToGo": "Spring and fall tend to be the most comfortable windows. April typically sees highs near 61 and lows around 35 with only about 3 wet days, while October averages highs of 65 and lows of 41. Midsummer runs hot, with July highs around 89.",
+   "whereToBase": "Springdale sits just 0.4 miles from the boundary, making it the closest and most convenient base. Rockville, about 1.6 miles out, offers a quieter alternative nearby, while Kanarraville, roughly 2.3 miles from the park, rounds out the options for travelers wanting a smaller-town setting."
+  },
   "usfs:ar-ouachita-national-forest": {
-   "whyCome": "One of the South's great national forests: 2.7 million acres of the Ouachita Mountains running from western Arkansas into eastern Oklahoma. People come for the scale itself \u2014 ridge-and-valley country big enough to absorb a week of driving, hiking and camping without repeating a view.",
-   "dontMiss": "The forest sits a single mile from Hot Springs National Park \u2014 and dwarfs it, 2.7 million acres beside 5,483. Many visitors tour the park and never realize the far larger, far emptier public land next door. The Ozark-St. Francis forests lie just four miles beyond it to the north.",
-   "whenToGo": "October is typically the sweet spot \u2014 days around 76\u00b0F, nights in the mid-50s, and only about 8 wet days. April and May run 71-79\u00b0F but are the wettest stretch, 12-13 wet days a month. July and August typically top 90\u00b0F.",
-   "whereToBase": "Mount Ida and Oden both sit inside the forest boundary on its eastern side, with Norman and Black Springs deeper in \u2014 staying in any of them means waking up already on forest land."
+   "whyCome": "One of the South's great national forests: 2.7 million acres of the Ouachita Mountains running from western Arkansas into eastern Oklahoma. People come for the scale itself — ridge-and-valley country big enough to absorb a week of driving, hiking and camping without repeating a view.",
+   "dontMiss": "The forest sits a single mile from Hot Springs National Park — and dwarfs it, 2.7 million acres beside 5,483. Many visitors tour the park and never realize the far larger, far emptier public land next door. The Ozark-St. Francis forests lie just four miles beyond it to the north.",
+   "whenToGo": "October is typically the sweet spot — days around 76°F, nights in the mid-50s, and only about 8 wet days. April and May run 71-79°F but are the wettest stretch, 12-13 wet days a month. July and August typically top 90°F.",
+   "whereToBase": "Mount Ida and Oden both sit inside the forest boundary on its eastern side, with Norman and Black Springs deeper in — staying in any of them means waking up already on forest land."
   }
  }
 }

@@ -14,6 +14,7 @@ import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
 import PillarShowcase from "./components/PillarShowcase";
 import ScrollTrail from "./components/ScrollTrail";
+import { useTheme } from "./lib/theme";
 
 const GOLD = "linear-gradient(120deg,#e8cf9a,#c9a35f)";
 const serif = "var(--pb-serif)", sans = "var(--pb-sans)", mono = "var(--pb-mono)";
@@ -392,9 +393,10 @@ const EXPLORE_FEATURES = [
 function ExploreSection() {
   return (
     // THE band recipe (one pattern, used by Explore, Plan and Pines alike —
-    // owner call 2026-07-22): page bg → deep green #0c1f15 → page bg. With
-    // the landing now dark-only, the three bands read as identical slow
-    // swells of the same green, exactly like the Figma page.
+    // owner call 2026-07-22): page bg → deep green #0c1f15 → page bg. The
+    // ends resolve to the CURRENT theme's bg (this gradient sits outside the
+    // .pb-forcedark subtree), so in Dark the band matches the Figma page 1:1
+    // and in Light it dissolves from cream — same three swells either way.
     <section style={{ position: "relative", overflow: "hidden" }}>
      <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, var(--pb-bg), #0c1f15, var(--pb-bg))" }} />
      <div className="pb-forcedark" style={{ position: "relative" }}>
@@ -766,18 +768,19 @@ function Footer() {
 }
 
 export default function LandingPage() {
-  // The landing is DARK-ONLY (owner call 2026-07-22, aligning the site to the
-  // Figma rendition): one continuous dark story from hero to close, no
-  // cream-to-dark jumps between sections. Same precedent as Explore, which
-  // has always stayed dark. .pb-forcedark pins the dark tokens for the whole
-  // subtree regardless of the user's theme choice.
+  // BOTH themes, ONE pattern (owner call 2026-07-22, second pass): the light
+  // theme stays — Dark mode renders the exact Figma continuous-dark story,
+  // Light mode renders the cream story. Consistency comes from the shared
+  // band recipe (bg → #0c1f15 → bg): its ENDS are var(--pb-bg), so the same
+  // three green swells dissolve into whichever page color the theme sets.
+  const theme = useTheme();
   useEffect(() => {
     const prev = document.body.style.background;
-    document.body.style.background = "#0a1712";
+    document.body.style.background = theme === "light" ? "#faf8f4" : "#0a1712";
     return () => { document.body.style.background = prev; };
-  }, []);
+  }, [theme]);
   return (
-    <div className="pb-forcedark">
+    <div className="pb-theme">
       <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: -1 }} />
       <SiteHeader active={null} />
       <main style={{ fontFamily: sans, color: "var(--pb-ink)", overflowX: "hidden" }}>

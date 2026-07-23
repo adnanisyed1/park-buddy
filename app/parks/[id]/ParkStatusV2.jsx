@@ -1425,6 +1425,7 @@ function ThingsToDoTab({ park, isNP }) {
                   <div key={s.sci} style={{ ...card, padding: 0, overflow: "hidden" }}>
                     <figure style={{ position: "relative", aspectRatio: "1/1", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
                       {s.photo && <img src={s.photo} alt={s.name} title={s.credit || undefined} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                      {s.caution && <span title={s.caution} style={{ position: "absolute", left: 8, top: 8, background: "rgba(20,14,8,.82)", color: "var(--pb-hold)", fontFamily: mono, fontSize: ".56rem", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", borderRadius: 999, padding: "3px 9px" }}>⚠ Keep distance</span>}
                     </figure>
                     <div style={{ padding: "10px 12px" }}>
                       <div style={{ fontSize: ".82rem", fontWeight: 800, lineHeight: 1.25 }}>{s.name}</div>
@@ -1435,6 +1436,33 @@ function ThingsToDoTab({ park, isNP }) {
               </div>
             </div>
           ))}
+
+          {/* The dangerous neighbors the top ten didn't surface — bears, lions,
+              rattlers. Matched against real local observations, so a Florida
+              page warns about gators and a Colorado page about moose — never
+              a generic scare list. */}
+          {(wild.caution || []).length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                <div style={{ ...microLabel, letterSpacing: ".12em", color: "var(--pb-hold)" }}>⚠ Watch out for · {wild.caution.length}</div>
+                <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Confirmed in this area. NPS rule of thumb: 25 yards from most wildlife, 100 from bears and wolves.</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 10 }}>
+                {wild.caution.map((s) => (
+                  <div key={s.sci} style={{ ...card, padding: 0, overflow: "hidden", display: "flex", border: "1px solid color-mix(in srgb, var(--pb-hold) 35%, var(--pb-line))" }}>
+                    <figure style={{ position: "relative", width: 86, flex: "none", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
+                      {s.photo && <img src={s.photo} alt={s.name} title={s.credit || undefined} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                    </figure>
+                    <div style={{ padding: "10px 12px", minWidth: 0 }}>
+                      <div style={{ fontSize: ".84rem", fontWeight: 800, lineHeight: 1.25 }}>{s.name}</div>
+                      <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.45, marginTop: 3 }}>{s.note}</div>
+                      <div style={{ ...microLabel, marginTop: 4 }}>{s.obs >= 1000 ? (s.obs / 1000).toFixed(1) + "k" : s.obs} sightings here</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>

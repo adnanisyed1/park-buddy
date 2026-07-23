@@ -35,15 +35,21 @@ const RIBBON_ITEMS = [
 ];
 
 // Atlas nodes — the only numbers allowed here are the real ones from the brief.
+// Positions live in the RIGHT ~55% of the stage: the reading panel occupies the
+// top-left (x≤.34), so any node placed there was hidden behind it — which is why
+// Parks and Forests had vanished. Every node now keeps x≥.42 or y≥.72, clear of
+// the panel. State Parks added (9th) — no invented count, a qualitative stat like
+// Trails/Camping/Tours, since our state-park set lives in Supabase, uncounted here.
 const ATLAS_NODES = [
-  { key: "Parks", x: 0.30, y: 0.42, stat: "63", buddy: "63 parks — and I've read the weather at every one this morning.", facts: ["A live GO / PREPARE / HOLD verdict, daily", "Photo-backed page for every park", "Alerts, webcams, sun & moon times"], rel: [3, 7, 5] },
-  { key: "Forests", x: 0.15, y: 0.30, stat: "103", buddy: "Quieter than the parks — and I know the good ones.", facts: ["103 national forests", "Dispersed camping & fewer crowds", "Byway and trailhead access"], rel: [5, 6] },
-  { key: "Lakes", x: 0.45, y: 0.60, stat: "1,000+", buddy: "632 are man-made — I know every dam by name.", facts: ["Live surface area & conditions", "The dam, its river, year built & operator", "Boat ramps, marinas, swim beaches"], rel: [6, 3] },
-  { key: "Towns", x: 0.62, y: 0.36, stat: "~3,200", buddy: "Where to sleep, eat, and start from.", facts: ["Which parks each town serves", "Cabins & hotels", "Real bookable tours from town"], rel: [0, 7, 2] },
-  { key: "Byways", x: 0.76, y: 0.30, stat: "124", buddy: "Every overlook, in the right order.", facts: ["All-American Roads to hidden routes", "Real traveler itineraries + history", "One tap adds the whole drive to your trip"], rel: [3, 0] },
-  { key: "Trails", x: 0.40, y: 0.24, stat: "OFFLINE", buddy: "I'll keep navigating when your signal dies.", facts: ["Scrub-able elevation on the terrain map", "Live on-trail nav, works offline", "GPS-verified milestone photos"], rel: [0, 1] },
-  { key: "Camping", x: 0.70, y: 0.60, stat: "LIVE", buddy: "I'll tell you the second a site opens.", facts: ["Live availability from Recreation.gov", "Booking hand-off", "Permits & passes"], rel: [2, 1] },
-  { key: "Tours", x: 0.85, y: 0.48, stat: "REAL", buddy: "Booked or ranger-free — your call.", facts: ["Viator catalog on every page", "Free NPS ranger activities", "Booking supports Park Buddy at no cost to you"], rel: [0, 3] },
+  { key: "Parks", x: 0.50, y: 0.30, stat: "63", buddy: "63 parks — and I've read the weather at every one this morning.", facts: ["A live GO / PREPARE / HOLD verdict, daily", "Photo-backed page for every park", "Alerts, webcams, sun & moon times"], rel: [3, 7, 5] },
+  { key: "Forests", x: 0.44, y: 0.54, stat: "103", buddy: "Quieter than the parks — and I know the good ones.", facts: ["103 national forests", "Dispersed camping & fewer crowds", "Byway and trailhead access"], rel: [5, 6] },
+  { key: "Lakes", x: 0.66, y: 0.40, stat: "1,000+", buddy: "632 are man-made — I know every dam by name.", facts: ["Live surface area & conditions", "The dam, its river, year built & operator", "Boat ramps, marinas, swim beaches"], rel: [6, 3] },
+  { key: "Towns", x: 0.58, y: 0.68, stat: "~3,200", buddy: "Where to sleep, eat, and start from.", facts: ["Which parks each town serves", "Cabins & hotels", "Real bookable tours from town"], rel: [0, 7, 2] },
+  { key: "Byways", x: 0.83, y: 0.28, stat: "124", buddy: "Every overlook, in the right order.", facts: ["All-American Roads to hidden routes", "Real traveler itineraries + history", "One tap adds the whole drive to your trip"], rel: [3, 0] },
+  { key: "Trails", x: 0.49, y: 0.78, stat: "OFFLINE", buddy: "I'll keep navigating when your signal dies.", facts: ["Scrub-able elevation on the terrain map", "Live on-trail nav, works offline", "GPS-verified milestone photos"], rel: [0, 1] },
+  { key: "Camping", x: 0.80, y: 0.62, stat: "LIVE", buddy: "I'll tell you the second a site opens.", facts: ["Live availability from Recreation.gov", "Booking hand-off", "Permits & passes"], rel: [2, 1] },
+  { key: "Tours", x: 0.91, y: 0.46, stat: "REAL", buddy: "Booked or ranger-free — your call.", facts: ["Viator catalog on every page", "Free NPS ranger activities", "Booking supports Park Buddy at no cost to you"], rel: [0, 3] },
+  { key: "State Parks", x: 0.71, y: 0.78, stat: "ON THE MAP", buddy: "Every state's own parks, right beside the national ones.", facts: ["State parks alongside the national set", "Same live weather & conditions", "One search finds them all"], rel: [0, 3] },
 ];
 
 // Shared US silhouette polygon (atlas dust + stage constellation).
@@ -2016,7 +2022,7 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
   .pbl5 .atlas-stage{height:auto; padding:24px; display:flex; flex-direction:column; gap:20px;}
   .pbl5 #atlasCanvas{display:none;}
   .pbl5 .atlas-panel{position:relative; left:auto; top:auto; width:100%; order:2;}
-  .pbl5 .atlas-chips{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; order:1; position:relative; z-index:2;}
+  .pbl5 .atlas-chips{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; order:1; position:relative; z-index:2;}
   .pbl5 .atlas-chip{cursor:pointer; text-align:left; background:var(--pb-surface); border:1px solid var(--pb-line); border-radius:14px; padding:12px 14px; color:var(--pb-ink); font:inherit; transition:border-color .25s ease, background .25s ease;}
   .pbl5 .atlas-chip.active{border-color:var(--pb-gold); background:var(--pb-line);}
   .pbl5 .atlas-chip .k{font-family:var(--pb-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--pb-gold-soft); display:block;}

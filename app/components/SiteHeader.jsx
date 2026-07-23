@@ -315,7 +315,11 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         ref={pillRef}
         className={mobileChromeless ? "pb-nav-pill pb-chromeless" : "pb-nav-pill"}
         style={{
-          flex: "none", marginLeft: "auto", position: "relative",
+          // Dead-centered on the viewport (owner call 2026-07-23) so the nav
+          // island sits on the same axis as the hero — independent of the
+          // logo (left) and account cluster (right) widths. Absolute takes it
+          // out of the flex row; the morph pill's width animation still works.
+          flex: "none", position: "absolute", left: "50%", transform: "translateX(-50%)",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 28,
           padding: "10px 34px",
           background: solid ? "var(--pb-bg)" : "var(--pb-glass)",

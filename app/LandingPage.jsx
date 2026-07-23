@@ -1095,7 +1095,11 @@ export default function LandingPage() {
   // ── the seven canvas systems
   useOverture({ ovRef, canvasRef: ovCanvasRef, badgeRef: ovBadgeRef, sealRef: ovSealRef, skipRef: ovSkipRef, heroSeedRef, reveal: revealPage });
   useHeroCanvas({ canvasRef: heroCanvasRef, heroRef, heroSeedRef });
-  useFlock({ canvasRef: birdsRef });
+  // Page-wide flock retired (owner call 2026-07-22: constant birds over the
+  // content read as noise). The birds keep their two meaningful homes — the
+  // overture, and the fireflies they dissolve into. useFlock kept below for
+  // an easy re-enable.
+  // useFlock({ canvasRef: birdsRef });
   useAtlas({ canvasRef: atlasCanvasRef, sectionRef: atlasRef, activeRef: atlasActiveRef, hoverLockRef: atlasHoverLock, setActive: setAtlasActive, apiRef: atlasApiRef });
   useStage({ canvasRef: stageCanvasRef, sectionRef: stageSecRef, stateRef: stageStateRef, tickFillRefs, advance: stageAdvance, apiRef: stageApiRef });
   useFilament({ canvasRef: filamentRef, sectionRef: engineRef });
@@ -1197,8 +1201,8 @@ export default function LandingPage() {
 
       <SiteHeader active={null} acctSlot />
 
-      {/* page-wide flock — z:5, under every content wrapper (z:6) */}
-      <canvas ref={birdsRef} className="pbl5-birds" aria-hidden="true" />
+      {/* page-wide flock retired with its hook above — canvas stays out of the
+          DOM entirely so nothing paints or resizes for it. */}
 
       <main>
         {/* ACT I — the living forest. Data: hero chip ← Verdict Engine (NWS)

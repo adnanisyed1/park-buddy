@@ -315,10 +315,21 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           border: "1px solid var(--pb-line-strong)",
           borderRadius: 22,
           boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
-          transition: "width .4s cubic-bezier(.16,.8,.24,1)",
+          // Morph feel: a long soft ease-out on width, and the two content
+          // layers hand over in sequence (outgoing fades fast, incoming
+          // arrives after a beat with a small rise) — see the layer styles.
+          transition: "width .6s cubic-bezier(.23,1,.32,1)",
         }}
       >
-      <div ref={navLayRef} className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "var(--pb-ink-2)", whiteSpace: "nowrap", opacity: altOn ? 0 : 1, pointerEvents: altOn ? "none" : "auto", transition: "opacity .22s ease" }}>
+      <div ref={navLayRef} className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "var(--pb-ink-2)", whiteSpace: "nowrap",
+        opacity: altOn ? 0 : 1,
+        transform: altOn ? "translateY(-5px)" : "none",
+        pointerEvents: altOn ? "none" : "auto",
+        // Outgoing: fade fast, no delay. Incoming: wait a beat (.16s) so the
+        // pill is already mid-stretch, then rise in — a handover, not a blink.
+        transition: altOn
+          ? "opacity .18s ease, transform .18s ease"
+          : "opacity .3s ease .16s, transform .42s cubic-bezier(.23,1,.32,1) .16s" }}>
         {/* Explore ▾ — the ways to experience the parks */}
         <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={tab === "explore"} open={openKey === "explore"} onOpen={() => openDrop("explore")} onClose={closeDrop} />
         {LINKS.map((l) => (
@@ -356,9 +367,15 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           ACTIVE section — the same treatment Pines used to wear permanently. */}
       {pillTabs && (
         <div ref={altLayRef} role="tablist" aria-label="Page sections"
-          style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "max-content",
+          style={{ position: "absolute", left: "50%", top: "50%", width: "max-content",
             display: "flex", alignItems: "center", gap: 4,
-            opacity: altOn ? 1 : 0, pointerEvents: altOn ? "auto" : "none", transition: "opacity .22s ease" }}>
+            transform: altOn ? "translate(-50%,-50%)" : "translate(-50%, calc(-50% + 5px))",
+            opacity: altOn ? 1 : 0, pointerEvents: altOn ? "auto" : "none",
+            // Mirror of the nav layer: delayed rise-in when taking over,
+            // quick fade when handing back.
+            transition: altOn
+              ? "opacity .3s ease .16s, transform .42s cubic-bezier(.23,1,.32,1) .16s"
+              : "opacity .18s ease, transform .18s ease" }}>
           {pillTabs.items.map((t) => {
             const on = pillTabs.active === t.key;
             return (

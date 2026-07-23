@@ -1095,6 +1095,9 @@ function CompactCamp({ c, park, recId, areaQ }) {
 function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
   const isNP = !isForest && !isStatePark;
   const [filter, setFilter] = useState("all");
+  const [moreTrails, setMoreTrails] = useState(false);
+  const [moreHikes, setMoreHikes] = useState(false);
+  const CAP = 9;
   // NPS-listed hikes: the ranger-curated hikes from /api/thingstodo. Our
   // geometry dataset (/api/trails) doesn't cover every park — Acadia lists
   // zero mapped trails but the NPS names a dozen hikes. Surface those here too
@@ -1137,9 +1140,12 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
       {!list ? (
         <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>Loading trails…</div>
       ) : shown.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 10 }}>
-          {shown.slice(0, 30).map((t, i) => <TrailRow key={i} t={t} park={park} diff={diffOf(t)} areaQ={areaQ} />)}
-        </div>
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 10 }}>
+            {(moreTrails ? shown : shown.slice(0, CAP)).map((t, i) => <TrailRow key={i} t={t} park={park} diff={diffOf(t)} areaQ={areaQ} />)}
+          </div>
+          <ShowMore open={moreTrails} total={shown.length} cap={CAP} onToggle={() => setMoreTrails((v) => !v)} noun="trails" />
+        </>
       ) : hasTrails ? (
         <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>No {filter} trails here — try another filter.</div>
       ) : (npsHikes && npsHikes.length) ? null : (
@@ -1167,7 +1173,7 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
             <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Curated by the National Park Service — full route maps as we digitize them.</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 10 }}>
-            {npsHikes.slice(0, 24).map((h, i) => (
+            {(moreHikes ? npsHikes : npsHikes.slice(0, CAP)).map((h, i) => (
               <a key={i} href={todoStatusHref(h, park.npsCode)} style={{ ...card, padding: 0, overflow: "hidden", display: "block", textDecoration: "none", color: "var(--pb-ink)" }}>
                 <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
                   {h.img && <img src={h.img} alt={h.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
@@ -1181,6 +1187,7 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
               </a>
             ))}
           </div>
+          <ShowMore open={moreHikes} total={npsHikes.length} cap={CAP} onToggle={() => setMoreHikes((v) => !v)} noun="hikes" />
         </div>
       )}
 
@@ -1386,10 +1393,27 @@ function todoStatusHref(t, pc) {
   return "/todo-status?" + qs.toString();
 }
 
+// Show-more control: keeps long lists to a first batch until the visitor asks
+// for the rest (owner call 2026-07-23) — every card is a real API row, so the
+// cap is purely about page length, not honesty.
+function ShowMore({ open, total, cap, onToggle, noun }) {
+  if (total <= cap) return null;
+  return (
+    <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
+      <button onClick={onToggle} style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem", fontWeight: 600, color: "var(--pb-gold)", background: "var(--pb-tint)", border: "1px solid var(--pb-line-strong)", borderRadius: 999, padding: "9px 18px" }}>
+        {open ? "Show fewer" : "Show all " + total + " " + noun} {open ? "↑" : "↓"}
+      </button>
+    </div>
+  );
+}
+
 function ThingsToDoTab({ park, isNP }) {
   const [tours, setTours] = useState(null);  // null loading, [] none
   const [todos, setTodos] = useState(null);
   const [wild, setWild] = useState(null);    // {mammals, birds} — spotting wildlife IS a thing to do
+  const [moreTours, setMoreTours] = useState(false);
+  const [moreTodos, setMoreTodos] = useState(false);
+  const CAP = 8;
 
   useEffect(() => {
     if (!park || park.lat == null) return;
@@ -1452,7 +1476,7 @@ function ThingsToDoTab({ park, isNP }) {
             <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Real tours from Viator — booking earns Park Buddy a commission at no cost to you.</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
-            {tours.map((t) => (
+            {(moreTours ? tours : tours.slice(0, CAP)).map((t) => (
               <a key={t.code || t.url} href={t.code ? "/tours/" + t.code : t.url}
                 {...(t.code ? {} : { target: "_blank", rel: "sponsored noopener noreferrer" })}
                 style={{ ...card, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", textDecoration: "none", color: "var(--pb-ink)" }}>
@@ -1475,6 +1499,7 @@ function ThingsToDoTab({ park, isNP }) {
               </a>
             ))}
           </div>
+          <ShowMore open={moreTours} total={tours.length} cap={CAP} onToggle={() => setMoreTours((v) => !v)} noun="tours" />
         </div>
       )}
 
@@ -1485,7 +1510,7 @@ function ThingsToDoTab({ park, isNP }) {
             <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Curated by National Park Service rangers.</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
-            {todos.map((t, i) => (
+            {(moreTodos ? todos : todos.slice(0, CAP)).map((t, i) => (
               <a key={i} href={todoStatusHref(t, park.npsCode)}
                 style={{ ...card, padding: 0, overflow: "hidden", display: "block", textDecoration: "none", color: "var(--pb-ink)" }}>
                 <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
@@ -1501,6 +1526,7 @@ function ThingsToDoTab({ park, isNP }) {
               </a>
             ))}
           </div>
+          <ShowMore open={moreTodos} total={todos.length} cap={CAP} onToggle={() => setMoreTodos((v) => !v)} noun="activities" />
         </div>
       )}
 

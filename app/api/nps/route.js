@@ -13,7 +13,7 @@ async function unitIndex(getJSON) {
   if (UNIT_INDEX) return UNIT_INDEX;
   const m = new Map();
   for (let start = 0; start < 1000; start += 500) {
-    const d = await getJSON(BASE + "/parks?limit=500&start=" + start);
+    const d = await getJSON(BASE + "/parks?limit=500&start=" + start, { noStore: true });
     const data = (d && d.data) || [];
     for (const p of data) {
       if (!p.parkCode) continue;
@@ -33,9 +33,13 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const headers = { "X-Api-Key": key || "", "User-Agent": "ParkPulse" };
 
-  const getJSON = async (url) => {
+  const getJSON = async (url, opts = {}) => {
     try {
-      const r = await fetch(url, { headers, next: { revalidate: 900 } });
+      // The unit index pulls the FULL parks list (~5MB) which exceeds Next's
+      // 2MB fetch-cache ceiling and threw a loud error every request; those
+      // callers pass noStore (we cache the assembled Map in-process anyway).
+      const init = opts.noStore ? { headers, cache: "no-store" } : { headers, next: { revalidate: 900 } };
+      const r = await fetch(url, init);
       if (!r.ok) return null;
       return await r.json();
     } catch {

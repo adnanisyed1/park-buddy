@@ -102,14 +102,21 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const heroRef = useRef(null);
   useEffect(() => {
     const el = heroRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      ([e]) => setPastHero(!e.isIntersecting),
-      { rootMargin: "-72px 0px 0px 0px", threshold: 0 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  });
+    if (!el) return;
+    // Hysteresis, not one threshold: morph to tabs when the hero bottom
+    // clears 72px, but only morph BACK once it re-enters by 150px. A single
+    // boundary made tab clicks flicker — scrollToTabs lands 64px under the
+    // hero, close enough that smooth-scroll overshoot crossed the line and
+    // bounced the pill between states on every section switch.
+    const measure = () => {
+      const b = el.getBoundingClientRect().bottom;
+      setPastHero((prev) => (prev ? b < 150 : b < 72));
+    };
+    measure();
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    return () => { window.removeEventListener("scroll", measure); window.removeEventListener("resize", measure); };
+  }, [!!park]);
   const [radius, setRadius] = useState(60);
   const [added, setAdded] = useState(false);
   const alertsRef = useRef(null);
@@ -226,7 +233,11 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const scrollToTabs = () => {
     const bar = document.getElementById("ps-tabnav");
     const el = bar && bar.offsetParent !== null ? bar : document.getElementById("ps-main");
-    if (el) window.scrollTo({ top: Math.max(el.offsetTop - 64, 0), behavior: "smooth" });
+    if (!el) return;
+    const target = Math.max(el.offsetTop - 64, 0);
+    // Already at (or above) the content top? Stay put — switching between
+    // sections should swap content in place, not replay a scroll animation.
+    if (window.scrollY > target + 4) window.scrollTo({ top: target, behavior: "smooth" });
   };
   const goAlerts = () => { setTab("conditions"); setTimeout(() => { const el = alertsRef.current; if (el) { window.scrollTo({ top: el.getBoundingClientRect().top + window.pageYOffset - 80, behavior: "smooth" }); el.style.transition = "box-shadow .4s"; el.style.boxShadow = "0 0 0 2px #e8cf9a,0 30px 70px -40px rgba(0,0,0,.9)"; setTimeout(() => { el.style.boxShadow = ""; }, 1600); } }, 60); };
 
@@ -446,7 +457,12 @@ export default function ParkStatusV2({ id, kind = "park" }) {
         </div>
       </div>
 
-      <main id="ps-main" style={{ padding: "clamp(28px,4vh,48px) clamp(16px,4vw,40px) 8px" }}>
+      {/* minHeight 100vh: a short tab (few alerts, no trails yet) used to
+          shrink the document so the browser clamped the scroll back INTO the
+          hero — which un-morphed the pill back to the platform nav and left
+          no tab UI on desktop at all. Every tab now holds a full viewport of
+          space, so once you are past the hero you STAY past the hero. */}
+      <main id="ps-main" style={{ padding: "clamp(28px,4vh,48px) clamp(16px,4vw,40px) 8px", minHeight: "100vh" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {tab === "overview" && <Overview park={park} nps={nps} isForest={isForest} isStatePark={isStatePark} />}
           {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} river={river} tz={tz} alertsRef={alertsRef} isForest={isForest} isStatePark={isStatePark} />}

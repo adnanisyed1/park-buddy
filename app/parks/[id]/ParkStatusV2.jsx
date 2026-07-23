@@ -98,16 +98,16 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   // screen the platform nav island rules the top; the moment you scroll past
   // it, the island hands the spot to a floating tab pill (Overview …
   // Nearby) in the same glass style — and hands it back when you scroll up.
+  // pastHero: past the hero, the platform nav island fades and the section
+  // pill sticks to the top (owner call 2026-07-23).
   const [pastHero, setPastHero] = useState(false);
   const heroRef = useRef(null);
   useEffect(() => {
     const el = heroRef.current;
     if (!el) return;
-    // Hysteresis, not one threshold: morph to tabs when the hero bottom
-    // clears 72px, but only morph BACK once it re-enters by 150px. A single
-    // boundary made tab clicks flicker — scrollToTabs lands 64px under the
-    // hero, close enough that smooth-scroll overshoot crossed the line and
-    // bounced the pill between states on every section switch.
+    // Hysteresis, not one threshold: flip past-hero when the hero bottom clears
+    // 72px, flip back only once it re-enters by 150px — a single boundary made
+    // tab clicks flicker as smooth-scroll overshoot crossed the line.
     const measure = () => {
       const b = el.getBoundingClientRect().bottom;
       setPastHero((prev) => (prev ? b < 150 : b < 72));
@@ -338,18 +338,17 @@ export default function ParkStatusV2({ id, kind = "park" }) {
            pillTabs morph) — no in-page tab bar at all, just scroll (owner call
            2026-07-22). Phones keep the sticky bar: the pill does not exist
            under 860px. */
-        @media (min-width: 861px) { #ps-tabnav { display: none; } }
+        /* The platform nav island (Explore/Pines/Book/Shop) fades once you're
+           past the hero, so the section pill owns the top edge; it returns when
+           you scroll back to the hero. */
+        .pb-nav-float { transition: opacity .3s ease; }
+        .ps-past .pb-nav-float { opacity: 0; pointer-events: none; }
+        @media (prefers-reduced-motion: reduce) { .pb-nav-float { transition: none !important; } }
       ` }} />
 
-      {/* Past the hero, the platform nav island MORPHS into this page's
-          section tabs (one pill expanding, options swapping in — see
-          SiteHeader pillTabs); scroll back up and it morphs back. */}
-      <SiteHeader acctSlot pillTabs={{
-        items: TABS.map(([k, label]) => ({ key: k, label })),
-        active: tab,
-        on: pastHero,
-        onSelect: (k) => { setTab(k); scrollToTabs(); },
-      }} />
+      {/* Top island stays the platform nav (Explore/Pines/Book/Shop); it fades
+          past the hero so the sticky section pill below owns the top. */}
+      <SiteHeader acctSlot />
 
       {/* HERO + VERDICT */}
       {/* The hero is the one region that is NOT on the page surface — it's on a
@@ -421,16 +420,19 @@ export default function ParkStatusV2({ id, kind = "park" }) {
           alerts belong. The card stays; the promo band is gone, and the way in
           is now a quiet action in the hero beside Add to trip. */}
 
-      {/* STICKY TABS */}
-      <div id="ps-tabnav" style={{ position: "sticky", top: 56, zIndex: 50,
-        // --pb-glass-strong is the token the design system already defines for a
-        // sheet/bar that floats over content, and it exists in both themes. The
-        // old value was a hardcoded dark rgba, which put a dark band across the
-        // middle of the light theme.
-        background: "var(--pb-glass-strong)",
-        WebkitBackdropFilter: "blur(16px)", backdropFilter: "blur(16px)",
-        borderBottom: "1px solid var(--pb-line)", marginTop: 14 }}>
-        <div role="tablist" aria-label="Park sections" style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 2, padding: "0 clamp(16px,4vw,40px)", overflowX: "auto" }}>
+      {/* Section tabs — a centered floating glass PILL that lives right here in
+          the flow (just above "Pines from here"), and sticks to the top as you
+          scroll (owner call 2026-07-23). The top platform nav fades once you're
+          past the hero (.ps-past), so this pill owns the top edge. Tabs swap the
+          panel content in place and jump to the content top. */}
+      <div id="ps-tabnav" style={{ position: "sticky", top: 14, zIndex: 50,
+        display: "flex", justifyContent: "center", pointerEvents: "none", margin: "14px 0 4px" }}>
+        <div role="tablist" aria-label="Park sections"
+          style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 2, maxWidth: "calc(100vw - 32px)",
+            overflowX: "auto", scrollbarWidth: "none", padding: "6px 8px",
+            background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(18px) saturate(1.4)", backdropFilter: "blur(18px) saturate(1.4)",
+            border: "1px solid var(--pb-line-strong)", borderRadius: 22,
+            boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)" }}>
           {TABS.map(([k, label]) => {
             const on = tab === k;
             return (
@@ -438,19 +440,14 @@ export default function ParkStatusV2({ id, kind = "park" }) {
                 onClick={() => { setTab(k); scrollToTabs(); }}
                 onMouseEnter={(e) => { if (!on) e.currentTarget.style.color = "var(--pb-ink)"; }}
                 onMouseLeave={(e) => { if (!on) e.currentTarget.style.color = "var(--pb-ink-2)"; }}
-                style={{ position: "relative", cursor: "pointer", fontFamily: "inherit",
-                  fontSize: ".875rem", fontWeight: on ? 700 : 500,
-                  letterSpacing: on ? "-.005em" : "0",
-                  color: on ? "var(--pb-ink)" : "var(--pb-ink-2)",
-                  background: "transparent", border: "none",
-                  padding: "16px 16px 15px", whiteSpace: "nowrap",
-                  transition: "color .16s ease" }}>
+                style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".82rem",
+                  fontWeight: on ? 700 : 500, whiteSpace: "nowrap", border: "none",
+                  borderRadius: 15, padding: "8px 14px",
+                  color: on ? "var(--pb-bg)" : "var(--pb-ink-2)",
+                  background: on ? "var(--pb-grad-gold)" : "transparent",
+                  boxShadow: on ? "0 4px 14px -6px rgba(217,183,121,.55)" : "none",
+                  transition: "color .2s, background .2s, box-shadow .2s" }}>
                 {label}
-                {/* The rule sits on the bar's own bottom border rather than on the
-                    button, so the active tab reads as continuous with the panel
-                    below it instead of underlined. */}
-                <span aria-hidden="true" style={{ position: "absolute", left: 12, right: 12, bottom: -1,
-                  height: 2, borderRadius: 2, background: on ? "var(--pb-gold)" : "transparent" }} />
               </button>
             );
           })}

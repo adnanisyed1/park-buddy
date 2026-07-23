@@ -3,13 +3,15 @@
 // menu) and every Google map on the site reads it. Persisted in localStorage;
 // changes broadcast to live maps on the page.
 //
-// "auto" is the default and follows the SITE theme (owner call 2026-07-23):
-// light theme → terrain imagery with light labels; dark theme → the dark
-// roadmap style. An explicit dark/light choice overrides the follow.
+// DEFAULT is LIGHT TERRAIN, always (owner call 2026-07-23) — every map starts
+// as light terrain imagery regardless of the site theme; the account settings
+// / map-style menu can still switch to auto (follow theme), dark, satellite,
+// etc. "auto" (offered as a choice) follows the site theme: light → terrain,
+// dark → dark roadmap.
 import { getTheme, subscribeTheme } from "./theme";
 
 const KEY = "pb_map_prefs";
-const DEFAULT = { theme: "auto", type: "auto" };
+const DEFAULT = { theme: "light", type: "terrain" };
 let cache = null;
 
 export function getMapPrefs() {

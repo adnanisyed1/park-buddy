@@ -1095,6 +1095,25 @@ function CompactCamp({ c, park, recId, areaQ }) {
 function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
   const isNP = !isForest && !isStatePark;
   const [filter, setFilter] = useState("all");
+  // NPS-listed hikes: the ranger-curated hikes from /api/thingstodo. Our
+  // geometry dataset (/api/trails) doesn't cover every park — Acadia lists
+  // zero mapped trails but the NPS names a dozen hikes. Surface those here too
+  // (owner call 2026-07-23), honestly labeled: real hikes, routes still being
+  // digitized, so they link to the park's own detail rather than a map/profile.
+  const [npsHikes, setNpsHikes] = useState(null);
+  useEffect(() => {
+    if (!isNP || !park || !park.npsCode) { setNpsHikes([]); return; }
+    let on = true;
+    fetch("/api/thingstodo?parkCode=" + encodeURIComponent(park.npsCode))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!on) return;
+        const items = (d && d.items) || [];
+        setNpsHikes(items.filter((i) => (i.activities || []).some((a) => /hik/i.test(a)) || /^hike\b/i.test(i.title || "")));
+      })
+      .catch(() => { if (on) setNpsHikes([]); });
+    return () => { on = false; };
+  }, [park && park.npsCode, isNP]);
   const list = trails ? [].concat(trails.hiking || [], trails.offroad || [], trails.ski || []) : null;
   const diffOf = (t) => (t.lengthMi > 6 ? "Hard" : t.lengthMi > 2.5 ? "Moderate" : "Easy");
   const shown = list ? list.filter((t) => filter === "all" || diffOf(t) === filter) : null;
@@ -1123,9 +1142,8 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
         </div>
       ) : hasTrails ? (
         <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)" }}>No {filter} trails here — try another filter.</div>
-      ) : (
-        // Honest, compact empty state — our trail source genuinely lists none here,
-        // rather than a misleading "within range" note that ate the whole tab.
+      ) : (npsHikes && npsHikes.length) ? null : (
+        // No mapped trails AND no NPS-listed hikes — honest, compact empty state.
         <div style={{ ...card, padding: "18px 20px" }}>
           <div style={{ fontFamily: serif, fontSize: "1.15rem", color: "var(--pb-ink)", marginBottom: 6 }}>No mapped trails here yet</div>
           <div style={{ fontSize: ".86rem", color: "var(--pb-ink-2)", lineHeight: 1.6, maxWidth: "56ch" }}>
@@ -1136,6 +1154,33 @@ function TrailsPermits({ park, trails, isForest, isStatePark, areaQ }) {
               : "We map trails from OpenStreetMap, and none are tagged for this state park yet."}
           </div>
           <a href={altSearch} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 12, fontSize: ".82rem", fontWeight: 600, color: "var(--pb-gold)", textDecoration: "none" }}>Find trails on AllTrails ↗</a>
+        </div>
+      )}
+
+      {/* Hikes the park's own rangers list — shown even when our geometry
+          dataset has none. Honest: these carry no route/elevation yet, so they
+          open the park's hike detail rather than a map. */}
+      {npsHikes && npsHikes.length > 0 && (
+        <div style={{ marginTop: hasTrails ? 28 : 6 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <div style={{ ...microLabel, letterSpacing: ".12em" }}>🥾 Hikes the rangers recommend · {npsHikes.length}</div>
+            <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Curated by the National Park Service — full route maps as we digitize them.</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 10 }}>
+            {npsHikes.slice(0, 24).map((h, i) => (
+              <a key={i} href={todoStatusHref(h, park.npsCode)} style={{ ...card, padding: 0, overflow: "hidden", display: "block", textDecoration: "none", color: "var(--pb-ink)" }}>
+                <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
+                  {h.img && <img src={h.img} alt={h.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                </figure>
+                <div style={{ padding: "12px 14px" }}>
+                  <div style={{ fontSize: ".88rem", fontWeight: 800, lineHeight: 1.3 }}>{(h.title || "").replace(/^hike\s+/i, "")}</div>
+                  <div style={{ ...microLabel, marginTop: 4 }}>
+                    {[(h.activities || [])[0], h.duration, h.reservation ? "Reservation" : null].filter(Boolean).join(" · ") || "NPS hike"}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

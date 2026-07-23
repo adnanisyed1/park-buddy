@@ -278,6 +278,17 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         fontFamily: "var(--pb-sans)",
       }}
     >
+      {/* Translucent banner behind the floating islands — fades in with the
+          pill morph (owner call 2026-07-22) so the tabs ride on a quiet glass
+          strip instead of raw page content. z -1 keeps it under the islands
+          but inside the nav stacking context, i.e. still above the page. */}
+      {pillTabs && (
+        <div aria-hidden style={{ position: "fixed", top: 0, left: 0, right: 0, height: 74, zIndex: -1,
+          background: "var(--pb-glass)",
+          WebkitBackdropFilter: "blur(18px) saturate(1.3)", backdropFilter: "blur(18px) saturate(1.3)",
+          borderBottom: "1px solid var(--pb-line)",
+          opacity: altOn ? 1 : 0, pointerEvents: "none", transition: "opacity .45s ease" }} />
+      )}
       <Logo className={[mobileChromeless ? "pb-chromeless" : "", bare ? "pb-bare-hide" : ""].filter(Boolean).join(" ") || undefined} />
 
       {/* Phone-only "you are here" bubble — the current section name; tap to open the

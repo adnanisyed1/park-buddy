@@ -1294,6 +1294,7 @@ function todoStatusHref(t, pc) {
 function ThingsToDoTab({ park, isNP }) {
   const [tours, setTours] = useState(null);  // null loading, [] none
   const [todos, setTodos] = useState(null);
+  const [wild, setWild] = useState(null);    // {mammals, birds} — spotting wildlife IS a thing to do
 
   useEffect(() => {
     if (!park || park.lat == null) return;
@@ -1310,6 +1311,10 @@ function ThingsToDoTab({ park, isNP }) {
     } else {
       setTodos([]);
     }
+    fetch("/api/wildlife?lat=" + park.lat.toFixed(4) + "&lng=" + park.lng.toFixed(4))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!dead) setWild(d || { mammals: [], birds: [] }); })
+      .catch(() => { if (!dead) setWild({ mammals: [], birds: [] }); });
     return () => { dead = true; };
   }, [park && park.name]);
 
@@ -1379,7 +1384,7 @@ function ThingsToDoTab({ park, isNP }) {
       )}
 
       {!loading && todos.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
             <div style={{ ...microLabel, letterSpacing: ".12em" }}>🥾 Free with your park entry · {todos.length}</div>
             <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Curated by National Park Service rangers.</span>
@@ -1401,6 +1406,35 @@ function ThingsToDoTab({ park, isNP }) {
               </a>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Wildlife & birds — the top 10 species people ACTUALLY see near this
+          place: research-grade iNaturalist observations ranked by sighting
+          count. Real community data with real photos, never a generic list. */}
+      {wild && (wild.mammals || []).length + (wild.birds || []).length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          {[["🦌 Wildlife you might meet", wild.mammals], ["🐦 Birds to look for", wild.birds]].map(([title, list]) => list && list.length > 0 && (
+            <div key={title} style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                <div style={{ ...microLabel, letterSpacing: ".12em" }}>{title} · top {list.length}</div>
+                <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Ranked by real sightings within ~{wild.radiusMi || 30} mi · iNaturalist community, research-grade.</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10 }}>
+                {list.map((s) => (
+                  <div key={s.sci} style={{ ...card, padding: 0, overflow: "hidden" }}>
+                    <figure style={{ position: "relative", aspectRatio: "1/1", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
+                      {s.photo && <img src={s.photo} alt={s.name} title={s.credit || undefined} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                    </figure>
+                    <div style={{ padding: "10px 12px" }}>
+                      <div style={{ fontSize: ".82rem", fontWeight: 800, lineHeight: 1.25 }}>{s.name}</div>
+                      <div style={{ ...microLabel, marginTop: 3 }}>{s.obs >= 1000 ? (s.obs / 1000).toFixed(1) + "k" : s.obs} sightings</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </>

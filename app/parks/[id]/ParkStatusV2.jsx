@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
+import BackPill from "../../components/BackPill";
 import BuddyLoader from "../../components/BuddyLoader";
 import { useThemedBody } from "../../lib/theme";
 import { usePhoto } from "../../components/PhotoThumb";
@@ -343,12 +344,20 @@ export default function ParkStatusV2({ id, kind = "park" }) {
            you scroll back to the hero. */
         .pb-nav-float { transition: opacity .3s ease; }
         .ps-past .pb-nav-float { opacity: 0; pointer-events: none; }
+        /* The hero back pill fades out with the platform nav once past the hero. */
+        .ps-back { transition: opacity .3s ease; }
+        .ps-past .ps-back { opacity: 0; pointer-events: none; }
         @media (prefers-reduced-motion: reduce) { .pb-nav-float { transition: none !important; } }
       ` }} />
 
       {/* Top island stays the platform nav (Explore/Pines/Book/Shop); it fades
           past the hero so the sticky section pill below owns the top. */}
       <SiteHeader acctSlot />
+
+      {/* Back to where you came from — the live map if you arrived direct.
+          Hidden once you're past the hero (ps-past) so it never floats over
+          the content. */}
+      <BackPill href="/explore" label="Back" className="ps-back" />
 
       {/* HERO + VERDICT */}
       {/* The hero is the one region that is NOT on the page surface — it's on a
@@ -1036,23 +1045,26 @@ function SubscribeCard({ park, alertsRef }) {
 /* ---------------- TRAILS & PERMITS ---------------- */
 // A compact trail row with a small photo (famous trails have one; others fall
 // back to a geotagged photo at the trailhead, or the tasteful hatch placeholder).
+// Big photo-card, matching the ranger-hike cards in Things to do (owner call
+// 2026-07-23: "I want photos like that too"). A midpoint of the path gives the
+// geo-photo fallback a point right on the trail, not just the trailhead.
 function TrailRow({ t, park, diff, areaQ }) {
-  const pt = (t.path && t.path[0]) || null;
-  const photo = usePhoto(t.name + " " + (park ? park.name : "") + "|" + t.name, pt ? pt[0] : null, pt ? pt[1] : null, undefined, 360, areaQ);
+  const path = t.path || [];
+  const pt = path.length ? path[Math.floor(path.length / 2)] : null;
+  const photo = usePhoto(t.name + " " + (park ? park.name : "") + "|" + t.name, pt ? pt[0] : null, pt ? pt[1] : null, undefined, 500, areaQ);
   const href = t.id != null && park && park.npsCode ? "/trail-status?trail=" + t.id + "&park=" + park.npsCode : null;
   const inner = (
-    <div style={{ display: "flex", alignItems: "center", gap: 11, ...card, padding: 8 }}>
-      <span style={{ position: "relative", width: 74, height: 56, flex: "none", borderRadius: 10, overflow: "hidden", background: hatch, display: "block" }}>
-        {photo && photo.url && <img alt="" src={photo.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <b style={{ fontSize: ".9rem", color: "var(--pb-ink)", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</b>
-        <span style={{ ...microLabel, letterSpacing: ".08em" }}>{diff}{t.lengthMi > 0 ? " · " + t.lengthMi + " mi" : ""}</span>
+    <div style={{ ...card, padding: 0, overflow: "hidden", display: "block" }}>
+      <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: hatch }}>
+        {photo && photo.url && <img alt="" src={photo.url} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+      </figure>
+      <div style={{ padding: "12px 14px" }}>
+        <div style={{ fontSize: ".88rem", fontWeight: 800, lineHeight: 1.3, color: "var(--pb-ink)" }}>{t.name}</div>
+        <div style={{ ...microLabel, marginTop: 4 }}>{[diff, t.lengthMi > 0 ? t.lengthMi + " mi" : null].filter(Boolean).join(" · ") || "Trail"}</div>
       </div>
-      {href && <span style={{ color: "var(--pb-gold-soft)", flex: "none" }}>→</span>}
     </div>
   );
-  return href ? <a href={href} style={{ textDecoration: "none", display: "block" }}>{inner}</a> : inner;
+  return href ? <a href={href} style={{ textDecoration: "none", display: "block", color: "inherit" }}>{inner}</a> : inner;
 }
 
 // Compact campground card — photo + a one-line live availability SUMMARY (soonest

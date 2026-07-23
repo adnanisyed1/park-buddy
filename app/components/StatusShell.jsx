@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PhotoThumb from "./PhotoThumb";
 import SiteHeader from "./SiteHeader";
+import BackPill from "./BackPill";
 import { ThemedBody } from "../lib/theme";
 
 // Shared look for the new /trail-status, /lake-status, /campground-status
@@ -33,23 +34,9 @@ export function StatusShell({ children, hero, backHref, backLabel, headerRight, 
       <ThemedBody />
       <SiteHeader active="explore" />
       {headerRight && <div style={{ position: "fixed", top: 11, right: "clamp(16px,4vw,54px)", zIndex: 101 }}>{headerRight}</div>}
-      {/* Back control — StatusShell accepted backHref/backLabel but never
-          rendered them, so trail/lake/campground pages had no way back to the
-          park or the map (owner report 2026-07-23). A floating glass pill over
-          the hero's top-left; falls back to browser history if no href given. */}
-      {backHref && (
-        <a href={backHref}
-          style={{ position: "fixed", top: 108, left: "clamp(12px,3vw,22px)", zIndex: 60,
-            display: "inline-flex", alignItems: "center", gap: 7,
-            background: "var(--pb-glass, rgba(11,23,16,.6))", WebkitBackdropFilter: "blur(16px) saturate(1.4)", backdropFilter: "blur(16px) saturate(1.4)",
-            border: "1px solid var(--pb-line-strong, rgba(217,183,121,.3))", borderRadius: 999,
-            padding: "9px 16px 9px 13px", color: "#f4f1ea", textDecoration: "none",
-            fontFamily: sans, fontSize: ".82rem", fontWeight: 600, whiteSpace: "nowrap",
-            boxShadow: "0 10px 30px -14px rgba(0,0,0,.7)" }}>
-          <span aria-hidden="true" style={{ fontSize: "1.05rem", lineHeight: 1, marginTop: -1 }}>‹</span>
-          {backLabel || "Back"}
-        </a>
-      )}
+      {/* Back control — returns you to WHERE YOU CAME FROM (browser history);
+          backHref is only the fallback for a direct arrival. */}
+      {backHref && <BackPill href={backHref} label="Back" />}
 
       {hero}
       <div style={{ position: "relative", zIndex: 3, background: COLORS.cream, borderRadius: hero ? "24px 24px 0 0" : 0, marginTop: hero ? -20 : 0 }}>

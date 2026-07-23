@@ -6,6 +6,26 @@ const BASE = "https://developer.nps.gov/api/v1";
 
 export const revalidate = 900; // cache responses for 15 min at the edge
 
+// name → parkCode over EVERY NPS unit (~470), built once per server process
+// (two slim pages of 500). Keys: lowercase fullName AND lowercase short name.
+let UNIT_INDEX = null;
+async function unitIndex(getJSON) {
+  if (UNIT_INDEX) return UNIT_INDEX;
+  const m = new Map();
+  for (let start = 0; start < 1000; start += 500) {
+    const d = await getJSON(BASE + "/parks?limit=500&start=" + start);
+    const data = (d && d.data) || [];
+    for (const p of data) {
+      if (!p.parkCode) continue;
+      if (p.fullName) m.set(p.fullName.toLowerCase(), p.parkCode);
+      if (p.name && !m.has(p.name.toLowerCase())) m.set(p.name.toLowerCase(), p.parkCode);
+    }
+    if (data.length < 500) break;
+  }
+  if (m.size) UNIT_INDEX = m; // don't cache a failed/empty fetch as truth
+  return m;
+}
+
 export async function GET(request) {
   // Same key policy as /api/webcams: DEMO_KEY keeps local dev working (low
   // shared rate limit); the real deployment (NETLIFY/VERCEL env) requires the real key.
@@ -81,15 +101,20 @@ export async function GET(request) {
       "images,operatingHours,entranceFees,entrancePasses,contacts,addresses,designation,activities,directionsInfo,weatherInfo";
     let park = null;
     if (!parkCode && name) {
-      const d = await getJSON(BASE + "/parks?limit=8&q=" + encodeURIComponent(name) + "&fields=" + fields);
-      const list = (d && d.data) || [];
+      // Name → parkCode via the full unit index, cached per process. The old
+      // path q-searched with limit=8 and blind-fell back to list[0]: the NPS
+      // q search is alphabetical, so EVERY unmatched park got Acadia (acad is
+      // alphabetically first). Wrong park is worse than no park.
+      const idx = await unitIndex(getJSON);
       const lc = name.toLowerCase();
-      park =
-        list.find((p) => (p.fullName || "").toLowerCase().includes(lc)) ||
-        list.find((p) => (p.name || "").toLowerCase() === lc) ||
-        list[0] ||
-        null;
-      parkCode = park ? park.parkCode : "";
+      parkCode = idx.get(lc) || idx.get(lc + " national park") || "";
+      if (!parkCode) {
+        for (const [k, v] of idx) { if (k.includes(lc)) { parkCode = v; break; } }
+      }
+      if (parkCode) {
+        const d = await getJSON(BASE + "/parks?parkCode=" + encodeURIComponent(parkCode) + "&fields=" + fields);
+        park = (d && d.data && d.data[0]) || null;
+      }
     } else if (parkCode) {
       const d = await getJSON(BASE + "/parks?parkCode=" + encodeURIComponent(parkCode) + "&fields=" + fields);
       park = (d && d.data && d.data[0]) || null;

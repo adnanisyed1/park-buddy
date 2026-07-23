@@ -105,7 +105,9 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
       <Link
         href={href}
         aria-current={isActive ? "page" : undefined}
-        style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", padding: "7px 14px", borderRadius: 999, fontWeight: isActive ? 600 : 500, color: isActive ? "var(--pb-gold)" : "inherit", background: isActive ? "rgba(217,183,121,.14)" : "transparent", border: isActive ? "1px solid rgba(217,183,121,.35)" : "1px solid transparent", transition: "color .3s, background .2s, border-color .2s", cursor: "pointer" }}
+        // Active section wears the gold bubble — the one highlight language
+        // across the platform nav AND the page-section tabs (see pillTabs).
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, textDecoration: "none", padding: "7px 14px", borderRadius: 999, fontWeight: isActive ? 700 : 500, color: isActive ? "var(--pb-bg)" : "inherit", background: isActive ? "var(--pb-grad-gold)" : "transparent", border: "1px solid transparent", boxShadow: isActive ? "0 4px 14px -6px rgba(217,183,121,.55)" : "none", transition: "color .3s, background .2s, box-shadow .2s", cursor: "pointer" }}
       >
         {label} <span style={{ fontSize: ".6rem", opacity: 0.8, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
       </Link>
@@ -150,7 +152,13 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
 // mobileChromeless: on phones (≤860px), hide the floating top island (logo + nav
 // pill + hamburger) but keep the platform bottom bar + modals. Pines uses this so
 // its own top toggle can own the top edge (memory/project-mobile-nav-redesign.md).
-export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false, hideTabBar = false, bare = false }) {
+// pillTabs: a page can hand the island its own section tabs —
+//   { items: [{key,label}], active, on, onSelect }. While `on` is false the pill
+//   shows the platform nav as always; when it flips true the SAME pill animates
+//   its width and crossfades into the page tabs (one bar morphing, never two
+//   bars swapping), and morphs back when `on` returns to false. Desktop only —
+//   the pill is display:none under 860px.
+export default function SiteHeader({ active, solid = false, tripCount = null, onTripClick, acctSlot = false, mobileChromeless = false, hideTabBar = false, bare = false, pillTabs = null }) {
   const [openKey, setOpenKey] = useState(null); // which top-nav dropdown is open ("explore" | "book" | "shop")
   const [menuOpen, setMenuOpen] = useState(false);
   // Hover-intent: the dropdown anchors below the pill, so moving the mouse from a tab
@@ -213,6 +221,41 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   const displayName = user ? ((user.user_metadata && (user.user_metadata.full_name || user.user_metadata.name)) || (user.email || "").split("@")[0]) : "";
   const avatar = user && user.user_metadata && (user.user_metadata.avatar_url || user.user_metadata.picture);
 
+  // Morphing pill (see pillTabs above). Width is measured, not guessed: lock
+  // the current width in px, then transition to the target layer's natural
+  // width while the layers crossfade. Overflow is clipped only while the tabs
+  // own the pill — the nav state needs overflow visible for its dropdowns.
+  const pillRef = useRef(null), navLayRef = useRef(null), altLayRef = useRef(null);
+  const [altOn, setAltOn] = useState(false);
+  const prevOnRef = useRef(false);
+  const PILL_PAD = 68; // 34px horizontal padding each side
+  useEffect(() => {
+    const on = !!(pillTabs && pillTabs.on);
+    if (on === prevOnRef.current) return;
+    prevOnRef.current = on;
+    const pill = pillRef.current, nav = navLayRef.current, alt = altLayRef.current;
+    if (!pill || !nav || !alt) { setAltOn(on); return; }
+    pill.style.width = pill.getBoundingClientRect().width + "px";
+    pill.style.overflow = "hidden";
+    requestAnimationFrame(() => {
+      pill.style.width = ((on ? alt.scrollWidth : nav.scrollWidth) + PILL_PAD) + "px";
+      setAltOn(on);
+    });
+    const done = (e) => {
+      if (e.propertyName !== "width") return;
+      if (!prevOnRef.current) { pill.style.width = ""; pill.style.overflow = ""; }
+      pill.removeEventListener("transitionend", done);
+    };
+    pill.addEventListener("transitionend", done);
+  }, [pillTabs && pillTabs.on]);
+  // While the tabs own the pill, a tab change shifts the bubble (bold + padding)
+  // — re-fit the width so nothing clips.
+  useEffect(() => {
+    if (!(pillTabs && pillTabs.on)) return;
+    const pill = pillRef.current, alt = altLayRef.current;
+    if (pill && alt) pill.style.width = (alt.scrollWidth + PILL_PAD) + "px";
+  }, [pillTabs && pillTabs.on, pillTabs && pillTabs.active]);
+
   const askBuddy = async () => {
     // Open the assistant in-context. Ensure its script is loaded (idempotent) before
     // clicking, so it works even if the mount effect hasn't resolved yet — and only
@@ -260,6 +303,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
       </button>
 
       <div
+        ref={pillRef}
         className={mobileChromeless ? "pb-nav-pill pb-chromeless" : "pb-nav-pill"}
         style={{
           flex: "none", marginLeft: "auto", position: "relative",
@@ -271,24 +315,28 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           border: "1px solid var(--pb-line-strong)",
           borderRadius: 22,
           boxShadow: "0 22px 54px -26px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)",
+          transition: "width .4s cubic-bezier(.16,.8,.24,1)",
         }}
       >
-      <div className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "var(--pb-ink-2)" }}>
+      <div ref={navLayRef} className="pb-nav-links" style={{ display: "flex", alignItems: "center", gap: 16, fontSize: ".82rem", fontWeight: 500, color: "var(--pb-ink-2)", whiteSpace: "nowrap", opacity: altOn ? 0 : 1, pointerEvents: altOn ? "none" : "auto", transition: "opacity .22s ease" }}>
         {/* Explore ▾ — the ways to experience the parks */}
         <NavDropdown label="Explore" href="/explore" menu={EXPLORE_MENU} isActive={tab === "explore"} open={openKey === "explore"} onOpen={() => openDrop("explore")} onClose={closeDrop} />
         {LINKS.map((l) => (
           l.menu ? (
             <NavDropdown key={l.key} label={l.label} href={l.href} menu={l.menu} isActive={tab === l.key} open={openKey === l.key} onOpen={() => openDrop(l.key)} onClose={closeDrop} />
           ) : l.key === "pines" ? (
+            // The gold bubble is now the ACTIVE-SECTION highlight, not Pines
+            // branding (owner call 2026-07-22) — Pines wears it only when
+            // you are actually in Pines, like every other section.
             <Link
               key={l.key}
               href={l.href}
               aria-current={tab === "pines" ? "page" : undefined}
-              style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "7px 15px 7px 12px", fontWeight: 700, boxShadow: tab === "pines" ? "0 0 0 2px rgba(217,183,121,.55), 0 6px 18px -8px rgba(217,183,121,.7)" : "0 4px 14px -6px rgba(217,183,121,.55)", transition: "box-shadow .3s, transform .2s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
+              style={tab === "pines"
+                ? { display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "7px 15px 7px 12px", fontWeight: 700, boxShadow: "0 4px 14px -6px rgba(217,183,121,.55)", transition: "box-shadow .3s, transform .2s" }
+                : { display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "inherit", fontWeight: 500, transition: "color .3s" }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--pb-bg)" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
               Pines
             </Link>
           ) : (
@@ -302,6 +350,32 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           )
         ))}
       </div>
+      {/* Page-section tabs layer — crossfades in when pillTabs.on (the morph).
+          Absolutely centered at max-content width so its natural width is
+          measurable for the pill's width animation. The gold bubble marks the
+          ACTIVE section — the same treatment Pines used to wear permanently. */}
+      {pillTabs && (
+        <div ref={altLayRef} role="tablist" aria-label="Page sections"
+          style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "max-content",
+            display: "flex", alignItems: "center", gap: 4,
+            opacity: altOn ? 1 : 0, pointerEvents: altOn ? "auto" : "none", transition: "opacity .22s ease" }}>
+          {pillTabs.items.map((t) => {
+            const on = pillTabs.active === t.key;
+            return (
+              <button key={t.key} role="tab" aria-selected={on}
+                onClick={() => pillTabs.onSelect && pillTabs.onSelect(t.key)}
+                style={{ cursor: "pointer", border: "none", fontFamily: "inherit", fontSize: ".8rem", whiteSpace: "nowrap",
+                  borderRadius: 999, padding: "7px 13px", fontWeight: on ? 700 : 500,
+                  color: on ? "var(--pb-bg)" : "var(--pb-ink-2)",
+                  background: on ? "var(--pb-grad-gold)" : "transparent",
+                  boxShadow: on ? "0 4px 14px -6px rgba(217,183,121,.55)" : "none",
+                  transition: "color .25s, background .25s, box-shadow .25s, font-weight .25s" }}>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       </div>{/* /pb-nav-pill — sections only, sits between the logo and the account */}
 
       {/* Account cluster — kept visually separate from the section nav (Sign in /

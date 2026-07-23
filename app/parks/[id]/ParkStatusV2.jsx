@@ -94,6 +94,22 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const [river, setRiver] = useState(null);
   const [tz, setTz] = useState(null); // park's IANA timezone (from weather.gov points)
   const [nearby, setNearby] = useState(null);
+  // Floating section tabs (owner call 2026-07-22): while the hero is on
+  // screen the platform nav island rules the top; the moment you scroll past
+  // it, the island hands the spot to a floating tab pill (Overview …
+  // Nearby) in the same glass style — and hands it back when you scroll up.
+  const [pastHero, setPastHero] = useState(false);
+  const heroRef = useRef(null);
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([e]) => setPastHero(!e.isIntersecting),
+      { rootMargin: "-72px 0px 0px 0px", threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  });
   const [radius, setRadius] = useState(60);
   const [added, setAdded] = useState(false);
   const alertsRef = useRef(null);
@@ -203,7 +219,15 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   // Reflect whether this park is already in the trip.
   useEffect(() => { if (park) setAdded(inTrip(park.name)); }, [park]);
 
-  const scrollToTabs = () => { const el = document.getElementById("ps-tabnav"); if (el) window.scrollTo({ top: el.offsetTop - 64, behavior: "smooth" }); };
+  // Anchor on the tab bar where it exists (phone); on desktop it is
+  // display:none (tabs live in the header pill), so anchor on the content —
+  // offsetTop of a display:none element is 0, which would scroll back INTO
+  // the hero and morph the pill straight back to the nav.
+  const scrollToTabs = () => {
+    const bar = document.getElementById("ps-tabnav");
+    const el = bar && bar.offsetParent !== null ? bar : document.getElementById("ps-main");
+    if (el) window.scrollTo({ top: Math.max(el.offsetTop - 64, 0), behavior: "smooth" });
+  };
   const goAlerts = () => { setTab("conditions"); setTimeout(() => { const el = alertsRef.current; if (el) { window.scrollTo({ top: el.getBoundingClientRect().top + window.pageYOffset - 80, behavior: "smooth" }); el.style.transition = "box-shadow .4s"; el.style.boxShadow = "0 0 0 2px #e8cf9a,0 30px 70px -40px rgba(0,0,0,.9)"; setTimeout(() => { el.style.boxShadow = ""; }, 1600); } }, 60); };
 
   if (park === null) {
@@ -262,7 +286,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
   const areaQ = park ? (isNP ? park.name + " National Park|" + park.name : park.name) : "";
 
   return (
-    <div ref={themeRef} className="pb-theme" style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
+    <div ref={themeRef} className={"pb-theme" + (pastHero ? " ps-past" : "")} style={{ minHeight: "100vh", background: "var(--pb-bg)", color: "var(--pb-ink)", fontFamily: "var(--pb-sans)" }}>
       {/* dangerouslySetInnerHTML is LOAD-BEARING here, not a shortcut: a
           style tag rendered as a text child gets HTML-escaped by the server
           but not the client, so any apostrophe, quote or angle bracket —
@@ -299,9 +323,22 @@ export default function ParkStatusV2({ id, kind = "park" }) {
           .ps-stats .ps-stat-val { font-size: 1.05rem !important; margin-top: 7px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .ps-stats .ps-stat-note { display: none !important; }
         }
+        /* On desktop the section tabs live ONLY in the header pill (SiteHeader
+           pillTabs morph) — no in-page tab bar at all, just scroll (owner call
+           2026-07-22). Phones keep the sticky bar: the pill does not exist
+           under 860px. */
+        @media (min-width: 861px) { #ps-tabnav { display: none; } }
       ` }} />
 
-      <SiteHeader acctSlot />
+      {/* Past the hero, the platform nav island MORPHS into this page's
+          section tabs (one pill expanding, options swapping in — see
+          SiteHeader pillTabs); scroll back up and it morphs back. */}
+      <SiteHeader acctSlot pillTabs={{
+        items: TABS.map(([k, label]) => ({ key: k, label })),
+        active: tab,
+        on: pastHero,
+        onSelect: (k) => { setTab(k); scrollToTabs(); },
+      }} />
 
       {/* HERO + VERDICT */}
       {/* The hero is the one region that is NOT on the page surface — it's on a
@@ -309,7 +346,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
           --pb-ink meant the park's own name rendered dark forest green on a dark
           photo in light theme. Pinned to a literal light ink here, which is also
           why every colour inside this section stays literal rather than tokenised. */}
-      <section className="ps-hero" style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,700px)", display: "flex", alignItems: "flex-end", color: "#f4f1ea", padding: "clamp(96px,13vh,150px) clamp(16px,4vw,40px) clamp(30px,5vh,54px)" }}>
+      <section ref={heroRef} className="ps-hero" style={{ position: "relative", overflow: "hidden", minHeight: "min(88vh,700px)", display: "flex", alignItems: "flex-end", color: "#f4f1ea", padding: "clamp(96px,13vh,150px) clamp(16px,4vw,40px) clamp(30px,5vh,54px)" }}>
         {park && hero && hero.url && <img alt="" src={hero.url} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", animation: "ps-ken 24s ease-out both" }} />}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(8,19,13,.4) 0%,rgba(8,19,13,.12) 38%,rgba(8,19,13,.85) 100%)" }} />
         <div className="ps-grid" style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", width: "100%", display: "grid", gap: "clamp(20px,4vw,44px)", alignItems: "end" }}>
@@ -409,7 +446,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
         </div>
       </div>
 
-      <main style={{ padding: "clamp(28px,4vh,48px) clamp(16px,4vw,40px) 8px" }}>
+      <main id="ps-main" style={{ padding: "clamp(28px,4vh,48px) clamp(16px,4vw,40px) 8px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {tab === "overview" && <Overview park={park} nps={nps} isForest={isForest} isStatePark={isStatePark} />}
           {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} river={river} tz={tz} alertsRef={alertsRef} isForest={isForest} isStatePark={isStatePark} />}
@@ -1447,16 +1484,19 @@ function ThingsToDoTab({ park, isNP }) {
                 <div style={{ ...microLabel, letterSpacing: ".12em", color: "var(--pb-hold)" }}>⚠ Watch out for · {wild.caution.length}</div>
                 <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Confirmed in this area. NPS rule of thumb: 25 yards from most wildlife, 100 from bears and wolves.</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: 10 }}>
                 {wild.caution.map((s) => (
-                  <div key={s.sci} style={{ ...card, padding: 0, overflow: "hidden", display: "flex", border: "1px solid color-mix(in srgb, var(--pb-hold) 35%, var(--pb-line))" }}>
-                    <figure style={{ position: "relative", width: 86, flex: "none", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
+                  <div key={s.sci} style={{ ...card, padding: 0, overflow: "hidden", border: "1px solid color-mix(in srgb, var(--pb-hold) 35%, var(--pb-line))" }}>
+                    <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
                       {s.photo && <img src={s.photo} alt={s.name} title={s.credit || undefined} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                      <span style={{ position: "absolute", left: 8, top: 8, background: "rgba(20,14,8,.82)", color: "var(--pb-hold)", fontFamily: mono, fontSize: ".56rem", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", borderRadius: 999, padding: "3px 9px" }}>⚠ Caution</span>
                     </figure>
-                    <div style={{ padding: "10px 12px", minWidth: 0 }}>
-                      <div style={{ fontSize: ".84rem", fontWeight: 800, lineHeight: 1.25 }}>{s.name}</div>
-                      <div style={{ fontSize: ".72rem", color: "var(--pb-muted)", lineHeight: 1.45, marginTop: 3 }}>{s.note}</div>
-                      <div style={{ ...microLabel, marginTop: 4 }}>{s.obs >= 1000 ? (s.obs / 1000).toFixed(1) + "k" : s.obs} sightings here</div>
+                    <div style={{ padding: "11px 13px 13px" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+                        <div style={{ fontSize: ".86rem", fontWeight: 800, lineHeight: 1.25 }}>{s.name}</div>
+                        <div style={{ ...microLabel, flex: "none" }}>{s.obs >= 1000 ? (s.obs / 1000).toFixed(1) + "k" : s.obs} seen</div>
+                      </div>
+                      <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", lineHeight: 1.5, marginTop: 5 }}>{s.note}</div>
                     </div>
                   </div>
                 ))}

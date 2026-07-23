@@ -18,23 +18,25 @@ function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 // Species a hiker should give room — matched against what's ACTUALLY observed
 // nearby, so a Florida page warns about gators and a Colorado page about
 // moose, never a generic scare list. Notes follow NPS distance guidance.
+// Notes are pure guidance — the card already shows the species name, so a
+// note that repeats it ("Rattlesnake — venomous…") read as a stutter.
 const HAZARD_EXACT = {
-  "Ursus arctos": "Grizzly bear — carry bear spray, make noise, never run",
-  "Ursus americanus": "Black bear — store food properly; make yourself heard",
-  "Puma concolor": "Mountain lion — don't crouch or run; look big, back away",
-  "Canis lupus": "Gray wolf — keep 100 yards, never feed",
-  "Alces alces": "Moose — charges more people than bears; give it the trail",
-  "Bison bison": "Bison — the #1 wildlife injury in parks; stay 25 yards",
-  "Cervus canadensis": "Elk — unpredictable in fall rut and spring calving",
-  "Alligator mississippiensis": "Alligator — keep 30 feet, never feed",
-  "Heloderma suspectum": "Gila monster — venomous; look, don't touch",
-  "Agkistrodon contortrix": "Copperhead — venomous; watch where you step",
-  "Agkistrodon piscivorus": "Cottonmouth — venomous; mind wetland edges",
+  "Ursus arctos": "Carry bear spray and make noise on trail. Never run.",
+  "Ursus americanus": "Store food properly and keep talking on quiet trails.",
+  "Puma concolor": "Look big, back away slowly. Never crouch or run.",
+  "Canis lupus": "Keep 100 yards. Never feed or approach.",
+  "Alces alces": "Charges more hikers than bears do. Give it the whole trail.",
+  "Bison bison": "The #1 wildlife injury in parks. Stay 25 yards back.",
+  "Cervus canadensis": "Unpredictable in fall rut and spring calving. Keep 25 yards.",
+  "Alligator mississippiensis": "Stay 30 feet from the water's edge. Never feed.",
+  "Heloderma suspectum": "Venomous. Look all you want — never touch.",
+  "Agkistrodon contortrix": "Venomous. Watch where you step in leaf litter.",
+  "Agkistrodon piscivorus": "Venomous. Mind your step along wetland edges.",
 };
 const HAZARD_GENUS = {
-  Crotalus: "Rattlesnake — venomous; give it room and it will warn you",
-  Sistrurus: "Massasauga rattlesnake — venomous; watch sunny rock edges",
-  Micrurus: "Coral snake — venomous; never handle",
+  Crotalus: "Venomous. Give it room — it will warn you first.",
+  Sistrurus: "Venomous. Watch sunny rock edges and grass.",
+  Micrurus: "Venomous. Never handle, however calm it looks.",
 };
 function hazardNote(sci) {
   if (HAZARD_EXACT[sci]) return HAZARD_EXACT[sci];

@@ -16,6 +16,31 @@
 export const runtime = "nodejs";
 export const revalidate = 3600;
 
+// Stored OSM trail geometry, keyed by NPS UNITCODE (scripts/build-trails.mjs).
+// Starts as {} and grows park-by-park; the route is stored-FIRST with a live
+// NPS fallback, so a partial file is always additive and never a regression —
+// parks not in the store keep serving from live NPS below. This is the fix for
+// nameless-NPS parks like Acadia (860 segments, 859 unnamed) where OSM has the
+// real named trails. Data © OpenStreetMap contributors (ODbL).
+import TRAIL_DATA from "../../lib/trail-data.json";
+
+// Group a stored park's flat trail list into the {hiking,offroad,ski} buckets
+// the frontend expects, honoring the same per-bucket caps as the live path.
+function bucketsFromStore(list) {
+  const seen = { hiking: {}, offroad: {}, ski: {} };
+  const hiking = [], offroad = [], ski = [];
+  const buckets = { hiking, offroad, ski };
+  const caps = { hiking: 16, offroad: 10, ski: 10 };
+  for (const t of list || []) {
+    const cat = buckets[t.category] ? t.category : "hiking";
+    const key = (t.name || "").toLowerCase();
+    if (!key || seen[cat][key] || buckets[cat].length >= caps[cat]) continue;
+    seen[cat][key] = true;
+    buckets[cat].push(t);
+  }
+  return { hiking, offroad, ski };
+}
+
 const NPS_TRAILS_URL = "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_Trails/FeatureServer/0/query";
 
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
@@ -154,6 +179,14 @@ export async function GET(request) {
   // Single-trail lookup by its NPS ArcGIS OBJECTID (stable per feature) — used
   // by /trail-status for a deep-linkable page instead of a bbox/park re-fetch.
   if (id) {
+    // Stored OSM trails carry an "osm-…" id — resolve them from the store, not NPS.
+    if (String(id).startsWith("osm-")) {
+      for (const list of Object.values(TRAIL_DATA)) {
+        const t = (list || []).find((x) => x.id === id);
+        if (t) return Response.json({ trail: { ...t, category: t.category || "hiking" }, credit: "© OpenStreetMap contributors (ODbL)" });
+      }
+      return Response.json({ trail: null });
+    }
     const idNum = parseInt(id, 10);
     if (!isFinite(idNum)) return Response.json({ trail: null });
     const params = new URLSearchParams({
@@ -182,6 +215,13 @@ export async function GET(request) {
     } catch {
       return Response.json({ trail: null });
     }
+  }
+
+  // Stored-first: if we've ingested this park's OSM trails, serve them and skip
+  // the live NPS call entirely. Any park NOT in the store falls through to the
+  // live path below, so the store is purely additive.
+  if (parkCode && Array.isArray(TRAIL_DATA[parkCode]) && TRAIL_DATA[parkCode].length) {
+    return Response.json({ ...bucketsFromStore(TRAIL_DATA[parkCode]), credit: "© OpenStreetMap contributors (ODbL)" });
   }
 
   let where, geometryParams = {};

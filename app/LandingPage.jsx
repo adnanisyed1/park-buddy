@@ -14,6 +14,7 @@ import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
 import loadScript from "./components/load-script";
 import { useThemedBody } from "./lib/theme";
+import { usePhoto } from "./components/PhotoThumb";
 
 // SSR-safe layout effect: the overture must hide (or start) BEFORE first paint
 // so returning visitors never flash the overlay.
@@ -188,6 +189,26 @@ function useWildlife(lat, lng) {
 }
 
 // One real bookable tour near Rocky Mountain (Viator via /api/tours).
+// Ranger-activity card: the NPS's own curated program for RMNP, with the
+// NPS's own photo — real content, not stock. 503s locally (DEMO_KEY); the
+// card then falls back to a Wikimedia park photo via usePhoto.
+function useRangerTodo() {
+  const [item, setItem] = useState(null);
+  useEffect(() => {
+    let on = true;
+    fetch("/api/thingstodo?parkCode=romo")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!on) return;
+        const it = d && Array.isArray(d.items) && d.items.find((i) => i.img && i.title);
+        setItem(it || { failed: true });
+      })
+      .catch(() => { if (on) setItem({ failed: true }); });
+    return () => { on = false; };
+  }, []);
+  return item;
+}
+
 function useTour(lat, lng) {
   const [t, setT] = useState(null);
   useEffect(() => {
@@ -897,13 +918,14 @@ function ParkCard({ name, v, delayClass }) {
 
 // Things-to-do trio: the tour card — real Viator tour (title, from-price,
 // photo, /tours/:code). Empty or failed: the design placeholder, no price.
-function TourCard({ tour }) {
+function TourCard({ tour, fallbackPhoto }) {
   const real = tour && !tour.failed;
   const href = real && tour.code ? "/tours/" + tour.code : "/book?cat=tours";
+  const photoUrl = (real && tour.photo) || (fallbackPhoto && fallbackPhoto.url) || null;
   return (
     <Link href={href} className="todo-card todo-link reveal d1 shimmer-edge">
-      {real && tour.photo ? (
-        <span className="todo-photo"><img src={tour.photo} alt="" loading="lazy" /></span>
+      {photoUrl ? (
+        <span className="todo-photo"><img src={photoUrl} alt="" loading="lazy" /></span>
       ) : (
         <div className="photo-slot"><span className="mono">PHOTO — guided canyon rim tour</span></div>
       )}
@@ -1046,6 +1068,17 @@ export default function LandingPage() {
   const vGlacier = useVerdict(GLACIER.lat, GLACIER.lng);
   const wildlife = useWildlife(ROCKY.lat, ROCKY.lng);
   const tour = useTour(ROCKY.lat, ROCKY.lng);
+  const rangerTodo = useRangerTodo();
+  // Real photos for the last placeholder slots (Wikimedia via /api/photo):
+  // the tour-card fallback and the stage's ranger-walk mini. Real places,
+  // never stock.
+  // Distinct chain from the ranger card's park photo so the trio never
+  // shows the same image twice.
+  // w=900 keeps Wikimedia from handing back multi-thousand-pixel originals
+  // for card-sized frames.
+  const tourFallbackPhoto = usePhoto("Longs Peak|Trail Ridge Road|Moraine Park", 40.2549, -105.6151, undefined, 900);
+  const sunriseWalkPhoto = usePhoto("Bear Lake (Colorado)|Bear Lake, Colorado|Dream Lake", 40.3131, -105.648, undefined, 900);
+  const rangerFallbackPhoto = usePhoto("Rocky Mountain National Park", ROCKY.lat, ROCKY.lng, undefined, 900);
 
   // ── refs for the canvas systems + choreography
   const ovRef = useRef(null), ovCanvasRef = useRef(null), ovBadgeRef = useRef(null), ovSealRef = useRef(null), ovSkipRef = useRef(null);
@@ -1336,7 +1369,13 @@ export default function LandingPage() {
                   <div className={"stage-state" + (stageState === 2 ? " on" : "")}>
                     <span className="state-badge"><span className="mono">Book · things to do</span></span>
                     <div className="book-mini">
-                      <div className="ph photo-slot"><span className="mono">PHOTO — ranger-led sunrise walk</span></div>
+                      {sunriseWalkPhoto && sunriseWalkPhoto.url ? (
+                        <div className="ph photo-slot" style={{ padding: 0, overflow: "hidden" }}>
+                          <img src={sunriseWalkPhoto.url} alt="Sunrise at Bear Lake, Rocky Mountain National Park" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        </div>
+                      ) : (
+                        <div className="ph photo-slot"><span className="mono">PHOTO — ranger-led sunrise walk</span></div>
+                      )}
                       <div className="row">
                         <span className="price">Free<span className="price-sub"> · NPS ranger walk</span></span>
                         <span className="go"><span className="d" />GO</span>
@@ -1417,10 +1456,16 @@ export default function LandingPage() {
               <p className="creed">Things to do on every single page — booked, free, and wild.</p>
             </div>
             <div className="trio">
-              <TourCard tour={tour} />
+              <TourCard tour={tour} fallbackPhoto={tourFallbackPhoto} />
               <div className="todo-card reveal d2 shimmer-edge">
-                <div className="photo-slot"><span className="mono">PHOTO — ranger geology talk</span></div>
-                <div className="tt"><h4 className="display">Ranger activity</h4><span className="free">FREE WITH ENTRY</span></div>
+                {rangerTodo && !rangerTodo.failed ? (
+                  <span className="todo-photo"><img src={rangerTodo.img} alt="" loading="lazy" /></span>
+                ) : rangerFallbackPhoto && rangerFallbackPhoto.url ? (
+                  <span className="todo-photo"><img src={rangerFallbackPhoto.url} alt="" loading="lazy" /></span>
+                ) : (
+                  <div className="photo-slot"><span className="mono">PHOTO — ranger geology talk</span></div>
+                )}
+                <div className="tt"><h4 className="display">{rangerTodo && !rangerTodo.failed ? rangerTodo.title : "Ranger activity"}</h4><span className="free">FREE WITH ENTRY</span></div>
                 <p>NPS ranger-curated walks and talks — real programs, on the park&apos;s own schedule.</p>
                 <p className="disc">Straight from the National Park Service calendar.</p>
               </div>
@@ -1856,7 +1901,9 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 .pbl5 .capture-err{margin-top:10px; color:var(--pb-hold); font-size:12.5px;}
 .pbl5 .book-row{display:grid; grid-template-columns:1fr 1.2fr; gap:36px; align-items:center; margin-top:80px; padding-top:70px; border-top:1px solid var(--pb-line);}
 .pbl5 .tripbook{perspective:1400px; display:flex; align-items:center; justify-content:center; padding:20px;}
-.pbl5 .book{position:relative; width:210px; height:280px; transform-style:preserve-3d; transform:rotateY(-24deg) rotateX(6deg); transition:transform .8s cubic-bezier(.23,1,.32,1);}
+/* Square, not portrait: Trip Books ARE square-format (the real cover art is
+   810x810) — a 210x280 frame cropped the title off both edges. */
+.pbl5 .book{position:relative; width:250px; height:250px; transform-style:preserve-3d; transform:rotateY(-24deg) rotateX(6deg); transition:transform .8s cubic-bezier(.23,1,.32,1);}
 .pbl5 .tripbook:hover .book{transform:rotateY(-6deg) rotateX(2deg);}
 .pbl5 .book .cover{position:absolute; inset:0; border-radius:6px 10px 10px 6px; background:linear-gradient(135deg,#123020,#0b1c12); border:1px solid var(--pb-line-strong); box-shadow:var(--pb-shadow); transform:translateZ(14px); overflow:hidden;}
 .pbl5 .book .cover img{width:100%; height:100%; object-fit:cover; display:block;}

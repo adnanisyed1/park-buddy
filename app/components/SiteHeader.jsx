@@ -112,7 +112,11 @@ function NavDropdown({ label, href, menu, isActive, open, onOpen, onClose }) {
         {label} <span style={{ fontSize: ".6rem", opacity: 0.8, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
       </Link>
       {open && (
-        <div onMouseEnter={onOpen} onMouseLeave={onClose} style={{ position: "absolute", top: "100%", left: 0, right: 0, paddingTop: 14, zIndex: 90 }}>
+        // whiteSpace normal is LOAD-BEARING: the pill's nav layer sets nowrap
+        // (for the morph width math), and this panel lives inside it — without
+        // the reset, tile copy refuses to wrap and the grid bursts out of the
+        // panel's right edge.
+        <div onMouseEnter={onOpen} onMouseLeave={onClose} style={{ position: "absolute", top: "100%", left: 0, right: 0, paddingTop: 14, zIndex: 90, whiteSpace: "normal" }}>
           <div style={{ width: "100%", background: "var(--pb-glass-strong)", WebkitBackdropFilter: "blur(20px) saturate(1.4)", backdropFilter: "blur(20px) saturate(1.4)", border: "1px solid var(--pb-line-strong)", borderRadius: 20, padding: 14, boxShadow: "0 30px 70px -30px rgba(0,0,0,.85)" }}>
             {hasSoon && (
               <div style={{ display: "inline-flex", gap: 2, background: "rgba(255,255,255,.05)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3, margin: "2px 2px 10px" }}>

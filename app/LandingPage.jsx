@@ -509,7 +509,8 @@ function usePageGlow({ canvasRef }) {
     const newMote = () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.5, vx: (Math.random() - 0.5) * 0.1, vy: -(Math.random() * 0.2 + 0.04), a: Math.random() * 0.5 + 0.15, tw: Math.random() * 6.28, ts: Math.random() * 0.025 + 0.006 });
     function build() {
       const d = fitCanvas(canvas); W = d.w; H = d.h;
-      const target = Math.min(RM ? 26 : 44, Math.round((W * H) / 42000));
+      // +80% density (owner call 2026-07-23): caps 26→47 / 44→79, divisor 42k→23k.
+      const target = Math.min(RM ? 47 : 79, Math.round((W * H) / 23000));
       motes = []; for (let i = 0; i < target; i++) motes.push(newMote());
     }
     function draw() {

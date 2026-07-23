@@ -102,11 +102,15 @@ export default function PinesFeed() {
 
   // Pines (discover) is a full-bleed media stage; the rest are centered content columns.
   const fullBleed = tab === "pines";
-  // Phone: the Pines top toggle owns the top edge (TOGGLE_TOP tall) and the platform
-  // bottom bar owns the bottom; the fixed content sits between them. Web/tablet keeps
-  // the SiteHeader island up top and the FloatingTabs pill at the bottom.
-  const cTop = isPhone ? TOGGLE_TOP : HEADER;
-  const cBottom = isPhone && !fullBleed ? PLATFORM_BAR : 0;
+  // Phone (owner call 2026-07-23): Instagram model — NO top toggle and NO
+  // platform bottom bar; the Pines nav lives in a floating bottom bar, and a
+  // small Back-to-home sits top-left. Content runs nearly full height: a slim
+  // top inset (52) on scrollable screens for the back button, none on the
+  // full-bleed reels; the bottom bar (BOTTOM_BAR) is reserved on scrollable
+  // screens and floats over the reels. Web/tablet unchanged (SiteHeader + pill).
+  const BOTTOM_BAR = 62;
+  const cTop = isPhone ? (fullBleed ? 0 : 52) : HEADER;
+  const cBottom = isPhone && !fullBleed ? BOTTOM_BAR : 0;
   const wrap = fullBleed
     ? { maxWidth: isWeb ? 500 : "100%", margin: "0 auto", height: "calc(100dvh - " + cTop + "px - " + cBottom + "px)" }
     : { maxWidth: 940, margin: "0 auto", padding: isPhone ? "0 0 24px" : "0 0 104px" };
@@ -117,12 +121,16 @@ export default function PinesFeed() {
           component is SSR'd), so the top strip behind the fixed header paints dark
           from first paint — no cream flash before useDarkBody's effect runs. */}
       <div aria-hidden style={{ position: "fixed", inset: 0, background: "var(--pb-bg)", zIndex: 0 }} />
-      <SiteHeader active="pines" solid mobileChromeless />
-      {isPhone && <PinesToggle tab={tab} go={go} />}
+      {/* Phone hides the platform bottom bar too (hideTabBar) — Pines owns the
+          whole screen, Instagram-style. */}
+      <SiteHeader active="pines" solid mobileChromeless hideTabBar={isPhone} />
+      {isPhone && <PinesBackHome />}
       <div style={{ position: "fixed", top: cTop, left: 0, right: 0, bottom: cBottom, overflowY: fullBleed ? "hidden" : "auto", WebkitOverflowScrolling: "touch", background: "var(--pb-bg)", fontFamily: "var(--pb-sans)" }}>
         <div style={wrap}>{screen}</div>
       </div>
-      {!isPhone && <FloatingTabs tab={tab} go={go} isWeb={isWeb} />}
+      {/* The Pines nav is a floating bottom bar on every size now (phone =
+          full-width Instagram bar, web = centered pill). */}
+      <FloatingTabs tab={tab} go={go} isWeb={isWeb} />
       {compose && <PinesCompose open={compose} onClose={() => setCompose(false)} onPosted={() => setTab("you")} />}
       {lightbox && <PineLightbox list={lightbox.pines} start={lightbox.i} user={user} onClose={() => setLightbox(null)} />}
     </>
@@ -156,7 +164,18 @@ function FloatingTabs({ tab, go, isWeb }) {
   return <nav style={shell}>{T("feed", "Feed")}{T("pines", "Pines")}{plus}{T("campfire", "Campfire")}{T("gallery", "Gallery")}{T("you", "Mine", "you")}</nav>;
 }
 
-/* ---------------- Pines contextual top toggle (phone) ----------------
+/* ---------------- Back to home (phone) ----------------
+   Pines takes over the whole phone screen, so a single back affordance top-left
+   returns to the homepage (owner call 2026-07-23). */
+function PinesBackHome() {
+  return (
+    <a href="/" aria-label="Back to home" style={{ position: "fixed", top: "calc(10px + env(safe-area-inset-top))", left: 12, zIndex: 130, width: 38, height: 38, borderRadius: "50%", background: "rgba(6,14,10,.55)", WebkitBackdropFilter: "blur(10px)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", boxShadow: "0 8px 22px -10px rgba(0,0,0,.7)" }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}><path d="M15 6l-6 6 6 6" /></svg>
+    </a>
+  );
+}
+
+/* ---------------- Pines contextual top toggle (phone, retired) ----------------
    In Pines the top bar clears (no logo) and becomes the toggle:
    Feed · Discover · ＋ · Campfire(soon) · Mine — the gold ＋ dead-center to post,
    mirroring the platform bar's Ask. Gallery folds into Discover's grid view, and

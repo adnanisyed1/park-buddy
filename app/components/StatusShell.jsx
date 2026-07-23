@@ -39,7 +39,7 @@ export function StatusShell({ children, hero, backHref, backLabel, headerRight, 
           the hero's top-left; falls back to browser history if no href given. */}
       {backHref && (
         <a href={backHref}
-          style={{ position: "fixed", top: 70, left: "clamp(12px,3vw,22px)", zIndex: 60,
+          style={{ position: "fixed", top: 108, left: "clamp(12px,3vw,22px)", zIndex: 60,
             display: "inline-flex", alignItems: "center", gap: 7,
             background: "var(--pb-glass, rgba(11,23,16,.6))", WebkitBackdropFilter: "blur(16px) saturate(1.4)", backdropFilter: "blur(16px) saturate(1.4)",
             border: "1px solid var(--pb-line-strong, rgba(217,183,121,.3))", borderRadius: 999,

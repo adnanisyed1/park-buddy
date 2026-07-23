@@ -9,6 +9,7 @@ import AccountPanel from "./AccountPanel";
 import loadScript from "./load-script";
 import { useAuth } from "../lib/auth";
 import { useTheme, setTheme } from "../lib/theme";
+import { getMapPrefs, setMapPrefs } from "../lib/mapPrefs";
 import { tripCount as storeTripCount, subscribeTrip } from "../lib/trip";
 import { EXPLORE_MENU, BOOK_MENU, SHOP_MENU } from "../lib/nav-menus";
 import PbTabBar, { PATHS, DEFAULT_ICON, Ico } from "./PbTabBar";
@@ -214,6 +215,10 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
   // signed out, the account panel when signed in).
   const { user, openAuth } = useAuth();
   const theme = useTheme(); // "light" | "dark" — for the account-menu toggle
+  // Map-appearance pref for the settings row. Starts "auto" on both server and
+  // first client render (hydration-safe), syncs to the stored value on mount.
+  const [mapPref, setMapPrefState] = useState("auto");
+  useEffect(() => { setMapPrefState(getMapPrefs().theme); }, []);
   const openAccount = () => { setMenuOpen(false); openAuth(); };
   // Phone top-bar bubble: shows the current section ("where you are") and, when
   // tapped, opens the platform "Go anywhere" tile sheet (the same sheet the bottom
@@ -349,7 +354,9 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
               aria-current={tab === "pines" ? "page" : undefined}
               style={tab === "pines"
                 ? { display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", color: "var(--pb-bg)", background: "var(--pb-grad-gold)", borderRadius: 999, padding: "7px 15px 7px 12px", fontWeight: 700, boxShadow: "0 4px 14px -6px rgba(217,183,121,.55)", transition: "box-shadow .3s, transform .2s" }
-                : { display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "inherit", fontWeight: 500, transition: "color .3s" }}
+                // Same 7/14 padding as the dropdown triggers — a padding-less
+                // link made the pill's spacing lurch around Pines.
+                : { display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "inherit", fontWeight: 500, padding: "7px 14px", borderRadius: 999, transition: "color .3s" }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l5 9h-3l5 9H5l5-9H7z" /><rect x="11" y="18" width="2" height="4" /></svg>
               Pines
@@ -510,6 +517,21 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
             </div>
           </div>
 
+          {/* Map appearance — Auto follows the theme (light → terrain, dark →
+              the dark style); an explicit pick overrides it platform-wide. */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "4px 4px 2px" }}>
+            <span style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", letterSpacing: ".1em", textTransform: "uppercase", color: "var(--pb-muted)" }}>Map</span>
+            <div style={{ display: "inline-flex", gap: 2, background: "rgba(127,138,130,.14)", border: "1px solid var(--pb-line)", borderRadius: 999, padding: 3 }}>
+              {[["auto", "Auto"], ["dark", "Dark"], ["light", "Terrain"]].map(([k, lbl]) => (
+                <button key={k} type="button" aria-pressed={mapPref === k}
+                  onClick={() => { setMapPrefState(k); setMapPrefs(k === "auto" ? { theme: "auto", type: "auto" } : k === "dark" ? { theme: "dark", type: "roadmap" } : { theme: "light", type: "terrain" }); }}
+                  style={{ cursor: "pointer", fontFamily: "inherit", fontSize: ".76rem", fontWeight: mapPref === k ? 700 : 600, border: "none", borderRadius: 999, padding: "6px 12px", background: mapPref === k ? "var(--pb-grad-gold)" : "transparent", color: mapPref === k ? "var(--pb-bg)" : "var(--pb-ink-2)" }}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ height: 1, background: "var(--pb-line)", margin: "2px 2px" }} />
           <div style={{ display: "flex", gap: 18, padding: "2px 4px" }}>
             <Link href="/terms" onClick={() => setMenuOpen(false)} style={{ fontFamily: "var(--pb-mono)", fontSize: ".62rem", letterSpacing: ".08em", textTransform: "uppercase", color: "var(--pb-muted)", textDecoration: "none" }}>Terms</Link>
@@ -518,7 +540,11 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
         </div>
       )}
 
-      <style>{`
+      {/* dangerouslySetInnerHTML is LOAD-BEARING (5th bite of the same bug):
+          a style tag rendered as a text child gets HTML-escaped by the server
+          but not the client — any apostrophe or quoted attribute selector in
+          this CSS fails hydration for the whole document. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 860px) {
           /* Phone: the desktop pill + account cluster give way to the where-you-are
              bubble + an account hamburger sitting outside it. */
@@ -528,6 +554,12 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
           .pb-mobile-burger { display: inline-flex !important; }
           /* Chromeless pages (Pines) draw their own top toggle — hide the island. */
           .pb-chromeless { display: none !important; }
+        }
+        /* Gold hover on every top-nav item — the platform's one hover language.
+           !important because the links carry inline colors; the active gold
+           bubble is excluded (gold text on a gold bubble would vanish). */
+        @media (hover: hover) {
+          .pb-nav-links a:not([aria-current="page"]):hover { color: var(--pb-gold) !important; }
         }
         /* Desktop mega-menu boxes (mirror the phone section-sheet tiles). */
         .pb-megabox { transition: transform .16s ease, border-color .22s, background .22s; }
@@ -545,7 +577,7 @@ export default function SiteHeader({ active, solid = false, tripCount = null, on
              server/client escaping mismatch (hydration error). */
           .pb-nav-pill, .pb-nav-actions, .pb-mobile-bubble,
           .pb-mobile-burger, .pb-mobile-menu, .pb-bare-hide { display: none !important; }` : ""}
-      `}</style>
+      ` }} />
 
       {/* Platform-wide trip planner dialog — auto-opens on any add-to-trip. */}
       <TripModal />

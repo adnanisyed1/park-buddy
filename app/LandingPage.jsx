@@ -236,16 +236,15 @@ function useOverture({ ovRef, canvasRef, badgeRef, sealRef, skipRef, heroSeedRef
   useIsoLayoutEffect(() => {
     const ov = ovRef.current, canvas = canvasRef.current, badge = badgeRef.current, seal = sealRef.current, skipBtn = skipRef.current;
     if (!ov || !canvas || !badge) return undefined;
-    let seen = false;
-    try { seen = sessionStorage.getItem("pb_overture") === "1"; } catch {}
+    // Owner call 2026-07-23: the overture is the page's opening ritual and
+    // plays on EVERY load/refresh (the session gate is gone). Skip stays one
+    // keypress away for anyone in a hurry.
     const timeouts = [];
     let raf = null, finished = false;
     const markDone = () => {
-      try { sessionStorage.setItem("pb_overture", "1"); } catch {}
       ov.classList.add("gone");
       timeouts.push(setTimeout(() => { ov.style.display = "none"; }, 650));
     };
-    if (seen) { ov.style.display = "none"; reveal(); return undefined; }
     const RM = prefersReduced();
     const skip = () => { if (finished) return; finished = true; if (raf) cancelAnimationFrame(raf); reveal(); markDone(); };
     const onKey = (e) => { if (e.key === "Enter") skip(); };
@@ -278,11 +277,13 @@ function useOverture({ ovRef, canvasRef, badgeRef, sealRef, skipRef, heroSeedRef
     function size() { const d = fitCanvas(canvas); W = d.w; H = d.h; cx = W / 2; groundY = H * 0.6; treeH = Math.min(H * 0.34, 320); layoutCenter(); }
     // timeline knobs (ms) — prototype values; LETTERS phase dropped (the PNG
     // badge carries the wordmark itself).
-    const STAG = 110, APP = 720, B0 = 140;
+    // Stretched ~2s over the prototype (owner call 2026-07-23): slower bird
+    // arrivals, a fuller coronation orbit, a longer seal + glide. ~5.3s total.
+    const STAG = 150, APP = 1000, B0 = 200;
     const LAST = B0 + 4 * STAG + APP;
-    const ORBIT_S = LAST + 120, ORBIT_E = ORBIT_S + 560, SCAT_E = ORBIT_E + 320;
-    const BADGE_IN = LAST + 120, SEAL_S = BADGE_IN + 520, SEAL_E = SEAL_S + 560;
-    const GLIDE_S = SEAL_E + 120, GLIDE_E = GLIDE_S + 680, DONE = GLIDE_E + 40;
+    const ORBIT_S = LAST + 160, ORBIT_E = ORBIT_S + 900, SCAT_E = ORBIT_E + 500;
+    const BADGE_IN = LAST + 160, SEAL_S = BADGE_IN + 700, SEAL_E = SEAL_S + 800;
+    const GLIDE_S = SEAL_E + 160, GLIDE_E = GLIDE_S + 900, DONE = GLIDE_E + 60;
     const corners = [[-0.1, -0.05], [1.1, -0.02], [-0.08, 0.5], [1.08, 0.55], [0.5, -0.12]];
     const labels = ["NPS", "NWS", "USGS", "BUDDIES", "USFS"];
     let birds = [];
@@ -1698,7 +1699,9 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 .pbl5 .verdict-chip .sep{color:var(--pb-muted);}
 .pbl5 .verdict-chip b{color:var(--pb-go); font-weight:600; letter-spacing:.06em; font-size:12px; font-family:var(--pb-mono);}
 .pbl5 .verdict-chip b.muted-b{color:var(--pb-muted);}
-.pbl5 .hero-h1{font-size:clamp(48px,10vw,112px); max-width:14ch; margin:0 auto;}
+/* 8.2vw / 96px cap: 10vw/112px clipped the second line off the right edge
+   on ~1100-1300px viewports. */
+.pbl5 .hero-h1{font-size:clamp(44px,8.2vw,96px); max-width:14ch; margin:0 auto;}
 .pbl5 .hero-h1 .word{display:inline-block; opacity:0; transform:translateY(38px) scale(.96); filter:blur(10px);}
 .pbl5 .hero-h1 .word.on{opacity:1; transform:none; filter:blur(0); transition:opacity .8s cubic-bezier(.23,1,.32,1), transform .8s cubic-bezier(.23,1,.32,1), filter .8s ease;}
 .pbl5 .hero-h1 em{font-style:italic; background:var(--pb-grad-gold); -webkit-background-clip:text; background-clip:text; color:transparent;}

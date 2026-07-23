@@ -624,6 +624,7 @@ export default function ExploreSplit() {
   const mapEl = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const markerSigRef = useRef(""); // last drawn marker-set signature (flicker guard)
   const originRef = useRef(null);
   const ringRef = useRef(null);
   const [mapOk, setMapOk] = useState(null);   // null = trying
@@ -677,12 +678,30 @@ export default function ExploreSplit() {
     const map = mapRef.current;
     if (!g || !map) return;
 
-    markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = [];
-
     // With a place open the map belongs to that place: show only it, and don't
     // re-fit to the whole result set (that would fight the zoom-in below).
     const list = sel ? shown.filter((p) => p.key === sel.key) : shown;
+
+    // The verdict sweep resolves park by park, and each arrival used to tear
+    // down EVERY marker and rebuild it — the whole map flickered for the
+    // duration of the sweep, and fitBounds re-ran too. If the visible set
+    // itself hasn't changed, restyle the existing markers in place instead.
+    const sig = (sel ? "S:" + sel.key : "A") + "|" + list.map((p) => p.key).join(",") +
+      "|" + (origin ? origin.lat + "," + origin.lng + "," + (radius || 0) : "none");
+    if (sig === markerSigRef.current && markersRef.current.length === list.length) {
+      list.forEach((p, i) => {
+        const on = picked.has(p.key);
+        const m = markersRef.current[i];
+        m.setIcon(numIcon(g, sel ? shown.indexOf(p) + 1 : i + 1, on || !!sel, verdicts[p.name]));
+        m.setTitle(p.name + (verdicts[p.name] ? " · " + verdicts[p.name].toUpperCase() : ""));
+        m.setZIndex(on ? 20 : 10);
+      });
+      return;
+    }
+    markerSigRef.current = sig;
+
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
 
     list.forEach((p, i) => {
       const on = picked.has(p.key);

@@ -494,6 +494,49 @@ function useHeroCanvas({ canvasRef, heroRef, heroSeedRef }) {
   }, []);
 }
 
+/* ── page-wide glow: the hero's gold fireflies, extended over the WHOLE page
+   (owner call 2026-07-23). A FIXED viewport-sized canvas behind every content
+   wrapper (z:1, wrappers z:6), so the motes drift over whatever section is on
+   screen as you scroll. Sparser than the hero field — ambient, not the star.
+   Pauses on document.hidden; reduced-motion paints one still frame. */
+function usePageGlow({ canvasRef }) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const RM = prefersReduced();
+    const ctx = canvas.getContext("2d");
+    let W = 0, H = 0, raf = null, running = false, motes = [];
+    const newMote = () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.5, vx: (Math.random() - 0.5) * 0.1, vy: -(Math.random() * 0.2 + 0.04), a: Math.random() * 0.5 + 0.15, tw: Math.random() * 6.28, ts: Math.random() * 0.025 + 0.006 });
+    function build() {
+      const d = fitCanvas(canvas); W = d.w; H = d.h;
+      const target = Math.min(RM ? 26 : 44, Math.round((W * H) / 42000));
+      motes = []; for (let i = 0; i < target; i++) motes.push(newMote());
+    }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      const gold = goldRGB(isLightTheme());
+      for (let m = 0; m < motes.length; m++) {
+        const o = motes[m];
+        o.x += o.vx; o.y += o.vy; o.tw += o.ts;
+        if (o.y < -10 || o.x < -20 || o.x > W + 20) { motes[m] = newMote(); motes[m].y = H + 8; continue; }
+        const fl = 0.5 + Math.sin(o.tw) * 0.5;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832);
+        ctx.fillStyle = "rgba(" + gold[0] + "," + gold[1] + "," + gold[2] + "," + (o.a * fl) + ")";
+        ctx.shadowColor = "rgba(" + gold[0] + "," + gold[1] + "," + gold[2] + ",.85)"; ctx.shadowBlur = o.r * 4; ctx.fill(); ctx.shadowBlur = 0;
+      }
+    }
+    function loop() { draw(); raf = requestAnimationFrame(loop); }
+    function startC() { if (running) return; running = true; if (RM) { draw(); return; } loop(); }
+    function stopC() { running = false; if (raf) cancelAnimationFrame(raf); raf = null; }
+    const ro = new ResizeObserver(build); ro.observe(canvas); build();
+    const onVis = () => { document.hidden ? stopC() : startC(); };
+    document.addEventListener("visibilitychange", onVis);
+    startC();
+    return () => { stopC(); ro.disconnect(); document.removeEventListener("visibilitychange", onVis); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 /* ── page-wide flock: ~6 calligraphic gulls on a fixed canvas. The prototype
    sampled document.elementFromPoint per feather; here plain z-layering does it
    (canvas z:5, content wrappers z:6) — the README's own suggested swap. */
@@ -1132,8 +1175,8 @@ export default function LandingPage() {
   // Page-wide flock retired (owner call 2026-07-22: constant birds over the
   // content read as noise). The birds keep their two meaningful homes — the
   // overture, and the fireflies they dissolve into. useFlock kept below for
-  // an easy re-enable.
-  // useFlock({ canvasRef: birdsRef });
+  // an easy re-enable. In its place: the hero's gold glow, page-wide.
+  usePageGlow({ canvasRef: birdsRef });
   useAtlas({ canvasRef: atlasCanvasRef, sectionRef: atlasRef, activeRef: atlasActiveRef, hoverLockRef: atlasHoverLock, setActive: setAtlasActive, apiRef: atlasApiRef });
   useStage({ canvasRef: stageCanvasRef, sectionRef: stageSecRef, stateRef: stageStateRef, tickFillRefs, advance: stageAdvance, apiRef: stageApiRef });
   useFilament({ canvasRef: filamentRef, sectionRef: engineRef });
@@ -1235,8 +1278,8 @@ export default function LandingPage() {
 
       <SiteHeader active={null} acctSlot />
 
-      {/* page-wide flock retired with its hook above — canvas stays out of the
-          DOM entirely so nothing paints or resizes for it. */}
+      {/* page-wide ambient glow — fixed, behind every content wrapper (z:1). */}
+      <canvas ref={birdsRef} className="pbl5-glow" aria-hidden="true" />
 
       <main>
         {/* ACT I — the living forest. Data: hero chip ← Verdict Engine (NWS)
@@ -1629,7 +1672,7 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 .pbl5 .photo-slot .mono{color:var(--pb-gold-soft); opacity:.8;}
 
 /* page-wide flock: above section backgrounds (z:auto), below .wrap (z:6) */
-.pbl5 .pbl5-birds{position:fixed; inset:0; z-index:5; width:100%; height:100vh; pointer-events:none;}
+.pbl5 .pbl5-glow{position:fixed; inset:0; z-index:5; width:100%; height:100vh; pointer-events:none;}
 
 /* ── overture ── */
 .pbl5 #overture{position:fixed; inset:0; z-index:200; background:var(--pb-bg-2); overflow:hidden;
@@ -1738,7 +1781,7 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 @keyframes cue{0%{top:-14px; opacity:0;} 30%{opacity:1;} 100%{top:40px; opacity:0;}}
 
 /* ── ACT II — atlas ── */
-.pbl5 #atlas{padding:110px 0 120px; background:linear-gradient(180deg,var(--pb-bg),var(--pb-bg-2));}
+.pbl5 #atlas{padding:34px 0 40px; background:linear-gradient(180deg,var(--pb-bg),var(--pb-bg-2));}
 .pbl5 .atlas-head{text-align:center; max-width:760px; margin:0 auto 40px;}
 .pbl5 .atlas-head h2{font-size:clamp(34px,5vw,58px);}
 .pbl5 .atlas-head p{color:var(--pb-ink-2); margin-top:16px; font-size:17px;}
@@ -1764,7 +1807,7 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 .pbl5 .atlas-hint{text-align:center; margin-top:16px;}
 
 /* ── ACT III — stage ── */
-.pbl5 #stage{padding:120px 0 130px; background:var(--pb-bg-2);}
+.pbl5 #stage{padding:38px 0 42px; background:var(--pb-bg-2);}
 .pbl5 .stage-head{text-align:center; max-width:720px; margin:0 auto 54px;}
 .pbl5 .stage-head h2{font-size:clamp(34px,5vw,58px);}
 .pbl5 .stage-head p{color:var(--pb-ink-2); margin-top:16px; font-size:17px;}
@@ -1808,7 +1851,7 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 .pbl5 .stage-hint{text-align:center; margin-top:16px;}
 
 /* ── ACT IV — engine ── */
-.pbl5 #engine{padding:120px 0 120px; background:linear-gradient(180deg,var(--pb-bg-2),var(--pb-bg));}
+.pbl5 #engine{padding:38px 0 38px; background:linear-gradient(180deg,var(--pb-bg-2),var(--pb-bg));}
 .pbl5 .engine-head{text-align:center; max-width:760px; margin:0 auto 56px;}
 .pbl5 .engine-head h2{font-size:clamp(34px,5vw,58px);}
 .pbl5 .engine-head p{color:var(--pb-ink-2); margin-top:16px; font-size:17px;}
@@ -1870,7 +1913,7 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 .pbl5 .flip-hint{margin-top:auto; padding-top:12px; color:var(--pb-muted); font-family:var(--pb-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;}
 
 /* ── ACT V — pines ── */
-.pbl5 #pines{padding:120px 0 120px; background:linear-gradient(180deg,var(--pb-bg),var(--pb-bg-2));}
+.pbl5 #pines{padding:38px 0 38px; background:linear-gradient(180deg,var(--pb-bg),var(--pb-bg-2));}
 .pbl5 .pines-head{text-align:center; max-width:720px; margin:0 auto 56px;}
 .pbl5 .pines-head h2{font-size:clamp(34px,5vw,58px);}
 .pbl5 .pines-head p{color:var(--pb-ink-2); margin-top:16px; font-size:17px;}
@@ -1919,7 +1962,7 @@ html[data-theme="light"] .pbl5 #cta, html[data-theme="light"] .pbl5 #footer{
 .pbl5 .book-copy .feats span{font-family:var(--pb-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--pb-gold-soft);}
 
 /* ── ACT VI — the close (close.jpg under the cream→green transition) ── */
-.pbl5 #cta{padding:210px 0 110px; text-align:center; color:var(--pb-ink); overflow:hidden;}
+.pbl5 #cta{padding:64px 0 40px; text-align:center; color:var(--pb-ink); overflow:hidden;}
 .pbl5 .cta-bg{position:absolute; inset:0; z-index:0; background:url(/media/landing/close.jpg) center/cover no-repeat;}
 .pbl5 .cta-grad{position:absolute; inset:0; z-index:1;
   background:linear-gradient(180deg,var(--pb-bg-2),var(--pb-bg-3) 260px);}

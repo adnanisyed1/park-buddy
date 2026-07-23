@@ -20,7 +20,6 @@ import loadScript from "../../components/load-script";
 import { getSunTimes, getMoon, fmtTime } from "../../lib/sunmoon";
 import { addStop, inTrip } from "../../lib/trip";
 import { townHref } from "../../lib/townLink";
-import ToursNearby from "../../components/ToursNearby";
 
 const serif = "var(--pb-serif)", mono = "var(--pb-mono)";
 // These flip per theme (globals.css defines a darker set for light, because the
@@ -63,6 +62,7 @@ const TABS = [
   ["conditions", "Conditions"],
   ["trails", "Trails & permits"],
   ["plan", "Plan"],
+  ["todo", "Things to do"],
   ["nearby", "Nearby"],
 ];
 const ALERT_DEFS = [
@@ -415,6 +415,7 @@ export default function ParkStatusV2({ id, kind = "park" }) {
           {tab === "conditions" && <Conditions park={park} cond={cond} road={road} hourly={hourly} daily={daily} webcams={webcams} river={river} tz={tz} alertsRef={alertsRef} isForest={isForest} isStatePark={isStatePark} />}
           {tab === "trails" && <TrailsPermits park={park} trails={trails} isForest={isForest} isStatePark={isStatePark} areaQ={areaQ} />}
           {tab === "plan" && <Plan park={park} nps={nps} places={places} isForest={isForest} isStatePark={isStatePark} areaQ={areaQ} />}
+          {tab === "todo" && <ThingsToDoTab park={park} isNP={isNP} />}
           {tab === "nearby" && <Nearby park={park} nearby={nearby} radius={radius} setRadius={setRadius} />}
         </div>
       </main>
@@ -1269,7 +1270,139 @@ function Nearby({ park, nearby, radius, setRadius }) {
           </div>
         );
       })}
-      {park && park.lat != null && <ToursNearby lat={park.lat} lng={park.lng} name={park.name} />}
+    </>
+  );
+}
+
+// ---- Things to do — its own tab (owner call 2026-07-22), two honest halves:
+// bookable Viator tours (commission-earning, cards open OUR /tours/[code]
+// listing pages) and the NPS's own ranger-curated activities (free with entry,
+// cards open our /todo-status reference page). Each section renders only when
+// its data is real; while loading, a labeled skeleton — never a blank tab.
+function todoStatusHref(t, pc) {
+  const qs = new URLSearchParams({ t: t.title, pc: pc || "" });
+  if (t.short) qs.set("d", t.short);
+  if (t.img) qs.set("img", t.img);
+  if (t.duration) qs.set("dur", t.duration);
+  if (t.url) qs.set("url", t.url);
+  if (t.lat != null && t.lng != null) { qs.set("lat", t.lat); qs.set("lng", t.lng); }
+  if (t.activities && t.activities.length) qs.set("act", t.activities.join("|"));
+  if (t.reservation) qs.set("res", "1");
+  return "/todo-status?" + qs.toString();
+}
+
+function ThingsToDoTab({ park, isNP }) {
+  const [tours, setTours] = useState(null);  // null loading, [] none
+  const [todos, setTodos] = useState(null);
+
+  useEffect(() => {
+    if (!park || park.lat == null) return;
+    let dead = false;
+    fetch("/api/tours?lat=" + park.lat.toFixed(4) + "&lng=" + park.lng.toFixed(4) + "&limit=12")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!dead) setTours(d && Array.isArray(d.tours) ? d.tours : []); })
+      .catch(() => { if (!dead) setTours([]); });
+    if (isNP && park.npsCode) {
+      fetch("/api/thingstodo?parkCode=" + encodeURIComponent(park.npsCode))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (!dead) setTodos(d && Array.isArray(d.items) ? d.items : []); })
+        .catch(() => { if (!dead) setTodos([]); });
+    } else {
+      setTodos([]);
+    }
+    return () => { dead = true; };
+  }, [park && park.name]);
+
+  const loading = tours === null || todos === null;
+  const nothing = !loading && !tours.length && !todos.length;
+
+  const skeleton = (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} style={{ ...card, padding: 0, overflow: "hidden" }}>
+          <div style={{ aspectRatio: "16/10", background: "var(--pb-tint)" }} />
+          <div style={{ padding: "12px 14px" }}>
+            <div style={{ height: 12, width: "80%", borderRadius: 6, background: "var(--pb-tint)" }} />
+            <div style={{ height: 10, width: "45%", borderRadius: 6, background: "var(--pb-tint)", marginTop: 8 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 18 }}>
+        <h2 style={H2}>Things to do</h2>
+        <span style={{ ...microLabel, letterSpacing: ".12em" }}>Real inventory · nothing invented</span>
+      </div>
+
+      {loading && skeleton}
+
+      {nothing && (
+        <div style={{ ...card, textAlign: "center", color: "var(--pb-muted)", padding: "22px 16px" }}>
+          No bookable tours or curated activities are published for this area yet — the trails, drives and lakes on the other tabs are the real inventory here.
+        </div>
+      )}
+
+      {!loading && tours.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <div style={{ ...microLabel, letterSpacing: ".12em" }}>🎟 Guided &amp; bookable · {tours.length}</div>
+            <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Real tours from Viator — booking earns Park Buddy a commission at no cost to you.</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
+            {tours.map((t) => (
+              <a key={t.code || t.url} href={t.code ? "/tours/" + t.code : t.url}
+                {...(t.code ? {} : { target: "_blank", rel: "sponsored noopener noreferrer" })}
+                style={{ ...card, padding: 0, overflow: "hidden", display: "flex", flexDirection: "column", textDecoration: "none", color: "var(--pb-ink)" }}>
+                {t.photo ? (
+                  <img src={t.photo} alt="" loading="lazy" style={{ width: "100%", aspectRatio: "16/10", objectFit: "cover", display: "block" }} />
+                ) : (
+                  <div aria-hidden style={{ width: "100%", aspectRatio: "16/10", background: "var(--pb-tint)" }} />
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 14px 14px", flex: 1 }}>
+                  <div style={{ fontSize: ".88rem", fontWeight: 800, lineHeight: 1.3 }}>{t.title}</div>
+                  <div style={{ ...microLabel, display: "flex", gap: 9, flexWrap: "wrap" }}>
+                    {t.rating != null && <span>★ {t.rating}{t.reviews ? " (" + t.reviews + ")" : ""}</span>}
+                    {t.durationHours != null && <span>{t.durationHours} hr</span>}
+                  </div>
+                  <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    {t.fromPrice != null ? <span style={{ fontSize: ".86rem", fontWeight: 700 }}>from ${Math.round(t.fromPrice)}</span> : <span />}
+                    <span style={{ ...microLabel, color: "var(--pb-gold)" }}>See the tour →</span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && todos.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <div style={{ ...microLabel, letterSpacing: ".12em" }}>🥾 Free with your park entry · {todos.length}</div>
+            <span style={{ fontSize: ".72rem", color: "var(--pb-muted)" }}>Curated by National Park Service rangers.</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
+            {todos.map((t, i) => (
+              <a key={i} href={todoStatusHref(t, park.npsCode)}
+                style={{ ...card, padding: 0, overflow: "hidden", display: "block", textDecoration: "none", color: "var(--pb-ink)" }}>
+                <figure style={{ position: "relative", aspectRatio: "16/10", margin: 0, overflow: "hidden", background: "var(--pb-tint)" }}>
+                  {t.img && <img src={t.img} alt={t.title} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />}
+                </figure>
+                <div style={{ padding: "12px 14px" }}>
+                  <div style={{ fontSize: ".88rem", fontWeight: 800, lineHeight: 1.3 }}>{t.title}</div>
+                  <div style={{ ...microLabel, marginTop: 4 }}>
+                    {[(t.activities || [])[0], t.duration, t.reservation ? "Reservation" : null].filter(Boolean).join(" · ") || "NPS activity"}
+                  </div>
+                  {t.short && <div style={{ fontSize: ".76rem", color: "var(--pb-muted)", lineHeight: 1.5, marginTop: 5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.short}</div>}
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }

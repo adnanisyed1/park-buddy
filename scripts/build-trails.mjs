@@ -96,6 +96,14 @@ async function overpass(query) {
   return null; // unreachable after 4 tries across all endpoints
 }
 
+// Exact OSM boundary names for parks whose auto-generated candidates miss —
+// diacritics/format quirks Overpass matches literally (verified via Overpass).
+// Keyed by NPS UNITCODE; these are tried FIRST.
+const NAME_OVERRIDE = {
+  HAVO: ["Hawaiʻi Volcanoes National Park", "Volcanoes National Park"],
+  WRST: ["Wrangell-St. Elias National Park and Preserve", "Wrangell – St. Elias National Park and Preserve"],
+};
+
 // Candidate OSM area names for a park, most-likely first.
 function candidates(name) {
   const base = name.trim();
@@ -339,7 +347,7 @@ function render(rawData, { cap, eps, maxPts }) {
     const unitName = unitNames[code] || `${p.name} National Park`;
 
     let matchedName = null, elements = null, unreachable = false;
-    for (const cand of candidates(p.name)) {
+    for (const cand of [...(NAME_OVERRIDE[code] || []), ...candidates(p.name)]) {
       const res = await overpass(buildQuery(cand));
       if (res === null) { unreachable = true; break; } // total overpass failure
       const els = res.elements || [];

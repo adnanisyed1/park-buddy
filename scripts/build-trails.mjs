@@ -101,7 +101,7 @@ async function overpass(query) {
 // Keyed by NPS UNITCODE; these are tried FIRST.
 const NAME_OVERRIDE = {
   HAVO: ["Hawaiʻi Volcanoes National Park", "Volcanoes National Park"],
-  WRST: ["Wrangell-St. Elias National Park and Preserve", "Wrangell – St. Elias National Park and Preserve"],
+  WRST: ["Wrangell-Saint Elias National Park", "Wrangell - St Elias National Park and Preserve"],
 };
 
 // Candidate OSM area names for a park, most-likely first.

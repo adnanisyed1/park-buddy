@@ -43,6 +43,62 @@ function bucketsFromStore(list) {
 
 const NPS_TRAILS_URL = "https://mapservices.nps.gov/arcgis/rest/services/NationalDatasets/NPS_Public_Trails/FeatureServer/0/query";
 
+// The stored path is simplified (~9 pts/mi) to keep the whole-country file
+// small — great for list thumbnails, but on the single-trail detail map it cut
+// across switchbacks and read as "off" against Google's basemap. For an
+// osm-… id lookup (one trail, dedicated map) we fetch that object's FULL node
+// geometry from the OSM API — crisp, no bloat to trail-data.json. Cached
+// per-instance + a week at the edge; any failure falls back to the stored path.
+const OSM_API = "https://api.openstreetmap.org/api/0.6";
+const _fineCache = new Map();
+function stitchWays(ways) {
+  if (!ways.length) return null;
+  const near = (a, b) => Math.abs(a[0] - b[0]) < 0.0006 && Math.abs(a[1] - b[1]) < 0.0006;
+  const used = new Array(ways.length).fill(false);
+  let cur = ways[0].slice(); used[0] = true;
+  let added = true;
+  while (added) {
+    added = false;
+    for (let i = 0; i < ways.length; i++) {
+      if (used[i]) continue;
+      const w = ways[i], head = cur[0], tail = cur[cur.length - 1];
+      if (near(tail, w[0])) { cur = cur.concat(w.slice(1)); used[i] = added = true; }
+      else if (near(tail, w[w.length - 1])) { cur = cur.concat(w.slice().reverse().slice(1)); used[i] = added = true; }
+      else if (near(head, w[w.length - 1])) { cur = w.slice(0, -1).concat(cur); used[i] = added = true; }
+      else if (near(head, w[0])) { cur = w.slice().reverse().slice(0, -1).concat(cur); used[i] = added = true; }
+    }
+  }
+  return cur;
+}
+async function fetchOsmFine(osmId) {
+  if (_fineCache.has(osmId)) return _fineCache.get(osmId);
+  const m = /^osm-([wr])(\d+)$/.exec(osmId);
+  if (!m) return null;
+  const type = m[1] === "w" ? "way" : "relation";
+  try {
+    const r = await fetch(OSM_API + "/" + type + "/" + m[2] + "/full.json", {
+      headers: { "User-Agent": "ParkBuddy/1.0 (theparkbuddy.com)" },
+      next: { revalidate: 604800 }, signal: AbortSignal.timeout(9000),
+    });
+    if (!r.ok) { _fineCache.set(osmId, null); return null; }
+    const d = await r.json();
+    const nodes = {};
+    for (const el of d.elements || []) if (el.type === "node") nodes[el.id] = [+el.lat.toFixed(6), +el.lon.toFixed(6)];
+    let path;
+    if (type === "way") {
+      const w = (d.elements || []).find((e) => e.type === "way");
+      path = w ? w.nodes.map((n) => nodes[n]).filter(Boolean) : null;
+    } else {
+      const ways = (d.elements || []).filter((e) => e.type === "way").map((w) => w.nodes.map((n) => nodes[n]).filter(Boolean)).filter((a) => a.length > 1);
+      path = stitchWays(ways);
+    }
+    if (!path || path.length < 2) { _fineCache.set(osmId, null); return null; }
+    if (path.length > 3000) { const step = Math.ceil(path.length / 3000); path = path.filter((_, i) => i % step === 0 || i === path.length - 1); }
+    _fineCache.set(osmId, path);
+    return path;
+  } catch { _fineCache.set(osmId, null); return null; }
+}
+
 function num(v) { const n = parseFloat(v); return isFinite(n) ? n : null; }
 
 // TRLUSE is free text (not a clean coded domain) — e.g. "Hiker/Pedestrian",
@@ -183,7 +239,10 @@ export async function GET(request) {
     if (String(id).startsWith("osm-")) {
       for (const list of Object.values(TRAIL_DATA)) {
         const t = (list || []).find((x) => x.id === id);
-        if (t) return Response.json({ trail: { ...t, category: t.category || "hiking" }, credit: "© OpenStreetMap contributors (ODbL)" });
+        if (t) {
+          const fine = await fetchOsmFine(id); // crisp line for the zoomed-in detail map
+          return Response.json({ trail: { ...t, category: t.category || "hiking", path: fine || t.path }, credit: "© OpenStreetMap contributors (ODbL)" });
+        }
       }
       return Response.json({ trail: null });
     }
